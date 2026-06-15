@@ -481,9 +481,9 @@ function App() {
                         {rev.band || 'Unknown Band'} – {rev.album || 'Untitled Album'}
                       </Heading>
                       {/* Genre tags — only rendered when genre data is available */}
-                      {rev.genre.length > 0 && (
+                      {(rev.genre ?? []).length > 0 && (
                         <Wrap spacing={1} mb={1}>
-                          {rev.genre.map((g) => (
+                          {(rev.genre ?? []).map((g) => (
                             <WrapItem key={g}>
                               <Tag
                                 size="sm"
