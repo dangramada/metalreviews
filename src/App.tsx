@@ -9,7 +9,6 @@
 //   ArtworkBlock — a small self-contained component that renders one card's image
 //   App          — the root component: state, data fetching, controls, and the card grid
 
-
 // --- React core ---
 // useEffect: runs code after the component renders (used here to load reviews.json on startup)
 // useState: declares a reactive variable — when it changes, React re-renders the component
@@ -19,28 +18,29 @@ import React, { useEffect, useState } from 'react';
 // Chakra provides pre-built, themeable UI components so we don't write raw CSS.
 // Each import is a building block: Box = a div, Flex = a flexbox div, etc.
 import {
-  Box,        // General-purpose container (renders as a <div>)
+  Box, // General-purpose container (renders as a <div>)
   Button,
   Heading,
   Text,
-  VStack,     // Vertical stack — children laid out top-to-bottom with equal spacing
-  Container,  // Centres content and caps its max width
+  VStack, // Vertical stack — children laid out top-to-bottom with equal spacing
+  Container, // Centres content and caps its max width
   Input,
   Select,
   SimpleGrid, // Responsive grid that adjusts column count at different screen sizes
-  Badge,      // Small label pill (used for the source name on each card)
-  Flex,       // Flexbox container — used for the controls bar and card header
-  Spacer,     // Pushes flex siblings apart (fills remaining space between them)
-  Spinner,    // Animated loading indicator
-  Link,       // Anchor tag with Chakra styling — wraps each card so the whole card is clickable
+  Tag, // Small label for genre tags in card body
+  Wrap, // Wrapper for flexible layout of tags
+  WrapItem, // Item inside Wrap for each individual tag
+  Flex, // Flexbox container — used for the controls bar and card header
+  Spacer, // Pushes flex siblings apart (fills remaining space between them)
+  Spinner, // Animated loading indicator
+  Link, // Anchor tag with Chakra styling — wraps each card so the whole card is clickable
   Image,
-  Skeleton,   // Shimmer placeholder shown while an image loads
-  useToast,   // Hook that triggers a temporary notification pop-up
+  Skeleton, // Shimmer placeholder shown while an image loads
+  useToast, // Hook that triggers a temporary notification pop-up
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
 import { CheckIcon, RepeatIcon, WarningIcon } from '@chakra-ui/icons';
-
 
 // =============================================================================
 // TYPE DEFINITION
@@ -60,18 +60,17 @@ interface Review {
   source: string;
   band: string;
   album: string;
-  genre: string[];           // Always [] — genre extraction is not yet implemented
-  score: string;             // Raw score as stored, e.g. "8.5/10"
+  genre: string[]; // Top-3 genres from MusicBrainz ([] when unknown)
+  score: string; // Raw score as stored, e.g. "8.5/10"
   summary: string;
   url: string;
-  publishedAt: string;       // ISO date string, used for date sorting
-  publishedDate: string;     // Formatted display date, e.g. "14 Jun 2026"
-  normalizedScore: number;   // 0–100, used for score sorting
+  publishedAt: string; // ISO date string, used for date sorting
+  publishedDate: string; // Formatted display date, e.g. "14 Jun 2026"
+  normalizedScore: number; // 0–100, used for score sorting
   artworkUrl: string | null;
   isDoublePositive?: boolean; // Legacy field — Double Positive feature was removed,
-                              // but the field is kept so old reviews.json files don't break
+  // but the field is kept so old reviews.json files don't break
 }
-
 
 // =============================================================================
 // ARTWORKBLOCK COMPONENT
@@ -95,7 +94,7 @@ function ArtworkBlock({ rev }: { rev: Review }) {
           <Image
             src={rev.artworkUrl}
             alt={`${rev.band} – ${rev.album}`}
-            objectFit="cover"  // Fills the box without distortion, cropping if needed
+            objectFit="cover" // Fills the box without distortion, cropping if needed
             w="100%"
             h="100%"
             position="absolute"
@@ -131,8 +130,12 @@ function ArtworkBlock({ rev }: { rev: Review }) {
           align="center"
           justify="center"
         >
-          <Text fontSize="3xl" color="text.muted">♪</Text>
-          <Text fontSize="xs" color="text.muted">No artwork found</Text>
+          <Text fontSize="3xl" color="text.muted">
+            ♪
+          </Text>
+          <Text fontSize="xs" color="text.muted">
+            No artwork found
+          </Text>
         </Flex>
       )}
 
@@ -181,7 +184,6 @@ function ArtworkBlock({ rev }: { rev: Review }) {
 }
 
 function App() {
-
   // =============================================================================
   // STATE
   // =============================================================================
@@ -208,11 +210,12 @@ function App() {
   //   'loading' → ingest running, shows spinner, button disabled
   //   'success' → new data arrived, shows checkmark for 3s then resets
   //   'error'   → something went wrong, shows warning icon for 3s then resets
-  const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    'idle'
+  );
 
   // Calling toast({...}) shows a temporary notification pop-up in the corner.
   const toast = useToast();
-
 
   // =============================================================================
   // REFRESH: trigger a new ingest run and poll for results
@@ -227,7 +230,12 @@ function App() {
       if (res.status === 409) {
         // 409 Conflict: server returns this when an ingest is already running.
         // Show a warning and return to idle without starting the poll loop.
-        toast({ title: 'Ingest already running, please wait', status: 'warning', duration: 4000, isClosable: true });
+        toast({
+          title: 'Ingest already running, please wait',
+          status: 'warning',
+          duration: 4000,
+          isClosable: true,
+        });
         setRefreshState('idle');
         return;
       }
@@ -274,7 +282,6 @@ function App() {
     }
   }
 
-
   // =============================================================================
   // INITIAL DATA LOAD
   // =============================================================================
@@ -294,7 +301,6 @@ function App() {
         setLoading(false); // Stop the spinner even on failure
       });
   }, []); // [] = run once on mount, never re-run
-
 
   // =============================================================================
   // FILTERING, SEARCHING, AND SORTING
@@ -325,7 +331,6 @@ function App() {
       return b.normalizedScore - a.normalizedScore; // 0–100, consistent across all sources
     });
 
-
   // =============================================================================
   // SHARED STYLE CONSTANTS
   // =============================================================================
@@ -353,7 +358,6 @@ function App() {
     _hover: { transform: 'scale(1.02)' },
   };
 
-
   // =============================================================================
   // RENDER
   // =============================================================================
@@ -362,7 +366,6 @@ function App() {
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack spacing={6} align="stretch">
-
           {/* Page title — gradient is clipped to the text shape via bgClip="text" */}
           <Heading
             as="h1"
@@ -477,9 +480,23 @@ function App() {
                       <Heading size="md" mb={2}>
                         {rev.band || 'Unknown Band'} – {rev.album || 'Untitled Album'}
                       </Heading>
-                      <Flex align="center" mb={2}>
-                        <Badge>{rev.source}</Badge>
-                      </Flex>
+                      {/* Genre tags — only rendered when genre data is available */}
+                      {rev.genre.length > 0 && (
+                        <Wrap spacing={1} mb={1}>
+                          {rev.genre.map((g) => (
+                            <WrapItem key={g}>
+                              <Tag
+                                size="sm"
+                                bg="whiteAlpha.100"
+                                color="purple.300"
+                                borderRadius="badge"
+                              >
+                                {g}
+                              </Tag>
+                            </WrapItem>
+                          ))}
+                        </Wrap>
+                      )}
                       <Text fontSize="sm" color="text.dim" mb={2}>
                         {rev.publishedDate}
                       </Text>
@@ -500,7 +517,6 @@ function App() {
               No reviews match your criteria.
             </Text>
           )}
-
         </VStack>
       </Container>
     </Box>
