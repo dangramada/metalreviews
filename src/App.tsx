@@ -89,7 +89,7 @@ function ArtworkBlock({ rev }: { rev: Review }) {
     // square aspect ratio. The percentage is relative to the element's *width*,
     // so setting padding-bottom equal to 100% of the width makes height = width.
     // All children are position="absolute" so they fill this square exactly.
-    <Box position="relative" paddingBottom="100%" bg="#1a1a1a">
+    <Box position="relative" paddingBottom="100%" bg="surface.darkest">
       {rev.artworkUrl ? (
         <>
           <Image
@@ -131,10 +131,32 @@ function ArtworkBlock({ rev }: { rev: Review }) {
           align="center"
           justify="center"
         >
-          <Text fontSize="3xl" color="gray.500">♪</Text>
-          <Text fontSize="xs" color="gray.500">No artwork found</Text>
+          <Text fontSize="3xl" color="text.muted">♪</Text>
+          <Text fontSize="xs" color="text.muted">No artwork found</Text>
         </Flex>
       )}
+
+      {/* Source badge — top-left corner of the artwork square.
+          Uses accent.border (teal.500) bg and accent.text (teal.300) text from theme.
+          maxW prevents overflow on narrow cards. */}
+      <Box
+        position="absolute"
+        top={2}
+        left={2}
+        bg="accent.border"
+        color="accent.text"
+        fontSize="xs"
+        fontWeight="semibold"
+        px={2}
+        py="2px"
+        borderRadius="badge"
+        maxW="calc(100% - 16px)"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        whiteSpace="nowrap"
+      >
+        {rev.source}
+      </Box>
 
       {/* Score badge — bottom-right corner of the artwork square.
           Only rendered when the review actually has a score (not all do). */}
@@ -143,9 +165,9 @@ function ArtworkBlock({ rev }: { rev: Review }) {
           position="absolute"
           bottom="2"
           right="2"
-          bg="#c9a227"
-          color="#111111"
-          borderRadius="4px"
+          bg="brand.score"
+          color="brand.scoreText"
+          borderRadius="badge"
           px={2}
           py={1}
           fontSize="xs"
@@ -315,18 +337,18 @@ function App() {
   const controlStyle = {
     size: 'md',
     variant: 'outline',
-    bg: 'gray.800',
-    color: 'white',
-    borderColor: 'gray.600',
+    bg: 'surface.card',
+    color: 'text.primary',
+    borderColor: 'border.default',
   } as const; // `as const` prevents TypeScript from widening these to plain `string`
 
   const cardStyle = {
-    bg: 'gray.800',
-    borderRadius: 'lg',
+    bg: 'surface.card',
+    borderRadius: 'card',
     overflow: 'hidden', // Required — clips the artwork image to the card's rounded corners
     boxShadow: 'md',
     border: '1px solid',
-    borderColor: 'gray.600',
+    borderColor: 'border.default',
     transition: 'transform 0.2s',
     _hover: { transform: 'scale(1.02)' },
   };
@@ -337,7 +359,7 @@ function App() {
   // =============================================================================
 
   return (
-    <Box minH="100vh" bg="gray.900" color="white" py={8}>
+    <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack spacing={6} align="stretch">
 
@@ -346,7 +368,7 @@ function App() {
             as="h1"
             size="xl"
             textAlign="center"
-            bgGradient="linear(to-r, teal.300, blue.500)"
+            bgGradient="linear(to-r, accent.start, accent.end)"
             bgClip="text"
           >
             Metal Reviews Dashboard
@@ -360,7 +382,7 @@ function App() {
               placeholder="Search by band, album..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              _placeholder={{ color: 'gray.400' }}
+              _placeholder={{ color: 'text.dim' }}
             />
             <Spacer />
             {/* sx overrides the native white dropdown background on Windows —
@@ -398,14 +420,14 @@ function App() {
               ml={2}
               px={4}
               flexShrink={0}
-              bg="gray.800"
+              bg="surface.card"
               color="gray.300"
               border="1px solid"
-              borderColor="gray.600"
-              borderRadius="md"
+              borderColor="border.default"
+              borderRadius="button"
               size="md"
-              _hover={{ borderColor: 'gray.400', color: 'white', bg: 'gray.800' }}
-              _active={{ bg: 'gray.700' }}
+              _hover={{ borderColor: 'border.hover', color: 'text.primary', bg: 'surface.card' }}
+              _active={{ bg: 'surface.raised' }}
               onClick={handleRefresh}
               isDisabled={refreshState === 'loading'}
               leftIcon={
@@ -433,7 +455,7 @@ function App() {
           {/* Full-page spinner while reviews.json is loading; card grid once ready */}
           {loading ? (
             <Flex justify="center" align="center" minH="200px">
-              <Spinner size="xl" color="teal.300" thickness="4px" speed="0.65s" />
+              <Spinner size="xl" color="accent.start" thickness="4px" speed="0.65s" />
             </Flex>
           ) : (
             // 1 column on mobile, 2 on tablet, 3 on desktop
@@ -458,11 +480,11 @@ function App() {
                       <Flex align="center" mb={2}>
                         <Badge>{rev.source}</Badge>
                       </Flex>
-                      <Text fontSize="sm" color="gray.400" mb={2}>
+                      <Text fontSize="sm" color="text.dim" mb={2}>
                         {rev.publishedDate}
                       </Text>
                       {/* noOfLines={3} truncates long summaries with an ellipsis */}
-                      <Text fontSize="sm" color="gray.400" noOfLines={3}>
+                      <Text fontSize="sm" color="text.dim" noOfLines={3}>
                         {rev.summary || 'No summary available.'}
                       </Text>
                     </Box>
@@ -474,7 +496,7 @@ function App() {
 
           {/* Empty state — only shown after loading with zero matching results */}
           {!loading && filtered.length === 0 && (
-            <Text textAlign="center" color="gray.500">
+            <Text textAlign="center" color="text.muted">
               No reviews match your criteria.
             </Text>
           )}
