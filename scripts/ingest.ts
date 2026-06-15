@@ -271,24 +271,81 @@ function normalizeScore(raw: string): number {
   return 0;
 }
 
-async function fetchArtworkUrl(band: string, album: string): Promise<string | null> {
+async function fetchMusicBrainzData(
+  band: string,
+  album: string
+): Promise<{ artworkUrl: string | null; genres: string[] }> {
   try {
-    const mbResponse = await axios.get('https://musicbrainz.org/ws/2/release/', {
+    // Step A: search for the release to get its MBID
+    const mbSearch = await axios.get('https://musicbrainz.org/ws/2/release/', {
       params: { query: `artist:${band}+release:${album}`, fmt: 'json' },
       headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
     });
-    const releases: any[] = mbResponse.data?.releases ?? [];
-    if (releases.length === 0) return null;
+    const releases: any[] = mbSearch.data?.releases ?? [];
+    if (releases.length === 0) return { artworkUrl: null, genres: [] };
 
     const mbid: string = releases[0].id;
-    const caaResponse = await axios.get(`https://coverartarchive.org/release/${mbid}`, {
-      headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-    });
-    const images: any[] = caaResponse.data?.images ?? [];
-    const front = images.find((img) => img.front === true);
-    return front?.image ?? null;
+
+    // MB rate limit: 1 req/sec — must sleep before the next MB request.
+    await sleep(1000);
+
+    // Step B: fetch release detail (genres) and Cover Art Archive in parallel.
+    // Only the release detail hits MB; CAA is a separate host, no rate-limit conflict.
+    const [releaseRes, caaRes] = await Promise.allSettled([
+      axios.get(`https://musicbrainz.org/ws/2/release/${mbid}`, {
+        params: { inc: 'genres', fmt: 'json' },
+        headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
+      }),
+      axios.get(`https://coverartarchive.org/release/${mbid}`, {
+        headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
+      }),
+    ]);
+
+    // Extract artwork URL from CAA response (null on failure or no front image)
+    let artworkUrl: string | null = null;
+    if (caaRes.status === 'fulfilled') {
+      const images: any[] = caaRes.value.data?.images ?? [];
+      const front = images.find((img: any) => img.front === true);
+      artworkUrl = front?.image ?? null;
+    }
+
+    // Extract genres from MB release detail, sorted by vote count descending, top 3
+    let releaseGenres: Array<{ name: string; count: number }> = [];
+    if (releaseRes.status === 'fulfilled') {
+      releaseGenres = releaseRes.value.data?.genres ?? [];
+    }
+    let topGenres = releaseGenres
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((g) => g.name);
+
+    // Step C: artist-level fallback when the release has no genre tags.
+    // Two more MB requests — each preceded by a sleep to stay within rate limit.
+    if (topGenres.length === 0) {
+      await sleep(1000);
+      const artistSearch = await axios.get('https://musicbrainz.org/ws/2/artist/', {
+        params: { query: `artist:"${band}"`, fmt: 'json', limit: 1 },
+        headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
+      });
+      const artists: any[] = artistSearch.data?.artists ?? [];
+      if (artists.length > 0) {
+        const artistMbid: string = artists[0].id;
+        await sleep(1000);
+        const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
+          params: { inc: 'genres', fmt: 'json' },
+          headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
+        });
+        const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
+        topGenres = artistGenres
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3)
+          .map((g) => g.name);
+      }
+    }
+
+    return { artworkUrl, genres: topGenres };
   } catch {
-    return null;
+    return { artworkUrl: null, genres: [] };
   }
 }
 
