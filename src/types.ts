@@ -3,6 +3,7 @@ export interface MetalReview {
   source: string; // "Angry Metal Guy" | "The Progressive Subway" | "SputnikMusic" | "Metal Storm"
   band: string;
   album: string;
+  genre: string[]; // Top-3 genres from MusicBrainz ([] when unknown)
   rating?: string; // Normalised rating e.g., "8.5/10"
   score: string; // e.g., "3.5/5.0", "8/10", "4.2", "8.3"
   normalizedScore: number; // 0 to 100 for unified sorting
