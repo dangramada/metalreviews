@@ -3,16 +3,19 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Working conventions
+
 - Always read this file fully before starting any task
 - Always show a plan and wait for approval before writing code
 - After each completed feature, update this file with decisions made
-- Target deployment: Vercel (someday) — avoid permanent server dependencies 
+- Target deployment: Vercel (someday) — avoid permanent server dependencies
   where possible
 - Comment all non-trivial code: explain WHY, not just what. Prioritise scraper logic, ingestion pipeline, React state, and any API or browser quirks.
 
 ## Deployment target
-Vercel (future, not imminent). Avoid permanent server dependencies where 
+
+Vercel (future, not imminent). Avoid permanent server dependencies where
 possible. When the time comes, the migration will require:
+
 - Replacing public/reviews.json with a database (Vercel KV or Supabase)
 - Replacing node-cron with Vercel Cron Jobs
 - Replacing any Express server with Vercel serverless functions at api/
@@ -33,6 +36,7 @@ npm run type-check    # TypeScript check without emitting
 ```
 
 Run a single test file:
+
 ```bash
 npx vitest run src/__tests__/angrymetal.test.js
 ```
@@ -42,7 +46,9 @@ npx vitest run src/__tests__/angrymetal.test.js
 This project has two distinct halves that share `src/types.ts`:
 
 ### 1. Scraper / Ingestion (`scripts/ingest.ts`)
+
 A Node.js script (run with `tsx`) that:
+
 - Fetches RSS feeds from all sources in parallel
 - For each item, fetches the full review page to extract the rating (using `axios` + `cheerio`, or `puppeteer` for Metal Storm which requires JS rendering)
 - Normalizes all scores to 0–100
@@ -51,26 +57,32 @@ A Node.js script (run with `tsx`) that:
 - Schedules itself via `node-cron` to run at 07:00 and 19:00 daily
 
 Each source has its own extractor module in `src/scraper/`:
+
 - `angrymetal.js` — looks for `.rating` / `.review-score` classes, then `Rating:` text patterns, then textual label lookup (`RATING_MAP`)
 - `progressivesubway.ts` — scans for `Final verdict:` lines with numeric or textual ratings (`RATING_MAP`)
 - `metalstorm.ts` — extracts user score from `span.bold[style*="color:#eebb00"]` inside `.album-rating`
 
 ### 2. Frontend (`src/App.tsx`)
+
 A single-page React + Chakra UI app that reads `public/reviews.json` at load time and renders a dark-themed card grid. No routing, no server-side state — all filtering, sorting, and searching happen in-memory on the already-loaded array.
 
 Key data flow: `reviews.json` → `fetch('/reviews.json')` → React state → filter/sort → card grid.
 
 ### Shared type (`src/types.ts`)
+
 `MetalReview` is the canonical shape shared by the scraper output and the frontend. Note: the frontend's local `Review` interface in `App.tsx` includes `genre: string[]` but the scraper always sets it to `[]` — genre is unimplemented.
 
 ## Score normalization
+
 All scores are stored in two forms:
+
 - `score`: raw string as it appears on the site (e.g. `"8.5/10"`, `"7.3/10"`)
 - `normalizedScore`: 0–100 number for sorting (computed in `normalizeScore()` in `ingest.ts`)
 
 Textual ratings from AMG and Progressive Subway are first converted to a 0–10 numeric via their respective `RATING_MAP`, then stored as `"<value>/10"` before normalization.
 
 ## Adding a new scraper source
+
 1. Create `src/scraper/<sourcename>.ts` exporting `extractRating(html: string): number | null`
 2. Add a `fetch<SourceName>()` function in `scripts/ingest.ts` following the pattern of existing fetchers
 3. Add the result to the `Promise.all` in `runIngestion()`
@@ -79,6 +91,7 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 ## Session decisions — Album artwork (June 2026)
 
 ### What was built
+
 - Album artwork is fetched during ingestion via **MusicBrainz** (release search) then **Cover Art Archive** (front image URL). Stored as `artworkUrl: string | null` on every review object.
 - Artwork is displayed at the top of each card as a square block. Score badge moved from the card body into the artwork block, absolutely positioned bottom-right.
 - Double-Positive detection and its UI (cyan border, star badge) were removed entirely. `isDoublePositive` is kept as an optional field in the type to avoid breaking existing JSON reads.
@@ -94,20 +107,24 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 **`overflow: 'hidden'` on cardStyle**: Required so the artwork image clips to the card's `borderRadius: 'lg'` at the top corners.
 
 ### MusicBrainz rate limiting
+
 `fetchArtworkUrl` calls are **sequential** in `runIngestion` with a `sleep(1000)` between each one. MusicBrainz requires a max of 1 req/sec from a single client. The existing parallel RSS + rating fetches are unaffected. Required `User-Agent` header on every MB and CAA request: `MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)`.
 
 ## Session decisions — Persistent review history (June 2026)
 
 ### What was built
+
 `runIngestion()` in `scripts/ingest.ts` now merges fresh results into the existing `public/reviews.json` instead of overwriting it. Reviews accumulate across every cron run; history beyond the current RSS window is preserved.
 
 ### How the merge works (lines ~293–313 of `scripts/ingest.ts`)
+
 1. After building `final: MetalReview[]`, read the existing `reviews.json` into `existingReviews`. Any read or parse failure silently falls back to `[]` — never throws, never blocks the ingest.
 2. Build `Map<string, MetalReview>` from `existingReviews` keyed by `review.id` (the stable `computeId` hash).
 3. Upsert every item in `final` into the map — same-id entries are overwritten with fresher data so scores, summaries, and `artworkUrl` stay current if a review is re-fetched.
 4. Convert back to array sorted by `publishedAt` descending, then write as `output` instead of `final`.
 
 ### What did NOT change
+
 - `computeId()` — the existing stable band+album hash is the perfect merge key.
 - `fetchArtworkUrl()`, `normalizeScore()`, all scraper extractors, cron scheduling, and the frontend are all untouched.
 - `reviews.json` shape is identical — just grows over time rather than resetting each run.
@@ -115,6 +132,7 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 ## Session decisions — Manual refresh / Express server (June 2026)
 
 ### What was built
+
 - **`server.ts`** (project root): Express server on port 3001. Serves `public/` as static files and exposes one endpoint: `POST /api/ingest`.
 - **`scripts/ingest-cli.ts`**: Thin entry point that imports `runIngestion` and owns the cron schedule + immediate startup run. This is what `npm run ingest` executes.
 - **`scripts/ingest.ts`**: `runIngestion()` is now `export`ed and contains no top-level side effects — safe to import from `server.ts` without triggering a cron or an ingest on import.
@@ -123,18 +141,22 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 - **Refresh button** in `src/App.tsx`: added to the right end of the controls bar.
 
 ### `POST /api/ingest` behaviour
+
 - Returns **202 Accepted** immediately with `{ status: "running" }` — ingest runs in the background.
 - Returns **409 Conflict** with `{ status: "busy", message: "Ingest already running" }` if a run is in progress. Tracked via a simple `let ingesting = false` flag in `server.ts`.
 - Ingest is **not triggered automatically** when the server starts — only on button click or `npm run ingest`.
 
 ### Refresh button states and polling
+
 - `refreshState`: `'idle' | 'loading' | 'success' | 'error'` — local state in `App`.
 - On 202: polls `GET /reviews.json` every 3 seconds. Compares `Math.max(...publishedAt)` snapshot taken before the POST against the new data. When a newer date appears, updates React state and sets `'success'` for 3 seconds then resets.
 - On 409: shows a Chakra `useToast` warning, stays `'idle'`.
 - On network error: sets `'error'` for 3 seconds then resets.
 
 ### Controls bar styling pattern
+
 A shared `controlStyle` const is defined in the `App` component body (alongside `cardStyle`) and spread onto all four controls (Input, both Selects, Button):
+
 ```ts
 const controlStyle = {
   size: 'md',
@@ -144,6 +166,54 @@ const controlStyle = {
   borderColor: 'gray.600',
 } as const;
 ```
+
 The Refresh button does **not** spread `controlStyle` — it is fully explicit. Reason: Chakra v2's `variant="outline"` conflicts with explicit `bg` overrides, causing the border to not contain its content. The button uses `border="1px solid"` + `borderColor` directly, with no `variant` prop, and `flexShrink={0}` to prevent flex compression.
 
 Both `<Select>` controls use `sx={{ '& option': { background: '#1a202c' } }}` to override the native browser white dropdown background on Windows.
+
+## Session decisions — Genre data + card badge redesign (June 2026)
+
+### What was built
+
+- Genre data is now fetched during ingest via MusicBrainz and stored as `genre: string[]` on every `MetalReview`.
+- Source badge moved from the card body onto the artwork block (top-left, absolutely positioned).
+- Genre tags added to the card body where the source badge previously lived.
+
+### Genre lookup (two-level)
+
+1. **Release level:** after fetching the MBID via search, call `GET /ws/2/release/{mbid}?inc=genres&fmt=json`. Sort `release.genres` by `count` descending, take top 3.
+2. **Artist fallback:** if the release returns 0 genres, call `GET /ws/2/artist/?query=artist:"{band}"&fmt=json&limit=1` → get artist MBID → `GET /ws/2/artist/{artist-mbid}?inc=genres&fmt=json` → take top 3 from `artist.genres`.
+
+### Rate limiting
+
+`fetchMusicBrainzData` includes internal `sleep(1000)` calls between each pair of back-to-back MB requests. `runIngestion` adds one more `sleep(1000)` after each `fetchMusicBrainzData` call (gap between reviews). The artist fallback adds two extra MB calls with two extra internal sleeps. The artist fallback is wrapped in its own try/catch so a failure there preserves the artworkUrl already resolved from the release-level CAA call.
+
+### Skip logic
+
+`mbAlreadyFetched` replaces the old `artworkAlreadyFetched` set. A review is skipped only when BOTH `artworkUrl !== undefined` AND `Array.isArray(r.genre)` — ensuring reviews from before genre support was added are re-fetched once.
+
+### MB search query
+
+Both the release search and artist search quote band/album names with Lucene quoting (`artist:"${band}" AND release:"${album}"`) to handle metacharacters in band names (e.g., `Sunn O)))`, `Mgła`).
+
+### Source badge styling
+
+- Component: `ArtworkBlock` (`src/App.tsx`)
+- Position: `position="absolute"` `top={2}` `left={2}`
+- Colors: `bg="accent.border"` (teal.500) / `color="accent.text"` (teal.300) — from theme semanticTokens
+- Shape: `borderRadius="badge"` (4px from theme radii), `fontSize="xs"`, `fontWeight="semibold"`
+- Overflow: `maxW="calc(100% - 16px)"` + `overflow="hidden"` + `textOverflow="ellipsis"` + `whiteSpace="nowrap"`
+
+### Genre tag styling
+
+- Components: Chakra `<Tag size="sm">` inside `<Wrap spacing={1}>` / `<WrapItem>`
+- Colors: `bg="whiteAlpha.100"` / `color="purple.300"` — no hardcoded hex
+- Shape: `borderRadius="badge"` (4px)
+- Conditional: only rendered when `rev.genre.length > 0`
+
+### Card body order post-redesign
+
+1. Band – Album title
+2. Genre tags (Wrap of Tag, purple) — new
+3. Date (text.dim)
+4. Summary excerpt (text.dim)

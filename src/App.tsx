@@ -318,7 +318,7 @@ function App() {
       return (
         r.band.toLowerCase().includes(term) ||
         r.album.toLowerCase().includes(term) ||
-        (r.genre ?? []).some((g) => g.toLowerCase().includes(term)) // genre is always [] for now
+        (r.genre ?? []).some((g) => g.toLowerCase().includes(term)) // genre is populated via MusicBrainz lookup
       );
     })
     .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
