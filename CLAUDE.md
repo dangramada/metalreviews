@@ -246,6 +246,12 @@ Both AMG and The Progressive Subway embed review-site boilerplate in their RSS `
 - Title pollution fix above makes MB searches succeed.
 - Changed `mbAlreadyFetched` to require `r.genre.length > 0` in addition to `Array.isArray(r.genre)`, so reviews stuck with `genre: []` are retried on the next run.
 
+### Bug 3: Reviews with `artworkUrl: null` permanently skipped even when artwork exists
+
+**Root cause:** `mbAlreadyFetched` used `r.artworkUrl !== undefined` as the artwork check. `null !== undefined` is `true`, so a review with `artworkUrl: null` (MB was tried, CAA returned nothing) and a non-empty genre list was treated as fully fetched and never retried — even though CAA coverage improves over time.
+
+**Fix:** Changed condition to `typeof r.artworkUrl === 'string'`, which is only true for actual URL strings. Reviews with `artworkUrl: null` are now retried on every ingest run until artwork is found.
+
 ### Bug 2: Artwork regression (artworkUrl going null on existing reviews)
 
 **Root cause:** Same MB search failure → `fetchMusicBrainzData` returned `artworkUrl: null`. The old upsert loop (`merged.set(review.id, review)`) blindly overwrote previously-good `artworkUrl` values with `null`.

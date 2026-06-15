@@ -398,14 +398,15 @@ export async function runIngestion() {
     existingReviews.filter((r) => r.score && r.score !== '').map((r) => r.id)
   );
 
-  // Skip MusicBrainz only when artwork is stored AND genres are non-empty.
-  // Requiring genre.length > 0 means reviews that returned [] on a previous run
-  // (e.g. because AMG's " Review" suffix caused the MB search to fail) will be
-  // retried now that the suffix is stripped before searching.
+  // Skip MusicBrainz only when artwork is a real URL (non-null string) AND genres are
+  // non-empty. Using typeof === 'string' rather than !== undefined/null so that reviews
+  // with artworkUrl: null (MB was tried but CAA returned nothing) are retried — CAA
+  // coverage improves over time and null is not a permanent signal.
   const mbAlreadyFetched = new Set(
     existingReviews
       .filter(
-        (r) => r.artworkUrl !== undefined && Array.isArray(r.genre) && r.genre.length > 0
+        (r) =>
+          typeof r.artworkUrl === 'string' && Array.isArray(r.genre) && r.genre.length > 0
       )
       .map((r) => r.id)
   );
