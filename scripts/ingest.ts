@@ -50,7 +50,10 @@ async function fetchAngryMetalGuy(
   const feed = await parser.parseURL('https://www.angrymetalguy.com/feed/');
   const reviews = await Promise.all(
     feed.items.map(async (item) => {
-      const [band, album] = extractBandAlbum(item.title ?? '');
+      // AMG RSS titles are formatted "Band – Album Review" or "Band – Album EP Review".
+      // Strip the trailing suffix before parsing so the stored album name is clean.
+      const rawTitle = (item.title ?? '').replace(/\s+(EP\s+)?Review$/i, '').trim();
+      const [band, album] = extractBandAlbum(rawTitle);
       const url = item.link ?? '';
       const id = computeId(band.trim() || 'Unknown Band', album.trim() || 'Unknown Album');
       let score: string;
@@ -111,7 +114,10 @@ async function fetchProgressiveSubway(
   const feed = await parser.parseURL('https://theprogressivesubway.com/feed');
   const reviews = await Promise.all(
     feed.items.map(async (item) => {
-      const [band, album] = extractBandAlbum(item.title ?? '');
+      // PS RSS titles are formatted "Review: Band – Album". Strip the "Review: " prefix
+      // before parsing so the band name stored in JSON (and used for MB search) is clean.
+      const rawTitle = (item.title ?? '').replace(/^Review:\s*/i, '');
+      const [band, album] = extractBandAlbum(rawTitle);
       const url = item.link ?? '';
       const id = computeId(band.trim() || 'Unknown Band', album.trim() || 'Unknown Album');
       let score: string;
@@ -175,7 +181,10 @@ async function fetchMetalStorm(
       }
     } catch (e) {
       // If Puppeteer fails to launch, skip new reviews but still return known ones below.
-      console.warn('Failed to launch Puppeteer for Metal Storm, skipping new Metal Storm reviews:', e);
+      console.warn(
+        'Failed to launch Puppeteer for Metal Storm, skipping new Metal Storm reviews:',
+        e
+      );
     }
   }
 
@@ -276,9 +285,16 @@ async function fetchMusicBrainzData(
   album: string
 ): Promise<{ artworkUrl: string | null; genres: string[] }> {
   try {
+    // Strip review-site title noise before MB search:
+    // - AMG albums end with " Review" or " EP Review" (suffix).
+    // - PS band names start with "Review: " (prefix) — already fixed at parse time in
+    //   fetchProgressiveSubway, but strip here too as a safety net.
+    const bandForSearch = band.replace(/^Review:\s*/i, '').trim() || band;
+    const albumForSearch = album.replace(/\s+(EP\s+)?Review$/i, '').trim() || album;
+
     // Step A: search for the release to get its MBID
     const mbSearch = await axios.get('https://musicbrainz.org/ws/2/release/', {
-      params: { query: `artist:"${band}" AND release:"${album}"`, fmt: 'json' },
+      params: { query: `artist:"${bandForSearch}" AND release:"${albumForSearch}"`, fmt: 'json' },
       headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
     });
     const releases: any[] = mbSearch.data?.releases ?? [];
@@ -375,20 +391,23 @@ export async function runIngestion() {
   }
 
   // Map for O(1) lookups when reusing stored scores and artwork URLs.
-  const existingById = new Map(existingReviews.map(r => [r.id, r]));
+  const existingById = new Map(existingReviews.map((r) => [r.id, r]));
 
   // Reviews with a non-empty score don't need their rating page re-fetched.
   const ratingAlreadyFetched = new Set(
-    existingReviews.filter(r => r.score && r.score !== '').map(r => r.id)
+    existingReviews.filter((r) => r.score && r.score !== '').map((r) => r.id)
   );
 
-  // Skip the MusicBrainz lookup only when BOTH artwork and genres are already stored.
-  // Array.isArray distinguishes "genre was fetched (even if empty)" from "review was
-  // saved before genre support was added (field absent from JSON)".
+  // Skip MusicBrainz only when artwork is stored AND genres are non-empty.
+  // Requiring genre.length > 0 means reviews that returned [] on a previous run
+  // (e.g. because AMG's " Review" suffix caused the MB search to fail) will be
+  // retried now that the suffix is stripped before searching.
   const mbAlreadyFetched = new Set(
     existingReviews
-      .filter(r => r.artworkUrl !== undefined && Array.isArray(r.genre))
-      .map(r => r.id)
+      .filter(
+        (r) => r.artworkUrl !== undefined && Array.isArray(r.genre) && r.genre.length > 0
+      )
+      .map((r) => r.id)
   );
 
   // All three source fetchers run in parallel. Each skips HTTP calls for known reviews.
@@ -441,9 +460,19 @@ export async function runIngestion() {
 
   // Merge fresh results into the existing map — upsert by id so new reviews are added
   // and re-fetched reviews get updated data, while historical reviews are preserved.
+  // Merge guard: never overwrite a good artworkUrl or non-empty genre array with a null/empty
+  // result. MB searches can fail transiently (network, rate limit, lookup miss), and we
+  // should never lose data we already have in those cases.
   const merged = new Map(existingById);
   for (const review of final) {
-    merged.set(review.id, review);
+    const existing = merged.get(review.id);
+    merged.set(review.id, {
+      ...existing,
+      ...review,
+      artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
+      genre:
+        review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
+    });
   }
   const output = Array.from(merged.values()).sort(
     (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()

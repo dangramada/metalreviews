@@ -24,7 +24,7 @@ export const RATING_MAP: Record<string, number> = {
 function normaliseRating(raw: string): number | null {
   if (!raw) return null;
   const trimmed = raw.trim();
-  
+
   // Fractional form e.g. "7.5/10" or "8/10"
   const fractionMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
   if (fractionMatch) {
@@ -34,20 +34,20 @@ function normaliseRating(raw: string): number | null {
       return (val / max) * 10;
     }
   }
-  
+
   // Simple numeric e.g. "8.5" or "7"
   const numberMatch = trimmed.match(/^\d+(?:\.\d+)?$/);
   if (numberMatch) {
     const num = parseFloat(trimmed);
     return Math.min(Math.max(num, 0), 10);
   }
-  
+
   // Textual descriptor (case-insensitive lookup)
   const key = Object.keys(RATING_MAP).find((k) => k.toLowerCase() === trimmed.toLowerCase());
   if (key) {
     return RATING_MAP[key];
   }
-  
+
   return null;
 }
 
@@ -64,7 +64,7 @@ export function extractRating(html: string): number | null {
   const ratingWords = Object.keys(RATING_MAP)
     .map((w) => w.replace(/\s+/g, '\\s+'))
     .join('|');
-  
+
   // Matches "Final verdict: X/10", "Final verdict: Word", etc.
   const regex = new RegExp(
     `Final\\s+verdict:\\s*(\\d+(?:\\.\\d+)?\\s*\\/\\s*\\d+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?|${ratingWords})`,
@@ -72,7 +72,7 @@ export function extractRating(html: string): number | null {
   );
 
   // We find elements containing "verdict" or "Verdict" to narrow down search
-  $("*").each(function () {
+  $('*').each(function () {
     const text = $(this).text().trim();
     // Clean up internal whitespace/newlines to handle wrapped text smoothly
     const normalizedText = text.replace(/\s+/g, ' ');
