@@ -278,7 +278,7 @@ async function fetchMusicBrainzData(
   try {
     // Step A: search for the release to get its MBID
     const mbSearch = await axios.get('https://musicbrainz.org/ws/2/release/', {
-      params: { query: `artist:${band}+release:${album}`, fmt: 'json' },
+      params: { query: `artist:"${band}" AND release:"${album}"`, fmt: 'json' },
       headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
     });
     const releases: any[] = mbSearch.data?.releases ?? [];
@@ -314,32 +314,37 @@ async function fetchMusicBrainzData(
     if (releaseRes.status === 'fulfilled') {
       releaseGenres = releaseRes.value.data?.genres ?? [];
     }
-    let topGenres = releaseGenres
+    let topGenres = [...releaseGenres]
       .sort((a, b) => b.count - a.count)
       .slice(0, 3)
       .map((g) => g.name);
 
     // Step C: artist-level fallback when the release has no genre tags.
-    // Two more MB requests — each preceded by a sleep to stay within rate limit.
+    // Wrapped in its own try/catch so a network failure here doesn't discard
+    // the artworkUrl already resolved in Step B.
     if (topGenres.length === 0) {
-      await sleep(1000);
-      const artistSearch = await axios.get('https://musicbrainz.org/ws/2/artist/', {
-        params: { query: `artist:"${band}"`, fmt: 'json', limit: 1 },
-        headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-      });
-      const artists: any[] = artistSearch.data?.artists ?? [];
-      if (artists.length > 0) {
-        const artistMbid: string = artists[0].id;
+      try {
         await sleep(1000);
-        const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
-          params: { inc: 'genres', fmt: 'json' },
+        const artistSearch = await axios.get('https://musicbrainz.org/ws/2/artist/', {
+          params: { query: `artist:"${band}"`, fmt: 'json', limit: 1 },
           headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
         });
-        const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
-        topGenres = artistGenres
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3)
-          .map((g) => g.name);
+        const artists: any[] = artistSearch.data?.artists ?? [];
+        if (artists.length > 0) {
+          const artistMbid: string = artists[0].id;
+          await sleep(1000);
+          const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
+            params: { inc: 'genres', fmt: 'json' },
+            headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
+          });
+          const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
+          topGenres = [...artistGenres]
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3)
+            .map((g) => g.name);
+        }
+      } catch {
+        // Artist fallback failed — artworkUrl (already resolved above) is preserved
       }
     }
 
