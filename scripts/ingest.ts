@@ -382,10 +382,13 @@ export async function runIngestion() {
     existingReviews.filter(r => r.score && r.score !== '').map(r => r.id)
   );
 
-  // Reviews with artworkUrl defined (including null from a failed lookup) don't need
-  // another MusicBrainz call. undefined means the field was never attempted.
-  const artworkAlreadyFetched = new Set(
-    existingReviews.filter(r => r.artworkUrl !== undefined).map(r => r.id)
+  // Skip the MusicBrainz lookup only when BOTH artwork and genres are already stored.
+  // Array.isArray distinguishes "genre was fetched (even if empty)" from "review was
+  // saved before genre support was added (field absent from JSON)".
+  const mbAlreadyFetched = new Set(
+    existingReviews
+      .filter(r => r.artworkUrl !== undefined && Array.isArray(r.genre))
+      .map(r => r.id)
   );
 
   // All three source fetchers run in parallel. Each skips HTTP calls for known reviews.
@@ -408,19 +411,24 @@ export async function runIngestion() {
       year: 'numeric',
     });
     let artworkUrl: string | null;
-    if (artworkAlreadyFetched.has(id)) {
-      // Reuse stored artwork URL — avoids a MusicBrainz + Cover Art Archive round-trip.
+    let genres: string[];
+    if (mbAlreadyFetched.has(id)) {
+      // Both artwork and genres are already stored — reuse them.
       // MusicBrainz enforces 1 req/sec; skipping known reviews keeps warm runs fast.
       artworkUrl = existingById.get(id)?.artworkUrl ?? null;
+      genres = existingById.get(id)?.genre ?? [];
     } else {
-      artworkUrl = await fetchArtworkUrl(band, album);
-      await sleep(1000); // MusicBrainz rate limit: max 1 req/sec
+      const mbData = await fetchMusicBrainzData(band, album);
+      artworkUrl = mbData.artworkUrl;
+      genres = mbData.genres;
+      await sleep(1000); // MB rate limit: gap between the last request in this review and the first of the next
     }
     final.push({
       id,
       source: r.source,
       band,
       album,
+      genre: genres,
       score: r.score,
       normalizedScore: normalizeScore(r.score),
       summary: r.summary,
