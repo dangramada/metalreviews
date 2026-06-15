@@ -139,21 +139,20 @@ function ArtworkBlock({ rev }: { rev: Review }) {
         </Flex>
       )}
 
-      {/* Source badge — top-left corner of the artwork square.
-          Uses accent.border (teal.500) bg and accent.text (teal.300) text from theme.
-          maxW prevents overflow on narrow cards. */}
+      {/* Source badge — bottom-left corner, mirroring the score badge on the right.
+          maxW accounts for score badge width + right offset + gap to prevent overlap. */}
       <Box
         position="absolute"
-        top={2}
+        bottom={2}
         left={2}
-        bg="accent.border"
-        color="accent.text"
+        bg="surface.raised"
+        color="text.dim"
         fontSize="xs"
         fontWeight="semibold"
         px={2}
         py="2px"
         borderRadius="badge"
-        maxW="calc(100% - 16px)"
+        maxW="calc(100% - 70px)"
         overflow="hidden"
         textOverflow="ellipsis"
         whiteSpace="nowrap"
