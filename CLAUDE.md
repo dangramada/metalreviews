@@ -1,0 +1,149 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Working conventions
+- Always read this file fully before starting any task
+- Always show a plan and wait for approval before writing code
+- After each completed feature, update this file with decisions made
+- Target deployment: Vercel (someday) — avoid permanent server dependencies 
+  where possible
+- Comment all non-trivial code: explain WHY, not just what. Prioritise scraper logic, ingestion pipeline, React state, and any API or browser quirks.
+
+## Deployment target
+Vercel (future, not imminent). Avoid permanent server dependencies where 
+possible. When the time comes, the migration will require:
+- Replacing public/reviews.json with a database (Vercel KV or Supabase)
+- Replacing node-cron with Vercel Cron Jobs
+- Replacing any Express server with Vercel serverless functions at api/
+- Replacing Puppeteer with @sparticuz/chromium + puppeteer-core
+
+## Commands
+
+```bash
+npm run dev           # Start Vite dev server + Express API server together (via concurrently)
+npm run build         # Build frontend for production
+npm run ingest        # Run the scraper/ingestion pipeline once (also starts cron)
+npm run server        # Start Express API server alone (port 3001)
+npm run test          # Run all tests (Vitest, watch mode)
+npm run lint          # ESLint check
+npm run lint:fix      # ESLint auto-fix
+npm run format        # Prettier format
+npm run type-check    # TypeScript check without emitting
+```
+
+Run a single test file:
+```bash
+npx vitest run src/__tests__/angrymetal.test.js
+```
+
+## Architecture
+
+This project has two distinct halves that share `src/types.ts`:
+
+### 1. Scraper / Ingestion (`scripts/ingest.ts`)
+A Node.js script (run with `tsx`) that:
+- Fetches RSS feeds from all sources in parallel
+- For each item, fetches the full review page to extract the rating (using `axios` + `cheerio`, or `puppeteer` for Metal Storm which requires JS rendering)
+- Normalizes all scores to 0–100
+- Detects "Double-Positive" albums (reviewed by both Angry Metal Guy and The Progressive Subway within 14 days)
+- Writes the result to `public/reviews.json`
+- Schedules itself via `node-cron` to run at 07:00 and 19:00 daily
+
+Each source has its own extractor module in `src/scraper/`:
+- `angrymetal.js` — looks for `.rating` / `.review-score` classes, then `Rating:` text patterns, then textual label lookup (`RATING_MAP`)
+- `progressivesubway.ts` — scans for `Final verdict:` lines with numeric or textual ratings (`RATING_MAP`)
+- `metalstorm.ts` — extracts user score from `span.bold[style*="color:#eebb00"]` inside `.album-rating`
+
+### 2. Frontend (`src/App.tsx`)
+A single-page React + Chakra UI app that reads `public/reviews.json` at load time and renders a dark-themed card grid. No routing, no server-side state — all filtering, sorting, and searching happen in-memory on the already-loaded array.
+
+Key data flow: `reviews.json` → `fetch('/reviews.json')` → React state → filter/sort → card grid.
+
+### Shared type (`src/types.ts`)
+`MetalReview` is the canonical shape shared by the scraper output and the frontend. Note: the frontend's local `Review` interface in `App.tsx` includes `genre: string[]` but the scraper always sets it to `[]` — genre is unimplemented.
+
+## Score normalization
+All scores are stored in two forms:
+- `score`: raw string as it appears on the site (e.g. `"8.5/10"`, `"7.3/10"`)
+- `normalizedScore`: 0–100 number for sorting (computed in `normalizeScore()` in `ingest.ts`)
+
+Textual ratings from AMG and Progressive Subway are first converted to a 0–10 numeric via their respective `RATING_MAP`, then stored as `"<value>/10"` before normalization.
+
+## Adding a new scraper source
+1. Create `src/scraper/<sourcename>.ts` exporting `extractRating(html: string): number | null`
+2. Add a `fetch<SourceName>()` function in `scripts/ingest.ts` following the pattern of existing fetchers
+3. Add the result to the `Promise.all` in `runIngestion()`
+4. Update the source filter options in `App.tsx` (they are derived dynamically from data, so this may be automatic)
+
+## Session decisions — Album artwork (June 2026)
+
+### What was built
+- Album artwork is fetched during ingestion via **MusicBrainz** (release search) then **Cover Art Archive** (front image URL). Stored as `artworkUrl: string | null` on every review object.
+- Artwork is displayed at the top of each card as a square block. Score badge moved from the card body into the artwork block, absolutely positioned bottom-right.
+- Double-Positive detection and its UI (cyan border, star badge) were removed entirely. `isDoublePositive` is kept as an optional field in the type to avoid breaking existing JSON reads.
+
+### Key patterns introduced
+
+**`ArtworkBlock` component** (`src/App.tsx`): Extracted as a sibling function (not a separate file) so each card gets its own isolated `useState(false)` for `loaded` without prop-drilling a Map. Pattern to reuse if other per-card stateful UI is needed.
+
+**Skeleton shimmer**: Uses Chakra's `<Skeleton>` as a `position="absolute"` overlay with `opacity={loaded ? 0 : 1}` and `transition="opacity 0.3s ease"`. Deliberately does **not** use Chakra's `isLoaded` prop — that would instantly remove the shimmer element, bypassing the CSS fade. `pointerEvents="none"` prevents the invisible skeleton from blocking clicks after load.
+
+**Square artwork aspect ratio**: Uses `paddingBottom="100%"` on a `position="relative"` Box (not Chakra's `AspectRatio` component) so absolutely-positioned children (image, skeleton, score badge) all stack cleanly inside it.
+
+**`overflow: 'hidden'` on cardStyle**: Required so the artwork image clips to the card's `borderRadius: 'lg'` at the top corners.
+
+### MusicBrainz rate limiting
+`fetchArtworkUrl` calls are **sequential** in `runIngestion` with a `sleep(1000)` between each one. MusicBrainz requires a max of 1 req/sec from a single client. The existing parallel RSS + rating fetches are unaffected. Required `User-Agent` header on every MB and CAA request: `MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)`.
+
+## Session decisions — Persistent review history (June 2026)
+
+### What was built
+`runIngestion()` in `scripts/ingest.ts` now merges fresh results into the existing `public/reviews.json` instead of overwriting it. Reviews accumulate across every cron run; history beyond the current RSS window is preserved.
+
+### How the merge works (lines ~293–313 of `scripts/ingest.ts`)
+1. After building `final: MetalReview[]`, read the existing `reviews.json` into `existingReviews`. Any read or parse failure silently falls back to `[]` — never throws, never blocks the ingest.
+2. Build `Map<string, MetalReview>` from `existingReviews` keyed by `review.id` (the stable `computeId` hash).
+3. Upsert every item in `final` into the map — same-id entries are overwritten with fresher data so scores, summaries, and `artworkUrl` stay current if a review is re-fetched.
+4. Convert back to array sorted by `publishedAt` descending, then write as `output` instead of `final`.
+
+### What did NOT change
+- `computeId()` — the existing stable band+album hash is the perfect merge key.
+- `fetchArtworkUrl()`, `normalizeScore()`, all scraper extractors, cron scheduling, and the frontend are all untouched.
+- `reviews.json` shape is identical — just grows over time rather than resetting each run.
+
+## Session decisions — Manual refresh / Express server (June 2026)
+
+### What was built
+- **`server.ts`** (project root): Express server on port 3001. Serves `public/` as static files and exposes one endpoint: `POST /api/ingest`.
+- **`scripts/ingest-cli.ts`**: Thin entry point that imports `runIngestion` and owns the cron schedule + immediate startup run. This is what `npm run ingest` executes.
+- **`scripts/ingest.ts`**: `runIngestion()` is now `export`ed and contains no top-level side effects — safe to import from `server.ts` without triggering a cron or an ingest on import.
+- **Vite proxy**: `/api` is proxied to `http://localhost:3001` in `vite.config.ts`, so the frontend uses relative `/api/ingest` with no hardcoded localhost URLs.
+- **`concurrently`**: `npm run dev` runs `vite` and `tsx server.ts` together in one terminal.
+- **Refresh button** in `src/App.tsx`: added to the right end of the controls bar.
+
+### `POST /api/ingest` behaviour
+- Returns **202 Accepted** immediately with `{ status: "running" }` — ingest runs in the background.
+- Returns **409 Conflict** with `{ status: "busy", message: "Ingest already running" }` if a run is in progress. Tracked via a simple `let ingesting = false` flag in `server.ts`.
+- Ingest is **not triggered automatically** when the server starts — only on button click or `npm run ingest`.
+
+### Refresh button states and polling
+- `refreshState`: `'idle' | 'loading' | 'success' | 'error'` — local state in `App`.
+- On 202: polls `GET /reviews.json` every 3 seconds. Compares `Math.max(...publishedAt)` snapshot taken before the POST against the new data. When a newer date appears, updates React state and sets `'success'` for 3 seconds then resets.
+- On 409: shows a Chakra `useToast` warning, stays `'idle'`.
+- On network error: sets `'error'` for 3 seconds then resets.
+
+### Controls bar styling pattern
+A shared `controlStyle` const is defined in the `App` component body (alongside `cardStyle`) and spread onto all four controls (Input, both Selects, Button):
+```ts
+const controlStyle = {
+  size: 'md',
+  variant: 'outline',
+  bg: 'gray.800',
+  color: 'white',
+  borderColor: 'gray.600',
+} as const;
+```
+The Refresh button does **not** spread `controlStyle` — it is fully explicit. Reason: Chakra v2's `variant="outline"` conflicts with explicit `bg` overrides, causing the border to not contain its content. The button uses `border="1px solid"` + `borderColor` directly, with no `variant` prop, and `flexShrink={0}` to prevent flex compression.
+
+Both `<Select>` controls use `sx={{ '& option': { background: '#1a202c' } }}` to override the native browser white dropdown background on Windows.
