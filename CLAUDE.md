@@ -70,7 +70,7 @@ Key data flow: `reviews.json` → `fetch('/reviews.json')` → React state → f
 
 ### Shared type (`src/types.ts`)
 
-`MetalReview` is the canonical shape shared by the scraper output and the frontend. Note: the frontend's local `Review` interface in `App.tsx` includes `genre: string[]` but the scraper always sets it to `[]` — genre is unimplemented.
+`MetalReview` is the canonical shape shared by the scraper output and the frontend.
 
 ## Score normalization
 
