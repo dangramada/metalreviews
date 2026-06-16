@@ -28,11 +28,6 @@ const theme = extendTheme({
       'accent.text': { default: 'teal.300' }, // source badge text
     },
   },
-  radii: {
-    badge: '4px', // score badge
-    button: '0.375rem', // refresh button — same as Chakra default 'md'
-    card: '0.5rem', // cards — same as Chakra default 'lg'
-  },
   components: {
     Input: { defaultProps: { size: 'md' } },
     Select: { defaultProps: { size: 'md' } },

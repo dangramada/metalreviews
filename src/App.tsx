@@ -151,7 +151,7 @@ function ArtworkBlock({ rev }: { rev: Review }) {
         fontWeight="semibold"
         px={2}
         py="2px"
-        borderRadius="badge"
+        borderRadius="base"
         maxW="calc(100% - 70px)"
         overflow="hidden"
         textOverflow="ellipsis"
@@ -169,7 +169,7 @@ function ArtworkBlock({ rev }: { rev: Review }) {
           right="2"
           bg="brand.score"
           color="brand.scoreText"
-          borderRadius="badge"
+          borderRadius="base"
           px={2}
           py={1}
           fontSize="xs"
@@ -348,7 +348,7 @@ function App() {
 
   const cardStyle = {
     bg: 'surface.card',
-    borderRadius: 'card',
+    borderRadius: 'lg',
     overflow: 'hidden', // Required — clips the artwork image to the card's rounded corners
     boxShadow: 'md',
     border: '1px solid',
@@ -426,7 +426,7 @@ function App() {
               color="gray.300"
               border="1px solid"
               borderColor="border.default"
-              borderRadius="button"
+              borderRadius="md"
               size="md"
               _hover={{ borderColor: 'border.hover', color: 'text.primary', bg: 'surface.card' }}
               _active={{ bg: 'surface.raised' }}
@@ -488,7 +488,7 @@ function App() {
                                 size="sm"
                                 bg="whiteAlpha.100"
                                 color="purple.300"
-                                borderRadius="badge"
+                                borderRadius="base"
                               >
                                 {g}
                               </Tag>
