@@ -40,7 +40,7 @@ async function fetchAngryMetalGuyRating(reviewUrl: string): Promise<number | nul
   }
 }
 
-// ratingAlreadyFetched: IDs of reviews already in reviews.json with a non-empty score.
+// ratingAlreadyFetched: IDs of reviews already in Supabase with a non-empty score.
 // Skipping known reviews avoids one HTTP request per review page on every refresh.
 async function fetchAngryMetalGuy(
   ratingAlreadyFetched: Set<string>,
@@ -159,7 +159,7 @@ async function fetchMetalStorm(
     return { item, band, album, id };
   });
 
-  // Only the subset of items not yet in reviews.json need Puppeteer page loads.
+  // Only the subset of items not yet in Supabase need Puppeteer page loads.
   const needsFetch = itemsWithMeta.filter(({ id }) => !ratingAlreadyFetched.has(id));
   const scoreMap = new Map<string, string>(); // id -> fetched score string
 
