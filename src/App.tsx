@@ -267,10 +267,14 @@ function App() {
 
           const { status } = await fetch('/api/ingest/status').then((r) => r.json());
           if (status === 'idle') {
-            // Ingest is done — fetch the latest reviews.json once and reload the card grid.
             clearInterval(pollId);
-            const data: Review[] = await fetch('/reviews.json').then((r) => r.json());
-            setReviews(data);
+            const { data, error } = await supabase
+              .from('reviews')
+              .select('*')
+              .order('published_at', { ascending: false });
+            if (!error && data) {
+              setReviews((data as DbRow[]).map(fromDbRow));
+            }
             setRefreshState('success');
             setTimeout(() => setRefreshState('idle'), 3000);
           }
