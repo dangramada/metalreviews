@@ -163,6 +163,8 @@ export function LoginPage() {
               onClick={() => {
                 setMode(mode === 'login' ? 'signup' : 'login');
                 setError(null);
+                // Clear all credential fields on mode switch — avoids stale input confusion
+                // and prevents accidental submission of a login password in signup mode.
                 setEmail('');
                 setPassword('');
                 setConfirmPassword('');
