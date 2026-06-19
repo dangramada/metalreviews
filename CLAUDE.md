@@ -549,3 +549,9 @@ The `VITE_INGEST_SECRET_TOKEN` value is bundled into the browser JS and visible 
 ### env vars (no new ones added in Phase 5)
 
 Auth uses the existing `VITE_SUPABASE_PUBLISHABLE_KEY` (anon key) via `src/supabaseClient.ts`. Supabase Auth is enabled on the same project.
+
+### Phase 5b additions (June 2026)
+
+- **Signup confirm-password:** `LoginPage` validates that password and confirm-password match client-side before calling `signUp()`. Error shown inline; no API call made on mismatch.
+- **Forgot password:** `LoginPage` gains a third mode `'forgot-password'`. Clicking "Forgot password?" shows an email-only form that calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/auth/callback' })`. On success shows a neutral "check your email" screen (no email-existence leak).
+- **Password recovery at /auth/callback:** `AuthCallback` replaced `getSession()` with an `onAuthStateChange` listener. `PASSWORD_RECOVERY` event shows an inline "Set new password" form (password + confirm-password, same mismatch validation, calls `supabase.auth.updateUser({ password })`). All other events with a session navigate to `/`; no session navigates to `/login`.
