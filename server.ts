@@ -5,7 +5,7 @@ import { runIngestion } from './scripts/ingest.js';
 
 const app = express();
 app.use(cors());
-app.use(express.static(path.resolve(process.cwd(), 'public')));
+app.use(express.static(path.resolve(process.cwd(), 'dist')));
 
 let ingesting = false;
 
