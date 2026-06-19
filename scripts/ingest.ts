@@ -477,6 +477,11 @@ export async function runIngestion() {
 
   const output = applyMergeGuard(existingById, final);
 
-  await fs.writeFile(outPath, JSON.stringify(output, null, 2), 'utf-8');
-  console.log('✅ Ingestion completed, written', output.length, 'reviews to', outPath);
+  const { error: upsertError } = await supabase
+    .from('reviews')
+    .upsert(output, { onConflict: 'id' });
+  if (upsertError) {
+    throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
+  }
+  console.log('✅ Ingestion completed, upserted', output.length, 'reviews to Supabase');
 }
