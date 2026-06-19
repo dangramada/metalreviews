@@ -53,5 +53,12 @@ app.get('/api/ingest/status', (_req, res) => {
   res.json({ status: ingesting ? 'running' : 'idle' });
 });
 
+// Catch-all for client-side routes: serve index.html so React Router handles
+// paths like /login and /auth/callback when typed directly in the address bar.
+// Must come after all /api/* routes — Express matches in registration order.
+app.get(/.*/, (_req, res) => {
+  res.sendFile(path.resolve(process.cwd(), 'dist', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
