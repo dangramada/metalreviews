@@ -10,7 +10,7 @@ import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
 
 // Shape of a row as returned from / sent to the Postgres reviews table (snake_case).
-type DbRow = {
+export type DbRow = {
   id: string;
   band: string;
   album: string;
@@ -25,7 +25,7 @@ type DbRow = {
   genre: string[] | null;
 };
 
-function toDbRow(r: MetalReview): DbRow {
+export function toDbRow(r: MetalReview): DbRow {
   return {
     id: r.id,
     band: r.band,
