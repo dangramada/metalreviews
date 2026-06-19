@@ -9,7 +9,24 @@ app.use(express.static(path.resolve(process.cwd(), 'dist')));
 
 let ingesting = false;
 
-app.post('/api/ingest', (_req, res) => {
+// Pure helper — exported for unit testing only.
+// PHASE 5 NOTE: this token check is intentionally weak. Once auth ships,
+// replace this with a server-side session check so the secret never needs
+// to be sent from the browser (it can't be kept secret via VITE_ env vars).
+export function isAuthorized(
+  token: string | string[] | undefined,
+  secret: string | undefined
+): boolean {
+  if (!token || !secret) return false;
+  return token === secret;
+}
+
+app.post('/api/ingest', (req, res) => {
+  const token = req.headers['x-ingest-token'];
+  if (!isAuthorized(token, process.env.INGEST_SECRET_TOKEN)) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
   if (ingesting) {
     res.status(409).json({ status: 'busy', message: 'Ingest already running' });
     return;
