@@ -65,9 +65,16 @@ Each source has its own extractor module in `src/scraper/`:
 
 ### 2. Frontend (`src/App.tsx`)
 
-A single-page React + Chakra UI app that queries Supabase on load and renders a dark-themed card grid. No routing, no server-side state — all filtering, sorting, and searching happen in-memory on the already-loaded array.
+A React + Chakra UI app with client-side routing via React Router (v7, `react-router-dom`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
 
 Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
+
+Routes:
+- `/` — dashboard (review grid), public — no auth required
+- `/login` — email/password auth form (`LoginPage`); OAuth buttons reserved for future session
+- `/auth/callback` — OAuth redirect handler (`AuthCallback`); not used until OAuth is enabled
+
+Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and exposed via `useAuth()`. The `Header` component renders the app title + login/logout controls.
 
 ### 3. Shared types and mapping (`src/types.ts`, `src/dbMapping.ts`)
 
@@ -516,3 +523,29 @@ Both must be set in `.env` for local dev and in Render's dashboard for productio
 ### Phase 5 — admin-gating (deferred, not shipped)
 
 The `VITE_INGEST_SECRET_TOKEN` value is bundled into the browser JS and visible in the network tab — it cannot truly be kept secret. This is acceptable while the Render URL is not publicly shared. Proper admin-gating (button only renders for an authenticated user; secret never leaves the server) is deferred to Phase 5. See the `isAuthorized` comment in `server.ts`.
+
+---
+
+## Session decisions — Auth + routing (Phase 5, June 2026)
+
+### What was built
+
+- React Router (`react-router-dom` v7) added with `createBrowserRouter` in `main.tsx`. Three routes: `/`, `/login`, `/auth/callback`.
+- `AuthContext.tsx` — `AuthProvider` + `useAuth()` hook. Hydrates from `supabase.auth.getSession()` on mount; stays in sync via `onAuthStateChange`. Context defaults to `undefined`; hook throws if used outside provider.
+- `Header.tsx` — app title + login/logout controls. Logged out: `<Link to="/login">` (React Router). Logged in: email prefix + Log out button.
+- `LoginPage.tsx` — email/password form with sign-up/log-in mode toggle. Signup shows confirmation message (Supabase requires email verification by default). OAuth button placeholder left in a comment.
+- `AuthCallback.tsx` — loading spinner that redirects to `/` (session found) or `/login` (no session). Used by OAuth flows; not reachable via email/password auth.
+- `server.ts` catch-all: `app.get(/.*/)` → `dist/index.html` so `/login` typed in the address bar doesn't 404 on Render. Regex required by Express v5 (string `'*'` is deprecated).
+
+### What was deferred
+
+- Google and Facebook OAuth — credentials not yet configured. The placeholder comment in `LoginPage.tsx` marks where to add the two `supabase.auth.signInWithOAuth()` buttons.
+- Protecting any route behind auth — review browsing is still fully public. If a protected route is needed (e.g. `/list/:shareId` for saved favorites), use a wrapper that checks `useAuth().user` and redirects to `/login`.
+
+### Reserved route shape
+
+`/list/:shareId` — future shareable favorites list. No code yet; the commented-out line in `main.tsx` marks the slot.
+
+### env vars (no new ones added in Phase 5)
+
+Auth uses the existing `VITE_SUPABASE_PUBLISHABLE_KEY` (anon key) via `src/supabaseClient.ts`. Supabase Auth is enabled on the same project.
