@@ -26,6 +26,8 @@ describe('fromDbRow', () => {
     expect(review.publishedDate).toBe('15 Jan 2024');
     expect(review.artworkUrl).toBe('https://cdn.example.com/art.jpg');
     expect(review.genre).toEqual(['progressive metal', 'death metal']);
+    expect(review.band).toBe('Opeth');
+    expect(review.album).toBe('Blackwater Park');
   });
 
   it('fills nullable fields with safe defaults', () => {

@@ -8,22 +8,9 @@ import { extractRating } from '../src/scraper/angrymetal.js';
 import { extractRating as extractPSRating } from '../src/scraper/progressivesubway';
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
+import { fromDbRow, type DbRow } from '../src/dbMapping';
 
-// Shape of a row as returned from / sent to the Postgres reviews table (snake_case).
-export type DbRow = {
-  id: string;
-  band: string;
-  album: string;
-  source: string;
-  score: string | null;
-  normalized_score: number | null;
-  summary: string | null;
-  url: string | null;
-  published_at: string | null;
-  published_date: string | null;
-  artwork_url: string | null;
-  genre: string[] | null;
-};
+export type { DbRow };
 
 export function toDbRow(r: MetalReview): DbRow {
   return {
@@ -39,23 +26,6 @@ export function toDbRow(r: MetalReview): DbRow {
     published_date: r.publishedDate,
     artwork_url: r.artworkUrl,
     genre: r.genre,
-  };
-}
-
-function fromDbRow(row: DbRow): MetalReview {
-  return {
-    id: row.id,
-    band: row.band,
-    album: row.album,
-    source: row.source,
-    score: row.score ?? '',
-    normalizedScore: row.normalized_score ?? 0,
-    summary: row.summary ?? '',
-    url: row.url ?? '',
-    publishedAt: row.published_at ?? new Date().toISOString(),
-    publishedDate: row.published_date ?? '',
-    artworkUrl: row.artwork_url,
-    genre: row.genre ?? [],
   };
 }
 
