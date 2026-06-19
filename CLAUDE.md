@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Vercel (future, not imminent). Avoid permanent server dependencies where
 possible. When the time comes, the migration will require:
 
-- Replacing public/reviews.json with a database (Vercel KV or Supabase)
+- ~~Replacing public/reviews.json with a database~~ — **done** (Supabase, June 2026)
 - Replacing node-cron with Vercel Cron Jobs
 - Replacing any Express server with Vercel serverless functions at api/
 - Replacing Puppeteer with @sparticuz/chromium + puppeteer-core
@@ -52,8 +52,9 @@ A Node.js script (run with `tsx`) that:
 - Fetches RSS feeds from all sources in parallel
 - For each item, fetches the full review page to extract the rating (using `axios` + `cheerio`, or `puppeteer` for Metal Storm which requires JS rendering)
 - Normalizes all scores to 0–100
-- Detects "Double-Positive" albums (reviewed by both Angry Metal Guy and The Progressive Subway within 14 days)
-- Writes the result to `public/reviews.json`
+- Fetches artwork URL and genre tags from MusicBrainz / Cover Art Archive
+- Merges fresh results with existing Supabase rows (merge guard preserves artwork/genre from prior runs)
+- Upserts the merged result to the Supabase `reviews` table
 - Schedules itself via `node-cron` to run at 07:00 and 19:00 daily
 
 Each source has its own extractor module in `src/scraper/`:
@@ -67,6 +68,8 @@ Each source has its own extractor module in `src/scraper/`:
 A single-page React + Chakra UI app that reads `public/reviews.json` at load time and renders a dark-themed card grid. No routing, no server-side state — all filtering, sorting, and searching happen in-memory on the already-loaded array.
 
 Key data flow: `reviews.json` → `fetch('/reviews.json')` → React state → filter/sort → card grid.
+
+**Phase 3 pending:** The frontend still reads from `public/reviews.json`. This file is no longer written by the ingest pipeline (which now writes to Supabase). Phase 3 will migrate the frontend to read from Supabase directly. Until then, `reviews.json` is stale and the refresh button's completion-detection polling (which compares `publishedAt` snapshots of the JSON file) will not work.
 
 ### Shared type (`src/types.ts`)
 
@@ -110,24 +113,11 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 
 `fetchArtworkUrl` calls are **sequential** in `runIngestion` with a `sleep(1000)` between each one. MusicBrainz requires a max of 1 req/sec from a single client. The existing parallel RSS + rating fetches are unaffected. Required `User-Agent` header on every MB and CAA request: `MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)`.
 
-## Session decisions — Persistent review history (June 2026)
+## Session decisions — Persistent review history (June 2026, superseded)
 
-### What was built
+> **Superseded by the Supabase migration (June 2026).** The merge guard logic described here was preserved and extracted into `applyMergeGuard()` — see the Supabase migration section below. The JSON file is no longer the write target.
 
-`runIngestion()` in `scripts/ingest.ts` now merges fresh results into the existing `public/reviews.json` instead of overwriting it. Reviews accumulate across every cron run; history beyond the current RSS window is preserved.
-
-### How the merge works (lines ~293–313 of `scripts/ingest.ts`)
-
-1. After building `final: MetalReview[]`, read the existing `reviews.json` into `existingReviews`. Any read or parse failure silently falls back to `[]` — never throws, never blocks the ingest.
-2. Build `Map<string, MetalReview>` from `existingReviews` keyed by `review.id` (the stable `computeId` hash).
-3. Upsert every item in `final` into the map — same-id entries are overwritten with fresher data so scores, summaries, and `artworkUrl` stay current if a review is re-fetched.
-4. Convert back to array sorted by `publishedAt` descending, then write as `output` instead of `final`.
-
-### What did NOT change
-
-- `computeId()` — the existing stable band+album hash is the perfect merge key.
-- `fetchArtworkUrl()`, `normalizeScore()`, all scraper extractors, cron scheduling, and the frontend are all untouched.
-- `reviews.json` shape is identical — just grows over time rather than resetting each run.
+The original implementation merged fresh results into `public/reviews.json` so history beyond the current RSS window was preserved. The merge key was `computeId()` (stable band+album hash). The merge guard prevented artwork/genre regressions on transient MB failures.
 
 ## Session decisions — Manual refresh / Express server (June 2026)
 
@@ -155,7 +145,7 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 
 ### Controls bar styling pattern
 
-A shared `controlStyle` const is defined in the `App` component body (alongside `cardStyle`) and spread onto all four controls (Input, both Selects, Button):
+A shared `controlStyle` const is defined in the `App` component body (alongside `cardStyle`) and spread onto the Input and all three Selects (Sort, Source, Score):
 
 ```ts
 const controlStyle = {
@@ -262,6 +252,35 @@ Both AMG and The Progressive Subway embed review-site boilerplate in their RSS `
 
 This means a transient MB failure (network, rate limit, lookup miss) can no longer erase data already stored in `reviews.json`.
 
+## Session decisions — Controls bar enhancements (June 2026)
+
+### What was built
+
+Two additions to `src/App.tsx` only — no scraper or server files touched.
+
+**Score filter** — a fourth Select control added to the controls bar between the Source filter and the Refresh button. State: `const [minScore, setMinScore] = useState('')`. Options: All Scores / 7+ / 8+ / 9+ (per 10). Filter logic: `r.normalizedScore >= parseFloat(minScore) * 10`. Width: `w="130px"`, uses the same `controlStyle` spread and `sx={{ '& option': { background: '#1a202c' } }}` as the existing Selects.
+
+**Review counter** — a `<Text fontSize="sm" color="text.dim">` rendered between the controls bar `<Flex>` and the card grid, guarded by `!loading`. Shows `"{n} of {total} reviews"` when `filtered.length < reviews.length` (any filter is reducing the set), and `"{total} reviews"` otherwise. Uses `mt={2}` spacing from the controls bar.
+
+### Controls bar final order (left → right)
+
+```
+[Search input — flex: 1]  [Sort ▾]  [Source ▾]  [Score ▾]  [Refresh]
+```
+
+### Filter pipeline order
+
+Reordered in this session to make the score filter slot in cleanly:
+
+1. Source filter (`filterSource`)
+2. Score filter (`minScore`)
+3. Search (band, album, genre text match)
+4. Sort (newest / highest score)
+
+The counter reads `filtered.length` — the length of the final array after all four stages.
+
+---
+
 ## Session decisions — Design tokens (June 2026)
 
 ### What was built
@@ -292,5 +311,132 @@ No custom radii are defined in the theme. Use Chakra's built-in keys directly:
 
 Two hardcoded values are deliberate carve-outs:
 
-- `sx={{ '& option': { background: '#1a202c' } }}` on both `<Select>` controls — Chakra semantic tokens cannot resolve inside native CSS `sx` option selectors. `#1a202c` is the hex equivalent of `gray.900`.
+- `sx={{ '& option': { background: '#1a202c' } }}` on all three `<Select>` controls (Sort, Source, Score) — Chakra semantic tokens cannot resolve inside native CSS `sx` option selectors. `#1a202c` is the hex equivalent of `gray.900`.
 - `color="gray.300"` on the Refresh button — pending a decision on whether the button adopts teal (`accent.text`) styling. Not a token yet.
+
+---
+
+## Session decisions — Controls bar responsive layout (June 2026)
+
+### What was built
+
+Replaced the fixed-width controls bar with a responsive flex layout in `src/App.tsx`. No other files were touched.
+
+### Layout behaviour
+
+| Breakpoint | Behaviour |
+|---|---|
+| `base` (0–767px) | Every control stacks full-width, one per line |
+| `md` (768–991px) | Search takes its own full-width first line; Sort + Source + Score + Refresh share the second line |
+| `lg` (992px+) | Single row: Search gets `flex: 2`, each Select gets `flex: 1` |
+
+### Key changes
+
+- `<Flex>` now has `flexWrap="wrap"` and `gap={2}`. The `<Spacer />` element was removed (gap handles spacing).
+- `Spacer` removed from the Chakra import.
+- All hardcoded `w="150px"` / `w="130px"` removed from the three Selects.
+- All per-control `ml={2}` removed (replaced by `gap={2}` on the container).
+- `ml={2}` removed from the Refresh button for the same reason.
+
+### Responsive prop values
+
+**Search Input:**
+```
+flex={{ base: '1 1 100%', lg: '2' }}
+minW={{ lg: '180px' }}
+```
+
+**Sort / Source / Score Selects:**
+```
+flex={{ base: '1 1 100%', md: '1', lg: '1' }}
+minW={{ base: '100px', lg: '110px' }}   // Sort and Score
+minW={{ base: '100px', lg: '120px' }}   // Source (slightly wider label)
+```
+
+**Refresh Button:**
+```
+w={{ base: '100%', md: 'auto' }}
+flexShrink={0}
+```
+
+### What did NOT change
+
+- `controlStyle` values (bg, border, color, size) — unchanged and still spread onto all Selects and the Input.
+- Refresh button border/color treatment — still uses explicit `border`, `borderColor`, `color` props, no `controlStyle` spread.
+- All filter, sort, and search logic.
+- Card grid, artwork, theme, ingest, and server files.
+
+---
+
+## Session decisions — Supabase migration (June 2026)
+
+### What was built
+
+The ingest pipeline's write target moved from `public/reviews.json` to a Supabase Postgres table called `reviews`. The frontend still reads from `reviews.json` (Phase 3 will migrate it).
+
+### New files
+
+- **`scripts/supabaseClient.ts`**: Exports a single `supabase` client using `SUPABASE_URL` + `SUPABASE_SECRET_KEY` from `.env` (loaded via `dotenv/config`). Uses the service key, which bypasses RLS — never import this in frontend code.
+- **`scripts/seed-from-json.ts`**: One-time migration script that read `public/reviews.json` and upserted all 53 records into Supabase. Safe to re-run (upserts on `id`). Keep in repo for reference; not needed again unless the table is reset.
+
+### Supabase table schema
+
+```sql
+create table reviews (
+  id text primary key,
+  band text not null,
+  album text not null,
+  source text not null,
+  score text,
+  normalized_score numeric,  -- numeric (not integer) to preserve fractional values e.g. 83.33
+  summary text,
+  url text,
+  published_at timestamptz,
+  published_date text,       -- formatted display string e.g. "14 Jun 2026", derived from published_at
+  artwork_url text,
+  genre text[] default '{}'::text[]
+);
+```
+
+### camelCase ↔ snake_case mapping (scripts/ingest.ts)
+
+Postgres uses snake_case; `MetalReview` uses camelCase. Two explicit mapping functions handle the boundary — do not use a generic string converter:
+
+- **`toDbRow(r: MetalReview): DbRow`** — maps before upsert. Drops fields not in the schema (`rating`, `isDoublePositive`).
+- **`fromDbRow(row: DbRow): MetalReview`** — maps after select. Fills nullable DB fields with safe defaults (`''`, `0`, `[]`).
+
+Both are exported. `DbRow` type mirrors the exact Postgres column names/types.
+
+Affected field mappings:
+| `MetalReview` | DB column |
+|---|---|
+| `normalizedScore` | `normalized_score` |
+| `publishedAt` | `published_at` |
+| `publishedDate` | `published_date` |
+| `artworkUrl` | `artwork_url` |
+
+### applyMergeGuard (extracted pure function)
+
+The merge guard logic was extracted from the inline block in `runIngestion()` into `export function applyMergeGuard(existingById, freshReviews): MetalReview[]`. It is:
+
+- **Pure** — no I/O, no side effects, operates entirely on in-memory maps
+- **Tested** — 8 unit tests in `src/__tests__/mergeGuard.test.ts`
+- **Exported** — importable without triggering any ingest side effects
+
+Guard rules (unchanged from the JSON era):
+- `artworkUrl`: use fresh if non-null; otherwise keep existing; otherwise null
+- `genre`: use fresh if non-empty; otherwise keep existing; otherwise `[]`
+- Existing rows not in fresh results are preserved in output
+- Output sorted by `publishedAt` descending
+
+### How runIngestion() works now
+
+1. `SELECT *` from Supabase → `existingReviews` (non-fatal on failure, falls back to `[]`)
+2. Build `existingById`, `ratingAlreadyFetched`, `mbAlreadyFetched` skip-sets from existing rows
+3. Fetch RSS feeds + ratings + MusicBrainz data (unchanged)
+4. `applyMergeGuard(existingById, final)` → `output`
+5. `UPSERT output.map(toDbRow)` with `onConflict: 'id'` — throws on error (fatal)
+
+### Known gap — refresh button (Phase 3)
+
+The refresh button in `App.tsx` polls `GET /reviews.json` every 3 seconds to detect when an ingest completes, comparing `Math.max(...publishedAt)` snapshots. Since ingest no longer writes `reviews.json`, the poll never sees a change and the button spins indefinitely after clicking. Fix is part of Phase 3 (migrating the frontend to read from Supabase).
