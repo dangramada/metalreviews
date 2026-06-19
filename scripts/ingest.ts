@@ -1,14 +1,13 @@
 import RSSParser from 'rss-parser';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { promises as fs } from 'fs';
-import path from 'path';
 import cron from 'node-cron';
 import puppeteer from 'puppeteer';
 import { MetalReview } from '../src/types';
 import { extractRating } from '../src/scraper/angrymetal.js';
 import { extractRating as extractPSRating } from '../src/scraper/progressivesubway';
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
+import { supabase } from './supabaseClient';
 
 interface RawReview {
   source: string;
@@ -396,17 +395,15 @@ export function applyMergeGuard(
 }
 
 export async function runIngestion() {
-  const outPath = path.resolve(process.cwd(), 'public', 'reviews.json');
-  await fs.mkdir(path.dirname(outPath), { recursive: true });
-
-  // Read existing reviews first — before fetching — so the skip sets are ready
-  // to pass into each source fetcher, preventing redundant HTTP/Puppeteer calls.
+  // Fetch all existing rows from Supabase to build skip-sets and the merge map.
+  // A read failure is non-fatal — we start fresh rather than aborting the entire run.
   let existingReviews: MetalReview[] = [];
   try {
-    const raw = await fs.readFile(outPath, 'utf-8');
-    existingReviews = JSON.parse(raw);
-  } catch {
-    // file missing or invalid JSON — start fresh
+    const { data, error } = await supabase.from('reviews').select('*');
+    if (error) throw error;
+    existingReviews = data ?? [];
+  } catch (e) {
+    console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
   }
 
   // Map for O(1) lookups when reusing stored scores and artwork URLs.
