@@ -490,3 +490,21 @@ VITE_SUPABASE_PUBLISHABLE_KEY=...  # used by src/supabaseClient.ts (import.meta.
 ```
 
 Vite only exposes env vars prefixed `VITE_` to browser code. A missing prefix fails silently (the value is `undefined`) — the guard in `src/supabaseClient.ts` catches this at module load time.
+
+---
+
+## Session decisions — Render deployment (June 2026)
+
+### What was built
+
+Three fixes to `server.ts` for Render deployment:
+
+1. **Dynamic port binding**: `const PORT = process.env.PORT || 3001` — Render injects `PORT`; falls back to 3001 for local dev.
+2. **Production static serving**: Express now serves `dist/` (Vite build output) instead of `public/` (deleted in Phase 3).
+3. **Ingest endpoint auth**: `POST /api/ingest` requires an `X-Ingest-Token` header matching `INGEST_SECRET_TOKEN` (env var set in Render dashboard). Returns 401 otherwise. Logic lives in `export function isAuthorized()` in `server.ts` (exported for Vitest unit testing — no supertest needed).
+
+### Phase 5 — admin-gating (deferred, not shipped)
+
+`POST /api/ingest` is guarded by an `X-Ingest-Token` header check using `INGEST_SECRET_TOKEN` (set in Render's dashboard). This is "good enough for now" only because the Render URL is not publicly shared.
+
+**Known limitation:** the refresh button's frontend code also needs to send this header. There is no secure way to do this via a `VITE_`-prefixed env var — the value is visible in the browser's network tab. Proper admin-gating (where the secret never leaves the server and the button only renders for one authenticated user) is deferred to Phase 5, once auth is in place. See `isAuthorized` in `server.ts` for the code comment.
