@@ -1,9 +1,8 @@
 // src/App.tsx
 //
-// The entire frontend lives in this one file. It's a single-page React app —
-// no routing, no server-side rendering. On load it fetches reviews.json once,
-// stores the full list in memory, and handles all filtering, sorting, and
-// searching on the client side without any further network requests.
+// The main dashboard component. Loads reviews from Supabase on mount and renders
+// a dark-themed card grid with filtering, sorting, and searching.
+// Routing lives in main.tsx (React Router v7). This file owns only the / route.
 //
 // Two things are defined here:
 //   ArtworkBlock — a small self-contained component that renders one card's image
@@ -20,7 +19,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, // General-purpose container (renders as a <div>)
   Button,
-  Heading,
   Text,
   VStack, // Vertical stack — children laid out top-to-bottom with equal spacing
   Container, // Centres content and caps its max width
@@ -45,6 +43,7 @@ import { CheckIcon, RepeatIcon, WarningIcon } from '@chakra-ui/icons';
 import { supabase } from './supabaseClient';
 import { fromDbRow } from './dbMapping';
 import type { DbRow } from './dbMapping';
+import { Header } from './Header';
 
 // =============================================================================
 // TYPE DEFINITION
@@ -394,16 +393,7 @@ function App() {
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack spacing={6} align="stretch">
-          {/* Page title — gradient is clipped to the text shape via bgClip="text" */}
-          <Heading
-            as="h1"
-            size="xl"
-            textAlign="center"
-            bgGradient="linear(to-r, accent.start, accent.end)"
-            bgClip="text"
-          >
-            Metal Reviews Dashboard
-          </Heading>
+          <Header />
 
           {/* Controls bar: wraps at tablet (md) and stacks at mobile (base).
               gap={2} replaces per-control ml={2}; no Spacer needed with wrap. */}
