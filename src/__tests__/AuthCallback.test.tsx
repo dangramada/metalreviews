@@ -100,6 +100,31 @@ describe('AuthCallback', () => {
     expect(supabase.auth.updateUser).not.toHaveBeenCalled();
   });
 
+  it('shows error message when updateUser returns an error', async () => {
+    vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
+      callback('PASSWORD_RECOVERY', { user: {} } as any);
+      return { data: { subscription: { unsubscribe: vi.fn() } } } as any;
+    });
+    vi.mocked(supabase.auth.updateUser).mockResolvedValue({
+      data: { user: null as any },
+      error: { message: 'Password should be at least 6 characters.' } as any,
+    });
+    await act(async () => {
+      render(<AuthCallback />, { wrapper });
+    });
+    fireEvent.change(screen.getByPlaceholderText('New password'), {
+      target: { value: 'abc' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Confirm new password'), {
+      target: { value: 'abc' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /update password/i }));
+    await waitFor(() =>
+      expect(screen.getByText('Password should be at least 6 characters.')).toBeInTheDocument()
+    );
+    expect(mockNavigate).not.toHaveBeenCalledWith('/');
+  });
+
   it('calls updateUser and navigates to / on successful password reset', async () => {
     vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
       callback('PASSWORD_RECOVERY', { user: {} } as any);
