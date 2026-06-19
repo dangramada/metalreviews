@@ -376,6 +376,25 @@ function computeId(band: string, album: string): string {
   return Buffer.from(key).toString('base64');
 }
 
+export function applyMergeGuard(
+  existingById: Map<string, MetalReview>,
+  freshReviews: MetalReview[]
+): MetalReview[] {
+  const merged = new Map(existingById);
+  for (const review of freshReviews) {
+    const existing = merged.get(review.id);
+    merged.set(review.id, {
+      ...existing,
+      ...review,
+      artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
+      genre: review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
+    });
+  }
+  return Array.from(merged.values()).sort(
+    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  );
+}
+
 export async function runIngestion() {
   const outPath = path.resolve(process.cwd(), 'public', 'reviews.json');
   await fs.mkdir(path.dirname(outPath), { recursive: true });
@@ -459,25 +478,7 @@ export async function runIngestion() {
     });
   }
 
-  // Merge fresh results into the existing map — upsert by id so new reviews are added
-  // and re-fetched reviews get updated data, while historical reviews are preserved.
-  // Merge guard: never overwrite a good artworkUrl or non-empty genre array with a null/empty
-  // result. MB searches can fail transiently (network, rate limit, lookup miss), and we
-  // should never lose data we already have in those cases.
-  const merged = new Map(existingById);
-  for (const review of final) {
-    const existing = merged.get(review.id);
-    merged.set(review.id, {
-      ...existing,
-      ...review,
-      artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
-      genre:
-        review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
-    });
-  }
-  const output = Array.from(merged.values()).sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
+  const output = applyMergeGuard(existingById, final);
 
   await fs.writeFile(outPath, JSON.stringify(output, null, 2), 'utf-8');
   console.log('✅ Ingestion completed, written', output.length, 'reviews to', outPath);
