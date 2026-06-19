@@ -19,12 +19,12 @@ export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
   const navigate = useNavigate();
 
-  // Same token palette as the controls bar in App.tsx — no new styles introduced.
   const inputStyle = {
     size: 'md',
     variant: 'outline',
@@ -36,6 +36,12 @@ export function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === 'signup') {
@@ -50,7 +56,11 @@ export function LoginPage() {
         navigate('/');
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : (err as any)?.message ?? 'An error occurred. Please try again.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : (err as any)?.message ?? 'An error occurred. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -102,6 +112,18 @@ export function LoginPage() {
                 _placeholder={{ color: 'text.dim' }}
                 required
               />
+              {/* Confirm password — only shown in signup mode */}
+              {mode === 'signup' && (
+                <Input
+                  {...inputStyle}
+                  type="password"
+                  placeholder="Confirm password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  _placeholder={{ color: 'text.dim' }}
+                  required
+                />
+              )}
 
               {error && (
                 <Text color="red.400" fontSize="sm" alignSelf="flex-start">
@@ -141,10 +163,9 @@ export function LoginPage() {
               onClick={() => {
                 setMode(mode === 'login' ? 'signup' : 'login');
                 setError(null);
-                // Clear credentials when switching modes — avoids stale input confusion
-                // and prevents accidental submission of a login password in signup mode.
                 setEmail('');
                 setPassword('');
+                setConfirmPassword('');
               }}
             >
               {mode === 'login' ? 'Sign up' : 'Log in'}
