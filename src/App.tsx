@@ -274,8 +274,12 @@ function App() {
               .order('published_at', { ascending: false });
             if (!error && data) {
               setReviews((data as DbRow[]).map(fromDbRow));
+              setRefreshState('success');
+            } else {
+              // Ingest succeeded but the reload failed — show error so the user knows to refresh.
+              console.warn('Ingest complete but failed to reload reviews from Supabase', error);
+              setRefreshState('error');
             }
-            setRefreshState('success');
             setTimeout(() => setRefreshState('idle'), 3000);
           }
         } catch {
