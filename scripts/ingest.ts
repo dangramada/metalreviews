@@ -9,6 +9,56 @@ import { extractRating as extractPSRating } from '../src/scraper/progressivesubw
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
 
+// Shape of a row as returned from / sent to the Postgres reviews table (snake_case).
+type DbRow = {
+  id: string;
+  band: string;
+  album: string;
+  source: string;
+  score: string | null;
+  normalized_score: number | null;
+  summary: string | null;
+  url: string | null;
+  published_at: string | null;
+  published_date: string | null;
+  artwork_url: string | null;
+  genre: string[] | null;
+};
+
+function toDbRow(r: MetalReview): DbRow {
+  return {
+    id: r.id,
+    band: r.band,
+    album: r.album,
+    source: r.source,
+    score: r.score,
+    normalized_score: r.normalizedScore,
+    summary: r.summary,
+    url: r.url,
+    published_at: r.publishedAt,
+    published_date: r.publishedDate,
+    artwork_url: r.artworkUrl,
+    genre: r.genre,
+  };
+}
+
+function fromDbRow(row: DbRow): MetalReview {
+  return {
+    id: row.id,
+    band: row.band,
+    album: row.album,
+    source: row.source,
+    score: row.score ?? '',
+    normalizedScore: row.normalized_score ?? 0,
+    summary: row.summary ?? '',
+    url: row.url ?? '',
+    publishedAt: row.published_at ?? new Date().toISOString(),
+    publishedDate: row.published_date ?? '',
+    artworkUrl: row.artwork_url,
+    genre: row.genre ?? [],
+  };
+}
+
 interface RawReview {
   source: string;
   band: string;
@@ -401,7 +451,7 @@ export async function runIngestion() {
   try {
     const { data, error } = await supabase.from('reviews').select('*');
     if (error) throw error;
-    existingReviews = data ?? [];
+    existingReviews = (data ?? []).map(fromDbRow);
   } catch (e) {
     console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
   }
@@ -479,7 +529,7 @@ export async function runIngestion() {
 
   const { error: upsertError } = await supabase
     .from('reviews')
-    .upsert(output, { onConflict: 'id' });
+    .upsert(output.map(toDbRow), { onConflict: 'id' });
   if (upsertError) {
     throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
   }
