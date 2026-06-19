@@ -42,6 +42,7 @@ export function LoginPage() {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setResetSent(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
