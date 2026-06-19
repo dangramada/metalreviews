@@ -19,6 +19,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, // General-purpose container (renders as a <div>)
   Button,
+  Heading,
   Text,
   VStack, // Vertical stack — children laid out top-to-bottom with equal spacing
   Container, // Centres content and caps its max width
