@@ -65,15 +65,17 @@ Each source has its own extractor module in `src/scraper/`:
 
 ### 2. Frontend (`src/App.tsx`)
 
-A single-page React + Chakra UI app that reads `public/reviews.json` at load time and renders a dark-themed card grid. No routing, no server-side state — all filtering, sorting, and searching happen in-memory on the already-loaded array.
+A single-page React + Chakra UI app that queries Supabase on load and renders a dark-themed card grid. No routing, no server-side state — all filtering, sorting, and searching happen in-memory on the already-loaded array.
 
-Key data flow: `reviews.json` → `fetch('/reviews.json')` → React state → filter/sort → card grid.
+Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
 
-**Phase 3 pending:** The frontend still reads from `public/reviews.json`. This file is no longer written by the ingest pipeline (which now writes to Supabase). Phase 3 will migrate the frontend to read from Supabase directly. Until then, `reviews.json` is stale and the refresh button's completion-detection polling (which compares `publishedAt` snapshots of the JSON file) will not work.
+### 3. Shared types and mapping (`src/types.ts`, `src/dbMapping.ts`)
 
-### Shared type (`src/types.ts`)
+`MetalReview` in `src/types.ts` is the canonical shape shared by the scraper output and the frontend.
 
-`MetalReview` is the canonical shape shared by the scraper output and the frontend.
+`src/dbMapping.ts` is the single source of truth for the Postgres ↔ app boundary:
+- **`DbRow`** — mirrors the exact snake_case column names/types of the `reviews` table
+- **`fromDbRow(row: DbRow): MetalReview`** — used by both the ingest pipeline (reading back existing rows) and the frontend (mapping query results before touching React state)
 
 ## Score normalization
 
@@ -398,14 +400,14 @@ create table reviews (
 );
 ```
 
-### camelCase ↔ snake_case mapping (scripts/ingest.ts)
+### camelCase ↔ snake_case mapping
 
 Postgres uses snake_case; `MetalReview` uses camelCase. Two explicit mapping functions handle the boundary — do not use a generic string converter:
 
-- **`toDbRow(r: MetalReview): DbRow`** — maps before upsert. Drops fields not in the schema (`rating`, `isDoublePositive`).
-- **`fromDbRow(row: DbRow): MetalReview`** — maps after select. Fills nullable DB fields with safe defaults (`''`, `0`, `[]`).
+- **`fromDbRow(row: DbRow): MetalReview`** — lives in `src/dbMapping.ts` (shared). Used by ingest (reading back rows) and frontend (mapping query results). Fills nullable DB fields with safe defaults (`''`, `0`, `[]`).
+- **`toDbRow(r: MetalReview): DbRow`** — lives in `scripts/ingest.ts` (server-only). Maps before upsert. Drops fields not in the schema (`rating`, `isDoublePositive`).
 
-Both are exported. `DbRow` type mirrors the exact Postgres column names/types.
+`DbRow` is defined and exported from `src/dbMapping.ts`; `scripts/ingest.ts` re-exports it for backward compat.
 
 Affected field mappings:
 | `MetalReview` | DB column |
@@ -437,6 +439,54 @@ Guard rules (unchanged from the JSON era):
 4. `applyMergeGuard(existingById, final)` → `output`
 5. `UPSERT output.map(toDbRow)` with `onConflict: 'id'` — throws on error (fatal)
 
-### Known gap — refresh button (Phase 3)
+### Refresh button polling (Phase 3 — done)
 
-The refresh button in `App.tsx` polls `GET /reviews.json` every 3 seconds to detect when an ingest completes, comparing `Math.max(...publishedAt)` snapshots. Since ingest no longer writes `reviews.json`, the poll never sees a change and the button spins indefinitely after clicking. Fix is part of Phase 3 (migrating the frontend to read from Supabase).
+The refresh button polls `GET /api/ingest/status` every 2 seconds. When the server returns `{ status: "idle" }`, the ingest is complete. The button then queries Supabase directly to reload the card grid. If the reload fails, the button shows the error state instead of a false success checkmark.
+
+---
+
+## Session decisions — Supabase frontend migration / Phase 3 (June 2026)
+
+### What was built
+
+The frontend was migrated from reading `public/reviews.json` to querying Supabase directly. `public/reviews.json` has been deleted.
+
+### New files
+
+- **`src/supabaseClient.ts`**: Frontend-only Supabase client. Uses `import.meta.env.VITE_SUPABASE_URL` and `import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY` (the publishable/anon key — safe to bundle in the browser). Throws a clear error at module load time if either env var is missing. Never import `scripts/supabaseClient.ts` in frontend code — that holds the service key.
+- **`src/dbMapping.ts`**: Shared `DbRow` type and `fromDbRow` function. Extracted from `scripts/ingest.ts` so both the ingest pipeline and the frontend use the same mapping without duplicating it.
+
+### Key patterns
+
+**Two Supabase clients, separate purposes:**
+| File | Key | Who uses it |
+|---|---|---|
+| `scripts/supabaseClient.ts` | `SUPABASE_SECRET_KEY` (service key, bypasses RLS) | Ingest pipeline only |
+| `src/supabaseClient.ts` | `VITE_SUPABASE_PUBLISHABLE_KEY` (anon key) | Frontend only |
+
+**Single mapping layer in `src/dbMapping.ts`:** `fromDbRow` lives here; `scripts/ingest.ts` imports it and re-exports `DbRow` for backward compat. `toDbRow` stays in `scripts/ingest.ts` (server-only write path).
+
+**Initial load (`useEffect` in `App.tsx`):**
+```ts
+supabase.from('reviews').select('*').order('published_at', { ascending: false })
+  .then(({ data, error }) => {
+    if (error) { console.warn(...); }
+    else { setReviews((data as DbRow[]).map(fromDbRow)); }
+    setLoading(false);
+  })
+  .catch((e) => { console.warn(...); setLoading(false); }); // network-level failures
+```
+`.catch()` is required — the Supabase client resolves DB errors as `{ data: null, error }` but rejects on true network failures (DNS, TLS). Without `.catch`, a network failure leaves the spinner running forever.
+
+**Refresh reload:** After polling confirms `status === 'idle'`, does the same Supabase query. Shows `'error'` state (not `'success'`) if the reload itself fails, so the user knows the display wasn't updated.
+
+### env vars
+
+```
+SUPABASE_URL=...                   # used by scripts/supabaseClient.ts (dotenv)
+SUPABASE_SECRET_KEY=...            # used by scripts/supabaseClient.ts (dotenv)
+VITE_SUPABASE_URL=...              # used by src/supabaseClient.ts (import.meta.env)
+VITE_SUPABASE_PUBLISHABLE_KEY=...  # used by src/supabaseClient.ts (import.meta.env)
+```
+
+Vite only exposes env vars prefixed `VITE_` to browser code. A missing prefix fails silently (the value is `undefined`) — the guard in `src/supabaseClient.ts` catches this at module load time.
