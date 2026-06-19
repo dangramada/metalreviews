@@ -231,7 +231,12 @@ function App() {
     setRefreshState('loading');
     try {
       // POST to /api/ingest via the Vite proxy → Express server on port 3001.
-      const res = await fetch('/api/ingest', { method: 'POST' });
+      // VITE_INGEST_SECRET_TOKEN is the browser-exposed copy of the server's INGEST_SECRET_TOKEN.
+      // If the var is missing the fallback '' is sent, which isAuthorized correctly rejects.
+      const res = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'X-Ingest-Token': import.meta.env.VITE_INGEST_SECRET_TOKEN ?? '' },
+      });
 
       if (res.status === 409) {
         // 409 Conflict: server returns this when an ingest is already running.

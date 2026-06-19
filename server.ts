@@ -22,6 +22,12 @@ export function isAuthorized(
   return normalized === secret;
 }
 
+// Warn once at startup so the operator notices immediately if the secret is missing.
+// Without it every POST /api/ingest call returns 401 and the refresh button never works.
+if (!process.env.INGEST_SECRET_TOKEN) {
+  console.warn('INGEST_SECRET_TOKEN is not set — POST /api/ingest will always return 401');
+}
+
 app.post('/api/ingest', (req, res) => {
   const token = req.headers['x-ingest-token'];
   if (!isAuthorized(token, process.env.INGEST_SECRET_TOKEN)) {
