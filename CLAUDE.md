@@ -497,14 +497,22 @@ Vite only exposes env vars prefixed `VITE_` to browser code. A missing prefix fa
 
 ### What was built
 
-Three fixes to `server.ts` for Render deployment:
+Four fixes for Render deployment:
 
 1. **Dynamic port binding**: `const PORT = process.env.PORT || 3001` — Render injects `PORT`; falls back to 3001 for local dev.
 2. **Production static serving**: Express now serves `dist/` (Vite build output) instead of `public/` (deleted in Phase 3).
-3. **Ingest endpoint auth**: `POST /api/ingest` requires an `X-Ingest-Token` header matching `INGEST_SECRET_TOKEN` (env var set in Render dashboard). Returns 401 otherwise. Logic lives in `export function isAuthorized()` in `server.ts` (exported for Vitest unit testing — no supertest needed).
+3. **Ingest endpoint auth**: `POST /api/ingest` requires an `X-Ingest-Token` header matching `INGEST_SECRET_TOKEN`. Returns 401 otherwise. Logic lives in `export function isAuthorized()` in `server.ts` (exported pure function — no supertest needed for Vitest). The refresh button in `App.tsx` sends the header via `VITE_INGEST_SECRET_TOKEN`.
+4. **Startup warning**: `server.ts` logs a `console.warn` at startup if `INGEST_SECRET_TOKEN` is unset, so a misconfigured deploy is immediately visible in Render logs.
+
+### env vars
+
+```
+INGEST_SECRET_TOKEN=...           # server.ts — the shared secret, checked on every POST /api/ingest
+VITE_INGEST_SECRET_TOKEN=...      # App.tsx (Vite) — must match INGEST_SECRET_TOKEN exactly
+```
+
+Both must be set in `.env` for local dev and in Render's dashboard for production. If `INGEST_SECRET_TOKEN` is missing on the server, the endpoint rejects all requests and logs a warning at startup.
 
 ### Phase 5 — admin-gating (deferred, not shipped)
 
-`POST /api/ingest` is guarded by an `X-Ingest-Token` header check using `INGEST_SECRET_TOKEN` (set in Render's dashboard). This is "good enough for now" only because the Render URL is not publicly shared.
-
-**Known limitation:** the refresh button's frontend code also needs to send this header. There is no secure way to do this via a `VITE_`-prefixed env var — the value is visible in the browser's network tab. Proper admin-gating (where the secret never leaves the server and the button only renders for one authenticated user) is deferred to Phase 5, once auth is in place. See `isAuthorized` in `server.ts` for the code comment.
+The `VITE_INGEST_SECRET_TOKEN` value is bundled into the browser JS and visible in the network tab — it cannot truly be kept secret. This is acceptable while the Render URL is not publicly shared. Proper admin-gating (button only renders for an authenticated user; secret never leaves the server) is deferred to Phase 5. See the `isAuthorized` comment in `server.ts`.
