@@ -144,7 +144,7 @@ describe('AuthCallback', () => {
       target: { value: 'newpass123' },
     });
     fireEvent.click(screen.getByRole('button', { name: /update password/i }));
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: 'newpass123' });
   });
 });

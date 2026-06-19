@@ -60,7 +60,9 @@ export function AuthCallback() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      navigate('/');
+      // replace: true removes the /auth/callback URL from history — pressing Back after a
+      // successful reset would otherwise land back on a form whose token is already consumed.
+      navigate('/', { replace: true });
     } catch (err: unknown) {
       setError(
         err instanceof Error
