@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
 
-type Mode = 'login' | 'signup';
+type Mode = 'login' | 'signup' | 'forgot-password';
 
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
@@ -23,6 +23,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const navigate = useNavigate();
 
   const inputStyle = {
@@ -32,6 +33,16 @@ export function LoginPage() {
     color: 'text.primary',
     borderColor: 'border.default',
   } as const;
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    // Clear all credential fields on mode switch — avoids stale input confusion
+    // and prevents accidental submission of a login password in signup mode.
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,10 +61,19 @@ export function LoginPage() {
         // signUp() resolves without error even when email confirmation is required.
         // We show the confirmation screen; the user can't log in until they click the link.
         setConfirmationSent(true);
-      } else {
+      } else if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         navigate('/');
+      } else {
+        // forgot-password: uses window.location.origin so it works in both dev and production
+        // without requiring a VITE_APP_URL env var.
+        const redirectTo = `${window.location.origin}/auth/callback`;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+        // Always show the success screen regardless of whether the email exists —
+        // revealing that would tell an attacker which emails are registered.
+        setResetSent(true);
       }
     } catch (err: unknown) {
       setError(
@@ -84,12 +104,27 @@ export function LoginPage() {
     );
   }
 
+  if (resetSent) {
+    return (
+      <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
+        <Container maxW="sm">
+          <VStack spacing={4} textAlign="center">
+            <Text fontSize="lg">Check your email for a password reset link.</Text>
+            <Link as={RouterLink} to="/login" color="accent.text" fontSize="sm">
+              Back to log in
+            </Link>
+          </VStack>
+        </Container>
+      </Box>
+    );
+  }
+
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="sm">
         <VStack spacing={6} align="stretch">
           <Heading size="lg" textAlign="center" color="text.primary">
-            {mode === 'login' ? 'Log in' : 'Sign up'}
+            {mode === 'login' ? 'Log in' : mode === 'signup' ? 'Sign up' : 'Reset password'}
           </Heading>
 
           <Box as="form" onSubmit={handleSubmit}>
@@ -103,16 +138,18 @@ export function LoginPage() {
                 _placeholder={{ color: 'text.dim' }}
                 required
               />
-              <Input
-                {...inputStyle}
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                _placeholder={{ color: 'text.dim' }}
-                required
-              />
-              {/* Confirm password — only shown in signup mode */}
+              {/* Password fields hidden in forgot-password mode — only email needed there */}
+              {mode !== 'forgot-password' && (
+                <Input
+                  {...inputStyle}
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  _placeholder={{ color: 'text.dim' }}
+                  required
+                />
+              )}
               {mode === 'signup' && (
                 <Input
                   {...inputStyle}
@@ -140,7 +177,7 @@ export function LoginPage() {
                 _active={{ bg: 'teal.700' }}
                 isLoading={loading}
               >
-                {mode === 'login' ? 'Log in' : 'Sign up'}
+                {mode === 'login' ? 'Log in' : mode === 'signup' ? 'Sign up' : 'Send reset link'}
               </Button>
             </VStack>
           </Box>
@@ -148,31 +185,68 @@ export function LoginPage() {
           {/*
            * OAuth buttons will go here in a future session (Google, Facebook).
            * Each will call: supabase.auth.signInWithOAuth({ provider: 'google' | 'facebook' })
-           * They slot between the password submit button above and the mode toggle below.
+           * They slot between the password submit button above and the mode controls below.
            */}
 
-          <Flex justify="center" align="center" gap={1} fontSize="sm">
-            <Text color="text.dim">
-              {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
-            </Text>
-            <Button
-              variant="link"
-              size="sm"
-              color="accent.text"
-              fontWeight="normal"
-              onClick={() => {
-                setMode(mode === 'login' ? 'signup' : 'login');
-                setError(null);
-                // Clear all credential fields on mode switch — avoids stale input confusion
-                // and prevents accidental submission of a login password in signup mode.
-                setEmail('');
-                setPassword('');
-                setConfirmPassword('');
-              }}
-            >
-              {mode === 'login' ? 'Sign up' : 'Log in'}
-            </Button>
-          </Flex>
+          {/* Login mode controls: forgot-password link + sign-up toggle */}
+          {mode === 'login' && (
+            <>
+              <Flex justify="center" fontSize="sm">
+                <Button
+                  variant="link"
+                  size="sm"
+                  color="text.dim"
+                  fontWeight="normal"
+                  onClick={() => switchMode('forgot-password')}
+                >
+                  Forgot password?
+                </Button>
+              </Flex>
+              <Flex justify="center" align="center" gap={1} fontSize="sm">
+                <Text color="text.dim">Don't have an account?</Text>
+                <Button
+                  variant="link"
+                  size="sm"
+                  color="accent.text"
+                  fontWeight="normal"
+                  onClick={() => switchMode('signup')}
+                >
+                  Sign up
+                </Button>
+              </Flex>
+            </>
+          )}
+
+          {/* Signup mode: back-to-login toggle */}
+          {mode === 'signup' && (
+            <Flex justify="center" align="center" gap={1} fontSize="sm">
+              <Text color="text.dim">Already have an account?</Text>
+              <Button
+                variant="link"
+                size="sm"
+                color="accent.text"
+                fontWeight="normal"
+                onClick={() => switchMode('login')}
+              >
+                Log in
+              </Button>
+            </Flex>
+          )}
+
+          {/* Forgot-password mode: back-to-login link */}
+          {mode === 'forgot-password' && (
+            <Flex justify="center" fontSize="sm">
+              <Button
+                variant="link"
+                size="sm"
+                color="accent.text"
+                fontWeight="normal"
+                onClick={() => switchMode('login')}
+              >
+                Back to log in
+              </Button>
+            </Flex>
+          )}
 
           <Text textAlign="center" fontSize="sm">
             <Link as={RouterLink} to="/" color="text.dim" _hover={{ color: 'text.primary' }}>
