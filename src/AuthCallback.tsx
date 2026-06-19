@@ -1,24 +1,128 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Flex, Spinner, Text } from '@chakra-ui/react';
+import {
+  Box,
+  Button,
+  Container,
+  Flex,
+  Heading,
+  Input,
+  Spinner,
+  Text,
+  VStack,
+} from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
+
+type CallbackMode = 'loading' | 'recovery';
 
 export function AuthCallback() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<CallbackMode>('loading');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const inputStyle = {
+    size: 'md',
+    variant: 'outline',
+    bg: 'surface.card',
+    color: 'text.primary',
+    borderColor: 'border.default',
+  } as const;
 
   useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data }) => {
-        // Supabase has already exchanged the OAuth code from the URL by the time this runs.
-        // If a session exists, go to the dashboard. If not (malformed callback), go to login.
-        navigate(data.session ? '/' : '/login', { replace: true });
-      })
-      .catch(() => {
-        // Network-level failure (DNS, TLS, etc.) — getSession() rejects rather than resolving
-        // with an error object. Fall back to login so the user is not stuck on the spinner.
+    // onAuthStateChange fires PASSWORD_RECOVERY when the user arrives via a reset link.
+    // The SDK has already exchanged the token from the URL by the time the callback fires.
+    // For every other event (SIGNED_IN from email confirmation, later OAuth), redirect to /.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setMode('recovery');
+      } else if (session) {
+        navigate('/', { replace: true });
+      } else {
         navigate('/login', { replace: true });
-      });
+      }
+    });
+    return () => subscription.unsubscribe();
   }, [navigate]);
+
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      navigate('/');
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : (err as any)?.message ?? 'Failed to update password. Please try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (mode === 'recovery') {
+    return (
+      <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
+        <Container maxW="sm">
+          <VStack spacing={6} align="stretch">
+            <Heading size="lg" textAlign="center" color="text.primary">
+              Set new password
+            </Heading>
+            <Box as="form" onSubmit={handleUpdatePassword}>
+              <VStack spacing={4}>
+                <Input
+                  {...inputStyle}
+                  type="password"
+                  placeholder="New password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  _placeholder={{ color: 'text.dim' }}
+                  required
+                />
+                <Input
+                  {...inputStyle}
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  _placeholder={{ color: 'text.dim' }}
+                  required
+                />
+                {error && (
+                  <Text color="red.400" fontSize="sm" alignSelf="flex-start">
+                    {error}
+                  </Text>
+                )}
+                <Button
+                  type="submit"
+                  w="100%"
+                  bg="accent.border"
+                  color="white"
+                  _hover={{ bg: 'teal.600' }}
+                  _active={{ bg: 'teal.700' }}
+                  isLoading={loading}
+                >
+                  Update password
+                </Button>
+              </VStack>
+            </Box>
+          </VStack>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary">
