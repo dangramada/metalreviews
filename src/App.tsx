@@ -31,7 +31,6 @@ import {
   Wrap, // Wrapper for flexible layout of tags
   WrapItem, // Item inside Wrap for each individual tag
   Flex, // Flexbox container — used for the controls bar and card header
-  Spacer, // Pushes flex siblings apart (fills remaining space between them)
   Spinner, // Animated loading indicator
   Link, // Anchor tag with Chakra styling — wraps each card so the whole card is clickable
   Image,
@@ -41,6 +40,11 @@ import {
 
 // Icons for the Refresh button's different states
 import { CheckIcon, RepeatIcon, WarningIcon } from '@chakra-ui/icons';
+
+// Supabase client and data mapping for Phase 3 (frontend reading from Supabase)
+import { supabase } from './supabaseClient';
+import { fromDbRow } from './dbMapping';
+import type { DbRow } from './dbMapping';
 
 // =============================================================================
 // TYPE DEFINITION
@@ -200,6 +204,9 @@ function App() {
   // Which source to show — 'All' passes everything through.
   const [filterSource, setFilterSource] = useState('All');
 
+  // Minimum score filter — '' means no filter; '8' means normalizedScore >= 80.
+  const [minScore, setMinScore] = useState('');
+
   // True while the initial reviews.json load is in flight.
   // Controls whether we show the full-page spinner or the card grid.
   const [loading, setLoading] = useState(true);
@@ -286,18 +293,21 @@ function App() {
   // =============================================================================
 
   // useEffect with [] runs exactly once, after the component first appears on screen.
-  // We fetch reviews.json from public/ — Vite serves it as a static file in dev;
-  // a CDN or static host would serve it in production. No API call needed.
+  // Phase 3: Query Supabase reviews table instead of reading reviews.json.
+  // The Supabase client uses VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
+  // from .env (frontend-safe, uses RLS if configured on the table).
   useEffect(() => {
-    fetch('/reviews.json')
-      .then((r) => r.json())
-      .then((data) => {
-        setReviews(data);
+    supabase
+      .from('reviews')
+      .select('*')
+      .order('published_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn('Failed to load reviews from Supabase', error);
+        } else {
+          setReviews((data as DbRow[]).map(fromDbRow));
+        }
         setLoading(false);
-      })
-      .catch((e) => {
-        console.warn('Failed to load reviews', e);
-        setLoading(false); // Stop the spinner even on failure
       });
   }, []); // [] = run once on mount, never re-run
 
@@ -311,7 +321,10 @@ function App() {
 
   // `filtered` recomputes on every render automatically — React re-renders whenever
   // state changes, so this updates the moment the user types or changes a dropdown.
+  // Pipeline order: source → score → search → sort
   const filtered = reviews
+    .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
+    .filter((r) => (minScore === '' ? true : r.normalizedScore >= parseFloat(minScore) * 10))
     .filter((r) => {
       const term = search.toLowerCase();
       return (
@@ -320,7 +333,6 @@ function App() {
         (r.genre ?? []).some((g) => g.toLowerCase().includes(term)) // genre is populated via MusicBrainz lookup
       );
     })
-    .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
     .sort((a, b) => {
       if (sortKey === 'date') {
         // Convert ISO strings to millisecond timestamps for numeric comparison.
@@ -376,23 +388,24 @@ function App() {
             Metal Reviews Dashboard
           </Heading>
 
-          {/* Controls bar: search input, sort, source filter, refresh button.
-              Spacer pushes the right-side controls away from the search input. */}
-          <Flex>
+          {/* Controls bar: wraps at tablet (md) and stacks at mobile (base).
+              gap={2} replaces per-control ml={2}; no Spacer needed with wrap. */}
+          <Flex flexWrap="wrap" gap={2}>
             <Input
               {...controlStyle}
-              placeholder="Search by band, album..."
+              flex={{ base: '1 1 100%', lg: '2' }}
+              minW={{ lg: '180px' }}
+              placeholder="Search by band, album, genre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               _placeholder={{ color: 'text.dim' }}
             />
-            <Spacer />
             {/* sx overrides the native white dropdown background on Windows —
                 Chakra has no prop for this, so we drop to raw CSS via sx. */}
             <Select
               {...controlStyle}
-              w="150px"
-              ml={2}
+              flex={{ base: '1 1 100%', md: '1', lg: '1' }}
+              minW={{ base: '100px', lg: '110px' }}
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as 'date' | 'score')}
               sx={{ '& option': { background: '#1a202c' } }}
@@ -403,8 +416,8 @@ function App() {
             {/* Source options are derived from live data — no hardcoding needed */}
             <Select
               {...controlStyle}
-              w="150px"
-              ml={2}
+              flex={{ base: '1 1 100%', md: '1', lg: '1' }}
+              minW={{ base: '100px', lg: '120px' }}
               value={filterSource}
               onChange={(e) => setFilterSource(e.target.value)}
               sx={{ '& option': { background: '#1a202c' } }}
@@ -416,12 +429,24 @@ function App() {
                 </option>
               ))}
             </Select>
-            {/* Button does NOT spread controlStyle — see comment above.
-                flexShrink={0} prevents the flex row from compressing it. */}
+            <Select
+              {...controlStyle}
+              flex={{ base: '1 1 100%', md: '1', lg: '1' }}
+              minW={{ base: '100px', lg: '110px' }}
+              value={minScore}
+              onChange={(e) => setMinScore(e.target.value)}
+              sx={{ '& option': { background: '#1a202c' } }}
+            >
+              <option value="">All Scores</option>
+              <option value="9">9+ / 10</option>
+              <option value="8">8+ / 10</option>
+              <option value="7">7+ / 10</option>
+            </Select>
+            {/* Button does NOT spread controlStyle — see comment above. */}
             <Button
-              ml={2}
               px={4}
               flexShrink={0}
+              w={{ base: '100%', md: 'auto' }}
               bg="surface.card"
               color="gray.300"
               border="1px solid"
@@ -453,6 +478,16 @@ function App() {
                     : 'Refresh'}
             </Button>
           </Flex>
+
+          {/* Review counter — updates in real time as filters change.
+              Shows "n of total" only when filters are actually reducing the set. */}
+          {!loading && (
+            <Text fontSize="md" fontWeight="bold"  color="text.dim" mt={0} paddingLeft={1} >
+              {filtered.length < reviews.length
+                ? `${filtered.length} of ${reviews.length} reviews`
+                : `${reviews.length} reviews`}
+            </Text>
+          )}
 
           {/* Full-page spinner while reviews.json is loading; card grid once ready */}
           {loading ? (
