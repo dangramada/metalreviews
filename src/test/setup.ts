@@ -1,1 +1,2 @@
-// vitest setup – currently empty (can add globals or mocks later)
+// vitest setup – extends expect with jest-dom matchers (toBeInTheDocument, etc.)
+import '@testing-library/jest-dom';
