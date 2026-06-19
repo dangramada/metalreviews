@@ -71,8 +71,8 @@ Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*'
 
 Routes:
 - `/` — dashboard (review grid), public — no auth required
-- `/login` — email/password auth form (`LoginPage`); OAuth buttons reserved for future session
-- `/auth/callback` — OAuth redirect handler (`AuthCallback`); not used until OAuth is enabled
+- `/login` — email/password auth form (`LoginPage`) with sign-up, forgot-password modes; OAuth buttons reserved for future session
+- `/auth/callback` — handles `PASSWORD_RECOVERY` event (inline set-password form) and OAuth redirects (`AuthCallback`)
 
 Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and exposed via `useAuth()`. The `Header` component renders the app title + login/logout controls.
 
@@ -520,9 +520,9 @@ VITE_INGEST_SECRET_TOKEN=...      # App.tsx (Vite) — must match INGEST_SECRET_
 
 Both must be set in `.env` for local dev and in Render's dashboard for production. If `INGEST_SECRET_TOKEN` is missing on the server, the endpoint rejects all requests and logs a warning at startup.
 
-### Phase 5 — admin-gating (deferred, not shipped)
+### Admin-gating of the Refresh button (deferred)
 
-The `VITE_INGEST_SECRET_TOKEN` value is bundled into the browser JS and visible in the network tab — it cannot truly be kept secret. This is acceptable while the Render URL is not publicly shared. Proper admin-gating (button only renders for an authenticated user; secret never leaves the server) is deferred to Phase 5. See the `isAuthorized` comment in `server.ts`.
+The `VITE_INGEST_SECRET_TOKEN` value is bundled into the browser JS and visible in the network tab — it cannot truly be kept secret. This is acceptable while the Render URL is not publicly shared. Proper admin-gating (button only renders for an authenticated user; secret never leaves the server) is deferred. See the `isAuthorized` comment in `server.ts`.
 
 ---
 
@@ -534,7 +534,7 @@ The `VITE_INGEST_SECRET_TOKEN` value is bundled into the browser JS and visible 
 - `AuthContext.tsx` — `AuthProvider` + `useAuth()` hook. Hydrates from `supabase.auth.getSession()` on mount; stays in sync via `onAuthStateChange`. Context defaults to `undefined`; hook throws if used outside provider.
 - `Header.tsx` — app title + login/logout controls. Logged out: `<Link to="/login">` (React Router). Logged in: email prefix + Log out button.
 - `LoginPage.tsx` — email/password form with sign-up/log-in mode toggle. Signup shows confirmation message (Supabase requires email verification by default). OAuth button placeholder left in a comment.
-- `AuthCallback.tsx` — loading spinner that redirects to `/` (session found) or `/login` (no session). Used by OAuth flows; not reachable via email/password auth.
+- `AuthCallback.tsx` — uses `onAuthStateChange` to detect the auth event. `PASSWORD_RECOVERY` (from a forgot-password email link) shows an inline "Set new password" form; all other events with a session navigate to `/`; no session navigates to `/login`.
 - `server.ts` catch-all: `app.get(/.*/)` → `dist/index.html` so `/login` typed in the address bar doesn't 404 on Render. Regex required by Express v5 (string `'*'` is deprecated).
 
 ### What was deferred
