@@ -7,11 +7,17 @@ export function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      // Supabase has already exchanged the OAuth code from the URL by the time this runs.
-      // If a session exists, go to the dashboard. If not (malformed callback), go to login.
-      navigate(data.session ? '/' : '/login', { replace: true });
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        // Supabase has already exchanged the OAuth code from the URL by the time this runs.
+        // If a session exists, go to the dashboard. If not (malformed callback), go to login.
+        navigate(data.session ? '/' : '/login', { replace: true });
+      })
+      .catch(() => {
+        // Network-level failure (DNS, TLS, etc.) — getSession() rejects rather than resolving
+        // with an error object. Fall back to login so the user is not stuck on the spinner.
+        navigate('/login', { replace: true });
+      });
   }, [navigate]);
 
   return (
