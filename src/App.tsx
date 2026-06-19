@@ -308,6 +308,10 @@ function App() {
           setReviews((data as DbRow[]).map(fromDbRow));
         }
         setLoading(false);
+      })
+      .catch((e) => {
+        console.warn('Failed to load reviews', e);
+        setLoading(false);
       });
   }, []); // [] = run once on mount, never re-run
 
