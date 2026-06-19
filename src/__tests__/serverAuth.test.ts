@@ -25,4 +25,8 @@ describe('isAuthorized', () => {
   it('returns false when both token and secret are undefined', () => {
     expect(isAuthorized(undefined, undefined)).toBe(false);
   });
+
+  it('returns true when token arrives as a single-element array', () => {
+    expect(isAuthorized(['my-secret'], 'my-secret')).toBe(true);
+  });
 });

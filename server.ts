@@ -17,8 +17,9 @@ export function isAuthorized(
   token: string | string[] | undefined,
   secret: string | undefined
 ): boolean {
-  if (!token || !secret) return false;
-  return token === secret;
+  const normalized = Array.isArray(token) ? token[0] : token;
+  if (!normalized || !secret) return false;
+  return normalized === secret;
 }
 
 app.post('/api/ingest', (req, res) => {
