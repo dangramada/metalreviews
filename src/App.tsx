@@ -35,10 +35,17 @@ import {
   Image,
   Skeleton, // Shimmer placeholder shown while an image loads
   useToast, // Hook that triggers a temporary notification pop-up
+  Icon,
+  FormControl,
+  FormLabel,
+  Switch,
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
 import { CheckIcon, RepeatIcon, WarningIcon } from '@chakra-ui/icons';
+
+// Heart icons for favoriting
+import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
 // Supabase client and data mapping for Phase 3 (frontend reading from Supabase)
 import { supabase } from './supabaseClient';
@@ -83,7 +90,15 @@ interface Review {
 // Extracted as a sibling function so each card gets its own isolated `loaded`
 // state — tracking whether the image has finished loading — without needing
 // to pass a Map or shared state down from the parent.
-function ArtworkBlock({ rev }: { rev: Review }) {
+export function ArtworkBlock({
+  rev,
+  isFavorited = false,
+  onToggle = () => {},
+}: {
+  rev: Review;
+  isFavorited?: boolean;
+  onToggle?: () => void;
+}) {
   // `loaded` flips to true once the browser has fully received the image data.
   const [loaded, setLoaded] = useState(false);
 
@@ -142,6 +157,37 @@ function ArtworkBlock({ rev }: { rev: Review }) {
           </Text>
         </Flex>
       )}
+
+      {/* Heart toggle — top-right corner (the one open corner: source is bottom-left,
+          score is bottom-right). e.stopPropagation() prevents the wrapping <Link>
+          from navigating to the review URL when the heart is clicked. */}
+      <Box
+        as="button"
+        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+        position="absolute"
+        top={2}
+        right={2}
+        bg="blackAlpha.400"
+        borderRadius="full"
+        p={1}
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        border="none"
+        cursor="pointer"
+        _hover={{ bg: 'blackAlpha.600' }}
+        onClick={(e: React.MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggle();
+        }}
+      >
+        <Icon
+          as={isFavorited ? FaHeart : FaRegHeart}
+          color={isFavorited ? 'red.400' : 'whiteAlpha.700'}
+          boxSize={4}
+        />
+      </Box>
 
       {/* Source badge — bottom-left corner, mirroring the score badge on the right.
           maxW accounts for score badge width + right offset + gap to prevent overlap. */}
