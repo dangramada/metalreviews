@@ -35,7 +35,6 @@ import {
   Link, // Anchor tag with Chakra styling — wraps each card so the whole card is clickable
   Image,
   Skeleton, // Shimmer placeholder shown while an image loads
-  useToast, // Hook that triggers a temporary notification pop-up
   Icon,
   Switch, // Toggle switch for the favorites-only filter
   FormLabel, // Accessible label paired with the Switch
@@ -270,11 +269,6 @@ function App() {
     'idle'
   );
 
-  // Calling toast({...}) shows a temporary notification pop-up in the corner.
-  // NOTE: toast/useToast is still used by handleRefresh (409 case). Task 6 will
-  // migrate that to useFeedbackToast — do NOT remove it here.
-  const toast = useToast();
-
   // Auth state — user is null when logged out.
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -306,12 +300,7 @@ function App() {
       if (res.status === 409) {
         // 409 Conflict: server returns this when an ingest is already running.
         // Show a warning and return to idle without starting the poll loop.
-        toast({
-          title: 'Ingest already running, please wait',
-          status: 'warning',
-          duration: 4000,
-          isClosable: true,
-        });
+        showError('Ingest already running, please wait');
         setRefreshState('idle');
         return;
       }
