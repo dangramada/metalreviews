@@ -67,7 +67,7 @@ export function AuthCallback() {
       setError(
         err instanceof Error
           ? err.message
-          : (err as any)?.message ?? 'Failed to update password. Please try again.'
+          : ((err as any)?.message ?? 'Failed to update password. Please try again.')
       );
     } finally {
       setLoading(false);

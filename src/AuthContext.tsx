@@ -17,7 +17,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Resolve the current session once on mount, then flip loading off.
     // onAuthStateChange fires on sign-in / sign-out events but does NOT fire
     // on the initial load, so we need getSession() for the first render.
-    supabase.auth.getSession()
+    supabase.auth
+      .getSession()
       .then(({ data, error }) => {
         if (error) console.warn('Failed to get session:', error.message);
         setUser(data?.session?.user ?? null);

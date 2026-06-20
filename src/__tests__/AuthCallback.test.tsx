@@ -52,9 +52,7 @@ describe('AuthCallback', () => {
       return { data: { subscription: { unsubscribe: vi.fn() } } } as any;
     });
     render(<AuthCallback />, { wrapper });
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
-    );
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
   });
 
   it('navigates to /login when event fires with no session', async () => {
@@ -63,9 +61,7 @@ describe('AuthCallback', () => {
       return { data: { subscription: { unsubscribe: vi.fn() } } } as any;
     });
     render(<AuthCallback />, { wrapper });
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true })
-    );
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true }));
   });
 
   it('shows password recovery form when PASSWORD_RECOVERY event fires', async () => {

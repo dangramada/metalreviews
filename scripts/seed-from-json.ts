@@ -13,9 +13,7 @@ const reviews: MetalReview[] = JSON.parse(raw);
 
 console.log(`Seeding ${reviews.length} reviews from reviews.json…`);
 
-const { error } = await supabase
-  .from('reviews')
-  .upsert(reviews.map(toDbRow), { onConflict: 'id' });
+const { error } = await supabase.from('reviews').upsert(reviews.map(toDbRow), { onConflict: 'id' });
 
 if (error) {
   console.error('Seed failed:', error.message);

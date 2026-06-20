@@ -31,6 +31,14 @@ const theme = extendTheme({
   components: {
     Input: { defaultProps: { size: 'md' } },
     Select: { defaultProps: { size: 'md' } },
+    Switch: {
+      baseStyle: {
+        track: {
+          bg: 'gray.600',
+          _checked: { bg: 'teal.500' },
+        },
+      },
+    },
   },
 });
 

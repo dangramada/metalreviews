@@ -663,7 +663,7 @@ function App() {
                   FormControl groups the label + switch for accessibility; w="auto" prevents
                   it from stretching to fill the flex container. */}
               {user && (
-                <FormControl display="flex" alignItems="center" gap={2} w="auto">
+                <FormControl display="flex" alignItems="center" gap={0} w="auto">
                   <FormLabel
                     htmlFor="favorites-toggle"
                     mb={0}

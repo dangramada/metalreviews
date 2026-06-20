@@ -1,16 +1,6 @@
 import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Container,
-  Flex,
-  Heading,
-  Input,
-  Link,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
 
 type Mode = 'login' | 'signup' | 'forgot-password';
@@ -80,7 +70,7 @@ export function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : (err as any)?.message ?? 'An error occurred. Please try again.'
+          : ((err as any)?.message ?? 'An error occurred. Please try again.')
       );
     } finally {
       setLoading(false);

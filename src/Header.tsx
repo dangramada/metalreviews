@@ -15,12 +15,7 @@ export function Header() {
 
   return (
     <Flex align="center" justify="space-between" mb={6}>
-      <Heading
-        as="h1"
-        size="xl"
-        bgGradient="linear(to-r, accent.start, accent.end)"
-        bgClip="text"
-      >
+      <Heading as="h1" size="xl" bgGradient="linear(to-r, accent.start, accent.end)" bgClip="text">
         Metal Reviews Dashboard
       </Heading>
 

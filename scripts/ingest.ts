@@ -441,8 +441,7 @@ export async function runIngestion() {
   const mbAlreadyFetched = new Set(
     existingReviews
       .filter(
-        (r) =>
-          typeof r.artworkUrl === 'string' && Array.isArray(r.genre) && r.genre.length > 0
+        (r) => typeof r.artworkUrl === 'string' && Array.isArray(r.genre) && r.genre.length > 0
       )
       .map((r) => r.id)
   );
