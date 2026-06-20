@@ -47,10 +47,7 @@ describe('FavoritesPage', () => {
   it('shows a spinner while loading', () => {
     vi.mocked(useFavoritesList).mockReturnValue({ items: [], loading: true, error: null });
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getByText(/spinner/i) || document.querySelector('[class*="spinner"]') ||
-      document.querySelector('span[data-testid]') ||
-      // Chakra Spinner renders as a role="status" element
-      screen.getByRole('status')).toBeTruthy();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('shows empty state when list is empty', () => {
@@ -58,6 +55,13 @@ describe('FavoritesPage', () => {
     render(<FavoritesPage />, { wrapper });
     expect(screen.getByText(/no favorites yet/i)).toBeInTheDocument();
     expect(screen.getByText(/heart an album/i)).toBeInTheDocument();
+  });
+
+  it('shows error message when loading fails', () => {
+    vi.mocked(useFavoritesList).mockReturnValue({ items: [], loading: false, error: 'Supabase error' });
+    render(<FavoritesPage />, { wrapper });
+    expect(screen.getByText(/failed to load favorites/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no favorites yet/i)).not.toBeInTheDocument();
   });
 
   it('renders band and album for each item', () => {

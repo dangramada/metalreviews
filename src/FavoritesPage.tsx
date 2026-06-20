@@ -17,7 +17,7 @@ import { useFavoritesList } from './hooks/useFavoritesList';
 import { formatReleaseDate } from './App';
 
 export function FavoritesPage() {
-  const { items, loading } = useFavoritesList();
+  const { items, loading, error } = useFavoritesList();
 
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
@@ -28,12 +28,12 @@ export function FavoritesPage() {
 
           {loading ? (
             <Flex justify="center" align="center" minH="200px">
-              {/* Visually-hidden label for test detection */}
-              <Box as="span" srOnly>
-                spinner
-              </Box>
-              <Spinner size="xl" color="accent.start" thickness="4px" speed="0.65s" />
+              <Spinner role="status" size="xl" color="accent.start" thickness="4px" speed="0.65s" />
             </Flex>
+          ) : error ? (
+            <Text textAlign="center" color="red.400">
+              Failed to load favorites. Please try again later.
+            </Text>
           ) : items.length === 0 ? (
             <Text textAlign="center" color="text.muted">
               No favorites yet. Heart an album from the dashboard to add it here.
