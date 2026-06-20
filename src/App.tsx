@@ -12,6 +12,7 @@
 // useEffect: runs code after the component renders (used here to load reviews.json on startup)
 // useState: declares a reactive variable — when it changes, React re-renders the component
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // --- Chakra UI component library ---
 // Chakra provides pre-built, themeable UI components so we don't write raw CSS.
@@ -36,6 +37,8 @@ import {
   Skeleton, // Shimmer placeholder shown while an image loads
   useToast, // Hook that triggers a temporary notification pop-up
   Icon,
+  Switch, // Toggle switch for the favorites-only filter
+  FormLabel, // Accessible label paired with the Switch
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
@@ -49,6 +52,8 @@ import { supabase } from './supabaseClient';
 import { fromDbRow } from './dbMapping';
 import type { DbRow } from './dbMapping';
 import { Header } from './Header';
+import { useAuth } from './AuthContext';
+import { useFeedbackToast } from './hooks/useFeedbackToast';
 
 // =============================================================================
 // TYPE DEFINITION
@@ -265,7 +270,22 @@ function App() {
   );
 
   // Calling toast({...}) shows a temporary notification pop-up in the corner.
+  // NOTE: toast/useToast is still used by handleRefresh (409 case). Task 6 will
+  // migrate that to useFeedbackToast — do NOT remove it here.
   const toast = useToast();
+
+  // Auth state — user is null when logged out.
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { showSuccess, showError, showAction } = useFeedbackToast();
+
+  // Set of review IDs the current user has favorited. Hydrated on login,
+  // cleared on logout. Stored as a Set for O(1) membership checks.
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+
+  // When true, the card grid is filtered to show only favorited reviews.
+  // Reset to false on logout so a newly-logged-out user sees the full grid.
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   // =============================================================================
   // REFRESH: trigger a new ingest run and poll for results
@@ -373,6 +393,63 @@ function App() {
   }, []); // [] = run once on mount, never re-run
 
   // =============================================================================
+  // FAVORITES HYDRATION
+  // =============================================================================
+
+  // Fetch the current user's favorited review IDs on login; clear on logout.
+  // RLS restricts the query to the signed-in user's own rows automatically.
+  useEffect(() => {
+    if (!user) {
+      setFavoritedIds(new Set());
+      setShowFavoritesOnly(false);
+      return;
+    }
+    supabase
+      .from('favorites')
+      .select('review_id')
+      .then(({ data, error }: { data: { review_id: string }[] | null; error: any }) => {
+        if (!error && data) {
+          setFavoritedIds(new Set(data.map((row) => row.review_id)));
+        }
+      });
+  }, [user]);
+
+  // =============================================================================
+  // TOGGLE FAVORITE
+  // =============================================================================
+
+  // Optimistically updates the local Set then persists to Supabase.
+  // On error the Set is NOT rolled back — the error toast tells the user to retry,
+  // and the next hydration (on re-login) will restore the correct state.
+  async function toggleFavorite(reviewId: string) {
+    if (!user) {
+      showAction('Log in to save favorites', {
+        label: 'Log in',
+        onClick: () => navigate('/login'),
+      });
+      return;
+    }
+    const isFavorited = favoritedIds.has(reviewId);
+    if (isFavorited) {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('review_id', reviewId);
+      if (error) { showError('Could not remove favorite — try again'); return; }
+      setFavoritedIds((prev) => { const next = new Set(prev); next.delete(reviewId); return next; });
+      showSuccess('Removed from favorites');
+    } else {
+      const { error } = await supabase
+        .from('favorites')
+        .insert({ user_id: user.id, review_id: reviewId });
+      if (error) { showError('Could not save favorite — try again'); return; }
+      setFavoritedIds((prev) => new Set(prev).add(reviewId));
+      showSuccess('Added to favorites');
+    }
+  }
+
+  // =============================================================================
   // FILTERING, SEARCHING, AND SORTING
   // =============================================================================
 
@@ -382,7 +459,7 @@ function App() {
 
   // `filtered` recomputes on every render automatically — React re-renders whenever
   // state changes, so this updates the moment the user types or changes a dropdown.
-  // Pipeline order: source → score → search → sort
+  // Pipeline order: source → score → search → favorites → sort
   const filtered = reviews
     .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
     .filter((r) => (minScore === '' ? true : r.normalizedScore >= parseFloat(minScore) * 10))
@@ -394,6 +471,8 @@ function App() {
         (r.genre ?? []).some((g) => g.toLowerCase().includes(term)) // genre is populated via MusicBrainz lookup
       );
     })
+    // Favorites filter — only active when the switch is on and user is logged in.
+    .filter((r) => (showFavoritesOnly ? favoritedIds.has(r.id) : true))
     .sort((a, b) => {
       if (sortKey === 'date') {
         // Convert ISO strings to millisecond timestamps for numeric comparison.
@@ -531,14 +610,38 @@ function App() {
             </Button>
           </Flex>
 
-          {/* Review counter — updates in real time as filters change.
-              Shows "n of total" only when filters are actually reducing the set. */}
+          {/* Counter row: review count + favorites-only switch (logged-in only).
+              Task 5 will refine the layout of this row. */}
           {!loading && (
-            <Text fontSize="md" fontWeight="bold"  color="text.dim" mt={0} paddingLeft={1} >
-              {filtered.length < reviews.length
-                ? `${filtered.length} of ${reviews.length} reviews`
-                : `${reviews.length} reviews`}
-            </Text>
+            <Flex align="center" gap={4}>
+              <Text fontSize="md" fontWeight="bold" color="text.dim" mt={0} paddingLeft={1}>
+                {filtered.length < reviews.length
+                  ? `${filtered.length} of ${reviews.length} reviews`
+                  : `${reviews.length} reviews`}
+              </Text>
+              {/* Favorites filter switch — only visible to logged-in users.
+                  The FormLabel id links the label to the switch for accessibility. */}
+              {user && (
+                <Flex align="center" gap={2}>
+                  <Switch
+                    id="favorites-only"
+                    isChecked={showFavoritesOnly}
+                    onChange={(e) => setShowFavoritesOnly(e.target.checked)}
+                    colorScheme="red"
+                    size="sm"
+                  />
+                  <FormLabel
+                    htmlFor="favorites-only"
+                    mb={0}
+                    fontSize="sm"
+                    color="text.dim"
+                    cursor="pointer"
+                  >
+                    Favorites only
+                  </FormLabel>
+                </Flex>
+              )}
+            </Flex>
           )}
 
           {/* Full-page spinner while reviews.json is loading; card grid once ready */}
@@ -561,7 +664,11 @@ function App() {
                   display="block"
                 >
                   <Box {...cardStyle} h="100%">
-                    <ArtworkBlock rev={rev} />
+                    <ArtworkBlock
+                      rev={rev}
+                      isFavorited={favoritedIds.has(rev.id)}
+                      onToggle={() => toggleFavorite(rev.id)}
+                    />
                     <Box p={4}>
                       <Heading size="md" mb={2}>
                         {rev.band || 'Unknown Band'} – {rev.album || 'Untitled Album'}
