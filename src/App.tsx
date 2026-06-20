@@ -97,7 +97,7 @@ const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep
 //   "2024-03"    → "Mar 2024"
 //   "2024"       → "2024"
 //   null         → "—"
-function formatReleaseDate(d: string | null): string {
+export function formatReleaseDate(d: string | null): string {
   if (!d) return '—';
   const full = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (full) {
