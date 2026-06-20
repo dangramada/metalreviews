@@ -15,6 +15,7 @@ const base: MetalReview = {
   publishedAt: '2024-01-01T00:00:00.000Z',
   publishedDate: '01 Jan 2024',
   artworkUrl: 'https://cdn.example.com/art.jpg',
+  releaseDate: null,
 };
 
 describe('applyMergeGuard', () => {
@@ -67,6 +68,34 @@ describe('applyMergeGuard', () => {
     const result = applyMergeGuard(existing, fresh);
     expect(result.some((r) => r.id === 'old-only')).toBe(true);
     expect(result.some((r) => r.id === 'fresh-only')).toBe(true);
+  });
+
+  it('uses fresh releaseDate when it is more precise than existing (full overwrites year-only)', () => {
+    const fresh = { ...base, releaseDate: '2024-03-15' };
+    const existing = new Map([['abc', { ...base, releaseDate: '2024' }]]);
+    const [result] = applyMergeGuard(existing, [fresh]);
+    expect(result.releaseDate).toBe('2024-03-15');
+  });
+
+  it('keeps existing releaseDate when fresh is less precise (year-only does NOT overwrite full date)', () => {
+    const fresh = { ...base, releaseDate: '2024' };
+    const existing = new Map([['abc', { ...base, releaseDate: '2024-03-15' }]]);
+    const [result] = applyMergeGuard(existing, [fresh]);
+    expect(result.releaseDate).toBe('2024-03-15');
+  });
+
+  it('keeps existing releaseDate when fresh is null', () => {
+    const fresh = { ...base, releaseDate: null };
+    const existing = new Map([['abc', { ...base, releaseDate: '2024-03-15' }]]);
+    const [result] = applyMergeGuard(existing, [fresh]);
+    expect(result.releaseDate).toBe('2024-03-15');
+  });
+
+  it('stays null when both fresh and existing releaseDate are null', () => {
+    const fresh = { ...base, releaseDate: null };
+    const existing = new Map([['abc', { ...base, releaseDate: null }]]);
+    const [result] = applyMergeGuard(existing, [fresh]);
+    expect(result.releaseDate).toBeNull();
   });
 
   it('sorts output by publishedAt descending', () => {

@@ -25,6 +25,7 @@ export function toDbRow(r: MetalReview): DbRow {
     published_at: r.publishedAt,
     published_date: r.publishedDate,
     artwork_url: r.artworkUrl,
+    release_date: r.releaseDate,
     genre: r.genre,
   };
 }
@@ -302,7 +303,7 @@ function normalizeScore(raw: string): number {
 async function fetchMusicBrainzData(
   band: string,
   album: string
-): Promise<{ artworkUrl: string | null; genres: string[] }> {
+): Promise<{ artworkUrl: string | null; genres: string[]; releaseDate: string | null }> {
   try {
     // Strip review-site title noise before MB search:
     // - AMG albums end with " Review" or " EP Review" (suffix).
@@ -317,7 +318,7 @@ async function fetchMusicBrainzData(
       headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
     });
     const releases: any[] = mbSearch.data?.releases ?? [];
-    if (releases.length === 0) return { artworkUrl: null, genres: [] };
+    if (releases.length === 0) return { artworkUrl: null, genres: [], releaseDate: null };
 
     const mbid: string = releases[0].id;
 
@@ -344,9 +345,11 @@ async function fetchMusicBrainzData(
       artworkUrl = front?.image ?? null;
     }
 
-    // Extract genres from MB release detail, sorted by vote count descending, top 3
+    // Extract release date and genres from MB release detail
+    let releaseDate: string | null = null;
     let releaseGenres: Array<{ name: string; count: number }> = [];
     if (releaseRes.status === 'fulfilled') {
+      releaseDate = releaseRes.value.data?.date || null;
       releaseGenres = releaseRes.value.data?.genres ?? [];
     }
     let topGenres = [...releaseGenres]
@@ -383,9 +386,9 @@ async function fetchMusicBrainzData(
       }
     }
 
-    return { artworkUrl, genres: topGenres };
+    return { artworkUrl, genres: topGenres, releaseDate };
   } catch {
-    return { artworkUrl: null, genres: [] };
+    return { artworkUrl: null, genres: [], releaseDate: null };
   }
 }
 
@@ -393,6 +396,17 @@ function computeId(band: string, album: string): string {
   const key = `${band.toLowerCase().replace(/\s+/g, '')}_${album.toLowerCase().replace(/\s+/g, '')}`;
   // Simple hash – we'll just use base64 of the key.
   return Buffer.from(key).toString('base64');
+}
+
+// Returns a precision rank so the merge guard can avoid downgrading an existing
+// precise date with a less-precise fresh one. MB dates can be "2024", "2024-03",
+// or "2024-03-15" — all valid, but not equally useful.
+function releaseDatePrecision(d: string | null): number {
+  if (!d) return 0;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return 3; // full date
+  if (/^\d{4}-\d{2}$/.test(d)) return 2;       // year-month
+  if (/^\d{4}$/.test(d)) return 1;             // year only
+  return 0; // unrecognized format — treat as no info
 }
 
 export function applyMergeGuard(
@@ -407,6 +421,12 @@ export function applyMergeGuard(
       ...review,
       artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
       genre: review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
+      // Precision-aware: keep existing if it's more precise than the fresh value.
+      // Differs from artworkUrl/genre rules — do not replace with the simpler pattern.
+      releaseDate:
+        releaseDatePrecision(review.releaseDate) >= releaseDatePrecision(existing?.releaseDate ?? null)
+          ? review.releaseDate
+          : (existing?.releaseDate ?? null),
     });
   }
   return Array.from(merged.values()).sort(
@@ -441,7 +461,11 @@ export async function runIngestion() {
   const mbAlreadyFetched = new Set(
     existingReviews
       .filter(
-        (r) => typeof r.artworkUrl === 'string' && Array.isArray(r.genre) && r.genre.length > 0
+        (r) =>
+          typeof r.artworkUrl === 'string' &&
+          Array.isArray(r.genre) &&
+          r.genre.length > 0 &&
+          typeof r.releaseDate === 'string'
       )
       .map((r) => r.id)
   );
@@ -467,15 +491,18 @@ export async function runIngestion() {
     });
     let artworkUrl: string | null;
     let genres: string[];
+    let releaseDate: string | null;
     if (mbAlreadyFetched.has(id)) {
-      // Both artwork and genres are already stored — reuse them.
+      // artwork, genres, and releaseDate are all already stored — reuse them.
       // MusicBrainz enforces 1 req/sec; skipping known reviews keeps warm runs fast.
       artworkUrl = existingById.get(id)?.artworkUrl ?? null;
       genres = existingById.get(id)?.genre ?? [];
+      releaseDate = existingById.get(id)?.releaseDate ?? null;
     } else {
       const mbData = await fetchMusicBrainzData(band, album);
       artworkUrl = mbData.artworkUrl;
       genres = mbData.genres;
+      releaseDate = mbData.releaseDate;
       await sleep(1000); // MB rate limit: gap between the last request in this review and the first of the next
     }
     final.push({
@@ -491,6 +518,7 @@ export async function runIngestion() {
       publishedAt: r.publishedAt as unknown as string,
       publishedDate,
       artworkUrl,
+      releaseDate,
     });
   }
 

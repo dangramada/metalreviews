@@ -81,8 +81,36 @@ interface Review {
   publishedDate: string; // Formatted display date, e.g. "14 Jun 2026"
   normalizedScore: number; // 0–100, used for score sorting
   artworkUrl: string | null;
+  releaseDate: string | null;
   isDoublePositive?: boolean; // Legacy field — Double Positive feature was removed,
   // but the field is kept so old reviews.json files don't break
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Formats a raw MusicBrainz date string for display. MB dates are partial:
+//   "2024-03-15" → "15 Mar 2024"
+//   "2024-03"    → "Mar 2024"
+//   "2024"       → "2024"
+//   null         → "—"
+function formatReleaseDate(d: string | null): string {
+  if (!d) return '—';
+  const full = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (full) {
+    const m = MONTH_ABBR[parseInt(full[2], 10) - 1] ?? full[2];
+    return `${full[3]} ${m} ${full[1]}`;
+  }
+  const ym = d.match(/^(\d{4})-(\d{2})$/);
+  if (ym) {
+    const m = MONTH_ABBR[parseInt(ym[2], 10) - 1] ?? ym[2];
+    return `${m} ${ym[1]}`;
+  }
+  if (/^\d{4}$/.test(d)) return d;
+  return d;
 }
 
 // =============================================================================
@@ -134,6 +162,8 @@ export function ArtworkBlock({
             left={0}
             w="100%"
             h="100%"
+            startColor="gray.900"
+            endColor="gray.700"
             opacity={loaded ? 0 : 1}
             transition="opacity 0.3s ease"
             pointerEvents="none"
@@ -196,7 +226,7 @@ export function ArtworkBlock({
             <Icon
               className="heart-outline"
               as={FaRegHeart}
-              color="whiteAlpha.700"
+              color="whiteAlpha.600"
               boxSize={5}
               position="absolute"
               top={0}
@@ -205,7 +235,7 @@ export function ArtworkBlock({
             <Icon
               className="heart-filled"
               as={FaHeart}
-              color="whiteAlpha.700"
+              color="whiteAlpha.600"
               boxSize={5}
               position="absolute"
               top={0}
@@ -714,6 +744,9 @@ function App() {
                       <Heading size="md" mb={2}>
                         {rev.band || 'Unknown Band'} – {rev.album || 'Untitled Album'}
                       </Heading>
+                      <Text fontSize="sm" color="text.dim" mb={2}>
+                        Release date: {formatReleaseDate(rev.releaseDate)}
+                      </Text>
                       {/* Genre tags — only rendered when genre data is available */}
                       {(rev.genre ?? []).length > 0 && (
                         <Wrap spacing={1} mb={1}>
@@ -731,12 +764,12 @@ function App() {
                           ))}
                         </Wrap>
                       )}
-                      <Text fontSize="sm" color="text.dim" mb={2}>
-                        {rev.publishedDate}
-                      </Text>
                       {/* noOfLines={3} truncates long summaries with an ellipsis */}
-                      <Text fontSize="sm" color="text.dim" noOfLines={3}>
+                      <Text fontSize="sm" color="text.dim" noOfLines={3} mb={2}>
                         {rev.summary || 'No summary available.'}
+                      </Text>
+                      <Text fontSize="xs" color="text.muted">
+                        {rev.publishedDate}
                       </Text>
                     </Box>
                   </Box>

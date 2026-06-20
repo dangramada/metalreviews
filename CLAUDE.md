@@ -25,6 +25,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
 - `favorites.md` — Phase 6: favorites heart toggle, useFeedbackToast convention, toast variants, optimistic-update decision
+- `release-date.md` — release date field: MB data source, text storage, precision-aware merge guard, mbAlreadyFetched third condition, card layout order, formatReleaseDate formatter
 
 ## Commands
 
@@ -57,7 +58,7 @@ A Node.js script (run with `tsx`) that:
 - Fetches RSS feeds from all sources in parallel
 - For each item, fetches the full review page to extract the rating (using `axios` + `cheerio`, or `puppeteer` for Metal Storm which requires JS rendering)
 - Normalizes all scores to 0–100
-- Fetches artwork URL and genre tags from MusicBrainz / Cover Art Archive — see `docs/decisions/artwork.md` and `genre-data.md` before touching this
+- Fetches artwork URL, genre tags, and release date from MusicBrainz / Cover Art Archive — see `docs/decisions/artwork.md`, `genre-data.md`, and `release-date.md` before touching this
 - Reads existing rows from Supabase, merges with fresh results via `applyMergeGuard()` (preserves artwork/genre from prior runs on transient failures) — see `docs/decisions/supabase-migration.md`
 - Upserts the merged result to the Supabase `reviews` table
 - Schedules itself via `node-cron` to run at 07:00 and 19:00 daily

@@ -12,5 +12,6 @@ export interface MetalReview {
   publishedAt: string; // ISO string date representation
   publishedDate: string; // Formatted display date (dd MMM yyyy)
   artworkUrl: string | null;
+  releaseDate: string | null;
   isDoublePositive?: boolean;
 }

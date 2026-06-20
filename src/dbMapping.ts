@@ -21,6 +21,7 @@ export type DbRow = {
   published_at: string | null;
   published_date: string | null;
   artwork_url: string | null;
+  release_date: string | null;
   genre: string[] | null;
 };
 
@@ -37,6 +38,7 @@ export function fromDbRow(row: DbRow): MetalReview {
     publishedAt: row.published_at ?? new Date().toISOString(),
     publishedDate: row.published_date ?? '',
     artworkUrl: row.artwork_url,
+    releaseDate: row.release_date ?? null,
     genre: row.genre ?? [],
   };
 }
