@@ -404,21 +404,28 @@ function App() {
       setShowFavoritesOnly(false);
       return;
     }
+    let cancelled = false;
     supabase
       .from('favorites')
       .select('review_id')
-      .then(({ data, error }: { data: { review_id: string }[] | null; error: any }) => {
-        if (!error && data) {
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn('Failed to load favorites from Supabase', error);
+          return;
+        }
+        if (data) {
           setFavoritedIds(new Set(data.map((row) => row.review_id)));
         }
       });
+    return () => { cancelled = true; };
   }, [user]);
 
   // =============================================================================
   // TOGGLE FAVORITE
   // =============================================================================
 
-  // Optimistically updates the local Set then persists to Supabase.
+  // Persist to Supabase first; update local Set only on confirmed success.
   // On error the Set is NOT rolled back — the error toast tells the user to retry,
   // and the next hydration (on re-login) will restore the correct state.
   async function toggleFavorite(reviewId: string) {
