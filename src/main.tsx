@@ -6,13 +6,23 @@ import App from './App';
 import { LoginPage } from './LoginPage';
 import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
+import { RequireAuth } from './RequireAuth';
+import { FavoritesPage } from './FavoritesPage';
 import theme from './theme';
 
 const router = createBrowserRouter([
   { path: '/', element: <App /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/auth/callback', element: <AuthCallback /> },
-  // { path: '/list/:shareId', element: <SharedList /> }  — reserved for shareable favorites
+  {
+    path: '/favorites',
+    element: (
+      <RequireAuth>
+        <FavoritesPage />
+      </RequireAuth>
+    ),
+  },
+  // { path: '/aoty/:shareId', element: <SharedList /> }  — reserved for shareable favorites
 ]);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
