@@ -26,6 +26,8 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
 - `favorites.md` — Phase 6: favorites heart toggle, useFeedbackToast convention, toast variants, optimistic-update decision
 - `release-date.md` — release date field: MB data source, text storage, precision-aware merge guard, mbAlreadyFetched third condition, card layout order, formatReleaseDate formatter
+- `header-redesign.md` — Header rewrite: useLocation active state, two Menu instances, sx @media breakpoints (not Chakra responsive props), always-visible Favorites link
+- `favorites-view.md` — /favorites protected route: RequireAuth, useFavoritesList two-query pattern, FavoritesPage list layout, manual_albums stub, always-visible nav link
 
 ## Commands
 
@@ -76,6 +78,7 @@ A React + Chakra UI app with client-side routing via React Router (v7, `react-ro
 Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
 
 Routes (see `docs/decisions/auth-routing.md` for full detail):
+
 - `/` — dashboard (review grid), public — no auth required
 - `/login` — email/password auth form (`LoginPage`)
 - `/auth/callback` — handles `PASSWORD_RECOVERY` event and OAuth redirects (`AuthCallback`)
@@ -87,6 +90,7 @@ Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and expose
 `MetalReview` in `src/types.ts` is the canonical shape shared by the scraper output and the frontend.
 
 `src/dbMapping.ts` is the single source of truth for the Postgres ↔ app boundary:
+
 - **`DbRow`** — mirrors the exact snake_case column names/types of the `reviews` table
 - **`fromDbRow(row: DbRow): MetalReview`** — used by both the ingest pipeline (reading back existing rows) and the frontend (mapping query results before touching React state)
 
