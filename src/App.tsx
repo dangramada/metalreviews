@@ -36,9 +36,6 @@ import {
   Skeleton, // Shimmer placeholder shown while an image loads
   useToast, // Hook that triggers a temporary notification pop-up
   Icon,
-  FormControl,
-  FormLabel,
-  Switch,
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
@@ -163,6 +160,7 @@ export function ArtworkBlock({
           from navigating to the review URL when the heart is clicked. */}
       <Box
         as="button"
+        type="button"
         aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
         position="absolute"
         top={2}
