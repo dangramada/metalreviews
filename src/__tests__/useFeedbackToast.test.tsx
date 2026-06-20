@@ -48,7 +48,7 @@ describe('useFeedbackToast', () => {
     );
   });
 
-  it('showAction calls toast with null duration and a render prop', () => {
+  it('showAction calls toast with 6000ms duration, dedup id, and a render prop', () => {
     const { result } = renderHook(() => useFeedbackToast(), { wrapper });
     result.current.showAction('Log in to save favorites', {
       label: 'Log in',
@@ -56,7 +56,8 @@ describe('useFeedbackToast', () => {
     });
     expect(mockToast).toHaveBeenCalledWith(
       expect.objectContaining({
-        duration: null,
+        id: 'action-Log in to save favorites',
+        duration: 6000,
         isClosable: true,
         position: 'bottom-right',
         render: expect.any(Function),

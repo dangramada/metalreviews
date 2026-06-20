@@ -26,8 +26,9 @@ export function useFeedbackToast() {
 
   function showAction(message: string, action: { label: string; onClick: () => void }) {
     toast({
+      id: `action-${message}`,
       position: 'bottom-right',
-      duration: null,
+      duration: 6000,
       isClosable: true,
       render: ({ onClose }) => (
         <Box
@@ -43,14 +44,19 @@ export function useFeedbackToast() {
           border="1px solid"
           borderColor="border.default"
         >
-          <Box flex={1} fontSize="sm">{message}</Box>
+          <Box flex={1} fontSize="sm">
+            {message}
+          </Box>
           <Button
             size="sm"
             variant="outline"
             borderColor="border.default"
             color="text.primary"
             _hover={{ borderColor: 'border.hover' }}
-            onClick={() => { action.onClick(); onClose(); }}
+            onClick={() => {
+              action.onClick();
+              onClose();
+            }}
           >
             {action.label}
           </Button>
