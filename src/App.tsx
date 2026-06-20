@@ -172,24 +172,48 @@ export function ArtworkBlock({
         right={2}
         bg="blackAlpha.400"
         borderRadius="full"
-        p={1}
+        p={2}
         display="flex"
         alignItems="center"
         justifyContent="center"
         border="none"
         cursor="pointer"
         _hover={{ bg: 'blackAlpha.600' }}
+        sx={{
+          '&:hover .heart-outline': { opacity: 0 },
+          '&:hover .heart-filled': { opacity: 1 },
+        }}
         onClick={(e: React.MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
           onToggle();
         }}
       >
-        <Icon
-          as={isFavorited ? FaHeart : FaRegHeart}
-          color={isFavorited ? 'red.400' : 'whiteAlpha.700'}
-          boxSize={4}
-        />
+        {isFavorited ? (
+          <Icon as={FaHeart} color="red.400" boxSize={5} />
+        ) : (
+          <Box position="relative" boxSize={5}>
+            <Icon
+              className="heart-outline"
+              as={FaRegHeart}
+              color="whiteAlpha.700"
+              boxSize={5}
+              position="absolute"
+              top={0}
+              left={0}
+            />
+            <Icon
+              className="heart-filled"
+              as={FaHeart}
+              color="whiteAlpha.700"
+              boxSize={5}
+              position="absolute"
+              top={0}
+              left={0}
+              opacity={0}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Source badge — bottom-left corner, mirroring the score badge on the right.
