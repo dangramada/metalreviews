@@ -5,6 +5,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { User } from '@supabase/supabase-js';
 import App from '../App';
 import theme from '../theme';
 
@@ -26,7 +27,7 @@ vi.mock('../supabaseClient', () => ({
 
 vi.mock('../AuthContext', () => ({
   useAuth: vi.fn(),
-  AuthProvider: ({ children }: any) => children,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock('../hooks/useFeedbackToast', () => ({
@@ -62,12 +63,14 @@ const mockDbRow = {
 //   favorites: .from('favorites').select('review_id').then(cb)
 //              .from('favorites').insert({...})
 //              .from('favorites').delete().eq(...).eq(...)
-function makeFromImpl(options: {
-  reviewsData?: typeof mockDbRow[];
-  favoritesData?: { review_id: string }[];
-  insertError?: { message: string } | null;
-  deleteError?: { message: string } | null;
-} = {}) {
+function makeFromImpl(
+  options: {
+    reviewsData?: (typeof mockDbRow)[];
+    favoritesData?: { review_id: string }[];
+    insertError?: { message: string } | null;
+    deleteError?: { message: string } | null;
+  } = {}
+) {
   const {
     reviewsData = [mockDbRow],
     favoritesData = [],
@@ -81,7 +84,7 @@ function makeFromImpl(options: {
       return {
         select: vi.fn().mockReturnValue({
           order: vi.fn().mockReturnValue({
-            then: (cb: any) => Promise.resolve(result).then(cb),
+            then: (cb: (v: unknown) => unknown) => Promise.resolve(result).then(cb),
           }),
         }),
       };
@@ -90,7 +93,7 @@ function makeFromImpl(options: {
       const selectResult = { data: favoritesData, error: null };
       return {
         select: vi.fn().mockReturnValue({
-          then: (cb: any) => Promise.resolve(selectResult).then(cb),
+          then: (cb: (v: unknown) => unknown) => Promise.resolve(selectResult).then(cb),
         }),
         insert: vi.fn().mockResolvedValue({ data: null, error: insertError }),
         delete: vi.fn().mockReturnValue({
@@ -102,7 +105,8 @@ function makeFromImpl(options: {
     }
     return {
       select: vi.fn().mockReturnValue({
-        then: (cb: any) => Promise.resolve({ data: null, error: null }).then(cb),
+        then: (cb: (v: unknown) => unknown) =>
+          Promise.resolve({ data: null, error: null }).then(cb),
       }),
     };
   };
@@ -142,7 +146,7 @@ describe('App favorites — logged out', () => {
 });
 
 describe('App favorites — logged in', () => {
-  const mockUser = { id: 'user1', email: 'dan@test.com' } as any;
+  const mockUser = { id: 'user1', email: 'dan@test.com' } as unknown as User;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -161,9 +165,7 @@ describe('App favorites — logged in', () => {
       makeFromImpl({ favoritesData: [{ review_id: 'rev1' }] })
     );
     render(<App />, { wrapper });
-    await waitFor(() =>
-      screen.getByRole('button', { name: 'Remove from favorites' })
-    );
+    await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
   });
 
   it('fills the heart and shows success toast after a successful favorite', async () => {
@@ -171,9 +173,7 @@ describe('App favorites — logged in', () => {
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Add to favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
-    await waitFor(() =>
-      expect(mockShowSuccess).toHaveBeenCalledWith('Added to favorites')
-    );
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Added to favorites'));
     expect(screen.getByRole('button', { name: 'Remove from favorites' })).toBeInTheDocument();
   });
 
@@ -184,9 +184,7 @@ describe('App favorites — logged in', () => {
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove from favorites' }));
-    await waitFor(() =>
-      expect(mockShowSuccess).toHaveBeenCalledWith('Removed from favorites')
-    );
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Removed from favorites'));
     expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
   });
 
@@ -221,9 +219,7 @@ describe('App favorites — logged in', () => {
 
     fireEvent.click(screen.getByLabelText(/favorites only/i));
 
-    await waitFor(() =>
-      expect(screen.queryByText(/Metallica/)).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByText(/Metallica/)).not.toBeInTheDocument());
     expect(screen.getByText(/Opeth/)).toBeInTheDocument();
   });
 });

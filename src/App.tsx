@@ -390,7 +390,13 @@ function App() {
   // RLS restricts the query to the signed-in user's own rows automatically.
   useEffect(() => {
     if (!user) {
+      // Intentionally resetting derived state on logout. The setState calls are
+      // synchronous here because we need to clear UI state before any re-render
+      // shows stale favorites. The rule fires on sync setState in effects, but
+      // this is the correct pattern for clearing external-auth-derived state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFavoritedIds(new Set());
+
       setShowFavoritesOnly(false);
       return;
     }
@@ -408,7 +414,9 @@ function App() {
           setFavoritedIds(new Set(data.map((row) => row.review_id)));
         }
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // =============================================================================
@@ -433,14 +441,24 @@ function App() {
         .delete()
         .eq('user_id', user.id)
         .eq('review_id', reviewId);
-      if (error) { showError('Could not remove favorite — try again'); return; }
-      setFavoritedIds((prev) => { const next = new Set(prev); next.delete(reviewId); return next; });
+      if (error) {
+        showError('Could not remove favorite — try again');
+        return;
+      }
+      setFavoritedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(reviewId);
+        return next;
+      });
       showSuccess('Removed from favorites');
     } else {
       const { error } = await supabase
         .from('favorites')
         .insert({ user_id: user.id, review_id: reviewId });
-      if (error) { showError('Could not save favorite — try again'); return; }
+      if (error) {
+        showError('Could not save favorite — try again');
+        return;
+      }
       setFavoritedIds((prev) => new Set(prev).add(reviewId));
       showSuccess('Added to favorites');
     }

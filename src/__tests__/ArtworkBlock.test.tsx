@@ -23,7 +23,7 @@ vi.mock('../supabaseClient', () => ({
 // App.tsx imports useAuth — mock so we don't need a full AuthProvider when rendering ArtworkBlock alone
 vi.mock('../AuthContext', () => ({
   useAuth: vi.fn().mockReturnValue({ user: null, loading: false }),
-  AuthProvider: ({ children }: any) => children,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // App.tsx will import useFeedbackToast — pre-mock it
@@ -56,27 +56,18 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 describe('ArtworkBlock', () => {
   it('renders an "Add to favorites" button when not favorited', () => {
-    render(
-      <ArtworkBlock rev={mockReview} isFavorited={false} onToggle={vi.fn()} />,
-      { wrapper }
-    );
+    render(<ArtworkBlock rev={mockReview} isFavorited={false} onToggle={vi.fn()} />, { wrapper });
     expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
   });
 
   it('renders a "Remove from favorites" button when favorited', () => {
-    render(
-      <ArtworkBlock rev={mockReview} isFavorited={true} onToggle={vi.fn()} />,
-      { wrapper }
-    );
+    render(<ArtworkBlock rev={mockReview} isFavorited={true} onToggle={vi.fn()} />, { wrapper });
     expect(screen.getByRole('button', { name: 'Remove from favorites' })).toBeInTheDocument();
   });
 
   it('calls onToggle when the heart button is clicked', () => {
     const onToggle = vi.fn();
-    render(
-      <ArtworkBlock rev={mockReview} isFavorited={false} onToggle={onToggle} />,
-      { wrapper }
-    );
+    render(<ArtworkBlock rev={mockReview} isFavorited={false} onToggle={onToggle} />, { wrapper });
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
