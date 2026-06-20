@@ -39,6 +39,7 @@ import {
   Icon,
   Switch, // Toggle switch for the favorites-only filter
   FormLabel, // Accessible label paired with the Switch
+  FormControl, // Wrapper for form elements that groups label, input, and helper text
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
@@ -466,10 +467,13 @@ function App() {
 
   // `filtered` recomputes on every render automatically — React re-renders whenever
   // state changes, so this updates the moment the user types or changes a dropdown.
-  // Pipeline order: source → score → search → favorites → sort
+  // Pipeline order: source → score → favorites → search → sort
   const filtered = reviews
     .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
     .filter((r) => (minScore === '' ? true : r.normalizedScore >= parseFloat(minScore) * 10))
+    // Favorites filter — only active when the switch is on and user is logged in.
+    // Placed before search so that favorites narrowing happens before text search.
+    .filter((r) => (showFavoritesOnly ? favoritedIds.has(r.id) : true))
     .filter((r) => {
       const term = search.toLowerCase();
       return (
@@ -478,8 +482,6 @@ function App() {
         (r.genre ?? []).some((g) => g.toLowerCase().includes(term)) // genre is populated via MusicBrainz lookup
       );
     })
-    // Favorites filter — only active when the switch is on and user is logged in.
-    .filter((r) => (showFavoritesOnly ? favoritedIds.has(r.id) : true))
     .sort((a, b) => {
       if (sortKey === 'date') {
         // Convert ISO strings to millisecond timestamps for numeric comparison.
@@ -617,36 +619,37 @@ function App() {
             </Button>
           </Flex>
 
-          {/* Counter row: review count + favorites-only switch (logged-in only).
-              Task 5 will refine the layout of this row. */}
+          {/* Counter row: review count left-aligned + favorites-only switch right-aligned (logged-in only).
+              justify="space-between" pins the count to the left and the switch to the right. */}
           {!loading && (
-            <Flex align="center" gap={4}>
-              <Text fontSize="md" fontWeight="bold" color="text.dim" mt={0} paddingLeft={1}>
+            <Flex align="center" justify="space-between">
+              <Text fontSize="md" fontWeight="bold" color="text.dim" paddingLeft={1}>
                 {filtered.length < reviews.length
                   ? `${filtered.length} of ${reviews.length} reviews`
                   : `${reviews.length} reviews`}
               </Text>
-              {/* Favorites filter switch — only visible to logged-in users.
-                  The FormLabel id links the label to the switch for accessibility. */}
+              {/* Favorites filter — only visible to logged-in users.
+                  FormControl groups the label + switch for accessibility; w="auto" prevents
+                  it from stretching to fill the flex container. */}
               {user && (
-                <Flex align="center" gap={2}>
-                  <Switch
-                    id="favorites-only"
-                    isChecked={showFavoritesOnly}
-                    onChange={(e) => setShowFavoritesOnly(e.target.checked)}
-                    colorScheme="red"
-                    size="sm"
-                  />
+                <FormControl display="flex" alignItems="center" gap={2} w="auto">
                   <FormLabel
-                    htmlFor="favorites-only"
+                    htmlFor="favorites-toggle"
                     mb={0}
                     fontSize="sm"
                     color="text.dim"
                     cursor="pointer"
+                    whiteSpace="nowrap"
                   >
                     Favorites only
                   </FormLabel>
-                </Flex>
+                  <Switch
+                    id="favorites-toggle"
+                    isChecked={showFavoritesOnly}
+                    onChange={(e) => setShowFavoritesOnly(e.target.checked)}
+                    colorScheme="teal"
+                  />
+                </FormControl>
               )}
             </Flex>
           )}
