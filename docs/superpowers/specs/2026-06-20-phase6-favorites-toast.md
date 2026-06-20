@@ -194,24 +194,7 @@ The switch is absent entirely (not just disabled) for logged-out visitors.
 
 ---
 
-## 6. Filter pipeline update
-
-One new step added after the score filter:
-
-```ts
-.filter((r) => (showFavoritesOnly ? favoritedIds.has(r.id) : true))
-```
-
-Full pipeline order after this change:
-1. Source filter
-2. Score filter
-3. **Favorites filter** ← new
-4. Search (band, album, genre)
-5. Sort
-
----
-
-## 7. CLAUDE.md addition
+## 6. CLAUDE.md addition
 
 A new section added to `CLAUDE.md`:
 
