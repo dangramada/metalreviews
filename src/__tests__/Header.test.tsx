@@ -90,9 +90,9 @@ describe('Header — logged-out account control', () => {
   it('does NOT render an account MenuButton when logged out', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false });
     render(<Header />, { wrapper: makeWrapper() });
-    // Only button present is the hamburger ("Open menu")
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.every((b) => b.getAttribute('aria-label') === 'Open menu')).toBe(true);
+    // The hamburger is the only button; no email-prefixed account MenuButton
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /open menu/i })).toBeInTheDocument();
   });
 });
 
