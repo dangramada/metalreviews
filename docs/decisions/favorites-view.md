@@ -80,6 +80,12 @@ Drawer state is fully reset (all fields + lookup result) when `isOpen` transitio
 
 The header redesign (see `header-redesign.md`) made the Favorites nav link always visible (logged-in AND logged-out). Unauthenticated users who click it land on `/login` via `RequireAuth`. This is intentionally better than hiding the link from logged-out users: it surfaces the feature and prompts sign-up.
 
+## "My Favorites" heading size fix (June 2026 follow-up)
+
+The heading was originally `<Heading size="lg">` with no explicit `as` prop (defaulting to `h2`). Chakra's `lg` size (1.5rem / 24px) is smaller than the logo's `xl` (1.875rem / 30px), but not visually distinct enough — the difference reads as same-weight on screen. Fixed by changing to `size="md"` (1.125rem / 18px) and adding an explicit `as="h2"` to make the semantic tag unambiguous. The `as="h2"` was always correct; the only change that matters visually is the size token.
+
+Artwork thumbnail also increased from 48px to 64px for better visual weight in the list.
+
 ## Route registration
 
 In `src/main.tsx`: `/favorites` is wrapped in `<RequireAuth>`. The stale `/list/:shareId` comment was renamed to `/aoty/:shareId` to reflect the planned AOTY list feature.
@@ -88,7 +94,7 @@ In `src/main.tsx`: `/favorites` is wrapped in `<RequireAuth>`. The stale `/list/
 
 - Do not render `item.type` anywhere in the UI.
 - Do not add a stored `release_year` column — year derivation is always client-side.
-- Do not add a remove/delete action for any favorites item — that's a separate future brief.
+- Do not add a bulk-remove or "clear all" action — single-item removal is the intended scope.
 - Do not add manual override fields (artwork, genre, date) to the form beyond the optional date input shown when MB returns null.
 - Do not apply year-selection logic to the heart-toggle flow on the main dashboard.
 - The `RequireAuth` test wrapper must NOT include `ChakraProvider` (see note above).

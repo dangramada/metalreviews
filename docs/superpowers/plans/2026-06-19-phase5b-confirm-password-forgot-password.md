@@ -12,18 +12,19 @@
 
 ## File Map
 
-| Action | File | What changes |
-|--------|------|--------------|
-| Modify | `src/LoginPage.tsx` | Add confirm-password field (signup), add forgot-password mode, `resetSent` state |
-| Modify | `src/__tests__/LoginPage.test.tsx` | Fix breaking test (exact placeholder), add 8 new tests |
-| Modify | `src/AuthCallback.tsx` | Replace `getSession()` with `onAuthStateChange`; add recovery form state + `handleUpdatePassword` |
-| Create | `src/__tests__/AuthCallback.test.tsx` | 6 new tests for the refactored callback |
+| Action | File                                  | What changes                                                                                      |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Modify | `src/LoginPage.tsx`                   | Add confirm-password field (signup), add forgot-password mode, `resetSent` state                  |
+| Modify | `src/__tests__/LoginPage.test.tsx`    | Fix breaking test (exact placeholder), add 8 new tests                                            |
+| Modify | `src/AuthCallback.tsx`                | Replace `getSession()` with `onAuthStateChange`; add recovery form state + `handleUpdatePassword` |
+| Create | `src/__tests__/AuthCallback.test.tsx` | 6 new tests for the refactored callback                                                           |
 
 ---
 
 ## Task 1: Confirm-password field on signup
 
 **Files:**
+
 - Modify: `src/LoginPage.tsx`
 - Modify: `src/__tests__/LoginPage.test.tsx`
 
@@ -259,17 +260,7 @@ Replace the entire file with:
 ```tsx
 import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Container,
-  Flex,
-  Heading,
-  Input,
-  Link,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
 
 type Mode = 'login' | 'signup';
@@ -318,7 +309,7 @@ export function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : (err as any)?.message ?? 'An error occurred. Please try again.'
+          : ((err as any)?.message ?? 'An error occurred. Please try again.')
       );
     } finally {
       setLoading(false);
@@ -463,6 +454,7 @@ git commit -m "feat: add confirm-password validation to signup form"
 ## Task 2: Forgot-password mode in LoginPage
 
 **Files:**
+
 - Modify: `src/LoginPage.tsx`
 
 Add a third mode `'forgot-password'`. In login mode, a "Forgot password?" button switches to it. This mode shows only the email field and a "Send reset link" submit button. On success show "Check your email for a password reset link." — never reveal whether the email is registered (Supabase already hides this server-side; we just always show the success state).
@@ -482,17 +474,7 @@ Expected: 5 tests fail (`login mode shows a Forgot password button`, etc.). The 
 ```tsx
 import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Container,
-  Flex,
-  Heading,
-  Input,
-  Link,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
 
 type Mode = 'login' | 'signup' | 'forgot-password';
@@ -557,7 +539,7 @@ export function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : (err as any)?.message ?? 'An error occurred. Please try again.'
+          : ((err as any)?.message ?? 'An error occurred. Please try again.')
       );
     } finally {
       setLoading(false);
@@ -766,6 +748,7 @@ git commit -m "feat: add forgot-password mode to LoginPage"
 ## Task 3: PASSWORD_RECOVERY handler in AuthCallback
 
 **Files:**
+
 - Modify: `src/AuthCallback.tsx`
 - Create: `src/__tests__/AuthCallback.test.tsx`
 
@@ -834,9 +817,7 @@ describe('AuthCallback', () => {
       return { data: { subscription: { unsubscribe: vi.fn() } } } as any;
     });
     render(<AuthCallback />, { wrapper });
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
-    );
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
   });
 
   it('navigates to /login when event fires with no session', async () => {
@@ -845,9 +826,7 @@ describe('AuthCallback', () => {
       return { data: { subscription: { unsubscribe: vi.fn() } } } as any;
     });
     render(<AuthCallback />, { wrapper });
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true })
-    );
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true }));
   });
 
   it('shows password recovery form when PASSWORD_RECOVERY event fires', async () => {
@@ -985,7 +964,7 @@ export function AuthCallback() {
       setError(
         err instanceof Error
           ? err.message
-          : (err as any)?.message ?? 'Failed to update password. Please try again.'
+          : ((err as any)?.message ?? 'Failed to update password. Please try again.')
       );
     } finally {
       setLoading(false);
@@ -1083,6 +1062,7 @@ git commit -m "feat: handle PASSWORD_RECOVERY in AuthCallback with inline set-pa
 ## Task 4: Update CLAUDE.md
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 
 - [ ] **Step 1: Update the Phase 5 session decisions section**
@@ -1116,17 +1096,17 @@ git commit -m "docs: document Phase 5b confirm-password and forgot-password addi
 
 ## Self-review against spec
 
-| Requirement | Task |
-|-------------|------|
-| Signup: confirm-password field shown | Task 1 |
-| Signup: mismatch → error, no API call | Task 1 |
-| "Forgot password?" link in login mode | Task 2 |
-| Forgot-password mode: email field only | Task 2 |
-| Forgot-password: calls `resetPasswordForEmail` with redirectTo | Task 2 |
-| Forgot-password success: "check your email" message | Task 2 |
-| No email-existence leak | Task 2 (always show success) |
-| `/auth/callback`: `PASSWORD_RECOVERY` → inline form, not redirect | Task 3 |
-| Recovery form: password + confirm-password, match validation | Task 3 |
-| Recovery form: `updateUser()` then navigate to `/` | Task 3 |
-| Other auth events still redirect to `/` or `/login` | Task 3 |
-| CLAUDE.md updated | Task 4 |
+| Requirement                                                       | Task                         |
+| ----------------------------------------------------------------- | ---------------------------- |
+| Signup: confirm-password field shown                              | Task 1                       |
+| Signup: mismatch → error, no API call                             | Task 1                       |
+| "Forgot password?" link in login mode                             | Task 2                       |
+| Forgot-password mode: email field only                            | Task 2                       |
+| Forgot-password: calls `resetPasswordForEmail` with redirectTo    | Task 2                       |
+| Forgot-password success: "check your email" message               | Task 2                       |
+| No email-existence leak                                           | Task 2 (always show success) |
+| `/auth/callback`: `PASSWORD_RECOVERY` → inline form, not redirect | Task 3                       |
+| Recovery form: password + confirm-password, match validation      | Task 3                       |
+| Recovery form: `updateUser()` then navigate to `/`                | Task 3                       |
+| Other auth events still redirect to `/` or `/login`               | Task 3                       |
+| CLAUDE.md updated                                                 | Task 4                       |

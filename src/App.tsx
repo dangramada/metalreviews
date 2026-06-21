@@ -90,7 +90,20 @@ interface Review {
 // HELPERS
 // =============================================================================
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_ABBR = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 // Formats a raw MusicBrainz date string for display. MB dates are partial:
 //   "2024-03-15" → "15 Mar 2024"

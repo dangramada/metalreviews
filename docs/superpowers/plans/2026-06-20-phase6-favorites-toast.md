@@ -12,14 +12,14 @@
 
 ## File map
 
-| Action | Path | Responsibility |
-|---|---|---|
-| Create | `src/hooks/useFeedbackToast.tsx` | Three-method toast wrapper |
-| Create | `src/__tests__/useFeedbackToast.test.tsx` | Unit tests for the hook |
-| Create | `src/__tests__/ArtworkBlock.test.tsx` | Unit tests for heart icon |
-| Create | `src/__tests__/App.favorites.test.tsx` | Integration tests for toggle + filter |
-| Modify | `src/App.tsx` | All favorites logic, counter row, 409 migration |
-| Modify | `CLAUDE.md` | Toast convention section |
+| Action | Path                                      | Responsibility                                  |
+| ------ | ----------------------------------------- | ----------------------------------------------- |
+| Create | `src/hooks/useFeedbackToast.tsx`          | Three-method toast wrapper                      |
+| Create | `src/__tests__/useFeedbackToast.test.tsx` | Unit tests for the hook                         |
+| Create | `src/__tests__/ArtworkBlock.test.tsx`     | Unit tests for heart icon                       |
+| Create | `src/__tests__/App.favorites.test.tsx`    | Integration tests for toggle + filter           |
+| Modify | `src/App.tsx`                             | All favorites logic, counter row, 409 migration |
+| Modify | `CLAUDE.md`                               | Toast convention section                        |
 
 ---
 
@@ -59,6 +59,7 @@ git commit --allow-empty -m "chore: create favorites table and RLS policy in Sup
 ## Task 2: `useFeedbackToast` hook
 
 **Files:**
+
 - Create: `src/hooks/useFeedbackToast.tsx`
 - Create: `src/__tests__/useFeedbackToast.test.tsx`
 
@@ -91,25 +92,29 @@ describe('useFeedbackToast', () => {
   it('showSuccess calls toast with success status and 3000ms duration', () => {
     const { result } = renderHook(() => useFeedbackToast(), { wrapper });
     result.current.showSuccess('Added to favorites');
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Added to favorites',
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
-      position: 'bottom-right',
-    }));
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Added to favorites',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+        position: 'bottom-right',
+      })
+    );
   });
 
   it('showError calls toast with error status and 4000ms duration', () => {
     const { result } = renderHook(() => useFeedbackToast(), { wrapper });
     result.current.showError('Could not save — try again');
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Could not save — try again',
-      status: 'error',
-      duration: 4000,
-      isClosable: true,
-      position: 'bottom-right',
-    }));
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Could not save — try again',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+        position: 'bottom-right',
+      })
+    );
   });
 
   it('showAction calls toast with null duration and a render prop', () => {
@@ -118,12 +123,14 @@ describe('useFeedbackToast', () => {
       label: 'Log in',
       onClick: vi.fn(),
     });
-    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-      duration: null,
-      isClosable: true,
-      position: 'bottom-right',
-      render: expect.any(Function),
-    }));
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duration: null,
+        isClosable: true,
+        position: 'bottom-right',
+        render: expect.any(Function),
+      })
+    );
   });
 });
 ```
@@ -187,14 +194,19 @@ export function useFeedbackToast() {
           border="1px solid"
           borderColor="border.default"
         >
-          <Box flex={1} fontSize="sm">{message}</Box>
+          <Box flex={1} fontSize="sm">
+            {message}
+          </Box>
           <Button
             size="sm"
             variant="outline"
             borderColor="border.default"
             color="text.primary"
             _hover={{ borderColor: 'border.hover' }}
-            onClick={() => { action.onClick(); onClose(); }}
+            onClick={() => {
+              action.onClick();
+              onClose();
+            }}
           >
             {action.label}
           </Button>
@@ -227,6 +239,7 @@ git commit -m "feat: add useFeedbackToast hook with showSuccess, showError, show
 ## Task 3: Install `react-icons` and add heart icon to `ArtworkBlock`
 
 **Files:**
+
 - Modify: `src/App.tsx` — export `ArtworkBlock`, add two new props, add heart button
 - Create: `src/__tests__/ArtworkBlock.test.tsx`
 
@@ -291,27 +304,18 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 describe('ArtworkBlock', () => {
   it('renders an "Add to favorites" button when not favorited', () => {
-    render(
-      <ArtworkBlock rev={mockReview} isFavorited={false} onToggle={vi.fn()} />,
-      { wrapper }
-    );
+    render(<ArtworkBlock rev={mockReview} isFavorited={false} onToggle={vi.fn()} />, { wrapper });
     expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
   });
 
   it('renders a "Remove from favorites" button when favorited', () => {
-    render(
-      <ArtworkBlock rev={mockReview} isFavorited={true} onToggle={vi.fn()} />,
-      { wrapper }
-    );
+    render(<ArtworkBlock rev={mockReview} isFavorited={true} onToggle={vi.fn()} />, { wrapper });
     expect(screen.getByRole('button', { name: 'Remove from favorites' })).toBeInTheDocument();
   });
 
   it('calls onToggle when the heart button is clicked', () => {
     const onToggle = vi.fn();
-    render(
-      <ArtworkBlock rev={mockReview} isFavorited={false} onToggle={onToggle} />,
-      { wrapper }
-    );
+    render(<ArtworkBlock rev={mockReview} isFavorited={false} onToggle={onToggle} />, { wrapper });
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
@@ -338,9 +342,27 @@ Add `Icon` to the Chakra import list (already has `Image`, `Skeleton` — add `I
 
 ```tsx
 import {
-  Box, Button, Heading, Text, VStack, Container, Input, Select,
-  SimpleGrid, Tag, Wrap, WrapItem, Flex, Spinner, Link, Image,
-  Skeleton, Icon, FormControl, FormLabel, Switch,
+  Box,
+  Button,
+  Heading,
+  Text,
+  VStack,
+  Container,
+  Input,
+  Select,
+  SimpleGrid,
+  Tag,
+  Wrap,
+  WrapItem,
+  Flex,
+  Spinner,
+  Link,
+  Image,
+  Skeleton,
+  Icon,
+  FormControl,
+  FormLabel,
+  Switch,
 } from '@chakra-ui/react';
 ```
 
@@ -401,8 +423,12 @@ export function ArtworkBlock({
           align="center"
           justify="center"
         >
-          <Text fontSize="3xl" color="text.muted">♪</Text>
-          <Text fontSize="xs" color="text.muted">No artwork found</Text>
+          <Text fontSize="3xl" color="text.muted">
+            ♪
+          </Text>
+          <Text fontSize="xs" color="text.muted">
+            No artwork found
+          </Text>
         </Flex>
       )}
 
@@ -499,6 +525,7 @@ git commit -m "feat: add heart icon to ArtworkBlock with isFavorited/onToggle pr
 ## Task 4: Favorites state, hydration, and `toggleFavorite` in `App.tsx`
 
 **Files:**
+
 - Modify: `src/App.tsx`
 - Create: `src/__tests__/App.favorites.test.tsx`
 
@@ -569,12 +596,14 @@ const mockDbRow = {
 //   favorites: .from('favorites').select('review_id').then(cb)
 //              .from('favorites').insert({...})
 //              .from('favorites').delete().eq(...).eq(...)
-function makeFromImpl(options: {
-  reviewsData?: typeof mockDbRow[];
-  favoritesData?: { review_id: string }[];
-  insertError?: { message: string } | null;
-  deleteError?: { message: string } | null;
-} = {}) {
+function makeFromImpl(
+  options: {
+    reviewsData?: (typeof mockDbRow)[];
+    favoritesData?: { review_id: string }[];
+    insertError?: { message: string } | null;
+    deleteError?: { message: string } | null;
+  } = {}
+) {
   const {
     reviewsData = [mockDbRow],
     favoritesData = [],
@@ -667,9 +696,7 @@ describe('App favorites — logged in', () => {
       makeFromImpl({ favoritesData: [{ review_id: 'rev1' }] })
     );
     render(<App />, { wrapper });
-    await waitFor(() =>
-      screen.getByRole('button', { name: 'Remove from favorites' })
-    );
+    await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
   });
 
   it('fills the heart and shows success toast after a successful favorite', async () => {
@@ -677,9 +704,7 @@ describe('App favorites — logged in', () => {
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Add to favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
-    await waitFor(() =>
-      expect(mockShowSuccess).toHaveBeenCalledWith('Added to favorites')
-    );
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Added to favorites'));
     expect(screen.getByRole('button', { name: 'Remove from favorites' })).toBeInTheDocument();
   });
 
@@ -690,9 +715,7 @@ describe('App favorites — logged in', () => {
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove from favorites' }));
-    await waitFor(() =>
-      expect(mockShowSuccess).toHaveBeenCalledWith('Removed from favorites')
-    );
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Removed from favorites'));
     expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
   });
 
@@ -726,9 +749,7 @@ describe('App favorites — logged in', () => {
 
     fireEvent.click(screen.getByLabelText(/favorites only/i));
 
-    await waitFor(() =>
-      expect(screen.queryByText('Metallica')).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByText('Metallica')).not.toBeInTheDocument());
     expect(screen.getByText('Opeth')).toBeInTheDocument();
   });
 });
@@ -748,9 +769,27 @@ Remove `useToast` from the Chakra import. Add `FormControl`, `FormLabel`, `Switc
 
 ```tsx
 import {
-  Box, Button, Heading, Text, VStack, Container, Input, Select,
-  SimpleGrid, Tag, Wrap, WrapItem, Flex, Spinner, Link, Image,
-  Skeleton, Icon, FormControl, FormLabel, Switch,
+  Box,
+  Button,
+  Heading,
+  Text,
+  VStack,
+  Container,
+  Input,
+  Select,
+  SimpleGrid,
+  Tag,
+  Wrap,
+  WrapItem,
+  Flex,
+  Spinner,
+  Link,
+  Image,
+  Skeleton,
+  Icon,
+  FormControl,
+  FormLabel,
+  Switch,
 } from '@chakra-ui/react';
 ```
 
@@ -818,14 +857,24 @@ async function toggleFavorite(reviewId: string) {
       .delete()
       .eq('user_id', user.id)
       .eq('review_id', reviewId);
-    if (error) { showError('Could not remove favorite — try again'); return; }
-    setFavoritedIds((prev) => { const next = new Set(prev); next.delete(reviewId); return next; });
+    if (error) {
+      showError('Could not remove favorite — try again');
+      return;
+    }
+    setFavoritedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(reviewId);
+      return next;
+    });
     showSuccess('Removed from favorites');
   } else {
     const { error } = await supabase
       .from('favorites')
       .insert({ user_id: user.id, review_id: reviewId });
-    if (error) { showError('Could not save favorite — try again'); return; }
+    if (error) {
+      showError('Could not save favorite — try again');
+      return;
+    }
     setFavoritedIds((prev) => new Set(prev).add(reviewId));
     showSuccess('Added to favorites');
   }
@@ -864,6 +913,7 @@ git commit -m "feat: add favorites state, hydration, and toggleFavorite to App"
 ## Task 5: Counter row layout + favorites filter switch
 
 **Files:**
+
 - Modify: `src/App.tsx`
 
 - [ ] **Step 1: Add favorites filter step to the `filtered` pipeline**
@@ -896,7 +946,7 @@ const filtered = reviews
 Find this block (inside `{!loading && (...)}`):
 
 ```tsx
-<Text fontSize="md" fontWeight="bold"  color="text.dim" mt={0} paddingLeft={1} >
+<Text fontSize="md" fontWeight="bold" color="text.dim" mt={0} paddingLeft={1}>
   {filtered.length < reviews.length
     ? `${filtered.length} of ${reviews.length} reviews`
     : `${reviews.length} reviews`}
@@ -955,6 +1005,7 @@ git commit -m "feat: add favorites filter switch to counter row"
 ## Task 6: Migrate the 409 toast to `useFeedbackToast`
 
 **Files:**
+
 - Modify: `src/App.tsx`
 
 - [ ] **Step 1: Replace the inline 409 toast call in `handleRefresh`**
@@ -1004,6 +1055,7 @@ git commit -m "refactor: migrate 409 toast in handleRefresh to useFeedbackToast"
 ## Task 7: Update `CLAUDE.md`
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 
 - [ ] **Step 1: Add the toast convention section**

@@ -314,9 +314,33 @@ function computeId(band: string, album: string): string {
 function releaseDatePrecision(d: string | null): number {
   if (!d) return 0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return 3; // full date
-  if (/^\d{4}-\d{2}$/.test(d)) return 2;       // year-month
-  if (/^\d{4}$/.test(d)) return 1;             // year only
+  if (/^\d{4}-\d{2}$/.test(d)) return 2; // year-month
+  if (/^\d{4}$/.test(d)) return 1; // year only
   return 0; // unrecognized format — treat as no info
+}
+
+// Returns existing reviews that need a MB backfill retry this run.
+// A row is a candidate when: not already refreshed by the RSS loop (not in finalIds),
+// missing at least one MB field, and not past the retry cap.
+// Cap: skip permanently when attempts >= 5 AND review is older than 14 days —
+// the age bound is the binding constraint in practice (see docs/decisions/release-date.md).
+export function selectBackfillCandidates(
+  existingReviews: MetalReview[],
+  finalIds: Set<string>,
+  mbAttemptsById: Map<string, number>,
+  now: Date
+): MetalReview[] {
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  return existingReviews.filter((r) => {
+    if (finalIds.has(r.id)) return false;
+    const mbComplete =
+      typeof r.artworkUrl === 'string' && r.genre.length > 0 && typeof r.releaseDate === 'string';
+    if (mbComplete) return false;
+    const attempts = mbAttemptsById.get(r.id) ?? 0;
+    const tooOld = new Date(r.publishedAt) < fourteenDaysAgo;
+    if (attempts >= 5 && tooOld) return false;
+    return true;
+  });
 }
 
 export function applyMergeGuard(
@@ -334,7 +358,8 @@ export function applyMergeGuard(
       // Precision-aware: keep existing if it's more precise than the fresh value.
       // Differs from artworkUrl/genre rules — do not replace with the simpler pattern.
       releaseDate:
-        releaseDatePrecision(review.releaseDate) >= releaseDatePrecision(existing?.releaseDate ?? null)
+        releaseDatePrecision(review.releaseDate) >=
+        releaseDatePrecision(existing?.releaseDate ?? null)
           ? review.releaseDate
           : (existing?.releaseDate ?? null),
     });
@@ -348,9 +373,14 @@ export async function runIngestion() {
   // Fetch all existing rows from Supabase to build skip-sets and the merge map.
   // A read failure is non-fatal — we start fresh rather than aborting the entire run.
   let existingReviews: MetalReview[] = [];
+  let mbAttemptsById = new Map<string, number>();
   try {
     const { data, error } = await supabase.from('reviews').select('*');
     if (error) throw error;
+    // Extract attempt counts before fromDbRow discards the field (not part of MetalReview).
+    mbAttemptsById = new Map(
+      (data as DbRow[]).map((row) => [row.id, row.mb_lookup_attempts ?? 0])
+    );
     existingReviews = (data ?? []).map(fromDbRow);
   } catch (e) {
     console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
@@ -432,11 +462,41 @@ export async function runIngestion() {
     });
   }
 
+  // Backfill pass: retry MB for reviews that have aged off the RSS window.
+  // The main loop above only calls lookupMusicBrainz for reviews currently in allRaw.
+  // Reviews older than the feed's rolling window never appear there, so any MB fields
+  // that were null on first ingest (e.g. MB hadn't indexed the release yet) stay null
+  // forever without this second pass.
+  const finalIds = new Set(final.map((r) => r.id));
+  const backfilledIds = new Set<string>();
+  const candidates = selectBackfillCandidates(existingReviews, finalIds, mbAttemptsById, new Date());
+  for (const r of candidates) {
+    const mbData = await lookupMusicBrainz(r.band, r.album);
+    backfilledIds.add(r.id);
+    final.push({
+      ...r,
+      artworkUrl: mbData.artworkUrl ?? r.artworkUrl,
+      genre: mbData.genres.length > 0 ? mbData.genres : r.genre,
+      releaseDate: mbData.releaseDate ?? r.releaseDate,
+    });
+    await sleep(1000);
+  }
+
   const output = applyMergeGuard(existingById, final);
 
   const { error: upsertError } = await supabase
     .from('reviews')
-    .upsert(output.map(toDbRow), { onConflict: 'id' });
+    .upsert(
+      output.map((r) => ({
+        ...toDbRow(r),
+        // Increment only for backfill-path retries; RSS-path rows keep their existing count.
+        // New rows not yet in existingById fall back to 0, which is correct.
+        mb_lookup_attempts: backfilledIds.has(r.id)
+          ? (mbAttemptsById.get(r.id) ?? 0) + 1
+          : (mbAttemptsById.get(r.id) ?? 0),
+      })),
+      { onConflict: 'id' }
+    );
   if (upsertError) {
     throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
   }

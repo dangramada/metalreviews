@@ -49,11 +49,11 @@ No anon policy — logged-out visitors get zero access.
 const { showSuccess, showError, showAction } = useFeedbackToast();
 ```
 
-| Method | Signature | Chakra `status` | Duration | Notes |
-|---|---|---|---|---|
-| `showSuccess` | `(message: string) => void` | `success` (green) | 3 000 ms | Closable |
-| `showError` | `(message: string) => void` | `error` (red) | 4 000 ms | Closable |
-| `showAction` | `(message: string, action: { label: string; onClick: () => void }) => void` | none | `null` (persistent) | Custom `render` prop; button sits inside toast body |
+| Method        | Signature                                                                   | Chakra `status`   | Duration            | Notes                                               |
+| ------------- | --------------------------------------------------------------------------- | ----------------- | ------------------- | --------------------------------------------------- |
+| `showSuccess` | `(message: string) => void`                                                 | `success` (green) | 3 000 ms            | Closable                                            |
+| `showError`   | `(message: string) => void`                                                 | `error` (red)     | 4 000 ms            | Closable                                            |
+| `showAction`  | `(message: string, action: { label: string; onClick: () => void }) => void` | none              | `null` (persistent) | Custom `render` prop; button sits inside toast body |
 
 All toasts: `position: 'bottom-right'`, `isClosable: true`.
 
@@ -70,9 +70,9 @@ The inline `toast({...})` call in `App.tsx`'s `handleRefresh` (the 409 "already 
 ### New state and hooks
 
 ```ts
-const { user } = useAuth();                                         // App.tsx adds this import + call
-const navigate = useNavigate();                                     // App.tsx adds this import + call (needed for action-toast button)
-const { showSuccess, showError, showAction } = useFeedbackToast();  // replaces direct useToast() call
+const { user } = useAuth(); // App.tsx adds this import + call
+const navigate = useNavigate(); // App.tsx adds this import + call (needed for action-toast button)
+const { showSuccess, showError, showAction } = useFeedbackToast(); // replaces direct useToast() call
 const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 ```
@@ -109,15 +109,30 @@ async function toggleFavorite(reviewId: string) {
   }
   const isFavorited = favoritedIds.has(reviewId);
   if (isFavorited) {
-    const { error } = await supabase.from('favorites').delete()
-      .eq('user_id', user.id).eq('review_id', reviewId);
-    if (error) { showError('Could not remove favorite — try again'); return; }
-    setFavoritedIds(prev => { const next = new Set(prev); next.delete(reviewId); return next; });
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('review_id', reviewId);
+    if (error) {
+      showError('Could not remove favorite — try again');
+      return;
+    }
+    setFavoritedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(reviewId);
+      return next;
+    });
     showSuccess('Removed from favorites');
   } else {
-    const { error } = await supabase.from('favorites').insert({ user_id: user.id, review_id: reviewId });
-    if (error) { showError('Could not save favorite — try again'); return; }
-    setFavoritedIds(prev => new Set(prev).add(reviewId));
+    const { error } = await supabase
+      .from('favorites')
+      .insert({ user_id: user.id, review_id: reviewId });
+    if (error) {
+      showError('Could not save favorite — try again');
+      return;
+    }
+    setFavoritedIds((prev) => new Set(prev).add(reviewId));
     showSuccess('Added to favorites');
   }
 }
@@ -140,12 +155,13 @@ function ArtworkBlock({
   rev: Review;
   isFavorited: boolean;
   onToggle: () => void;
-})
+});
 ```
 
 ### Icon
 
 `react-icons/fa` is added as a dependency:
+
 - `FaHeart` — filled, `color="red.400"` when `isFavorited`
 - `FaRegHeart` — outline, `color="whiteAlpha.700"` when not favorited
 
@@ -158,6 +174,7 @@ function ArtworkBlock({
 The card is wrapped in a Chakra `<Link isExternal>`. The heart must **not** propagate clicks to that link. Use a `<Box as="button">` with `onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(); }}`.
 
 Style the button to be transparent with a slight hover background so it's visible but doesn't look like a badge:
+
 ```
 bg="blackAlpha.400"
 borderRadius="full"
@@ -172,10 +189,12 @@ _hover={{ bg: "blackAlpha.600" }}
 The current `<Text>` for the review counter becomes a `<Flex justify="space-between" align="center">` row.
 
 **Left side** — unchanged text logic:
+
 - `{filtered.length} of {reviews.length} reviews` when filters are active
 - `{reviews.length} reviews` otherwise
 
 **Right side** — visible only when `user` is non-null:
+
 ```tsx
 <FormControl display="flex" alignItems="center" gap={2}>
   <FormLabel htmlFor="favorites-toggle" mb={0} fontSize="sm" color="text.dim" cursor="pointer">

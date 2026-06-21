@@ -27,8 +27,8 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `favorites.md` — Phase 6: favorites heart toggle, useFeedbackToast convention, toast variants, optimistic-update decision
 - `release-date.md` — release date field: MB data source, text storage, precision-aware merge guard, mbAlreadyFetched third condition, card layout order, formatReleaseDate formatter
 - `header-redesign.md` — Header rewrite: useLocation active state, two Menu instances, sx @media breakpoints (not Chakra responsive props), always-visible Favorites link
-- `favorites-view.md` — /favorites protected route: RequireAuth, useFavoritesList two-query pattern, FavoritesPage list layout, manual_albums stub, always-visible nav link
-- `manual-albums.md` — manual_albums table schema + RLS, POST /api/manual-album-lookup endpoint, MB lookup extraction into scripts/musicbrainz.ts
+- `favorites-view.md` — /favorites route: RequireAuth, useFavoritesList (three-source merge: favorites + reviews + manual_albums), year-bounded dropdown, AddAlbumDrawer (lookup → preview → confirm insert), FavoriteListItemRow shared component, getReleaseYear helper
+- `manual-albums.md` — manual_albums table schema + RLS, POST /api/manual-album-lookup endpoint, MB lookup extraction into scripts/musicbrainz.ts, year-bounding decisions, client-side insert pattern, refetch-after-insert
 
 ## Commands
 
@@ -74,7 +74,7 @@ Each source has its own extractor module in `src/scraper/`:
 
 ### 2. Frontend (`src/App.tsx`)
 
-A React + Chakra UI app with client-side routing via React Router (v7, `react-router-dom`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
+A React + Chakra UI app with client-side routing via React Router v7 (`react-router-dom`, using `createBrowserRouter` + `RouterProvider`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
 
 Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
 
@@ -83,8 +83,10 @@ Routes (see `docs/decisions/auth-routing.md` for full detail):
 - `/` — dashboard (review grid), public — no auth required
 - `/login` — email/password auth form (`LoginPage`)
 - `/auth/callback` — handles `PASSWORD_RECOVERY` event and OAuth redirects (`AuthCallback`)
+- `/favorites` — protected shortlist view (`FavoritesPage`), redirects to `/login` if logged out via `RequireAuth`
+- `/aoty/:shareId` — reserved comment only, not yet implemented
 
-Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and exposed via `useAuth()`. The `Header` component renders the app title + login/logout controls.
+Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and exposed via `useAuth()`. The `Header` component renders the app title, primary nav links (Reviews `/` and Favorites `/favorites` — active state detected via `useLocation()`), and an account control (icon + email local-part → dropdown with Log out when logged in; pill-styled Log in link when logged out). Collapses into a single hamburger menu below `md`. See `docs/decisions/header-redesign.md` for nav pill styling, active-state logic, and the jsdom/breakpoint gotcha.
 
 ### 3. Shared types and mapping (`src/types.ts`, `src/dbMapping.ts`)
 

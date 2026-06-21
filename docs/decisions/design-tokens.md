@@ -6,13 +6,13 @@ All hardcoded design values consolidated into `src/theme.ts`, which is registere
 
 ## Token groups
 
-| Prefix | Purpose | Examples |
-|---|---|---|
-| `surface.*` | Background layers | `surface.page`, `surface.card`, `surface.raised`, `surface.darkest` |
-| `border.*` | Border colours | `border.default`, `border.hover` |
-| `text.*` | Text colours | `text.primary`, `text.muted`, `text.dim` |
-| `accent.*` | Brand accent (teal/blue) | `accent.start`, `accent.end`, `accent.border`, `accent.text` |
-| `brand.*` | One-off product colours | `brand.score` (#c9a227), `brand.scoreText` (#111111) |
+| Prefix      | Purpose                  | Examples                                                            |
+| ----------- | ------------------------ | ------------------------------------------------------------------- |
+| `surface.*` | Background layers        | `surface.page`, `surface.card`, `surface.raised`, `surface.darkest` |
+| `border.*`  | Border colours           | `border.default`, `border.hover`                                    |
+| `text.*`    | Text colours             | `text.primary`, `text.muted`, `text.dim`                            |
+| `accent.*`  | Brand accent (teal/blue) | `accent.start`, `accent.end`, `accent.border`, `accent.text`        |
+| `brand.*`   | One-off product colours  | `brand.score` (#c9a227), `brand.scoreText` (#111111)                |
 
 ## Border radii — use Chakra's built-in scale
 

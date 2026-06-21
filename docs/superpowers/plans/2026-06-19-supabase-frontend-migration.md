@@ -12,19 +12,20 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Create | `src/dbMapping.ts` | `DbRow` type + `fromDbRow()` — the single source of truth for snake\_case → camelCase mapping |
-| Modify | `scripts/ingest.ts` | Remove local `DbRow`/`fromDbRow`, import from `src/dbMapping.ts` |
-| Create | `src/supabaseClient.ts` | Frontend-only Supabase client using `import.meta.env.VITE_*` |
-| Modify | `src/App.tsx` | Replace `fetch('/reviews.json')` with Supabase query in initial load and refresh reload |
-| Create | `src/__tests__/dbMapping.test.ts` | Unit tests for `fromDbRow` (pure function, easy to verify) |
+| Action | File                              | Responsibility                                                                               |
+| ------ | --------------------------------- | -------------------------------------------------------------------------------------------- |
+| Create | `src/dbMapping.ts`                | `DbRow` type + `fromDbRow()` — the single source of truth for snake_case → camelCase mapping |
+| Modify | `scripts/ingest.ts`               | Remove local `DbRow`/`fromDbRow`, import from `src/dbMapping.ts`                             |
+| Create | `src/supabaseClient.ts`           | Frontend-only Supabase client using `import.meta.env.VITE_*`                                 |
+| Modify | `src/App.tsx`                     | Replace `fetch('/reviews.json')` with Supabase query in initial load and refresh reload      |
+| Create | `src/__tests__/dbMapping.test.ts` | Unit tests for `fromDbRow` (pure function, easy to verify)                                   |
 
 ---
 
 ## Task 1: Extract DbRow / fromDbRow into src/dbMapping.ts
 
 **Files:**
+
 - Create: `src/dbMapping.ts`
 - Test: `src/__tests__/dbMapping.test.ts`
 
@@ -172,6 +173,7 @@ git commit -m "feat: extract fromDbRow/DbRow into shared src/dbMapping.ts"
 ## Task 2: Update scripts/ingest.ts to import from src/dbMapping.ts
 
 **Files:**
+
 - Modify: `scripts/ingest.ts`
 
 Remove the local `DbRow` type and `fromDbRow` function (lines 13–60) and replace them with imports from `src/dbMapping.ts`. `toDbRow` stays in `ingest.ts` since only the ingest script writes to the DB.
@@ -237,6 +239,7 @@ git commit -m "refactor: import fromDbRow/DbRow from src/dbMapping instead of lo
 ## Task 3: Create the frontend Supabase client
 
 **Files:**
+
 - Create: `src/supabaseClient.ts`
 
 This is a separate client from `scripts/supabaseClient.ts`. It uses the **publishable** (anon) key — safe to expose in browser bundles. Vite only injects env vars prefixed `VITE_` into browser code; the values already exist in `.env`.
@@ -289,6 +292,7 @@ git commit -m "feat: add frontend Supabase client using VITE_ env vars"
 ## Task 4: Replace initial data load in App.tsx with Supabase query
 
 **Files:**
+
 - Modify: `src/App.tsx`
 
 The `useEffect` on mount (lines 291–304) currently does `fetch('/reviews.json')`. Replace it with a Supabase `.select('*')` query. Apply `fromDbRow` immediately so the rest of `App.tsx` — all filtering, sorting, and rendering — is completely untouched.
@@ -356,6 +360,7 @@ npm run dev
 ```
 
 Open http://localhost:5173 in a browser. Verify:
+
 - Spinner shows briefly, then cards appear
 - Band names, album titles, artwork, genre tags, and scores display correctly
 - No console errors about `VITE_SUPABASE_URL` or undefined
@@ -372,6 +377,7 @@ git commit -m "feat: load reviews from Supabase instead of reviews.json on initi
 ## Task 5: Fix refresh polling — reload from Supabase after ingest completes
 
 **Files:**
+
 - Modify: `src/App.tsx`
 
 The polling loop already correctly detects ingest completion via `GET /api/ingest/status`. The broken part is what happens when `status === 'idle'`: it currently does `fetch('/reviews.json')` to reload data. Replace that one reload with the same Supabase query used in Task 4.
@@ -445,6 +451,7 @@ git commit -m "fix: reload reviews from Supabase after ingest completes (closes 
 ## Task 6: Optional cleanup — delete public/reviews.json
 
 **Files:**
+
 - Delete: `public/reviews.json` (if it exists — check first)
 
 Neither the ingest pipeline nor the frontend reads this file anymore. Deleting it removes the risk of confusion about which data source is authoritative.
@@ -475,18 +482,18 @@ git commit -m "chore: remove stale public/reviews.json (frontend now reads from 
 
 ### Spec coverage
 
-| Spec requirement | Covered by |
-|---|---|
-| New frontend Supabase client using `VITE_` env vars | Task 3 |
-| Fail loudly on missing `VITE_` prefix | Task 3 — `throw new Error(...)` at module load |
-| Replace initial `fetch('/reviews.json')` with Supabase `.select('*')` | Task 4 |
-| snake_case → camelCase mapping reused / not duplicated | Tasks 1–2 (extracted into `src/dbMapping.ts`) |
-| Mapping applied before data touches React state | Task 4 — `.map(fromDbRow)` immediately on query result |
-| All filter / sort / search logic untouched | Tasks 4–5 don't touch those lines |
-| Fix refresh polling's final data reload | Task 5 |
-| No console errors about undefined env vars | Task 3 — guard throws at module load in dev |
-| Definition of done: app loads from Supabase | Task 4 step 4 |
-| Definition of done: refresh button detects completion and updates UI | Task 5 step 4 |
+| Spec requirement                                                      | Covered by                                             |
+| --------------------------------------------------------------------- | ------------------------------------------------------ |
+| New frontend Supabase client using `VITE_` env vars                   | Task 3                                                 |
+| Fail loudly on missing `VITE_` prefix                                 | Task 3 — `throw new Error(...)` at module load         |
+| Replace initial `fetch('/reviews.json')` with Supabase `.select('*')` | Task 4                                                 |
+| snake_case → camelCase mapping reused / not duplicated                | Tasks 1–2 (extracted into `src/dbMapping.ts`)          |
+| Mapping applied before data touches React state                       | Task 4 — `.map(fromDbRow)` immediately on query result |
+| All filter / sort / search logic untouched                            | Tasks 4–5 don't touch those lines                      |
+| Fix refresh polling's final data reload                               | Task 5                                                 |
+| No console errors about undefined env vars                            | Task 3 — guard throws at module load in dev            |
+| Definition of done: app loads from Supabase                           | Task 4 step 4                                          |
+| Definition of done: refresh button detects completion and updates UI  | Task 5 step 4                                          |
 
 ### Placeholder scan
 

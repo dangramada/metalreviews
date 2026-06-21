@@ -58,6 +58,7 @@ The merge guard logic was extracted from the inline block in `runIngestion()` in
 - **Exported** — importable without triggering any ingest side effects
 
 Guard rules (unchanged from the JSON era — see `docs/decisions/persistent-history-superseded.md`):
+
 - `artworkUrl`: use fresh if non-null; otherwise keep existing; otherwise null
 - `genre`: use fresh if non-empty; otherwise keep existing; otherwise `[]`
 - Existing rows not in fresh results are preserved in output
@@ -99,6 +100,7 @@ The frontend was migrated from reading `public/reviews.json` to querying Supabas
 **Single mapping layer in `src/dbMapping.ts`:** `fromDbRow` lives here; `scripts/ingest.ts` imports it and re-exports `DbRow` for backward compat. `toDbRow` stays in `scripts/ingest.ts` (server-only write path).
 
 **Initial load (`useEffect` in `App.tsx`):**
+
 ```ts
 supabase.from('reviews').select('*').order('published_at', { ascending: false })
   .then(({ data, error }) => {
@@ -108,6 +110,7 @@ supabase.from('reviews').select('*').order('published_at', { ascending: false })
   })
   .catch((e) => { console.warn(...); setLoading(false); }); // network-level failures
 ```
+
 `.catch()` is required — the Supabase client resolves DB errors as `{ data: null, error }` but rejects on true network failures (DNS, TLS). Without `.catch`, a network failure leaves the spinner running forever.
 
 **Refresh reload:** After polling confirms `status === 'idle'`, does the same Supabase query. Shows `'error'` state (not `'success'`) if the reload itself fails, so the user knows the display wasn't updated.

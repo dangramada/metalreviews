@@ -12,17 +12,18 @@
 
 ## Files Changed
 
-| File | Action |
-|---|---|
-| `server.ts` | Modify — port binding, static dir, auth guard |
-| `src/__tests__/serverAuth.test.ts` | Create — unit tests for `isAuthorized` |
-| `CLAUDE.md` | Modify — Phase 5 admin-gating note |
+| File                               | Action                                        |
+| ---------------------------------- | --------------------------------------------- |
+| `server.ts`                        | Modify — port binding, static dir, auth guard |
+| `src/__tests__/serverAuth.test.ts` | Create — unit tests for `isAuthorized`        |
+| `CLAUDE.md`                        | Modify — Phase 5 admin-gating note            |
 
 ---
 
 ### Task 1: Dynamic port binding
 
 **Files:**
+
 - Modify: `server.ts:32`
 
 - [ ] **Step 1: Change the hardcoded port to read `process.env.PORT`**
@@ -55,6 +56,7 @@ git commit -m "fix: read PORT env var with 3001 fallback for Render deployment"
 ### Task 2: Serve production build from `dist/`
 
 **Files:**
+
 - Modify: `server.ts:8`
 
 **Context:** `vite build` outputs to `dist/` (default, not overridden in `vite.config.ts`). In dev, Vite's own dev server handles the frontend — Express only receives `/api` requests via the Vite proxy. In production, Express is the only process, so it must serve `dist/`. The old `public/` path is a leftover from before the Supabase migration; the `public/reviews.json` file was deleted in Phase 3.
@@ -76,6 +78,7 @@ app.use(express.static(path.resolve(process.cwd(), 'dist')));
 - [ ] **Step 2: Build and verify**
 
 Run:
+
 ```bash
 npm run build
 npm run server
@@ -96,6 +99,7 @@ git commit -m "fix: serve dist/ in production instead of public/ (Render deploym
 ### Task 3: Auth guard on `POST /api/ingest`
 
 **Files:**
+
 - Modify: `server.ts`
 - Create: `src/__tests__/serverAuth.test.ts`
 
@@ -203,6 +207,7 @@ git commit -m "feat: guard POST /api/ingest with X-Ingest-Token header check"
 ### Task 4: Update CLAUDE.md
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 
 - [ ] **Step 1: Add Phase 5 admin-gating note to the Supabase section of CLAUDE.md**
@@ -229,6 +234,7 @@ git commit -m "docs: note Phase 5 admin-gating as unfinished business in CLAUDE.
 ## Self-Review
 
 **Spec coverage:**
+
 - ✅ `process.env.PORT || 3001` — Task 1
 - ✅ Local dev stays on 3001 — Task 1 verify step
 - ✅ `dist/` served in production — Task 2

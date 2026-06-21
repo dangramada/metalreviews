@@ -12,8 +12,11 @@ import {
   DrawerOverlay,
   Flex,
   FormControl,
+  FormHelperText,
   FormLabel,
   Heading,
+  Icon,
+  IconButton,
   Image,
   Input,
   Select,
@@ -24,6 +27,7 @@ import {
   Wrap,
   WrapItem,
 } from '@chakra-ui/react';
+import { FaTrash } from 'react-icons/fa';
 import { Header } from './Header';
 import { useFavoritesList } from './hooks/useFavoritesList';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
@@ -35,7 +39,15 @@ import { useFeedbackToast } from './hooks/useFeedbackToast';
 // ─── Shared list-item row ─────────────────────────────────────────────────────
 // Used in both the favorites list and the AddAlbumDrawer preview.
 
-export function FavoriteListItemRow({ item }: { item: FavoriteListItem }) {
+export function FavoriteListItemRow({
+  item,
+  onRemove,
+  removing = false,
+}: {
+  item: FavoriteListItem;
+  onRemove?: () => void;
+  removing?: boolean;
+}) {
   return (
     <Flex
       align="center"
@@ -48,8 +60,8 @@ export function FavoriteListItemRow({ item }: { item: FavoriteListItem }) {
     >
       <Box
         flexShrink={0}
-        w="48px"
-        h="48px"
+        w="64px"
+        h="64px"
         borderRadius="base"
         overflow="hidden"
         bg="surface.darkest"
@@ -58,8 +70,8 @@ export function FavoriteListItemRow({ item }: { item: FavoriteListItem }) {
           <Image
             src={item.artworkUrl}
             alt={`${item.band} – ${item.album}`}
-            w="48px"
-            h="48px"
+            w="64px"
+            h="64px"
             objectFit="cover"
           />
         ) : (
@@ -90,8 +102,33 @@ export function FavoriteListItemRow({ item }: { item: FavoriteListItem }) {
           </Wrap>
         )}
       </Box>
+
+      {onRemove && (
+        <IconButton
+          aria-label="Remove from favorites"
+          icon={<Icon as={FaTrash} />}
+          size="sm"
+          variant="ghost"
+          color="text.muted"
+          _hover={{ color: 'red.400', bg: 'whiteAlpha.100' }}
+          isLoading={removing}
+          onClick={onRemove}
+          flexShrink={0}
+        />
+      )}
     </Flex>
   );
+}
+
+// Capitalises the first letter of each word; leaves subsequent letters as typed
+// so abbreviations like "AC/DC" survive. Handles leading/trailing whitespace
+// and collapses repeated internal spaces.
+function toTitleCase(str: string): string {
+  return str
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 // ─── Add Album Drawer ─────────────────────────────────────────────────────────
@@ -106,7 +143,8 @@ interface AddAlbumDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   selectedYear: number | 'all';
-  onInsertSuccess: () => void;
+  // Called with the inserted album's release year so the parent can switch the filter
+  onInsertSuccess: (year: number | null) => void;
 }
 
 function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddAlbumDrawerProps) {
@@ -156,8 +194,8 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
       });
       if (!res.ok) throw new Error(`Lookup returned ${res.status}`);
       const data = (await res.json()) as LookupResult;
-      setLookedUpBand(band.trim());
-      setLookedUpAlbum(album.trim());
+      setLookedUpBand(toTitleCase(band));
+      setLookedUpAlbum(toTitleCase(album));
       setLookupResult(data);
     } catch (err) {
       console.warn('Manual album lookup failed', err);
@@ -186,7 +224,8 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
       return;
     }
     showSuccess(`${lookedUpBand} – ${lookedUpAlbum} added to favorites`);
-    onInsertSuccess();
+    // Pass the album's actual release year so the parent can switch the filter to show it
+    onInsertSuccess(getReleaseYear(finalReleaseDate));
     onClose();
   }
 
@@ -264,31 +303,32 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
                 Preview
               </Text>
 
-              {yearMismatch && (
-                <Box mb={3} p={3} bg="orange.900" borderRadius="md" fontSize="sm" color="orange.200">
-                  Heads up — this looks like a {lookupYear} release; you&apos;re adding to{' '}
-                  {selectedYear}.
-                </Box>
-              )}
+              <Box border="1px solid" borderColor="border.default" borderRadius="lg" p={4} bg="gray.900">
+                {yearMismatch && (
+                  <Box mb={3} p={3} bg="orange.900" borderRadius="md" fontSize="sm" color="orange.200">
+                    Heads up — this looks like a {lookupYear} release; you&apos;re adding to{' '}
+                    {selectedYear}.
+                  </Box>
+                )}
 
-              <FavoriteListItemRow item={previewItem} />
+                <FavoriteListItemRow item={previewItem} />
 
-              {lookupResult.releaseDate === null && (
-                <FormControl mt={4}>
-                  <FormLabel fontSize="sm" color="text.muted">
-                    Release date (MusicBrainz couldn&apos;t find one — enter it yourself if you know
-                    it)
-                  </FormLabel>
-                  <Input
-                    size="sm"
-                    value={manualReleaseDate}
-                    onChange={(e) => setManualReleaseDate(e.target.value)}
-                    placeholder="e.g. 2024, 2024-03, or 2024-03-15"
-                    bg="surface.page"
-                    borderColor="border.default"
-                  />
-                </FormControl>
-              )}
+                {lookupResult.releaseDate === null && (
+                  <FormControl mt={4} isRequired>
+                    <FormLabel>Release date</FormLabel>
+                    <Input
+                      value={manualReleaseDate}
+                      onChange={(e) => setManualReleaseDate(e.target.value)}
+                      placeholder="e.g. 2024, 2024-03, or 2024-03-15"
+                      bg="surface.page"
+                      borderColor="border.default"
+                    />
+                    <FormHelperText color="text.muted">
+                      MusicBrainz couldn&apos;t find one please enter it yourself.
+                    </FormHelperText>
+                  </FormControl>
+                )}
+              </Box>
             </Box>
           )}
         </DrawerBody>
@@ -303,7 +343,12 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
             >
               Cancel
             </Button>
-            <Button colorScheme="purple" isLoading={saving} onClick={handleConfirm}>
+            <Button
+              colorScheme="purple"
+              isLoading={saving}
+              isDisabled={lookupResult?.releaseDate === null && !manualReleaseDate.trim()}
+              onClick={handleConfirm}
+            >
               Confirm
             </Button>
           </DrawerFooter>
@@ -317,8 +362,34 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
 
 export function FavoritesPage() {
   const { items, loading, error, refetch } = useFavoritesList();
+  const { user } = useAuth();
+  const { showSuccess, showError } = useFeedbackToast();
   const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function handleRemove(item: FavoriteListItem) {
+    if (removingId || !user) return;
+    setRemovingId(item.id);
+
+    const { error: deleteError } =
+      item.type === 'review'
+        ? await supabase
+            .from('favorites')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('review_id', item.id)
+        : await supabase.from('manual_albums').delete().eq('id', item.id);
+
+    setRemovingId(null);
+
+    if (deleteError) {
+      showError('Could not remove — try again');
+      return;
+    }
+    showSuccess(`${item.band} – ${item.album} removed from favorites`);
+    refetch();
+  }
 
   // Distinct years derived from items (review items fall back to publishedAt when releaseDate is null)
   const distinctYears = useMemo(() => {
@@ -354,7 +425,7 @@ export function FavoritesPage() {
           {/* Controls row: heading + year dropdown (left) | Add album button (right) */}
           <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
             <Flex align="center" gap={3}>
-              <Heading size="lg">My Favorites</Heading>
+              <Heading as="h2" size="md">My Favorites</Heading>
               <Select
                 size="sm"
                 w="auto"
@@ -397,7 +468,12 @@ export function FavoritesPage() {
           ) : (
             <VStack spacing={3} align="stretch">
               {filteredItems.map((item) => (
-                <FavoriteListItemRow key={item.id} item={item} />
+                <FavoriteListItemRow
+                  key={item.id}
+                  item={item}
+                  onRemove={() => handleRemove(item)}
+                  removing={removingId === item.id}
+                />
               ))}
             </VStack>
           )}
@@ -408,7 +484,11 @@ export function FavoritesPage() {
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         selectedYear={selectedYear}
-        onInsertSuccess={refetch}
+        onInsertSuccess={(year) => {
+          refetch();
+          // Switch the year filter so the newly added item is immediately visible
+          if (year !== null) setSelectedYear(year);
+        }}
       />
     </Box>
   );

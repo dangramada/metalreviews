@@ -23,6 +23,9 @@ export type DbRow = {
   artwork_url: string | null;
   release_date: string | null;
   genre: string[] | null;
+  // Ingest-only: counts how many times the backfill pass has retried MB for this row.
+  // Not mapped to MetalReview — the frontend never needs it.
+  mb_lookup_attempts: number | null;
 };
 
 export function fromDbRow(row: DbRow): MetalReview {

@@ -12,18 +12,19 @@
 
 ## File Map
 
-| Action | Path | Responsibility |
-|--------|------|----------------|
-| Create | `scripts/supabaseClient.ts` | Build and export the Supabase service-key client |
-| Create | `src/__tests__/mergeGuard.test.ts` | Unit tests for merge guard pure function |
-| Modify | `scripts/ingest.ts` | Extract merge guard; swap file I/O for Supabase I/O |
-| Modify | `package.json` | Add `@supabase/supabase-js` + `dotenv` deps |
+| Action | Path                               | Responsibility                                      |
+| ------ | ---------------------------------- | --------------------------------------------------- |
+| Create | `scripts/supabaseClient.ts`        | Build and export the Supabase service-key client    |
+| Create | `src/__tests__/mergeGuard.test.ts` | Unit tests for merge guard pure function            |
+| Modify | `scripts/ingest.ts`                | Extract merge guard; swap file I/O for Supabase I/O |
+| Modify | `package.json`                     | Add `@supabase/supabase-js` + `dotenv` deps         |
 
 ---
 
 ## Task 1: Install dependencies
 
 **Files:**
+
 - Modify: `package.json` (via npm install)
 
 - [ ] **Step 1: Install the packages**
@@ -52,6 +53,7 @@ git commit -m "feat: add @supabase/supabase-js and dotenv deps"
 ## Task 2: Create the Supabase client module
 
 **Files:**
+
 - Create: `scripts/supabaseClient.ts`
 
 - [ ] **Step 1: Write the file**
@@ -101,6 +103,7 @@ git commit -m "feat: add Supabase service-key client module"
 The merge guard logic currently lives inline inside `runIngestion()` at lines 467–480 of `scripts/ingest.ts`. Extracting it as a pure function makes it testable without touching Supabase.
 
 **Files:**
+
 - Modify: `scripts/ingest.ts` (extract function, export it)
 - Create: `src/__tests__/mergeGuard.test.ts`
 
@@ -203,21 +206,20 @@ Expected: FAIL with "applyMergeGuard is not a function" or similar import error.
 Find the current inline merge block in `runIngestion()` (approximately lines 462–480):
 
 ```typescript
-  // Merge fresh results into the existing map — upsert by id ...
-  const merged = new Map(existingById);
-  for (const review of final) {
-    const existing = merged.get(review.id);
-    merged.set(review.id, {
-      ...existing,
-      ...review,
-      artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
-      genre:
-        review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
-    });
-  }
-  const output = Array.from(merged.values()).sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
+// Merge fresh results into the existing map — upsert by id ...
+const merged = new Map(existingById);
+for (const review of final) {
+  const existing = merged.get(review.id);
+  merged.set(review.id, {
+    ...existing,
+    ...review,
+    artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
+    genre: review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
+  });
+}
+const output = Array.from(merged.values()).sort(
+  (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+);
 ```
 
 Replace the whole block (both the merge loop and the output sort) with a call to the new function, and add the function definition above `runIngestion`:
@@ -246,13 +248,13 @@ export function applyMergeGuard(
 And in `runIngestion()`, replace the extracted block with:
 
 ```typescript
-  const output = applyMergeGuard(merged, final);
+const output = applyMergeGuard(merged, final);
 ```
 
 Wait — `merged` was previously built as `new Map(existingById)` before the loop. Now that the loop is inside `applyMergeGuard`, pass `existingById` directly:
 
 ```typescript
-  const output = applyMergeGuard(existingById, final);
+const output = applyMergeGuard(existingById, final);
 ```
 
 The `const merged = new Map(existingById)` line and the for-loop and the `const output = ...` sort line are all replaced by this single line.
@@ -285,20 +287,22 @@ git commit -m "refactor: extract applyMergeGuard as testable pure function, add 
 ## Task 4: Replace file read with Supabase select
 
 **Files:**
+
 - Modify: `scripts/ingest.ts`
 
 The current `runIngestion()` opens with:
-```typescript
-  const outPath = path.resolve(process.cwd(), 'public', 'reviews.json');
-  await fs.mkdir(path.dirname(outPath), { recursive: true });
 
-  let existingReviews: MetalReview[] = [];
-  try {
-    const raw = await fs.readFile(outPath, 'utf-8');
-    existingReviews = JSON.parse(raw);
-  } catch {
-    // file missing or invalid JSON — start fresh
-  }
+```typescript
+const outPath = path.resolve(process.cwd(), 'public', 'reviews.json');
+await fs.mkdir(path.dirname(outPath), { recursive: true });
+
+let existingReviews: MetalReview[] = [];
+try {
+  const raw = await fs.readFile(outPath, 'utf-8');
+  existingReviews = JSON.parse(raw);
+} catch {
+  // file missing or invalid JSON — start fresh
+}
 ```
 
 - [ ] **Step 1: Add Supabase client import at the top of scripts/ingest.ts**
@@ -312,31 +316,33 @@ import { supabase } from './supabaseClient';
 - [ ] **Step 2: Replace the file-read block**
 
 Remove:
-```typescript
-  const outPath = path.resolve(process.cwd(), 'public', 'reviews.json');
-  await fs.mkdir(path.dirname(outPath), { recursive: true });
 
-  let existingReviews: MetalReview[] = [];
-  try {
-    const raw = await fs.readFile(outPath, 'utf-8');
-    existingReviews = JSON.parse(raw);
-  } catch {
-    // file missing or invalid JSON — start fresh
-  }
+```typescript
+const outPath = path.resolve(process.cwd(), 'public', 'reviews.json');
+await fs.mkdir(path.dirname(outPath), { recursive: true });
+
+let existingReviews: MetalReview[] = [];
+try {
+  const raw = await fs.readFile(outPath, 'utf-8');
+  existingReviews = JSON.parse(raw);
+} catch {
+  // file missing or invalid JSON — start fresh
+}
 ```
 
 Replace with:
+
 ```typescript
-  // Fetch all existing rows from Supabase to build skip-sets and the merge map.
-  // A read failure is non-fatal — we start fresh rather than aborting the entire run.
-  let existingReviews: MetalReview[] = [];
-  try {
-    const { data, error } = await supabase.from('reviews').select('*');
-    if (error) throw error;
-    existingReviews = data ?? [];
-  } catch (e) {
-    console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
-  }
+// Fetch all existing rows from Supabase to build skip-sets and the merge map.
+// A read failure is non-fatal — we start fresh rather than aborting the entire run.
+let existingReviews: MetalReview[] = [];
+try {
+  const { data, error } = await supabase.from('reviews').select('*');
+  if (error) throw error;
+  existingReviews = data ?? [];
+} catch (e) {
+  console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
+}
 ```
 
 - [ ] **Step 3: Remove unused imports**
@@ -363,12 +369,14 @@ git commit -m "feat: read existing reviews from Supabase instead of reviews.json
 ## Task 5: Replace file write with Supabase upsert
 
 **Files:**
+
 - Modify: `scripts/ingest.ts`
 
 The current `runIngestion()` ends with:
+
 ```typescript
-  await fs.writeFile(outPath, JSON.stringify(output, null, 2), 'utf-8');
-  console.log('✅ Ingestion completed, written', output.length, 'reviews to', outPath);
+await fs.writeFile(outPath, JSON.stringify(output, null, 2), 'utf-8');
+console.log('✅ Ingestion completed, written', output.length, 'reviews to', outPath);
 ```
 
 - [ ] **Step 1: Replace the file-write with a Supabase upsert**
@@ -376,13 +384,11 @@ The current `runIngestion()` ends with:
 Remove the `fs.writeFile` call and the log line. Replace with:
 
 ```typescript
-  const { error: upsertError } = await supabase
-    .from('reviews')
-    .upsert(output, { onConflict: 'id' });
-  if (upsertError) {
-    throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
-  }
-  console.log('✅ Ingestion completed, upserted', output.length, 'reviews to Supabase');
+const { error: upsertError } = await supabase.from('reviews').upsert(output, { onConflict: 'id' });
+if (upsertError) {
+  throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
+}
+console.log('✅ Ingestion completed, upserted', output.length, 'reviews to Supabase');
 ```
 
 - [ ] **Step 2: Verify TypeScript is happy**
@@ -425,6 +431,7 @@ Wait for completion (it will make MusicBrainz calls with 1-second sleeps — exp
 - [ ] **Step 2: Note artworkUrl and genre values for a few known reviews**
 
 In Supabase Studio (or `psql`), run:
+
 ```sql
 SELECT id, band, album, "artworkUrl", genre
 FROM reviews
@@ -469,22 +476,22 @@ git commit -m "chore: lint and format after Supabase migration"
 
 ### Spec coverage
 
-| Requirement | Covered by |
-|---|---|
-| Install @supabase/supabase-js | Task 1 |
-| Supabase client using SUPABASE_URL + SUPABASE_SECRET_KEY | Task 2 |
-| Service key (bypasses RLS) | Task 2 — documented in comment |
-| Replace fs.writeFile with Supabase write | Task 5 |
-| Pre-fetch existing rows for merge guard | Task 4 — fetched upfront, same map used |
-| artworkUrl merge guard: prefer fresh, fall back to existing | Task 3 — tested, logic preserved |
-| genre merge guard: prefer non-empty, fall back to existing | Task 3 — tested, logic preserved |
-| Use .upsert with onConflict: 'id' | Task 5 |
-| No blind upsert without pre-fetch | Task 4 reads first, Task 5 merges then upserts |
-| RSS fetching, rating extraction, MB calls unchanged | Not touched |
-| computeId() unchanged | Not touched |
-| Frontend unchanged | Not touched |
-| server.ts unchanged | Not touched |
-| Acceptance test (2 consecutive runs, no regression) | Task 6 |
+| Requirement                                                 | Covered by                                     |
+| ----------------------------------------------------------- | ---------------------------------------------- |
+| Install @supabase/supabase-js                               | Task 1                                         |
+| Supabase client using SUPABASE_URL + SUPABASE_SECRET_KEY    | Task 2                                         |
+| Service key (bypasses RLS)                                  | Task 2 — documented in comment                 |
+| Replace fs.writeFile with Supabase write                    | Task 5                                         |
+| Pre-fetch existing rows for merge guard                     | Task 4 — fetched upfront, same map used        |
+| artworkUrl merge guard: prefer fresh, fall back to existing | Task 3 — tested, logic preserved               |
+| genre merge guard: prefer non-empty, fall back to existing  | Task 3 — tested, logic preserved               |
+| Use .upsert with onConflict: 'id'                           | Task 5                                         |
+| No blind upsert without pre-fetch                           | Task 4 reads first, Task 5 merges then upserts |
+| RSS fetching, rating extraction, MB calls unchanged         | Not touched                                    |
+| computeId() unchanged                                       | Not touched                                    |
+| Frontend unchanged                                          | Not touched                                    |
+| server.ts unchanged                                         | Not touched                                    |
+| Acceptance test (2 consecutive runs, no regression)         | Task 6                                         |
 
 ### Placeholder scan
 

@@ -8,13 +8,19 @@
 - **Desktop nav (≥md):** Two links — Reviews (`/`) and Favorites (`/favorites`) — in a Flex cluster left of the account control. Always visible regardless of auth state (clicking Favorites while logged out hits the RequireAuth guard and redirects to `/login` — by design, not prevented at header level).
 - **Desktop account control (≥md):** Logged in: `MenuButton` (email local-part + `FaUserCircle` icon) opens a `MenuList` with one `MenuItem`: "Log out". Logged out: plain "Log in" link (same as before).
 - **Mobile hamburger (<md):** A single `IconButton` (`HamburgerIcon`, `aria-label="Open menu"`) opens a consolidated `MenuList` containing Reviews, Favorites, and Log out (or Log in). No visual separation between nav and account items in the mobile menu.
-- **Active state:** `useLocation().pathname` compared to `/` and `/favorites`. Active link gets `color="accent.text"` (teal.300) + `textDecoration="underline"`. Inactive link gets `color="text.dim"` (gray.400).
+- **Nav link pill shape:** All nav items (Reviews, Favorites, Log in, account MenuButton) share a `navPillBase` constant — `fontSize: 'md'`, `fontWeight: 'semibold'`, `px: 4`, `py: 2`, `borderRadius: 'md'` (6px), `textDecoration: 'none'`. This keeps all link footprints identical so layout never shifts when the active route changes.
+- **Active state:** `useLocation().pathname` compared to `/` and `/favorites`. Active link: `bg="accent.border"` (teal.500) + `color="text.primary"` (white). Inactive link: transparent bg, `color="text.dim"` (gray.400). No underline in either state.
+- **Log in (logged-out state):** Styled identically to inactive nav links via `navPillBase` — no longer plain text. Same hover behaviour (`surface.raised` bg, `accent.start` text).
+- **Desktop account control icon order:** `FaUserCircle` icon appears as `leftIcon` (before the email local-part). Changed from the original `rightIcon` layout.
+- **MenuButton open/active state:** Chakra's ghost Button applies a `whiteAlpha` flash on `_active` and when `aria-expanded=true`. Overridden on both the desktop account MenuButton and the mobile hamburger with `_active={{ bg: 'surface.raised', color: 'text.primary' }}` and `sx={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}`. Same `_active` override applied to all MenuItems to suppress the light flash on tap/click.
+- **Visual divider:** A `<Box w="1px" alignSelf="stretch" bg="whiteAlpha.400" mx={2} />` separates the nav link group from the account control in the desktop cluster. A plain Box with `bg` is used rather than Chakra's `<Divider orientation="vertical">` — the Divider component relies on `border-color` and without an explicit height it often renders invisibly in a flex container.
 
 ## Key decisions
 
 ### useLocation() + conditional props vs. NavLink
 
 React Router's `NavLink` supports an `isActive` render-prop/className function that automates active state. Chose `useLocation()` + conditional Chakra props instead because:
+
 - The existing codebase pattern uses `Link as={RouterLink}` with explicit Chakra color/style props. Switching to `NavLink` would require CSS class injection or style functions that bypass Chakra's token system.
 - Two nav links is simple enough that a manual `pathname === '/'` comparison is immediately readable.
 - NavLink would require either a custom `className` function (bypassing theme tokens) or a `style` function (inline styles, harder to maintain). Neither fits the existing pattern.

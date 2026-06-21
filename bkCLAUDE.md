@@ -70,6 +70,7 @@ A React + Chakra UI app with client-side routing via React Router (v7, `react-ro
 Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
 
 Routes:
+
 - `/` — dashboard (review grid), public — no auth required
 - `/login` — email/password auth form (`LoginPage`) with sign-up, forgot-password modes; OAuth buttons reserved for future session
 - `/auth/callback` — handles `PASSWORD_RECOVERY` event (inline set-password form) and OAuth redirects (`AuthCallback`)
@@ -81,6 +82,7 @@ Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and expose
 `MetalReview` in `src/types.ts` is the canonical shape shared by the scraper output and the frontend.
 
 `src/dbMapping.ts` is the single source of truth for the Postgres ↔ app boundary:
+
 - **`DbRow`** — mirrors the exact snake_case column names/types of the `reviews` table
 - **`fromDbRow(row: DbRow): MetalReview`** — used by both the ingest pipeline (reading back existing rows) and the frontend (mapping query results before touching React state)
 
@@ -229,10 +231,12 @@ Both AMG and The Progressive Subway embed review-site boilerplate in their RSS `
 `extractBandAlbum` was called on the raw title, so the boilerplate ended up stored in `reviews.json` (`album: "Ritual of the Cloven Hoof Review"`, `band: "Review: Cellar Noise"`). This broke MusicBrainz lookups (quoted Lucene search couldn't match the real release/artist) and polluted the display names shown on cards.
 
 **Fix — parse time (primary):**
+
 - `fetchAngryMetalGuy`: strips trailing ` Review` / ` EP Review` from `item.title` before passing to `extractBandAlbum`.
 - `fetchProgressiveSubway`: strips leading `Review: ` from `item.title` before passing to `extractBandAlbum`.
 
 **Fix — MB search (safety net):**
+
 - `fetchMusicBrainzData` also strips both patterns from its `band` / `album` arguments (`bandForSearch`, `albumForSearch`) so a future source with similar boilerplate won't silently produce empty results.
 
 **Data cleanup:** Entries already stored in `reviews.json` with polluted band/album names got different `computeId` hashes than the corrected names, so they were removed from the file manually. They are re-fetched clean on the next ingest run.
@@ -242,6 +246,7 @@ Both AMG and The Progressive Subway embed review-site boilerplate in their RSS `
 **Root cause:** MB search failed on polluted titles (see above) → `fetchMusicBrainzData` returned `genres: []`. Additionally, `mbAlreadyFetched` condition `Array.isArray(r.genre)` evaluated `true` for `[]`, so once an empty array was stored, that review was permanently skipped and never retried.
 
 **Fix:**
+
 - Title pollution fix above makes MB searches succeed.
 - Changed `mbAlreadyFetched` to require `r.genre.length > 0` in addition to `Array.isArray(r.genre)`, so reviews stuck with `genre: []` are retried on the next run.
 
@@ -256,6 +261,7 @@ Both AMG and The Progressive Subway embed review-site boilerplate in their RSS `
 **Root cause:** Same MB search failure → `fetchMusicBrainzData` returned `artworkUrl: null`. The old upsert loop (`merged.set(review.id, review)`) blindly overwrote previously-good `artworkUrl` values with `null`.
 
 **Fix:** Merge guard added to the upsert loop (`scripts/ingest.ts`):
+
 - `artworkUrl`: prefer fresh value; fall back to existing if fresh is null.
 - `genre`: prefer fresh if non-empty; otherwise keep existing (never regress from a non-empty genre list to `[]`).
 
@@ -298,13 +304,13 @@ All hardcoded design values consolidated into `src/theme.ts`, which is registere
 
 ### Token groups
 
-| Prefix | Purpose | Examples |
-|---|---|---|
-| `surface.*` | Background layers | `surface.page`, `surface.card`, `surface.raised`, `surface.darkest` |
-| `border.*` | Border colours | `border.default`, `border.hover` |
-| `text.*` | Text colours | `text.primary`, `text.muted`, `text.dim` |
-| `accent.*` | Brand accent (teal/blue) | `accent.start`, `accent.end`, `accent.border`, `accent.text` |
-| `brand.*` | One-off product colours | `brand.score` (#c9a227), `brand.scoreText` (#111111) |
+| Prefix      | Purpose                  | Examples                                                            |
+| ----------- | ------------------------ | ------------------------------------------------------------------- |
+| `surface.*` | Background layers        | `surface.page`, `surface.card`, `surface.raised`, `surface.darkest` |
+| `border.*`  | Border colours           | `border.default`, `border.hover`                                    |
+| `text.*`    | Text colours             | `text.primary`, `text.muted`, `text.dim`                            |
+| `accent.*`  | Brand accent (teal/blue) | `accent.start`, `accent.end`, `accent.border`, `accent.text`        |
+| `brand.*`   | One-off product colours  | `brand.score` (#c9a227), `brand.scoreText` (#111111)                |
 
 ### Border radii — use Chakra's built-in scale
 
@@ -333,11 +339,11 @@ Replaced the fixed-width controls bar with a responsive flex layout in `src/App.
 
 ### Layout behaviour
 
-| Breakpoint | Behaviour |
-|---|---|
-| `base` (0–767px) | Every control stacks full-width, one per line |
+| Breakpoint       | Behaviour                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `base` (0–767px) | Every control stacks full-width, one per line                                                     |
 | `md` (768–991px) | Search takes its own full-width first line; Sort + Source + Score + Refresh share the second line |
-| `lg` (992px+) | Single row: Search gets `flex: 2`, each Select gets `flex: 1` |
+| `lg` (992px+)    | Single row: Search gets `flex: 2`, each Select gets `flex: 1`                                     |
 
 ### Key changes
 
@@ -350,12 +356,14 @@ Replaced the fixed-width controls bar with a responsive flex layout in `src/App.
 ### Responsive prop values
 
 **Search Input:**
+
 ```
 flex={{ base: '1 1 100%', lg: '2' }}
 minW={{ lg: '180px' }}
 ```
 
 **Sort / Source / Score Selects:**
+
 ```
 flex={{ base: '1 1 100%', md: '1', lg: '1' }}
 minW={{ base: '100px', lg: '110px' }}   // Sort and Score
@@ -363,6 +371,7 @@ minW={{ base: '100px', lg: '120px' }}   // Source (slightly wider label)
 ```
 
 **Refresh Button:**
+
 ```
 w={{ base: '100%', md: 'auto' }}
 flexShrink={0}
@@ -433,6 +442,7 @@ The merge guard logic was extracted from the inline block in `runIngestion()` in
 - **Exported** — importable without triggering any ingest side effects
 
 Guard rules (unchanged from the JSON era):
+
 - `artworkUrl`: use fresh if non-null; otherwise keep existing; otherwise null
 - `genre`: use fresh if non-empty; otherwise keep existing; otherwise `[]`
 - Existing rows not in fresh results are preserved in output
@@ -474,6 +484,7 @@ The frontend was migrated from reading `public/reviews.json` to querying Supabas
 **Single mapping layer in `src/dbMapping.ts`:** `fromDbRow` lives here; `scripts/ingest.ts` imports it and re-exports `DbRow` for backward compat. `toDbRow` stays in `scripts/ingest.ts` (server-only write path).
 
 **Initial load (`useEffect` in `App.tsx`):**
+
 ```ts
 supabase.from('reviews').select('*').order('published_at', { ascending: false })
   .then(({ data, error }) => {
@@ -483,6 +494,7 @@ supabase.from('reviews').select('*').order('published_at', { ascending: false })
   })
   .catch((e) => { console.warn(...); setLoading(false); }); // network-level failures
 ```
+
 `.catch()` is required — the Supabase client resolves DB errors as `{ data: null, error }` but rejects on true network failures (DNS, TLS). Without `.catch`, a network failure leaves the spinner running forever.
 
 **Refresh reload:** After polling confirms `status === 'idle'`, does the same Supabase query. Shows `'error'` state (not `'success'`) if the reload itself fails, so the user knows the display wasn't updated.

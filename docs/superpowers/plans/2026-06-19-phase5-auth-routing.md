@@ -12,26 +12,27 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Create | `src/AuthContext.tsx` | `AuthProvider` + `useAuth()` hook — wraps `supabase.auth` state |
-| Create | `src/Header.tsx` | Gradient title + login/logout button, uses `useAuth()` |
-| Create | `src/LoginPage.tsx` | `/login` route — email/password form, mode toggle, error display |
-| Create | `src/AuthCallback.tsx` | `/auth/callback` route — loading spinner, redirect to `/` |
-| Create | `src/__tests__/setup.ts` | `@testing-library/jest-dom` import for component tests |
-| Create | `src/__tests__/Header.test.tsx` | Header render tests (logged-out / logged-in states) |
-| Create | `src/__tests__/LoginPage.test.tsx` | LoginPage form render + error display tests |
-| Modify | `vite.config.ts` | Add `test.environmentMatchGlobs` for jsdom on `.test.tsx` files |
-| Modify | `src/main.tsx` | Add `RouterProvider` + `AuthProvider` + route definitions |
-| Modify | `src/App.tsx` | Replace `<Heading>` with `<Header />`, update top-of-file comment |
-| Modify | `server.ts` | Add SPA catch-all: `GET *` → `dist/index.html` |
-| Modify | `CLAUDE.md` | Update architecture section (routing, auth) |
+| Action | File                               | Responsibility                                                    |
+| ------ | ---------------------------------- | ----------------------------------------------------------------- |
+| Create | `src/AuthContext.tsx`              | `AuthProvider` + `useAuth()` hook — wraps `supabase.auth` state   |
+| Create | `src/Header.tsx`                   | Gradient title + login/logout button, uses `useAuth()`            |
+| Create | `src/LoginPage.tsx`                | `/login` route — email/password form, mode toggle, error display  |
+| Create | `src/AuthCallback.tsx`             | `/auth/callback` route — loading spinner, redirect to `/`         |
+| Create | `src/__tests__/setup.ts`           | `@testing-library/jest-dom` import for component tests            |
+| Create | `src/__tests__/Header.test.tsx`    | Header render tests (logged-out / logged-in states)               |
+| Create | `src/__tests__/LoginPage.test.tsx` | LoginPage form render + error display tests                       |
+| Modify | `vite.config.ts`                   | Add `test.environmentMatchGlobs` for jsdom on `.test.tsx` files   |
+| Modify | `src/main.tsx`                     | Add `RouterProvider` + `AuthProvider` + route definitions         |
+| Modify | `src/App.tsx`                      | Replace `<Heading>` with `<Header />`, update top-of-file comment |
+| Modify | `server.ts`                        | Add SPA catch-all: `GET *` → `dist/index.html`                    |
+| Modify | `CLAUDE.md`                        | Update architecture section (routing, auth)                       |
 
 ---
 
 ## Task 1: Configure Vitest for component testing
 
 **Files:**
+
 - Modify: `vite.config.ts`
 - Create: `src/__tests__/setup.ts`
 
@@ -66,7 +67,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 2: Create src/__tests__/setup.ts**
+- [ ] **Step 2: Create src/**tests**/setup.ts**
 
 ```ts
 import '@testing-library/jest-dom';
@@ -92,13 +93,14 @@ git commit -m "test: configure jsdom environment for React component tests"
 ## Task 2: AuthContext — auth state provider and hook
 
 **Files:**
+
 - Create: `src/AuthContext.tsx`
 - Create: `src/__tests__/AuthContext.test.tsx` (pure unit test — no jsdom needed, tests the exported types)
 
 `AuthContext` is the single source of truth for auth state. It calls `supabase.auth.getSession()` on mount to hydrate from an existing session cookie, then subscribes to `onAuthStateChange` so login/logout events anywhere in the app (including the OAuth callback) automatically update every consumer.
 
 ★ Insight ─────────────────────────────────────
-`onAuthStateChange` fires on: initial SIGNED_IN from an existing session, new sign-ins, sign-outs, and token refreshes. The `getSession()` call on mount is still necessary because the state-change listener only fires on _changes_ — it won't fire if the session is already established when the component mounts.
+`onAuthStateChange` fires on: initial SIGNED*IN from an existing session, new sign-ins, sign-outs, and token refreshes. The `getSession()` call on mount is still necessary because the state-change listener only fires on \_changes* — it won't fire if the session is already established when the component mounts.
 ─────────────────────────────────────────────────
 
 - [ ] **Step 1: Write the failing test**
@@ -229,6 +231,7 @@ git commit -m "feat: add AuthContext with useAuth hook"
 ## Task 3: Header component — login/logout UI
 
 **Files:**
+
 - Create: `src/Header.tsx`
 - Create: `src/__tests__/Header.test.tsx`
 
@@ -328,12 +331,7 @@ export function Header() {
 
   return (
     <Flex align="center" justify="space-between" mb={6}>
-      <Heading
-        as="h1"
-        size="xl"
-        bgGradient="linear(to-r, accent.start, accent.end)"
-        bgClip="text"
-      >
+      <Heading as="h1" size="xl" bgGradient="linear(to-r, accent.start, accent.end)" bgClip="text">
         Metal Reviews Dashboard
       </Heading>
 
@@ -397,6 +395,7 @@ git commit -m "feat: add Header component with login/logout state"
 ## Task 4: LoginPage — email/password form
 
 **Files:**
+
 - Create: `src/LoginPage.tsx`
 - Create: `src/__tests__/LoginPage.test.tsx`
 
@@ -532,17 +531,7 @@ Expected: FAIL — module not found.
 ```tsx
 import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Container,
-  Flex,
-  Heading,
-  Input,
-  Link,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
 
 type Mode = 'login' | 'signup';
@@ -711,6 +700,7 @@ git commit -m "feat: add LoginPage with email/password auth and signup flow"
 ## Task 5: AuthCallback — OAuth redirect handler
 
 **Files:**
+
 - Create: `src/AuthCallback.tsx`
 
 This route exists for OAuth flows (deferred to next session). When Google/Facebook redirect back to `/auth/callback`, Supabase automatically exchanges the token from the URL. We just wait for `getSession()` to resolve and redirect. For email/password flows, this page is never visited, but it must exist and handle gracefully.
@@ -767,6 +757,7 @@ git commit -m "feat: add AuthCallback route for OAuth redirects"
 ## Task 6: Wire routing in main.tsx
 
 **Files:**
+
 - Modify: `src/main.tsx`
 
 `AuthProvider` wraps `RouterProvider` (not the other way around) so all routes can access the auth context without nesting context inside each page component.
@@ -828,6 +819,7 @@ git commit -m "feat: set up React Router with auth, login, and callback routes"
 ## Task 7: Integrate Header into App.tsx
 
 **Files:**
+
 - Modify: `src/App.tsx`
 
 Replace the standalone `<Heading>` element with `<Header />`. Update the top comment (which currently says "no routing, no server-side state") to reflect Phase 5. No other changes to App.
@@ -845,22 +837,24 @@ import { Header } from './Header';
 Find this block in the render (around line 397–406):
 
 ```tsx
-          {/* Page title — gradient is clipped to the text shape via bgClip="text" */}
-          <Heading
-            as="h1"
-            size="xl"
-            textAlign="center"
-            bgGradient="linear(to-r, accent.start, accent.end)"
-            bgClip="text"
-          >
-            Metal Reviews Dashboard
-          </Heading>
+{
+  /* Page title — gradient is clipped to the text shape via bgClip="text" */
+}
+<Heading
+  as="h1"
+  size="xl"
+  textAlign="center"
+  bgGradient="linear(to-r, accent.start, accent.end)"
+  bgClip="text"
+>
+  Metal Reviews Dashboard
+</Heading>;
 ```
 
 Replace with:
 
 ```tsx
-          <Header />
+<Header />
 ```
 
 - [ ] **Step 3: Update the top-of-file comment**
@@ -904,6 +898,7 @@ git commit -m "feat: replace Heading with Header component in App"
 ## Task 8: SPA catch-all in server.ts
 
 **Files:**
+
 - Modify: `server.ts`
 
 Without this, directly visiting `https://metalreviews.onrender.com/login` returns a 404 — Express tries to find a file at `dist/login` and fails. The catch-all serves `index.html` for any GET request that isn't a static asset or `/api/*`, letting React Router take over client-side.
@@ -943,6 +938,7 @@ git commit -m "fix: add SPA catch-all so /login and /auth/callback resolve on Re
 ## Task 9: Update CLAUDE.md
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 
 The architecture section says "No routing, no server-side state" — that's now wrong. Update it to reflect Phase 5.
@@ -1021,17 +1017,17 @@ npm run build && npm run dev
 
 - [ ] **Step 2: Verify each route in the browser**
 
-| Check | Expected |
-|-------|----------|
-| Visit `http://localhost:5173/` | Dashboard loads, Header shows "Log in" link |
-| Click "Log in" | Navigates to `/login`, form shows email + password |
-| Enter wrong password, click Log in | Error message appears inline |
-| Enter correct credentials, click Log in | Redirects to `/`, Header shows username prefix + "Log out" |
-| Click "Log out" | Header returns to "Log in" state |
-| Click "Sign up", fill form | "Check your email" confirmation screen appears |
-| Navigate to `http://localhost:5173/login` directly (address bar) | Page loads (not 404) |
-| Reload on `/login` | Page reloads correctly |
-| Verify review browsing (search, filter, sort, refresh) | Works identically to pre-Phase-5 |
+| Check                                                            | Expected                                                   |
+| ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| Visit `http://localhost:5173/`                                   | Dashboard loads, Header shows "Log in" link                |
+| Click "Log in"                                                   | Navigates to `/login`, form shows email + password         |
+| Enter wrong password, click Log in                               | Error message appears inline                               |
+| Enter correct credentials, click Log in                          | Redirects to `/`, Header shows username prefix + "Log out" |
+| Click "Log out"                                                  | Header returns to "Log in" state                           |
+| Click "Sign up", fill form                                       | "Check your email" confirmation screen appears             |
+| Navigate to `http://localhost:5173/login` directly (address bar) | Page loads (not 404)                                       |
+| Reload on `/login`                                               | Page reloads correctly                                     |
+| Verify review browsing (search, filter, sort, refresh)           | Works identically to pre-Phase-5                           |
 
 - [ ] **Step 3: Run full test suite one final time**
 
@@ -1045,25 +1041,25 @@ Expected: all tests pass.
 
 ## Self-review against spec
 
-| Requirement | Task |
-|-------------|------|
-| `react-router` installed | Already at v7 as `react-router-dom` — no install needed |
-| Routes `/`, `/login`, `/auth/callback` | Task 6 |
-| `/list/:shareId` reserved (no code) | Comment in main.tsx router array (Task 6) |
-| `AuthContext` with `getSession` + `onAuthStateChange` | Task 2 |
-| `useAuth()` hook | Task 2 |
-| Header: "Log in" link (logged out) | Task 3 |
-| Header: email prefix + "Log out" button (logged in) | Task 3 |
-| Header uses `controlStyle` pattern + theme tokens | Task 3 (inline button matches token palette) |
-| AuthForm: toggle Sign up / Log in | Task 4 |
-| Email + password inputs | Task 4 |
-| `signUp()` → confirmation message, not immediate login | Task 4 |
-| `signInWithPassword()` → navigate to `/` | Task 4 |
-| OAuth buttons: clear placeholder, no rendering | Task 4 (comment in LoginPage.tsx) |
-| Error messaging on failure | Task 4 |
-| Loading state during request | Task 4 (isLoading on Button) |
-| `/auth/callback`: loading state, navigate to `/` | Task 5 |
-| server.ts catch-all for SPA routes | Task 8 |
-| CLAUDE.md updated | Task 9 |
-| Review browsing unchanged | Tasks 7, 10 |
-| Google/Facebook OAuth deferred | N/A — spec OBS |
+| Requirement                                            | Task                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------- |
+| `react-router` installed                               | Already at v7 as `react-router-dom` — no install needed |
+| Routes `/`, `/login`, `/auth/callback`                 | Task 6                                                  |
+| `/list/:shareId` reserved (no code)                    | Comment in main.tsx router array (Task 6)               |
+| `AuthContext` with `getSession` + `onAuthStateChange`  | Task 2                                                  |
+| `useAuth()` hook                                       | Task 2                                                  |
+| Header: "Log in" link (logged out)                     | Task 3                                                  |
+| Header: email prefix + "Log out" button (logged in)    | Task 3                                                  |
+| Header uses `controlStyle` pattern + theme tokens      | Task 3 (inline button matches token palette)            |
+| AuthForm: toggle Sign up / Log in                      | Task 4                                                  |
+| Email + password inputs                                | Task 4                                                  |
+| `signUp()` → confirmation message, not immediate login | Task 4                                                  |
+| `signInWithPassword()` → navigate to `/`               | Task 4                                                  |
+| OAuth buttons: clear placeholder, no rendering         | Task 4 (comment in LoginPage.tsx)                       |
+| Error messaging on failure                             | Task 4                                                  |
+| Loading state during request                           | Task 4 (isLoading on Button)                            |
+| `/auth/callback`: loading state, navigate to `/`       | Task 5                                                  |
+| server.ts catch-all for SPA routes                     | Task 8                                                  |
+| CLAUDE.md updated                                      | Task 9                                                  |
+| Review browsing unchanged                              | Tasks 7, 10                                             |
+| Google/Facebook OAuth deferred                         | N/A — spec OBS                                          |

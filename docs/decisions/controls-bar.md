@@ -31,11 +31,11 @@ Replaced the fixed-width controls bar with a responsive flex layout in `src/App.
 
 ### Layout behaviour
 
-| Breakpoint | Behaviour |
-|---|---|
-| `base` (0–767px) | Every control stacks full-width, one per line |
+| Breakpoint       | Behaviour                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `base` (0–767px) | Every control stacks full-width, one per line                                                     |
 | `md` (768–991px) | Search takes its own full-width first line; Sort + Source + Score + Refresh share the second line |
-| `lg` (992px+) | Single row: Search gets `flex: 2`, each Select gets `flex: 1` |
+| `lg` (992px+)    | Single row: Search gets `flex: 2`, each Select gets `flex: 1`                                     |
 
 ### Key changes
 
@@ -48,12 +48,14 @@ Replaced the fixed-width controls bar with a responsive flex layout in `src/App.
 ### Responsive prop values
 
 **Search Input:**
+
 ```
 flex={{ base: '1 1 100%', lg: '2' }}
 minW={{ lg: '180px' }}
 ```
 
 **Sort / Source / Score Selects:**
+
 ```
 flex={{ base: '1 1 100%', md: '1', lg: '1' }}
 minW={{ base: '100px', lg: '110px' }}   // Sort and Score
@@ -61,6 +63,7 @@ minW={{ base: '100px', lg: '120px' }}   // Source (slightly wider label)
 ```
 
 **Refresh Button:**
+
 ```
 w={{ base: '100%', md: 'auto' }}
 flexShrink={0}

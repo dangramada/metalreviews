@@ -18,6 +18,17 @@ import { FaUserCircle } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
 
+// Shared pill styling applied to every nav item (active + inactive) so layout
+// never shifts when the active route changes.
+const navPillBase = {
+  fontSize: 'md',
+  fontWeight: 'semibold',
+  px: 4,
+  py: 2,
+  borderRadius: 'md',
+  textDecoration: 'none',
+} as const;
+
 export function Header() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -46,44 +57,56 @@ export function Header() {
               queries, so we use a CSS class for breakpoint toggling instead. */}
           <Flex
             align="center"
-            gap={6}
+            gap={2}
             className="header-desktop"
             sx={{
               '@media (max-width: 47.9375em)': { display: 'none' },
             }}
           >
-            <Flex align="center" gap={4}>
-              <Link
-                as={RouterLink}
-                to="/"
-                fontSize="sm"
-                color={isReviewsActive ? 'accent.text' : 'text.dim'}
-                textDecoration={isReviewsActive ? 'underline' : 'none'}
-                _hover={{ color: 'accent.start', textDecoration: 'none' }}
-              >
-                Reviews
-              </Link>
-              <Link
-                as={RouterLink}
-                to="/favorites"
-                fontSize="sm"
-                color={isFavoritesActive ? 'accent.text' : 'text.dim'}
-                textDecoration={isFavoritesActive ? 'underline' : 'none'}
-                _hover={{ color: 'accent.start', textDecoration: 'none' }}
-              >
-                Favorites
-              </Link>
-            </Flex>
+            <Link
+              as={RouterLink}
+              to="/"
+              {...navPillBase}
+              bg={isReviewsActive ? 'accent.border' : 'transparent'}
+              color={isReviewsActive ? 'text.primary' : 'text.dim'}
+              _hover={{
+                textDecoration: 'none',
+                bg: isReviewsActive ? 'accent.border' : 'surface.raised',
+                color: isReviewsActive ? 'text.primary' : 'accent.start',
+              }}
+            >
+              Reviews
+            </Link>
+            <Link
+              as={RouterLink}
+              to="/favorites"
+              {...navPillBase}
+              bg={isFavoritesActive ? 'accent.border' : 'transparent'}
+              color={isFavoritesActive ? 'text.primary' : 'text.dim'}
+              _hover={{
+                textDecoration: 'none',
+                bg: isFavoritesActive ? 'accent.border' : 'surface.raised',
+                color: isFavoritesActive ? 'text.primary' : 'accent.start',
+              }}
+            >
+              Favorites
+            </Link>
+
+            {/* Vertical divider between nav links and account control */}
+            <Box w="1px" alignSelf="stretch" bg="whiteAlpha.400" mx={2} />
 
             {user ? (
               <Menu>
                 <MenuButton
                   as={Button}
-                  size="sm"
                   variant="ghost"
-                  rightIcon={<Icon as={FaUserCircle} boxSize={4} color="text.dim" />}
+                  leftIcon={<Icon as={FaUserCircle} boxSize={5} color="text.dim" />}
+                  {...navPillBase}
                   color="text.dim"
                   _hover={{ color: 'text.primary', bg: 'surface.raised' }}
+                  // Override Chakra ghost Button's default light flash on click/open
+                  _active={{ bg: 'surface.raised', color: 'text.primary' }}
+                  sx={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
                 >
                   {user.email?.split('@')[0]}
                 </MenuButton>
@@ -92,6 +115,7 @@ export function Header() {
                     bg="surface.card"
                     color="text.primary"
                     _hover={{ bg: 'surface.raised' }}
+                    _active={{ bg: 'surface.raised' }}
                     onClick={handleLogout}
                   >
                     Log out
@@ -102,9 +126,14 @@ export function Header() {
               <Link
                 as={RouterLink}
                 to="/login"
-                fontSize="sm"
-                color="accent.text"
-                _hover={{ color: 'accent.start', textDecoration: 'none' }}
+                {...navPillBase}
+                bg="transparent"
+                color="text.dim"
+                _hover={{
+                  textDecoration: 'none',
+                  bg: 'surface.raised',
+                  color: 'accent.start',
+                }}
               >
                 Log in
               </Link>
@@ -127,12 +156,15 @@ export function Header() {
                 aria-label="Open menu"
                 color="text.dim"
                 _hover={{ color: 'text.primary', bg: 'surface.raised' }}
+                _active={{ bg: 'surface.raised', color: 'text.primary' }}
+                sx={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
               />
               <MenuList bg="surface.card" borderColor="border.default">
                 <MenuItem
                   bg="surface.card"
                   color="text.primary"
                   _hover={{ bg: 'surface.raised' }}
+                  _active={{ bg: 'surface.raised' }}
                   onClick={() => navigate('/')}
                 >
                   Reviews
@@ -141,6 +173,7 @@ export function Header() {
                   bg="surface.card"
                   color="text.primary"
                   _hover={{ bg: 'surface.raised' }}
+                  _active={{ bg: 'surface.raised' }}
                   onClick={() => navigate('/favorites')}
                 >
                   Favorites
@@ -150,6 +183,7 @@ export function Header() {
                     bg="surface.card"
                     color="text.primary"
                     _hover={{ bg: 'surface.raised' }}
+                    _active={{ bg: 'surface.raised' }}
                     onClick={handleLogout}
                   >
                     Log out
@@ -159,6 +193,7 @@ export function Header() {
                     bg="surface.card"
                     color="text.primary"
                     _hover={{ bg: 'surface.raised' }}
+                    _active={{ bg: 'surface.raised' }}
                     onClick={() => navigate('/login')}
                   >
                     Log in
