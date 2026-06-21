@@ -74,6 +74,36 @@ The endpoint returns enrichment data (`artworkUrl`, `genre`, `releaseDate`) but 
 
 A no-match lookup returns `200` with nulls — not an error. The client proceeds to insert the row without enrichment. No retry mechanism was built; that's deferred until real-world failure frequency is observed.
 
+## Year-bounding and the AddAlbumDrawer (wired up in the following session)
+
+### Year is derived, not stored
+
+No `release_year` column was added. Year for any item (review-sourced or manual) is derived client-side from `release_date` via `getReleaseYear()` (exported from `src/App.tsx`). For manual albums, if the user supplies a date at insert time (when MB returned null), that value is stored directly in `release_date` and `getReleaseYear` picks it up normally — no special-casing needed.
+
+### Client-side insert pattern
+
+`AddAlbumDrawer` (in `src/FavoritesPage.tsx`) inserts into `manual_albums` directly via the Supabase browser client after the user confirms the preview:
+
+```ts
+await supabase.from('manual_albums').insert({
+  user_id: user.id,
+  band, album,
+  artwork_url: lookupResult.artworkUrl,
+  genre: lookupResult.genre,
+  release_date: finalReleaseDate,
+});
+```
+
+`finalReleaseDate` is `lookupResult.releaseDate ?? (userSuppliedDate || null)`. The user-supplied date field is only shown when MB returns null for `releaseDate`.
+
+### Soft year-mismatch notice
+
+When the MB lookup's resolved year differs from the currently-selected dropdown year, a non-blocking notice is shown in the preview ("Heads up — this looks like a {actualYear} release; you're adding to {selectedYear}"). Confirm still proceeds — the saved row's year is its true release year regardless of which dropdown year was selected.
+
+### Re-fetch after insert
+
+On successful insert, `useFavoritesList.refetch()` is called (increments a refreshKey), triggering a full re-load of favorites + manual_albums. No optimistic append — consistent with the heart-toggle pattern documented in `favorites.md`.
+
 ## What NOT to change
 
 - Do not merge `manual_albums` and `favorites` into a polymorphic table — two distinct tables was an explicit architectural decision.

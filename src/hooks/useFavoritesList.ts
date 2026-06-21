@@ -10,12 +10,34 @@ export interface FavoriteListItem {
   artworkUrl: string | null;
   releaseDate: string | null;
   genre: string[];
+  // ISO date string from published_at; null for manual items.
+  // Used as a year fallback when releaseDate is null for review-sourced items.
+  publishedAt: string | null;
 }
 
-// Placeholder for the future manual_albums table (not yet built).
-// When the manual_albums brief lands, replace this stub with a real Supabase query.
-function fetchManualAlbums(): Promise<FavoriteListItem[]> {
-  return Promise.resolve([]);
+type ManualAlbumRow = {
+  id: string;
+  user_id: string;
+  band: string;
+  album: string;
+  artwork_url: string | null;
+  genre: string[] | null;
+  release_date: string | null;
+};
+
+async function fetchManualAlbums(): Promise<FavoriteListItem[]> {
+  const { data, error } = await supabase.from('manual_albums').select('*');
+  if (error) throw error;
+  return (data ?? []).map((row: ManualAlbumRow) => ({
+    id: row.id,
+    type: 'manual' as const,
+    band: row.band,
+    album: row.album,
+    artworkUrl: row.artwork_url ?? null,
+    releaseDate: row.release_date ?? null,
+    genre: row.genre ?? [],
+    publishedAt: null,
+  }));
 }
 
 function sortByReleaseDateDesc(a: FavoriteListItem, b: FavoriteListItem): number {
@@ -29,14 +51,19 @@ export function useFavoritesList() {
   const [items, setItems] = useState<FavoriteListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    supabase
-      .from('favorites')
-      .select('review_id')
-      .then(({ data, error: favError }: { data: { review_id: string }[] | null; error: unknown }) => {
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: favData, error: favError } = await supabase
+          .from('favorites')
+          .select('review_id');
+
         if (cancelled) return;
         if (favError) {
           setError('Failed to load favorites');
@@ -44,64 +71,59 @@ export function useFavoritesList() {
           return;
         }
 
-        const ids = (data ?? []).map((r) => r.review_id);
+        const manualItems = await fetchManualAlbums();
+        if (cancelled) return;
+
+        const ids = (favData ?? []).map((r: { review_id: string }) => r.review_id);
 
         if (ids.length === 0) {
-          fetchManualAlbums().then((manual) => {
-            if (cancelled) return;
-            setItems(manual);
-            setLoading(false);
-          });
+          setItems(manualItems.sort(sortByReleaseDateDesc));
+          setLoading(false);
           return;
         }
 
-        supabase
+        const { data: reviewData, error: reviewError } = await supabase
           .from('reviews')
           .select('*')
-          .in('id', ids)
-          .then(({ data: reviewData, error: reviewError }: { data: DbRow[] | null; error: unknown }) => {
-            if (cancelled) return;
-            if (reviewError) {
-              setError('Failed to load review data');
-              setLoading(false);
-              return;
-            }
+          .in('id', ids);
 
-            const reviewItems: FavoriteListItem[] = (reviewData ?? []).map((row) => ({
-              id: row.id,
-              type: 'review' as const,
-              band: row.band,
-              album: row.album,
-              artworkUrl: row.artwork_url,
-              releaseDate: row.release_date ?? null,
-              genre: row.genre ?? [],
-            }));
+        if (cancelled) return;
+        if (reviewError) {
+          setError('Failed to load review data');
+          setLoading(false);
+          return;
+        }
 
-            fetchManualAlbums().then((manual) => {
-              if (cancelled) return;
-              const merged = [...reviewItems, ...manual].sort(sortByReleaseDateDesc);
-              setItems(merged);
-              setLoading(false);
-            });
-          })
-          .catch((e: unknown) => {
-            if (cancelled) return;
-            console.warn('Failed to load review data for favorites', e);
-            setError('Failed to load review data');
-            setLoading(false);
-          });
-      })
-      .catch((e: unknown) => {
+        const reviewItems: FavoriteListItem[] = (reviewData ?? []).map((row: DbRow) => ({
+          id: row.id,
+          type: 'review' as const,
+          band: row.band,
+          album: row.album,
+          artworkUrl: row.artwork_url,
+          releaseDate: row.release_date ?? null,
+          genre: row.genre ?? [],
+          publishedAt: row.published_at ?? null,
+        }));
+
+        const merged = [...reviewItems, ...manualItems].sort(sortByReleaseDateDesc);
+        setItems(merged);
+        setLoading(false);
+      } catch (e) {
         if (cancelled) return;
         console.warn('Failed to load favorites', e);
         setError('Failed to load favorites');
         setLoading(false);
-      });
+      }
+    }
+
+    load();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
-  return { items, loading, error };
+  const refetch = () => setRefreshKey((k) => k + 1);
+
+  return { items, loading, error, refetch };
 }

@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   Box,
+  Button,
   Container,
+  Drawer,
+  DrawerBody,
+  DrawerCloseButton,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerOverlay,
   Flex,
+  FormControl,
+  FormLabel,
   Heading,
   Image,
+  Input,
+  Select,
   Spinner,
   Tag,
   Text,
@@ -14,17 +26,359 @@ import {
 } from '@chakra-ui/react';
 import { Header } from './Header';
 import { useFavoritesList } from './hooks/useFavoritesList';
-import { formatReleaseDate } from './App';
+import type { FavoriteListItem } from './hooks/useFavoritesList';
+import { formatReleaseDate, getReleaseYear } from './App';
+import { supabase } from './supabaseClient';
+import { useAuth } from './AuthContext';
+import { useFeedbackToast } from './hooks/useFeedbackToast';
+
+// ─── Shared list-item row ─────────────────────────────────────────────────────
+// Used in both the favorites list and the AddAlbumDrawer preview.
+
+export function FavoriteListItemRow({ item }: { item: FavoriteListItem }) {
+  return (
+    <Flex
+      align="center"
+      gap={4}
+      bg="surface.card"
+      borderRadius="lg"
+      p={3}
+      border="1px solid"
+      borderColor="border.default"
+    >
+      <Box
+        flexShrink={0}
+        w="48px"
+        h="48px"
+        borderRadius="base"
+        overflow="hidden"
+        bg="surface.darkest"
+      >
+        {item.artworkUrl ? (
+          <Image
+            src={item.artworkUrl}
+            alt={`${item.band} – ${item.album}`}
+            w="48px"
+            h="48px"
+            objectFit="cover"
+          />
+        ) : (
+          <Flex w="100%" h="100%" align="center" justify="center">
+            <Text fontSize="lg" color="text.muted">
+              ♪
+            </Text>
+          </Flex>
+        )}
+      </Box>
+
+      <Box flex={1} minW={0}>
+        <Text fontWeight="semibold" noOfLines={1}>
+          {item.band} – {item.album}
+        </Text>
+        <Text fontSize="sm" color="text.dim">
+          {formatReleaseDate(item.releaseDate)}
+        </Text>
+        {item.genre.length > 0 && (
+          <Wrap spacing={1} mt={1}>
+            {item.genre.map((g) => (
+              <WrapItem key={g}>
+                <Tag size="sm" bg="whiteAlpha.100" color="purple.300" borderRadius="base">
+                  {g}
+                </Tag>
+              </WrapItem>
+            ))}
+          </Wrap>
+        )}
+      </Box>
+    </Flex>
+  );
+}
+
+// ─── Add Album Drawer ─────────────────────────────────────────────────────────
+
+interface LookupResult {
+  artworkUrl: string | null;
+  genre: string[];
+  releaseDate: string | null;
+}
+
+interface AddAlbumDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedYear: number | 'all';
+  onInsertSuccess: () => void;
+}
+
+function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddAlbumDrawerProps) {
+  const { user } = useAuth();
+  const { showSuccess, showError } = useFeedbackToast();
+
+  const [band, setBand] = useState('');
+  const [album, setAlbum] = useState('');
+  // Captured at lookup time so Confirm uses the values that were actually searched
+  const [lookedUpBand, setLookedUpBand] = useState('');
+  const [lookedUpAlbum, setLookedUpAlbum] = useState('');
+  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
+  // Shown only when MB returns no release date; lets the user supply one manually
+  const [manualReleaseDate, setManualReleaseDate] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Reset all state when the drawer is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setBand('');
+      setAlbum('');
+      setLookedUpBand('');
+      setLookedUpAlbum('');
+      setLookupResult(null);
+      setManualReleaseDate('');
+    }
+  }, [isOpen]);
+
+  async function handleLookup(e: FormEvent) {
+    e.preventDefault();
+    setLookupLoading(true);
+    setLookupResult(null);
+    setManualReleaseDate('');
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/manual-album-lookup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ band: band.trim(), album: album.trim() }),
+      });
+      if (!res.ok) throw new Error(`Lookup returned ${res.status}`);
+      const data = (await res.json()) as LookupResult;
+      setLookedUpBand(band.trim());
+      setLookedUpAlbum(album.trim());
+      setLookupResult(data);
+    } catch (err) {
+      console.warn('Manual album lookup failed', err);
+      showError('Could not look up album — try again');
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
+  async function handleConfirm() {
+    if (!lookupResult || !user) return;
+    setSaving(true);
+    // User-supplied date is used only if MB returned nothing
+    const finalReleaseDate = lookupResult.releaseDate ?? (manualReleaseDate.trim() || null);
+    const { error } = await supabase.from('manual_albums').insert({
+      user_id: user.id,
+      band: lookedUpBand,
+      album: lookedUpAlbum,
+      artwork_url: lookupResult.artworkUrl,
+      genre: lookupResult.genre,
+      release_date: finalReleaseDate,
+    });
+    setSaving(false);
+    if (error) {
+      showError('Could not save album — try again');
+      return;
+    }
+    showSuccess(`${lookedUpBand} – ${lookedUpAlbum} added to favorites`);
+    onInsertSuccess();
+    onClose();
+  }
+
+  // Soft mismatch notice: only when a specific year is selected and MB resolved a different year
+  const lookupYear = lookupResult ? getReleaseYear(lookupResult.releaseDate) : null;
+  const yearMismatch = selectedYear !== 'all' && lookupYear !== null && lookupYear !== selectedYear;
+
+  // Preview item shape — mirrors FavoriteListItem so FavoriteListItemRow can render it directly
+  const previewItem: FavoriteListItem | null = lookupResult
+    ? {
+        id: '__preview__',
+        type: 'manual',
+        band: lookedUpBand,
+        album: lookedUpAlbum,
+        artworkUrl: lookupResult.artworkUrl,
+        releaseDate: lookupResult.releaseDate ?? (manualReleaseDate.trim() || null),
+        genre: lookupResult.genre,
+        publishedAt: null,
+      }
+    : null;
+
+  return (
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="md">
+      <DrawerOverlay />
+      <DrawerContent bg="surface.card" color="text.primary">
+        <DrawerCloseButton />
+        <DrawerHeader borderBottomWidth="1px" borderColor="border.default">
+          Add album to favorites
+        </DrawerHeader>
+
+        <DrawerBody>
+          <form onSubmit={handleLookup}>
+            <VStack spacing={4} align="stretch">
+              <FormControl isRequired>
+                <FormLabel>Band</FormLabel>
+                <Input
+                  value={band}
+                  onChange={(e) => setBand(e.target.value)}
+                  placeholder="e.g. Opeth"
+                  bg="surface.page"
+                  borderColor="border.default"
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Album</FormLabel>
+                <Input
+                  value={album}
+                  onChange={(e) => setAlbum(e.target.value)}
+                  placeholder="e.g. Blackwater Park"
+                  bg="surface.page"
+                  borderColor="border.default"
+                />
+              </FormControl>
+              <Button
+                type="submit"
+                isLoading={lookupLoading}
+                isDisabled={!band.trim() || !album.trim()}
+                colorScheme="purple"
+              >
+                Look up
+              </Button>
+            </VStack>
+          </form>
+
+          {previewItem && (
+            <Box mt={6}>
+              <Text
+                fontWeight="semibold"
+                mb={3}
+                fontSize="sm"
+                color="text.dim"
+                textTransform="uppercase"
+                letterSpacing="wide"
+              >
+                Preview
+              </Text>
+
+              {yearMismatch && (
+                <Box mb={3} p={3} bg="orange.900" borderRadius="md" fontSize="sm" color="orange.200">
+                  Heads up — this looks like a {lookupYear} release; you&apos;re adding to{' '}
+                  {selectedYear}.
+                </Box>
+              )}
+
+              <FavoriteListItemRow item={previewItem} />
+
+              {lookupResult.releaseDate === null && (
+                <FormControl mt={4}>
+                  <FormLabel fontSize="sm" color="text.muted">
+                    Release date (MusicBrainz couldn&apos;t find one — enter it yourself if you know
+                    it)
+                  </FormLabel>
+                  <Input
+                    size="sm"
+                    value={manualReleaseDate}
+                    onChange={(e) => setManualReleaseDate(e.target.value)}
+                    placeholder="e.g. 2024, 2024-03, or 2024-03-15"
+                    bg="surface.page"
+                    borderColor="border.default"
+                  />
+                </FormControl>
+              )}
+            </Box>
+          )}
+        </DrawerBody>
+
+        {previewItem && (
+          <DrawerFooter borderTopWidth="1px" borderColor="border.default" gap={3}>
+            <Button
+              variant="outline"
+              borderColor="border.default"
+              color="text.primary"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button colorScheme="purple" isLoading={saving} onClick={handleConfirm}>
+              Confirm
+            </Button>
+          </DrawerFooter>
+        )}
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
+// ─── FavoritesPage ────────────────────────────────────────────────────────────
 
 export function FavoritesPage() {
-  const { items, loading, error } = useFavoritesList();
+  const { items, loading, error, refetch } = useFavoritesList();
+  const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Distinct years derived from items (review items fall back to publishedAt when releaseDate is null)
+  const distinctYears = useMemo(() => {
+    const years = new Set<number>();
+    items.forEach((item) => {
+      const y = getReleaseYear(item.releaseDate ?? item.publishedAt);
+      if (y !== null) years.add(y);
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [items]);
+
+  // Items filtered to the selected year; "All years" shows everything
+  const filteredItems = useMemo(() => {
+    if (selectedYear === 'all') return items;
+    return items.filter((item) => {
+      const y = getReleaseYear(item.releaseDate ?? item.publishedAt);
+      return y === selectedYear;
+    });
+  }, [items, selectedYear]);
+
+  // Always include the current calendar year in the dropdown even if no items exist for it yet
+  const currentYear = new Date().getFullYear();
+  const yearOptions = distinctYears.includes(currentYear)
+    ? distinctYears
+    : [currentYear, ...distinctYears];
 
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack spacing={6} align="stretch">
           <Header />
-          <Heading size="lg">My Favorites</Heading>
+
+          {/* Controls row: heading + year dropdown (left) | Add album button (right) */}
+          <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
+            <Flex align="center" gap={3}>
+              <Heading size="lg">My Favorites</Heading>
+              <Select
+                size="sm"
+                w="auto"
+                minW="120px"
+                bg="surface.card"
+                borderColor="border.default"
+                value={selectedYear}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSelectedYear(v === 'all' ? 'all' : parseInt(v, 10));
+                }}
+              >
+                <option value="all">All years</option>
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </Select>
+            </Flex>
+            <Button size="sm" colorScheme="purple" onClick={() => setDrawerOpen(true)}>
+              + Add album
+            </Button>
+          </Flex>
 
           {loading ? (
             <Flex justify="center" align="center" minH="200px">
@@ -34,78 +388,28 @@ export function FavoritesPage() {
             <Text textAlign="center" color="red.400">
               Failed to load favorites. Please try again later.
             </Text>
-          ) : items.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <Text textAlign="center" color="text.muted">
-              No favorites yet. Heart an album from the dashboard to add it here.
+              {selectedYear === 'all'
+                ? 'No favorites yet. Heart an album from the dashboard to add it here.'
+                : `No favorites for ${selectedYear} yet.`}
             </Text>
           ) : (
             <VStack spacing={3} align="stretch">
-              {items.map((item) => (
-                <Flex
-                  key={item.id}
-                  align="center"
-                  gap={4}
-                  bg="surface.card"
-                  borderRadius="lg"
-                  p={3}
-                  border="1px solid"
-                  borderColor="border.default"
-                >
-                  <Box
-                    flexShrink={0}
-                    w="48px"
-                    h="48px"
-                    borderRadius="base"
-                    overflow="hidden"
-                    bg="surface.darkest"
-                  >
-                    {item.artworkUrl ? (
-                      <Image
-                        src={item.artworkUrl}
-                        alt={`${item.band} – ${item.album}`}
-                        w="48px"
-                        h="48px"
-                        objectFit="cover"
-                      />
-                    ) : (
-                      <Flex w="100%" h="100%" align="center" justify="center">
-                        <Text fontSize="lg" color="text.muted">
-                          ♪
-                        </Text>
-                      </Flex>
-                    )}
-                  </Box>
-
-                  <Box flex={1} minW={0}>
-                    <Text fontWeight="semibold" noOfLines={1}>
-                      {item.band} – {item.album}
-                    </Text>
-                    <Text fontSize="sm" color="text.dim">
-                      {formatReleaseDate(item.releaseDate)}
-                    </Text>
-                    {item.genre.length > 0 && (
-                      <Wrap spacing={1} mt={1}>
-                        {item.genre.map((g) => (
-                          <WrapItem key={g}>
-                            <Tag
-                              size="sm"
-                              bg="whiteAlpha.100"
-                              color="purple.300"
-                              borderRadius="base"
-                            >
-                              {g}
-                            </Tag>
-                          </WrapItem>
-                        ))}
-                      </Wrap>
-                    )}
-                  </Box>
-                </Flex>
+              {filteredItems.map((item) => (
+                <FavoriteListItemRow key={item.id} item={item} />
               ))}
             </VStack>
           )}
         </VStack>
       </Container>
+
+      <AddAlbumDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        selectedYear={selectedYear}
+        onInsertSuccess={refetch}
+      />
     </Box>
   );
 }

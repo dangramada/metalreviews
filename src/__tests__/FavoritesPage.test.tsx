@@ -13,7 +13,7 @@ vi.mock('../hooks/useFavoritesList', () => ({
 }));
 
 vi.mock('../AuthContext', () => ({
-  useAuth: vi.fn().mockReturnValue({ user: { email: 'dan@test.com' }, loading: false }),
+  useAuth: vi.fn().mockReturnValue({ user: { id: 'user-abc', email: 'dan@test.com' }, loading: false }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -23,14 +23,18 @@ vi.mock('../supabaseClient', () => ({
 
 import { useFavoritesList } from '../hooks/useFavoritesList';
 
+// Use current year so items survive the default year filter
+const currentYear = new Date().getFullYear();
+
 const mockItem: FavoriteListItem = {
   id: 'rev1',
   type: 'review',
   band: 'Opeth',
   album: 'Blackwater Park',
   artworkUrl: 'https://example.com/art.jpg',
-  releaseDate: '2001-03-16',
+  releaseDate: `${currentYear}-03-16`,
   genre: ['progressive metal', 'death metal'],
+  publishedAt: `${currentYear}-01-01T00:00:00Z`,
 };
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -41,88 +45,68 @@ function wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Convenience: build a mock return value that includes refetch
+function mockHookReturn(overrides: Partial<ReturnType<typeof useFavoritesList>>) {
+  return { items: [], loading: false, error: null, refetch: vi.fn(), ...overrides };
+}
+
 describe('FavoritesPage', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('shows a spinner while loading', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({ items: [], loading: true, error: null });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ loading: true }));
     render(<FavoritesPage />, { wrapper });
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  it('shows empty state when list is empty', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({ items: [], loading: false, error: null });
+  it('shows year-scoped empty state when list is empty', () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getByText(/no favorites yet/i)).toBeInTheDocument();
-    expect(screen.getByText(/heart an album/i)).toBeInTheDocument();
+    // Default year is current year, so the year-specific message is shown
+    expect(screen.getByText(new RegExp(`no favorites for ${currentYear} yet`, 'i'))).toBeInTheDocument();
   });
 
   it('shows error message when loading fails', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({ items: [], loading: false, error: 'Supabase error' });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ error: 'Supabase error' }));
     render(<FavoritesPage />, { wrapper });
     expect(screen.getByText(/failed to load favorites/i)).toBeInTheDocument();
-    expect(screen.queryByText(/no favorites yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no favorites/i)).not.toBeInTheDocument();
   });
 
   it('renders band and album for each item', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [mockItem],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
     expect(screen.getByText(/Opeth/)).toBeInTheDocument();
     expect(screen.getByText(/Blackwater Park/)).toBeInTheDocument();
   });
 
   it('renders the formatted release date', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [mockItem],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getByText('16 Mar 2001')).toBeInTheDocument();
+    expect(screen.getByText(`16 Mar ${currentYear}`)).toBeInTheDocument();
   });
 
   it('renders genre tags', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [mockItem],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
     expect(screen.getByText('progressive metal')).toBeInTheDocument();
     expect(screen.getByText('death metal')).toBeInTheDocument();
   });
 
   it('does NOT render a score badge', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [mockItem],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    // Score would be text like "9/10" — not rendered on this page
     expect(screen.queryByText(/\/10/)).not.toBeInTheDocument();
   });
 
   it('does NOT render a source badge', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [mockItem],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
     expect(screen.queryByText('Angry Metal Guy')).not.toBeInTheDocument();
   });
 
   it('renders artwork thumbnail when artworkUrl is present', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [mockItem],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
     const img = screen.getByRole('img');
     expect(img).toHaveAttribute('src', 'https://example.com/art.jpg');
@@ -130,13 +114,25 @@ describe('FavoritesPage', () => {
   });
 
   it('renders ♪ placeholder when artworkUrl is null', () => {
-    vi.mocked(useFavoritesList).mockReturnValue({
-      items: [{ ...mockItem, artworkUrl: null }],
-      loading: false,
-      error: null,
-    });
+    vi.mocked(useFavoritesList).mockReturnValue(
+      mockHookReturn({ items: [{ ...mockItem, artworkUrl: null }] })
+    );
     render(<FavoritesPage />, { wrapper });
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByText('♪')).toBeInTheDocument();
+  });
+
+  it('renders year dropdown with current year and All years options', () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+    expect(screen.getByText('All years')).toBeInTheDocument();
+    // Current year appears at least once (the option itself)
+    expect(screen.getAllByText(String(currentYear)).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the + Add album button', () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn());
+    render(<FavoritesPage />, { wrapper });
+    expect(screen.getByText('+ Add album')).toBeInTheDocument();
   });
 });
