@@ -28,6 +28,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `release-date.md` — release date field: MB data source, text storage, precision-aware merge guard, mbAlreadyFetched third condition, card layout order, formatReleaseDate formatter
 - `header-redesign.md` — Header rewrite: useLocation active state, two Menu instances, sx @media breakpoints (not Chakra responsive props), always-visible Favorites link
 - `favorites-view.md` — /favorites protected route: RequireAuth, useFavoritesList two-query pattern, FavoritesPage list layout, manual_albums stub, always-visible nav link
+- `manual-albums.md` — manual_albums table schema + RLS, POST /api/manual-album-lookup endpoint, MB lookup extraction into scripts/musicbrainz.ts
 
 ## Commands
 
