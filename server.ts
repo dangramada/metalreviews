@@ -2,9 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { runIngestion } from './scripts/ingest.js';
+import { lookupMusicBrainz } from './scripts/musicbrainz.js';
+import { supabase } from './scripts/supabaseClient.js';
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 app.use(express.static(path.resolve(process.cwd(), 'dist')));
 
 let ingesting = false;
@@ -51,6 +54,46 @@ app.post('/api/ingest', (req, res) => {
 // rather than guessing based on reviews.json content changes.
 app.get('/api/ingest/status', (_req, res) => {
   res.json({ status: ingesting ? 'running' : 'idle' });
+});
+
+// Look up MusicBrainz enrichment data (artwork, genres, release date) for a
+// user-supplied band + album. Auth is validated via the caller's Supabase session
+// JWT — never the shared INGEST_SECRET_TOKEN, which is a server-only secret.
+// No DB write happens here; the client inserts into manual_albums directly via RLS.
+app.post('/api/manual-album-lookup', async (req, res) => {
+  // Extract Bearer token from Authorization header
+  const authHeader = req.headers['authorization'];
+  const token =
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : null;
+
+  if (!token) {
+    res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    return;
+  }
+
+  // Validate the user's JWT against Supabase auth — auth.getUser(jwt) verifies
+  // the token server-side without trusting any user-supplied user_id in the body.
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    res.status(401).json({ error: 'Invalid or expired session token' });
+    return;
+  }
+
+  const { band, album } = (req.body ?? {}) as { band?: unknown; album?: unknown };
+  if (typeof band !== 'string' || typeof album !== 'string' || !band.trim() || !album.trim()) {
+    res.status(400).json({ error: 'Request body must include non-empty "band" and "album" strings' });
+    return;
+  }
+
+  // A failed MB lookup is not an error — returns nulls, client proceeds without enrichment.
+  const { artworkUrl, genres, releaseDate } = await lookupMusicBrainz(band.trim(), album.trim());
+
+  res.json({ artworkUrl, genre: genres, releaseDate });
 });
 
 // Catch-all for client-side routes: serve index.html so React Router handles

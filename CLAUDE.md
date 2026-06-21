@@ -25,6 +25,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
 - `favorites.md` — Phase 6: favorites heart toggle, useFeedbackToast convention, toast variants, optimistic-update decision
+- `manual-albums.md` — manual_albums table schema + RLS, POST /api/manual-album-lookup endpoint, MB lookup extraction into scripts/musicbrainz.ts
 
 ## Commands
 

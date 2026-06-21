@@ -9,6 +9,7 @@ import { extractRating as extractPSRating } from '../src/scraper/progressivesubw
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
 import { fromDbRow, type DbRow } from '../src/dbMapping';
+import { lookupMusicBrainz } from './musicbrainz';
 
 export type { DbRow };
 
@@ -299,95 +300,6 @@ function normalizeScore(raw: string): number {
   return 0;
 }
 
-async function fetchMusicBrainzData(
-  band: string,
-  album: string
-): Promise<{ artworkUrl: string | null; genres: string[] }> {
-  try {
-    // Strip review-site title noise before MB search:
-    // - AMG albums end with " Review" or " EP Review" (suffix).
-    // - PS band names start with "Review: " (prefix) — already fixed at parse time in
-    //   fetchProgressiveSubway, but strip here too as a safety net.
-    const bandForSearch = band.replace(/^Review:\s*/i, '').trim() || band;
-    const albumForSearch = album.replace(/\s+(EP\s+)?Review$/i, '').trim() || album;
-
-    // Step A: search for the release to get its MBID
-    const mbSearch = await axios.get('https://musicbrainz.org/ws/2/release/', {
-      params: { query: `artist:"${bandForSearch}" AND release:"${albumForSearch}"`, fmt: 'json' },
-      headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-    });
-    const releases: any[] = mbSearch.data?.releases ?? [];
-    if (releases.length === 0) return { artworkUrl: null, genres: [] };
-
-    const mbid: string = releases[0].id;
-
-    // MB rate limit: 1 req/sec — must sleep before the next MB request.
-    await sleep(1000);
-
-    // Step B: fetch release detail (genres) and Cover Art Archive in parallel.
-    // Only the release detail hits MB; CAA is a separate host, no rate-limit conflict.
-    const [releaseRes, caaRes] = await Promise.allSettled([
-      axios.get(`https://musicbrainz.org/ws/2/release/${mbid}`, {
-        params: { inc: 'genres', fmt: 'json' },
-        headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-      }),
-      axios.get(`https://coverartarchive.org/release/${mbid}`, {
-        headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-      }),
-    ]);
-
-    // Extract artwork URL from CAA response (null on failure or no front image)
-    let artworkUrl: string | null = null;
-    if (caaRes.status === 'fulfilled') {
-      const images: any[] = caaRes.value.data?.images ?? [];
-      const front = images.find((img: any) => img.front === true);
-      artworkUrl = front?.image ?? null;
-    }
-
-    // Extract genres from MB release detail, sorted by vote count descending, top 3
-    let releaseGenres: Array<{ name: string; count: number }> = [];
-    if (releaseRes.status === 'fulfilled') {
-      releaseGenres = releaseRes.value.data?.genres ?? [];
-    }
-    let topGenres = [...releaseGenres]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
-      .map((g) => g.name);
-
-    // Step C: artist-level fallback when the release has no genre tags.
-    // Wrapped in its own try/catch so a network failure here doesn't discard
-    // the artworkUrl already resolved in Step B.
-    if (topGenres.length === 0) {
-      try {
-        await sleep(1000);
-        const artistSearch = await axios.get('https://musicbrainz.org/ws/2/artist/', {
-          params: { query: `artist:"${band}"`, fmt: 'json', limit: 1 },
-          headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-        });
-        const artists: any[] = artistSearch.data?.artists ?? [];
-        if (artists.length > 0) {
-          const artistMbid: string = artists[0].id;
-          await sleep(1000);
-          const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
-            params: { inc: 'genres', fmt: 'json' },
-            headers: { 'User-Agent': 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)' },
-          });
-          const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
-          topGenres = [...artistGenres]
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 3)
-            .map((g) => g.name);
-        }
-      } catch {
-        // Artist fallback failed — artworkUrl (already resolved above) is preserved
-      }
-    }
-
-    return { artworkUrl, genres: topGenres };
-  } catch {
-    return { artworkUrl: null, genres: [] };
-  }
-}
 
 function computeId(band: string, album: string): string {
   const key = `${band.toLowerCase().replace(/\s+/g, '')}_${album.toLowerCase().replace(/\s+/g, '')}`;
@@ -473,7 +385,7 @@ export async function runIngestion() {
       artworkUrl = existingById.get(id)?.artworkUrl ?? null;
       genres = existingById.get(id)?.genre ?? [];
     } else {
-      const mbData = await fetchMusicBrainzData(band, album);
+      const mbData = await lookupMusicBrainz(band, album);
       artworkUrl = mbData.artworkUrl;
       genres = mbData.genres;
       await sleep(1000); // MB rate limit: gap between the last request in this review and the first of the next
