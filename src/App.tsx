@@ -153,6 +153,9 @@ export function ArtworkBlock({
 }) {
   // `loaded` flips to true once the browser has fully received the image data.
   const [loaded, setLoaded] = useState(false);
+  // `failed` flips to true on any image load error (e.g. archive.org 500s on CAA redirects).
+  // Treated identically to artworkUrl === null — shows the same placeholder.
+  const [failed, setFailed] = useState(false);
 
   return (
     // paddingBottom="100%" on a position="relative" box is a CSS trick for a
@@ -160,7 +163,7 @@ export function ArtworkBlock({
     // so setting padding-bottom equal to 100% of the width makes height = width.
     // All children are position="absolute" so they fill this square exactly.
     <Box position="relative" paddingBottom="100%" bg="surface.darkest">
-      {rev.artworkUrl ? (
+      {rev.artworkUrl && !failed ? (
         <>
           <Image
             src={rev.artworkUrl}
@@ -172,12 +175,16 @@ export function ArtworkBlock({
             top={0}
             left={0}
             onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
           />
           {/* The skeleton shimmer sits on top of the image and fades out once loaded.
               We deliberately do NOT use Chakra's `isLoaded` prop — that would instantly
               remove the skeleton from the DOM, skipping the CSS fade transition.
               Instead we keep it in place but make it transparent via `opacity`.
-              `pointerEvents="none"` prevents the invisible element from blocking clicks. */}
+              `pointerEvents="none"` prevents the invisible element from blocking clicks.
+              `failed` also counts as "settled" so the shimmer doesn't animate forever
+              on a broken load — the <Image> is removed from the DOM when failed=true,
+              so this branch won't render, but the condition is kept explicit for clarity. */}
           <Skeleton
             position="absolute"
             top={0}
@@ -192,7 +199,7 @@ export function ArtworkBlock({
           />
         </>
       ) : (
-        // No artwork URL — show a placeholder with a music note icon
+        // No artwork URL, or image failed to load — show a placeholder with a music note icon
         <Flex
           position="absolute"
           top={0}
