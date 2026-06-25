@@ -266,6 +266,15 @@ async function fetchMetalStormRating(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     );
     await page.goto(reviewUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    try {
+      await page.waitForSelector('.album-rating span.bold[style*="color:#eebb00"]', {
+        timeout: 7000,
+      });
+    } catch {
+      // Selector never appeared — score may not exist yet (too few votes) or
+      // the page was unusually slow. Fall through and let extractMSRating's
+      // fallback tiers + null-return handle it. Not a loggable error.
+    }
     const html = await page.content();
     return extractMSRating(html);
   } catch (e) {

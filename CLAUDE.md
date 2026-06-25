@@ -70,7 +70,7 @@ Each source has its own extractor module in `src/scraper/`:
 
 - `angrymetal.js` — looks for `.rating` / `.review-score` classes, then `Rating:` text patterns, then textual label lookup (`RATING_MAP`)
 - `progressivesubway.ts` — scans for `Final verdict:` lines with numeric or textual ratings (`RATING_MAP`)
-- `metalstorm.ts` — extracts user score from `span.bold[style*="color:#eebb00"]` inside `.album-rating`
+- `metalstorm.ts` — extracts user score from `span.bold[style*="color:#eebb00"]` inside `.album-rating`. The score is injected client-side by JS, so `fetchMetalStormRating()` in `ingest.ts` calls `page.waitForSelector()` (7 s timeout) after `page.goto()` before snapshotting HTML — do NOT remove this or revert to reading content immediately after `goto`. A `waitForSelector` timeout is caught and swallowed locally (not a loggable error); the outer catch handles genuine navigation failures.
 
 ### 2. Frontend (`src/App.tsx`)
 
