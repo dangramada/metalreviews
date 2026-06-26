@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ In-flight: Chakra UI v2 → v3 migration
+
+**The frontend is currently mid-migration from Chakra UI v2 to v3.** Before touching any frontend file, read `docs/decisions/chakra-v3-migration-plan.md` in full — it tracks exactly which steps are complete, what's been verified vs. only assumed, and what's still broken on purpose pending a later step. Do not assume the architecture description below (or anything else in this file) reflects the current frontend state without cross-checking that plan first; several things described below as working are temporarily stubbed or broken mid-migration.
+
+Known current gaps as of the last update to this file (confirm against the migration plan for the latest status — this file is not the source of truth for migration progress):
+- 🟡 Minor/cosmetic, unconfirmed: the Menu `_active`/`aria-expanded` whiteAlpha-flash-suppression override hasn't been explicitly re-verified visually under v3 (Menu itself functions correctly). Low priority.
+- A separate, later "foundation audit" brief (`docs/decisions/chakra-v3-foundation-audit-brief.md`) exists for re-examining v2-era styling hacks once the migration itself is fully complete. Do not start that audit early — it's explicitly sequenced after the migration's last step.
+
 ## Working conventions
 
 - Always read this file fully before starting any task
@@ -14,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Detailed rationale, gotchas, and "what NOT to change" notes for completed features live in `docs/decisions/`. **Read the matching file before changing related code** — don't rely on memory of past sessions for these areas:
 
-- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio, `-500` thumbnail transform, load-failure fallback (`failed` state → placeholder)
+- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio
 - `persistent-history-superseded.md` — historical only; the original JSON merge-guard approach, superseded by Supabase
 - `refresh-button.md` — Express server, manual refresh button, polling, controls bar styling pattern
 - `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
@@ -29,6 +37,8 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `header-redesign.md` — Header rewrite: useLocation active state, two Menu instances, sx @media breakpoints (not Chakra responsive props), always-visible Favorites link
 - `favorites-view.md` — /favorites route: RequireAuth, useFavoritesList (three-source merge: favorites + reviews + manual_albums), year-bounded dropdown, AddAlbumDrawer (lookup → preview → confirm insert), FavoriteListItemRow shared component, getReleaseYear helper
 - `manual-albums.md` — manual_albums table schema + RLS, POST /api/manual-album-lookup endpoint, MB lookup extraction into scripts/musicbrainz.ts, year-bounding decisions, client-side insert pattern, refetch-after-insert
+- `chakra-v3-migration-plan.md` — **read this before any frontend work right now.** Full sequenced plan for the in-flight Chakra v2→v3 migration: step-by-step status (which are complete/verified vs. assumed), grep-confirmed surface-area inventory, what NOT to do during the migration, known current gaps (stubbed toast, broken `/favorites`)
+- `chakra-v3-foundation-audit-brief.md` — a separate, later initiative (not part of the migration's step sequence) to re-examine v2-era styling hacks once the migration is fully done. Do not start early.
 
 ## Commands
 
@@ -74,6 +84,8 @@ Each source has its own extractor module in `src/scraper/`:
 
 ### 2. Frontend (`src/App.tsx`)
 
+**⚠️ Mid-migration from Chakra UI v2 to v3 — see the notice at the top of this file and `docs/decisions/chakra-v3-migration-plan.md` for exact current status before relying on anything below.** The description that follows is accurate at the level of routes/data-flow/component responsibilities, which don't change across the migration, but specific component APIs (`Drawer`, `Menu`, `AlertDialog`/`Dialog`, `Select`/`NativeSelect`, etc.) are being ported step by step and may be v2 or v3 syntax depending on which step has landed — check the migration plan, don't assume.
+
 A React + Chakra UI app with client-side routing via React Router v7 (`react-router-dom`, using `createBrowserRouter` + `RouterProvider`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
 
 Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
@@ -110,15 +122,17 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 
 ## Toast feedback convention
 
+**Rebuilt for Chakra v3 in Step 6.** `useFeedbackToast` now delegates to `toaster.create()` from `src/components/ui/toaster.tsx`. The `<Toaster>` component is rendered once at the app root in `main.tsx`.
+
 Every CRUD action (create/update/delete) shows a toast via `useFeedbackToast()` from `src/hooks/useFeedbackToast.tsx`.
 
 - `showSuccess(message)` — green, 3 s
 - `showError(message)` — red, 4 s
 - `showAction(message, { label, onClick })` — neutral, persistent; used for logged-out attempts at gated actions (shows a button in the toast body, no hard redirect)
 
-`useFeedbackToast` is the **only** `useToast` call site in the codebase. Do not call `useToast` directly.
+`useFeedbackToast` is the **only** toast call site in the codebase (was `useToast` under v2; will be `createToaster()`-based under v3). Do not call a toast API directly from elsewhere — always go through this hook, even while it's stubbed.
 
-See `docs/decisions/favorites.md` for full Phase 6 rationale (written after implementation).
+See `docs/decisions/favorites.md` for full Phase 6 rationale (written after implementation, under v2) and `docs/decisions/chakra-v3-migration-plan.md` for the v3 rebuild plan.
 
 ## Adding a new scraper source
 
