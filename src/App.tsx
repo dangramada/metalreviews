@@ -36,9 +36,6 @@ import {
   Image,
   Skeleton, // Shimmer placeholder shown while an image loads
   Icon,
-  Switch, // Toggle switch for the favorites-only filter
-  FormLabel, // Accessible label paired with the Switch
-  FormControl, // Wrapper for form elements that groups label, input, and helper text
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
@@ -142,6 +139,15 @@ export function formatReleaseDate(d: string | null): string {
 // Extracted as a sibling function so each card gets its own isolated `loaded`
 // state — tracking whether the image has finished loading — without needing
 // to pass a Map or shared state down from the parent.
+
+// CAA pre-generates fixed-size thumbnails at consistent paths: the full-res filename
+// with `-{size}` inserted before the extension. 500px is sufficient for the card grid
+// and meaningfully smaller than full-res (which can exceed 8 MB). The onError fallback
+// in ArtworkBlock handles the rare case where a release doesn't follow this convention.
+function toThumbnailUrl(url: string): string {
+  return url.replace(/\.(jpg|jpeg|png)$/i, '-500.$1');
+}
+
 export function ArtworkBlock({
   rev,
   isFavorited = false,
@@ -166,7 +172,7 @@ export function ArtworkBlock({
       {rev.artworkUrl && !failed ? (
         <>
           <Image
-            src={rev.artworkUrl}
+            src={toThumbnailUrl(rev.artworkUrl)}
             alt={`${rev.band} – ${rev.album}`}
             objectFit="cover" // Fills the box without distortion, cropping if needed
             w="100%"
@@ -361,10 +367,6 @@ function App() {
   // cleared on logout. Stored as a Set for O(1) membership checks.
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
-  // When true, the card grid is filtered to show only favorited reviews.
-  // Reset to false on logout so a newly-logged-out user sees the full grid.
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-
   // =============================================================================
   // REFRESH: trigger a new ingest run and poll for results
   // =============================================================================
@@ -479,8 +481,6 @@ function App() {
       // this is the correct pattern for clearing external-auth-derived state.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFavoritedIds(new Set());
-
-      setShowFavoritesOnly(false);
       return;
     }
     let cancelled = false;
@@ -557,13 +557,10 @@ function App() {
 
   // `filtered` recomputes on every render automatically — React re-renders whenever
   // state changes, so this updates the moment the user types or changes a dropdown.
-  // Pipeline order: source → score → favorites → search → sort
+  // Pipeline order: source → score → search → sort
   const filtered = reviews
     .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
     .filter((r) => (minScore === '' ? true : r.normalizedScore >= parseFloat(minScore) * 10))
-    // Favorites filter — only active when the switch is on and user is logged in.
-    // Placed before search so that favorites narrowing happens before text search.
-    .filter((r) => (showFavoritesOnly ? favoritedIds.has(r.id) : true))
     .filter((r) => {
       const term = search.toLowerCase();
       return (
@@ -718,29 +715,6 @@ function App() {
                   ? `${filtered.length} of ${reviews.length} reviews`
                   : `${reviews.length} reviews`}
               </Text>
-              {/* Favorites filter — only visible to logged-in users.
-                  FormControl groups the label + switch for accessibility; w="auto" prevents
-                  it from stretching to fill the flex container. */}
-              {user && (
-                <FormControl display="flex" alignItems="center" gap={0} w="auto">
-                  <FormLabel
-                    htmlFor="favorites-toggle"
-                    mb={0}
-                    fontSize="sm"
-                    color="text.dim"
-                    cursor="pointer"
-                    whiteSpace="nowrap"
-                  >
-                    Favorites only
-                  </FormLabel>
-                  <Switch
-                    id="favorites-toggle"
-                    isChecked={showFavoritesOnly}
-                    onChange={(e) => setShowFavoritesOnly(e.target.checked)}
-                    colorScheme="teal"
-                  />
-                </FormControl>
-              )}
             </Flex>
           )}
 
