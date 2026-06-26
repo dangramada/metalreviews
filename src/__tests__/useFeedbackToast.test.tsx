@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFeedbackToast } from '../hooks/useFeedbackToast';
 
-const mockCreate = vi.fn();
+const { mockCreate } = vi.hoisted(() => ({ mockCreate: vi.fn() }));
 
 vi.mock('../components/ui/toaster', () => ({
   toaster: { create: mockCreate },
