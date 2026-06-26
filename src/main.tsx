@@ -7,8 +7,11 @@ import { LoginPage } from './LoginPage';
 import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
-import { FavoritesPage } from './FavoritesPage';
-import theme from './theme';
+// Lazy-loaded to prevent FavoritesPage's v2-only imports (AlertDialog, Drawer, etc.)
+// from crashing the module graph before React mounts. Step 4-5 will fix FavoritesPage.
+const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
+import system from './theme';
+import { Toaster } from './components/ui/toaster';
 
 const router = createBrowserRouter([
   { path: '/', element: <App /> },
@@ -18,7 +21,9 @@ const router = createBrowserRouter([
     path: '/favorites',
     element: (
       <RequireAuth>
-        <FavoritesPage />
+        <React.Suspense fallback={null}>
+          <FavoritesPage />
+        </React.Suspense>
       </RequireAuth>
     ),
   },
@@ -27,7 +32,8 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={system}>
+      <Toaster />
       <AuthProvider>
         <RouterProvider router={router} />
       </AuthProvider>
