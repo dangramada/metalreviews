@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Detailed rationale, gotchas, and "what NOT to change" notes for completed features live in `docs/decisions/`. **Read the matching file before changing related code** — don't rely on memory of past sessions for these areas:
 
-- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio
+- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio, `-500` thumbnail transform, load-failure fallback (`failed` state → placeholder)
 - `persistent-history-superseded.md` — historical only; the original JSON merge-guard approach, superseded by Supabase
 - `refresh-button.md` — Express server, manual refresh button, polling, controls bar styling pattern
 - `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
