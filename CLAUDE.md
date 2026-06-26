@@ -130,7 +130,7 @@ Every CRUD action (create/update/delete) shows a toast via `useFeedbackToast()` 
 - `showError(message)` — red, 4 s
 - `showAction(message, { label, onClick })` — neutral, persistent; used for logged-out attempts at gated actions (shows a button in the toast body, no hard redirect)
 
-`useFeedbackToast` is the **only** toast call site in the codebase (was `useToast` under v2; will be `createToaster()`-based under v3). Do not call a toast API directly from elsewhere — always go through this hook, even while it's stubbed.
+`useFeedbackToast` is the **only** toast call site in the codebase (was `useToast` under v2; now uses `toaster.create()` from `src/components/ui/toaster.tsx` under v3). Do not call a toast API directly from elsewhere — always go through this hook.
 
 See `docs/decisions/favorites.md` for full Phase 6 rationale (written after implementation, under v2) and `docs/decisions/chakra-v3-migration-plan.md` for the v3 rebuild plan.
 
