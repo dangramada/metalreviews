@@ -7,8 +7,7 @@ import { LoginPage } from './LoginPage';
 import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
-// Lazy-loaded to prevent FavoritesPage's v2-only imports (AlertDialog, Drawer, etc.)
-// from crashing the module graph before React mounts. Step 4-5 will fix FavoritesPage.
+// Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
 const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
 import system from './theme';
 import { Toaster } from './components/ui/toaster';

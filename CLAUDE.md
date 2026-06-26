@@ -128,7 +128,7 @@ Every CRUD action (create/update/delete) shows a toast via `useFeedbackToast()` 
 
 - `showSuccess(message)` — green, 3 s
 - `showError(message)` — red, 4 s
-- `showAction(message, { label, onClick })` — neutral, persistent; used for logged-out attempts at gated actions (shows a button in the toast body, no hard redirect)
+- `showAction(message, { label, onClick })` — neutral, 6 s; used for logged-out attempts at gated actions (shows a button in the toast body, no hard redirect)
 
 `useFeedbackToast` is the **only** toast call site in the codebase (was `useToast` under v2; now uses `toaster.create()` from `src/components/ui/toaster.tsx` under v3). Do not call a toast API directly from elsewhere — always go through this hook.
 
