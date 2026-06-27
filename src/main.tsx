@@ -7,6 +7,7 @@ import { LoginPage } from './LoginPage';
 import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
+import { StyleGuide } from './StyleGuide';
 // Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
 const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
 import system from './theme';
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
   },
+  { path: '/style-guide', element: <StyleGuide /> },
   // { path: '/aoty/:shareId', element: <SharedList /> }  — reserved for shareable favorites
 ]);
 

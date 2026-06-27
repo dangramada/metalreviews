@@ -1,6 +1,6 @@
 # Plan — Chakra UI v2 → v3 migration
 
-> **Instruction for Claude Code: this file is the full roadmap, kept here as context for every session in this migration. Real status: Steps 0–5 are complete. `FavoritesPage.tsx` now renders correctly (Drawer/Dialog ported); the dropdown white-background gap from Step 4 is fixed. Two minor cosmetic items remain logged but unconfirmed (Menu whiteAlpha-flash visual detail; not blocking). `useFeedbackToast` is still a no-op stub — toast feedback is silently broken app-wide until THIS step. For THIS session, execute Step 6 — Toast system. This is the structural rebuild: no `useToast` in v3, replace with `createToaster()` (snippet-generated `components/ui/toaster.tsx`) + a `<Toaster>` rendered once at the app root, while preserving `useFeedbackToast`'s exact external API (`showSuccess`/`showError`/`showAction`) so no call site elsewhere changes. Wide blast radius (every CRUD action) — show a plan and wait for approval before writing any code, per CLAUDE.md's working conventions. Verify every claimed fix with grep/direct inspection or an actual manual trigger of each toast variant — do not just confirm TypeScript compiles. After this step, follow the "How every step closes" rule above: update this plan, update CLAUDE.md's gap list only (the toast-stub gap should close here), do not touch other decision docs. Do not proceed to Step 7 in this session — stop and report back once Step 6's definition of done is met.**
+> **Instruction for Claude Code: the Chakra v2→v3 migration itself is COMPLETE (Steps 0–7, full test suite green, 210/210). This plan file's job is done — keep it as a historical record, but do not add new steps to it. The DatePicker feature, originally (incorrectly) framed as "Step 8" of this migration, was never split into its own standalone brief — implementation detail lives in `docs/decisions/favorites-view.md` (AddAlbumDrawer section), not here. One minor cosmetic item remains open from the migration itself (Menu whiteAlpha-flash visual detail, not blocking — see Step 5 below). The foundation audit (`docs/decisions/chakra-v3-foundation-audit-brief.md`) is now eligible to start, at Dan's discretion — do not start it automatically.**
 
 > Planning document only. No code written yet. This sequences the migration into discrete, one-feature-per-session steps per the project's working convention. Each step below should become its own Claude Code session, with its own decision-doc update afterward (either appended here as a dated section, or split into `docs/decisions/chakra-v3-<step>.md` if a step turns out to be large enough to warrant its own file — follow the same judgment call already used for `favorites.md` vs `favorites-view.md`).
 >
@@ -68,6 +68,8 @@ When a step's definition-of-done is met:
 4. **Stop and report** — per the existing per-step discipline. Don't start the next step in the same session.
 
 This keeps exactly one file (`CLAUDE.md`) carrying live migration-status info outside the plan itself, and keeps that update mechanical (a bullet-list diff) rather than a judgment call — reducing the chance it goes stale again like it did between Step 0 and Step 3.
+
+**Historical note (added during the June 2026 documentation-integrity pass):** item 2 above describes maintaining a "known current gaps" bullet list in `CLAUDE.md`. That list was removed entirely in that pass (see `docs/decisions/documentation-audit-june2026.md`) — a duplicated, hand-maintained status list was judged not worth the upkeep risk it had already demonstrated. This rule is moot regardless, since the migration has no further steps to close; left here unedited as a record of the process actually followed at the time.
 
 
 
@@ -151,35 +153,34 @@ This is a structural rebuild, not a hook rename. v3 has no `useToast`; instead: 
 
 **Definition of done:** every existing toast call site works unchanged; visual style (success/error/action variants, durations) matches current behavior; `<Toaster>` is rendered exactly once at the app root (verify no duplicate-toaster bugs).
 
-**Verification record:**
-- `useFeedbackToast` rebuilt using `toaster.create()` from the snippet-generated `src/components/ui/toaster.tsx`
-- `<Toaster>` rendered once inside `<ChakraProvider>` in `main.tsx`
-- All three variants (`showSuccess`, `showError`, `showAction`) covered by unit tests — pass
-- `showAction` action button wired: `onClick={toast.action.onClick}` confirmed in `toaster.tsx`
-- Full non-React test suite green (`npx vitest run` — React component tests have pre-existing jsdom failures unrelated to this step)
-- No call sites changed — external API preserved exactly
+**Verification record:** Dan confirmed by direct observation — triggering the heart toggle and the Refresh button produced real, visible toasts on screen, not just a clean compile/test pass. This was the critical bar for this step specifically, since a silently-broken toaster implementation would also pass TypeScript/lint checks. No detailed file-level change report was given for this step (unlike Steps 3–5); if a fuller grep/implementation summary becomes available later, append it here rather than re-deriving it from memory.
 
-### Step 7 — Test suite verification pass
+### Step 7 — Test suite verification pass — ✅ COMPLETE
 Re-run the full test suite. Specifically re-verify (don't assume pass/fail, check directly):
 - `RequireAuth`'s no-`ChakraProvider` test wrapper — confirm v3's `Provider`/`ChakraProvider` either also injects a DOM marker (keep the workaround) or doesn't (workaround becomes unnecessary, but harmless to leave).
 - Header's `sx`/`css`-`@media`-breakpoint jsdom workaround — confirm both desktop/mobile clusters are still simultaneously present in the DOM under test, under v3's actual CSS engine (not assumed from v2 behavior).
 - `mergeGuard.test.ts` and any backend-only tests are unaffected (they don't touch Chakra) — quick confirmation, not expected to need changes.
 - Any test asserting on the old `isOpen`/`isLoaded`/etc. boolean prop names needs updating to the new `open`/`loading`/etc. names — a systematic find pass across test files, not just source files.
 
-**Definition of done:** full `npm run test` suite green, no skipped/disabled tests left over from the migration.
+**Verification record:** 6 test files updated (`theme={theme}` → `value={system}` on `ChakraProvider`, matching import alias rename) — this is the systematic boolean/prop-name find pass the step called for. `src/__tests__/setup.ts` gained a `ResizeObserver` no-op stub to silence async rejections from v3's Menu positioning logic in jsdom — a new issue not anticipated by the original plan, caught and fixed in this step. Full suite: **210/210 tests, 30/30 files, 0 errors.**
 
-### Step 8 — DatePicker feature (previously paused)
-Only now does the original feature request resume: a calendar-icon-triggered `DatePicker.Root` (v3's compound component, built on Ark UI) beside the existing free-text manual release-date input in `AddAlbumDrawer`, writing a full `YYYY-MM-DD` back into the same text field when used. Free-text entry for year-only (`"2024"`) and year-month (`"2024-03"`) precision remains unchanged — the picker is an optional convenience for full-date entry only, not a replacement for the text field.
+**Confirmed by absence of failure, not by direct line-item inspection:** the `RequireAuth` no-`ChakraProvider` DOM-marker assumption and the header `@media`-breakpoint-in-jsdom assumption were not individually re-checked against v3's actual Provider/CSS engine. Dan's call to accept the full green suite as sufficient evidence — if either assumption had broken under v3, the corresponding test (RequireAuth's "renders null while loading," or the header's desktop/mobile-both-present assertions) would show up as a failure, not a silent pass. Treat this as solid indirect evidence, not as proof those specific mechanisms were inspected directly.
 
-This step gets its own brief (separate from this migration plan) once Step 7 is complete.
+**Definition of done:** full `npm run test` suite green (210/210), no skipped/disabled tests left over from the migration.
 
-**This is the last step of the migration itself.** Once Step 8 ships, the migration's job — get the app running correctly on v3, behavior-identical to v2 — is done.
+## The migration ends at Step 7
+
+**Step 7 was the last step of the migration itself.** The migration's job — port the API surface, preserve behavior exactly, no redesign mid-flight — is done. Steps 0–7 are all ✅ complete and verified (full test suite green, 210/210).
+
+The DatePicker feature that originally motivated this migration is **not part of the migration** — it's a new feature that happened to depend on v3 existing first. It was incorrectly framed as "Step 8" in earlier drafts of this plan; that was a mistake, now corrected. No standalone feature brief was ever written for it; implementation detail lives in `docs/decisions/favorites-view.md` (AddAlbumDrawer section).
+
+**Current status of that feature:** implemented in `AddAlbumDrawer`, not yet manually verified end-to-end. See `docs/decisions/favorites-view.md` for detail.
 
 ## After the migration: foundation audit (separate initiative, not a step in this sequence)
 
-Once Step 8 is complete and merged, a **separate, later** initiative — not numbered as part of this migration — should audit the whole frontend's styling layer with a different goal than the migration itself: not "does it work," but "is this the right way to build it." This is intentionally decoupled from the migration so the migration can stay focused on its one job (port API surface, preserve behavior exactly, no redesign mid-flight) without the scope-creep risk of trying to also rethink the foundation while half-migrated.
+Now that the migration (Steps 0–7) is complete, a **separate, later** initiative — not numbered as part of this migration — should audit the whole frontend's styling layer with a different goal than the migration itself: not "does it work," but "is this the right way to build it." This is intentionally decoupled from the migration so the migration could stay focused on its one job (port API surface, preserve behavior exactly, no redesign mid-flight) without the scope-creep risk of trying to also rethink the foundation while half-migrated.
 
-See the separate brief for this: `chakra-v3-foundation-audit-brief.md`, written once the migration reaches this point — don't start it early.
+See the separate brief for this: `chakra-v3-foundation-audit-brief.md`. Eligible to start now that the migration is done — Dan's call on timing, don't start automatically.
 
 ## What NOT to do during this migration
 
@@ -187,7 +188,7 @@ See the separate brief for this: `chakra-v3-foundation-audit-brief.md`, written 
 - Do not redesign any behavior while porting. This migration is about API surface, not UX — the discard-confirm flow, toast variants, filter logic, and card layout should look and behave identically before and after, even where the underlying component changed (e.g. `AlertDialog` → `Dialog`).
 - Do not skip the visual-regression check at the end of each step. v3's styling engine is different enough that "it compiles" is not sufficient evidence it looks the same.
 - Do not apply the codemod blindly across the whole repo in one shot without reviewing the `--dry` diff first — it handles renames/restructuring but not the structural rebuilds (toaster, `AlertDialog`→`Dialog`) that need manual design attention.
-- Do not start Step 8 (DatePicker) early, even if it seems tempting once `Drawer`/`Dialog` land in Step 5 — the form-input dependencies from Step 4 and the test-verification pass in Step 7 should be solid first.
+- The "Step 8 (DatePicker)" rule that was here is moot — the migration ended at Step 7 and the DatePicker feature was implemented separately afterward (see `favorites-view.md`). Left as a historical note only.
 - Do not let other feature work (AOTY, anything else) get built against v2 patterns once Step 1 begins — new feature work should either wait, or explicitly target v3 patterns if it can't wait, on a case-by-case judgment call with Dan.
 - Do not assume a step is complete because the codemod ran clean on it. Several real-world migration writeups (see below) report the codemod and official guide undersell the actual effort — treat each step's definition-of-done as the real bar, not "no compile errors."
 
