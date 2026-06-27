@@ -4,3 +4,5 @@ dist/
 public/reviews.json
 .env
 *.local
+.claude/
+CLAUDE - Copy.md
