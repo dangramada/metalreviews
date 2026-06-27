@@ -56,3 +56,23 @@ CLAUDE.md says "react-router v7" without specifying the package. The actual impo
 - The hamburger and desktop clusters are BOTH in the DOM simultaneously (CSS hides the appropriate one at each breakpoint). Tests run in jsdom where CSS media queries do not apply — both are testable. Do not add React state to conditionally render one vs. the other; that would cause a flash on resize and is unnecessary.
 - The `handleLogout` function is identical to the previous version (`supabase.auth.signOut()` then `navigate('/')`). Do not change logout logic.
 - Do not add a `MenuDivider` in the mobile menu — the brief explicitly accepted no visual separation between nav and account items.
+
+---
+
+## Follow-up — Chakra v3 migration correction (2026-06-27)
+
+The `_active`/`aria-expanded` whiteAlpha-flash suppression described above used
+`sx={{ '&[aria-expanded=true]': {...} }}`. Under Chakra v3 this prop is silently
+ignored — confirmed broken (not just renamed) during the v2→v3 migration's
+Step 0/Step 3 audit. Fixed via `sx`→`css`. The Menu components themselves were
+also rewritten to v3's compound pattern (`Menu.Root`/`Menu.Trigger`/
+`Menu.Positioner`/`Menu.Content`/`Menu.Item`, wrapped in `Portal`).
+
+Confirmed functionally working post-migration. One sub-detail — the exact
+visual behavior of the flash-suppression override under v3's actual state
+data-attributes — was logged as a minor, non-blocking open item in
+`chakra-v3-migration-plan.md` Step 5, not re-verified pixel-for-pixel.
+
+See `chakra-v3-migration-plan.md` Steps 0, 3, and 5 for full detail. This note
+exists so this file is not read in isolation as if v2's `sx` prop is still
+the live mechanism for this override.

@@ -15,14 +15,16 @@ import { supabase } from '../supabaseClient';
 //   .from('favorites').select('review_id').then(cb)
 //   .from('manual_albums').select('*').then(cb)
 //   .from('reviews').select('*').in('id', ids).then(cb)
-function makeFromImpl(options: {
-  favoritesData?: { review_id: string }[];
-  favoritesError?: { message: string } | null;
-  reviewsData?: Record<string, unknown>[];
-  reviewsError?: { message: string } | null;
-  manualData?: Record<string, unknown>[];
-  manualError?: { message: string } | null;
-} = {}) {
+function makeFromImpl(
+  options: {
+    favoritesData?: { review_id: string }[];
+    favoritesError?: { message: string } | null;
+    reviewsData?: Record<string, unknown>[];
+    reviewsError?: { message: string } | null;
+    manualData?: Record<string, unknown>[];
+    manualError?: { message: string } | null;
+  } = {}
+) {
   const {
     favoritesData = [],
     favoritesError = null,
@@ -230,7 +232,9 @@ describe('useFavoritesList', () => {
     vi.mocked(supabase.from).mockImplementation(
       makeFromImpl({ favoritesData: [], manualData: [mockManualRow] })
     );
-    act(() => { result.current.refetch(); });
+    act(() => {
+      result.current.refetch();
+    });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(1);
     expect(result.current.items[0].band).toBe('Tool');

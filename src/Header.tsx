@@ -9,11 +9,9 @@ import {
   IconButton,
   Link,
   Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
+  Portal,
 } from '@chakra-ui/react';
-import { HamburgerIcon } from '@chakra-ui/icons';
+import { LuMenu } from 'react-icons/lu';
 import { FaUserCircle } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
@@ -43,8 +41,15 @@ export function Header() {
   const isFavoritesActive = location.pathname === '/favorites';
 
   return (
-    <Flex align="center" justify="space-between" mb={6}>
-      <Heading as="h1" size="xl" bgGradient="linear(to-r, accent.start, accent.end)" bgClip="text">
+    <Flex align="center" justify="space-between" mb={3}>
+      <Heading
+        as="h1"
+        fontSize="4xl"
+        fontWeight={700}
+        bgGradient="to-r"
+        gradientFrom="purple.400"
+        gradientTo="gray.300"
+        bgClip="text">
         Metal Reviews
       </Heading>
 
@@ -59,7 +64,7 @@ export function Header() {
             align="center"
             gap={2}
             className="header-desktop"
-            sx={{
+            css={{
               '@media (max-width: 47.9375em)': { display: 'none' },
             }}
           >
@@ -96,32 +101,36 @@ export function Header() {
             <Box w="1px" alignSelf="stretch" bg="whiteAlpha.400" mx={2} />
 
             {user ? (
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  variant="ghost"
-                  leftIcon={<Icon as={FaUserCircle} boxSize={5} color="text.dim" />}
-                  {...navPillBase}
-                  color="text.dim"
-                  _hover={{ color: 'text.primary', bg: 'surface.raised' }}
-                  // Override Chakra ghost Button's default light flash on click/open
-                  _active={{ bg: 'surface.raised', color: 'text.primary' }}
-                  sx={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
-                >
-                  {user.email?.split('@')[0]}
-                </MenuButton>
-                <MenuList bg="surface.card" borderColor="border.default" minW="120px">
-                  <MenuItem
-                    bg="surface.card"
-                    color="text.primary"
-                    _hover={{ bg: 'surface.raised' }}
-                    _active={{ bg: 'surface.raised' }}
-                    onClick={handleLogout}
+              <Menu.Root>
+                <Menu.Trigger asChild>
+                  <Button
+                    variant="ghost"
+                    {...navPillBase}
+                    color="text.dim"
+                    _hover={{ color: 'text.primary', bg: 'surface.raised' }}
+                    _active={{ bg: 'surface.raised', color: 'text.primary' }}
+                    css={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
                   >
-                    Log out
-                  </MenuItem>
-                </MenuList>
-              </Menu>
+                    <Icon as={FaUserCircle} boxSize={5} color="text.dim" mr={2} />
+                    {user.email?.split('@')[0]}
+                  </Button>
+                </Menu.Trigger>
+                <Portal>
+                  <Menu.Positioner>
+                    <Menu.Content bg="surface.card" borderColor="border.default" minW="120px">
+                      <Menu.Item
+                        value="logout"
+                        bg="surface.card"
+                        color="text.primary"
+                        _hover={{ bg: 'surface.raised' }}
+                        onSelect={handleLogout}
+                      >
+                        Log out
+                      </Menu.Item>
+                    </Menu.Content>
+                  </Menu.Positioner>
+                </Portal>
+              </Menu.Root>
             ) : (
               <Link
                 as={RouterLink}
@@ -144,63 +153,69 @@ export function Header() {
               Visually hidden above md via CSS class; always in DOM. */}
           <Box
             className="header-mobile"
-            sx={{
+            css={{
               '@media (min-width: 48em)': { display: 'none' },
             }}
           >
-            <Menu>
-              <MenuButton
-                as={IconButton}
-                icon={<HamburgerIcon />}
-                variant="ghost"
-                aria-label="Open menu"
-                color="text.dim"
-                _hover={{ color: 'text.primary', bg: 'surface.raised' }}
-                _active={{ bg: 'surface.raised', color: 'text.primary' }}
-                sx={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
-              />
-              <MenuList bg="surface.card" borderColor="border.default">
-                <MenuItem
-                  bg="surface.card"
-                  color="text.primary"
-                  _hover={{ bg: 'surface.raised' }}
-                  _active={{ bg: 'surface.raised' }}
-                  onClick={() => navigate('/')}
+            <Menu.Root>
+              <Menu.Trigger asChild>
+                <IconButton
+                  variant="ghost"
+                  aria-label="Open menu"
+                  color="text.dim"
+                  _hover={{ color: 'text.primary', bg: 'surface.raised' }}
+                  _active={{ bg: 'surface.raised', color: 'text.primary' }}
+                  css={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
                 >
-                  Reviews
-                </MenuItem>
-                <MenuItem
-                  bg="surface.card"
-                  color="text.primary"
-                  _hover={{ bg: 'surface.raised' }}
-                  _active={{ bg: 'surface.raised' }}
-                  onClick={() => navigate('/favorites')}
-                >
-                  Favorites
-                </MenuItem>
-                {user ? (
-                  <MenuItem
-                    bg="surface.card"
-                    color="text.primary"
-                    _hover={{ bg: 'surface.raised' }}
-                    _active={{ bg: 'surface.raised' }}
-                    onClick={handleLogout}
-                  >
-                    Log out
-                  </MenuItem>
-                ) : (
-                  <MenuItem
-                    bg="surface.card"
-                    color="text.primary"
-                    _hover={{ bg: 'surface.raised' }}
-                    _active={{ bg: 'surface.raised' }}
-                    onClick={() => navigate('/login')}
-                  >
-                    Log in
-                  </MenuItem>
-                )}
-              </MenuList>
-            </Menu>
+                  <LuMenu />
+                </IconButton>
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content bg="surface.card" borderColor="border.default">
+                    <Menu.Item
+                      value="reviews"
+                      bg="surface.card"
+                      color="text.primary"
+                      _hover={{ bg: 'surface.raised' }}
+                      onSelect={() => navigate('/')}
+                    >
+                      Reviews
+                    </Menu.Item>
+                    <Menu.Item
+                      value="favorites"
+                      bg="surface.card"
+                      color="text.primary"
+                      _hover={{ bg: 'surface.raised' }}
+                      onSelect={() => navigate('/favorites')}
+                    >
+                      Favorites
+                    </Menu.Item>
+                    {user ? (
+                      <Menu.Item
+                        value="logout"
+                        bg="surface.card"
+                        color="text.primary"
+                        _hover={{ bg: 'surface.raised' }}
+                        onSelect={handleLogout}
+                      >
+                        Log out
+                      </Menu.Item>
+                    ) : (
+                      <Menu.Item
+                        value="login"
+                        bg="surface.card"
+                        color="text.primary"
+                        _hover={{ bg: 'surface.raised' }}
+                        onSelect={() => navigate('/login')}
+                      >
+                        Log in
+                      </Menu.Item>
+                    )}
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
           </Box>
         </Flex>
       )}

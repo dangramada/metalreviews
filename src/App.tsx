@@ -18,28 +18,28 @@ import { useNavigate } from 'react-router-dom';
 // Chakra provides pre-built, themeable UI components so we don't write raw CSS.
 // Each import is a building block: Box = a div, Flex = a flexbox div, etc.
 import {
-  Box, // General-purpose container (renders as a <div>)
+  Box,
+  Badge,
   Button,
   Heading,
   Text,
-  VStack, // Vertical stack — children laid out top-to-bottom with equal spacing
-  Container, // Centres content and caps its max width
+  VStack,
+  Container,
   Input,
-  Select,
-  SimpleGrid, // Responsive grid that adjusts column count at different screen sizes
-  Tag, // Small label for genre tags in card body
-  Wrap, // Wrapper for flexible layout of tags
-  WrapItem, // Item inside Wrap for each individual tag
-  Flex, // Flexbox container — used for the controls bar and card header
-  Spinner, // Animated loading indicator
-  Link, // Anchor tag with Chakra styling — wraps each card so the whole card is clickable
+  NativeSelect,
+  SimpleGrid,
+  Wrap,
+  WrapItem,
+  Flex,
+  Spinner,
+  Link,
   Image,
-  Skeleton, // Shimmer placeholder shown while an image loads
+  Skeleton,
   Icon,
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
-import { CheckIcon, RepeatIcon, WarningIcon } from '@chakra-ui/icons';
+import { LuCheck, LuRepeat, LuTriangleAlert } from 'react-icons/lu';
 
 // Heart icons for favoriting
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
@@ -51,6 +51,7 @@ import type { DbRow } from './dbMapping';
 import { Header } from './Header';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
+import { sourceBadge, scoreBadge, genreBadge, secondaryButton } from './theme';
 
 // =============================================================================
 // TYPE DEFINITION
@@ -140,12 +141,13 @@ export function formatReleaseDate(d: string | null): string {
 // state — tracking whether the image has finished loading — without needing
 // to pass a Map or shared state down from the parent.
 
+
 // CAA pre-generates fixed-size thumbnails at consistent paths: the full-res filename
 // with `-{size}` inserted before the extension. 500px is sufficient for the card grid
 // and meaningfully smaller than full-res (which can exceed 8 MB). The onError fallback
 // in ArtworkBlock handles the rare case where a release doesn't follow this convention.
-function toThumbnailUrl(url: string): string {
-  return url.replace(/\.(jpg|jpeg|png)$/i, '-500.$1');
+export function toThumbnailUrl(url: string, size: 250 | 500 = 500): string {
+  return url.replace(/\.(jpg|jpeg|png)$/i, `-${size}.$1`);
 }
 
 export function ArtworkBlock({
@@ -191,17 +193,17 @@ export function ArtworkBlock({
               `failed` also counts as "settled" so the shimmer doesn't animate forever
               on a broken load — the <Image> is removed from the DOM when failed=true,
               so this branch won't render, but the condition is kept explicit for clarity. */}
+          {/* Fade out skeleton once image loads; pause animation to avoid infinite CPU use. */}
           <Skeleton
             position="absolute"
             top={0}
             left={0}
             w="100%"
             h="100%"
-            startColor="gray.900"
-            endColor="gray.700"
             opacity={loaded ? 0 : 1}
             transition="opacity 0.3s ease"
             pointerEvents="none"
+            css={loaded ? { animation: 'none' } : undefined}
           />
         </>
       ) : (
@@ -244,7 +246,7 @@ export function ArtworkBlock({
         border="none"
         cursor="pointer"
         _hover={{ bg: 'blackAlpha.600' }}
-        sx={{
+        css={{
           '&:hover .heart-outline': { opacity: 0 },
           '&:hover .heart-filled': { opacity: 1 },
         }}
@@ -281,44 +283,32 @@ export function ArtworkBlock({
         )}
       </Box>
 
-      {/* Source badge — bottom-left corner, mirroring the score badge on the right.
-          maxW accounts for score badge width + right offset + gap to prevent overlap. */}
-      <Box
+      {/* Source badge — bottom-left corner */}
+      <Badge
+        {...sourceBadge}
         position="absolute"
         bottom={2}
         left={2}
-        bg="surface.raised"
-        color="text.dim"
-        fontSize="xs"
-        fontWeight="semibold"
-        px={2}
-        py="2px"
-        borderRadius="base"
         maxW="calc(100% - 70px)"
         overflow="hidden"
         textOverflow="ellipsis"
         whiteSpace="nowrap"
       >
         {rev.source}
-      </Box>
+      </Badge>
 
-      {/* Score badge — bottom-right corner of the artwork square.
-          Only rendered when the review actually has a score (not all do). */}
+      {/* Score badge — bottom-right corner; only when a score exists */}
       {rev.score && rev.score !== '' && (
-        <Box
+        <Badge
+          {...scoreBadge}
           position="absolute"
-          bottom="2"
-          right="2"
-          bg="brand.score"
-          color="brand.scoreText"
-          borderRadius="base"
-          px={2}
-          py={1}
-          fontSize="xs"
-          fontWeight="bold"
+          bottom={2}
+          right={2}
+          size="md"
+          fontWeight={600}
         >
           {rev.score}
-        </Box>
+        </Badge>
       )}
     </Box>
   );
@@ -586,18 +576,23 @@ function App() {
   // The Refresh button does NOT use this — Chakra v2's `variant="outline"` conflicts
   // with an explicit `bg` prop, causing the border to not contain its background.
   // The button is styled explicitly with `border="1px solid"` instead.
-  const controlStyle = {
-    size: 'md',
-    variant: 'outline',
+  // v3: NativeSelect splits root-level props (size/variant/layout) from field-level
+  // visual styles (bg/color/border), so we maintain two objects. Input accepts all combined.
+  const controlRootStyle = { size: 'md', variant: 'outline' } as const;
+  const controlFieldStyle = {
     bg: 'surface.card',
     color: 'text.primary',
     borderColor: 'border.default',
-  } as const; // `as const` prevents TypeScript from widening these to plain `string`
+    // Dark background on <option> elements (browser default is white, breaking dark theme).
+    // gray.800 matches surface.card; CSS var isn't available on <option> in all browsers.
+    css: { '& option': { background: 'gray.800' } },
+  } as const;
+  const controlStyle = { ...controlRootStyle, ...controlFieldStyle } as const;
 
   const cardStyle = {
     bg: 'surface.card',
-    borderRadius: 'lg',
-    overflow: 'hidden', // Required — clips the artwork image to the card's rounded corners
+    borderRadius: 'md',
+    overflow: 'hidden',
     boxShadow: 'md',
     border: '1px solid',
     borderColor: 'border.default',
@@ -612,7 +607,7 @@ function App() {
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
-        <VStack spacing={6} align="stretch">
+        <VStack gap={6} align="stretch">
           <Header />
 
           {/* Controls bar: wraps at tablet (md) and stacks at mobile (base).
@@ -627,82 +622,77 @@ function App() {
               onChange={(e) => setSearch(e.target.value)}
               _placeholder={{ color: 'text.dim' }}
             />
-            {/* sx overrides the native white dropdown background on Windows —
-                Chakra has no prop for this, so we drop to raw CSS via sx. */}
-            <Select
-              {...controlStyle}
+            <NativeSelect.Root
+              {...controlRootStyle}
               flex={{ base: '1 1 100%', md: '1', lg: '1' }}
               minW={{ base: '100px', lg: '110px' }}
-              value={sortKey}
-              onChange={(e) => setSortKey(e.target.value as 'date' | 'score')}
-              sx={{ '& option': { background: '#1a202c' } }}
             >
-              <option value="date">Newest</option>
-              <option value="score">Highest Score</option>
-            </Select>
+              <NativeSelect.Field
+                {...controlFieldStyle}
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value as 'date' | 'score')}
+              >
+                <option value="date">Newest</option>
+                <option value="score">Highest Score</option>
+              </NativeSelect.Field>
+            </NativeSelect.Root>
             {/* Source options are derived from live data — no hardcoding needed */}
-            <Select
-              {...controlStyle}
+            <NativeSelect.Root
+              {...controlRootStyle}
               flex={{ base: '1 1 100%', md: '1', lg: '1' }}
               minW={{ base: '100px', lg: '120px' }}
-              value={filterSource}
-              onChange={(e) => setFilterSource(e.target.value)}
-              sx={{ '& option': { background: '#1a202c' } }}
             >
-              <option value="All">All Sources</option>
-              {sources.map((src) => (
-                <option key={src} value={src}>
-                  {src}
-                </option>
-              ))}
-            </Select>
-            <Select
-              {...controlStyle}
+              <NativeSelect.Field
+                {...controlFieldStyle}
+                value={filterSource}
+                onChange={(e) => setFilterSource(e.target.value)}
+              >
+                <option value="All">All Sources</option>
+                {sources.map((src) => (
+                  <option key={src} value={src}>
+                    {src}
+                  </option>
+                ))}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+            <NativeSelect.Root
+              {...controlRootStyle}
               flex={{ base: '1 1 100%', md: '1', lg: '1' }}
               minW={{ base: '100px', lg: '110px' }}
-              value={minScore}
-              onChange={(e) => setMinScore(e.target.value)}
-              sx={{ '& option': { background: '#1a202c' } }}
             >
-              <option value="">All Scores</option>
-              <option value="9">9+ / 10</option>
-              <option value="8">8+ / 10</option>
-              <option value="7">7+ / 10</option>
-            </Select>
+              <NativeSelect.Field
+                {...controlFieldStyle}
+                value={minScore}
+                onChange={(e) => setMinScore(e.target.value)}
+              >
+                <option value="">All Scores</option>
+                <option value="9">9+ / 10</option>
+                <option value="8">8+ / 10</option>
+                <option value="7">7+ / 10</option>
+              </NativeSelect.Field>
+            </NativeSelect.Root>
             {/* Button does NOT spread controlStyle — see comment above. */}
             <Button
+              {...secondaryButton}
+              variant="outline"
               px={4}
               flexShrink={0}
               w={{ base: '100%', md: 'auto' }}
-              bg="surface.card"
-              color="gray.300"
-              border="1px solid"
-              borderColor="border.default"
-              borderRadius="md"
               size="md"
-              _hover={{ borderColor: 'border.hover', color: 'text.primary', bg: 'surface.card' }}
+              _hover={{ borderColor: 'border.hover', color: 'text.primary', bg: 'whiteAlpha.200' }}
               _active={{ bg: 'surface.raised' }}
               onClick={handleRefresh}
-              isDisabled={refreshState === 'loading'}
-              leftIcon={
-                refreshState === 'loading' ? (
-                  <Spinner size="xs" />
-                ) : refreshState === 'success' ? (
-                  <CheckIcon />
-                ) : refreshState === 'error' ? (
-                  <WarningIcon />
-                ) : (
-                  <RepeatIcon />
-                )
-              }
+              disabled={refreshState === 'loading'}
             >
-              {refreshState === 'loading'
-                ? 'Refreshing…'
-                : refreshState === 'success'
-                  ? 'Done'
-                  : refreshState === 'error'
-                    ? 'Failed'
-                    : 'Refresh'}
+              {refreshState === 'loading' ? (
+                <><Spinner size="xs" /> Refreshing…</>
+              ) : refreshState === 'success' ? (
+                <><LuCheck /> Done</>
+              ) : refreshState === 'error' ? (
+                <><LuTriangleAlert /> Failed</>
+              ) : (
+                <><LuRepeat /> Refresh</>
+              )}
             </Button>
           </Flex>
 
@@ -725,15 +715,16 @@ function App() {
             </Flex>
           ) : (
             // 1 column on mobile, 2 on tablet, 3 on desktop
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
               {filtered.map((rev) => (
                 // Wrap the entire card in a Link so clicking anywhere opens the review.
-                // isExternal adds target="_blank" + rel="noopener".
                 // _hover textDecoration="none" stops Chakra underlining the card on hover.
                 <Link
                   href={rev.url}
-                  isExternal
+                  target="_blank"
+                  rel="noopener noreferrer"
                   key={rev.id}
+                  color="inherit"
                   _hover={{ textDecoration: 'none' }}
                   display="block"
                 >
@@ -744,34 +735,29 @@ function App() {
                       onToggle={() => toggleFavorite(rev.id)}
                     />
                     <Box p={4}>
-                      <Heading size="md" mb={2}>
+                      <Heading size={{ base: "xl", md: "2xl"}}  mb={2}>
                         {rev.band || 'Unknown Band'} – {rev.album || 'Untitled Album'}
                       </Heading>
-                      <Text fontSize="sm" color="text.dim" mb={2}>
+                      <Text fontSize="sm" color="text.dim" mb={1}>
                         Release date: {formatReleaseDate(rev.releaseDate)}
                       </Text>
                       {/* Genre tags — only rendered when genre data is available */}
                       {(rev.genre ?? []).length > 0 && (
-                        <Wrap spacing={1} mb={1}>
+                        <Wrap gap={1} mb={2}>
                           {(rev.genre ?? []).map((g) => (
                             <WrapItem key={g}>
-                              <Tag
-                                size="sm"
-                                bg="whiteAlpha.100"
-                                color="purple.300"
-                                borderRadius="base"
-                              >
+                              <Badge {...genreBadge}>
                                 {g}
-                              </Tag>
+                              </Badge>
                             </WrapItem>
                           ))}
                         </Wrap>
                       )}
-                      {/* noOfLines={3} truncates long summaries with an ellipsis */}
-                      <Text fontSize="sm" color="text.dim" noOfLines={3} mb={2}>
+                      {/* lineClamp={3} truncates long summaries with an ellipsis (v3 prop) */}
+                      <Text fontSize="m" color="text.dim" lineClamp={3} mb={2}>
                         {rev.summary || 'No summary available.'}
                       </Text>
-                      <Text fontSize="xs" color="text.muted">
+                      <Text fontSize="xs" color="text.muted" title='Review date'>
                         {rev.publishedDate}
                       </Text>
                     </Box>

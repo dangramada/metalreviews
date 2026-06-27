@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import { FavoritesPage } from '../FavoritesPage';
-import theme from '../theme';
+import system from '../theme';
 import type { FavoriteListItem } from '../hooks/useFavoritesList';
 
 vi.mock('../hooks/useFavoritesList', () => ({
@@ -13,7 +13,9 @@ vi.mock('../hooks/useFavoritesList', () => ({
 }));
 
 vi.mock('../AuthContext', () => ({
-  useAuth: vi.fn().mockReturnValue({ user: { id: 'user-abc', email: 'dan@test.com' }, loading: false }),
+  useAuth: vi
+    .fn()
+    .mockReturnValue({ user: { id: 'user-abc', email: 'dan@test.com' }, loading: false }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -39,7 +41,7 @@ const mockItem: FavoriteListItem = {
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={system}>
       <MemoryRouter>{children}</MemoryRouter>
     </ChakraProvider>
   );
@@ -63,7 +65,9 @@ describe('FavoritesPage', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
     render(<FavoritesPage />, { wrapper });
     // Default year is current year, so the year-specific message is shown
-    expect(screen.getByText(new RegExp(`no favorites for ${currentYear} yet`, 'i'))).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`no favorites for ${currentYear} yet`, 'i'))
+    ).toBeInTheDocument();
   });
 
   it('shows error message when loading fails', () => {
@@ -109,7 +113,7 @@ describe('FavoritesPage', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
     const img = screen.getByRole('img');
-    expect(img).toHaveAttribute('src', 'https://example.com/art.jpg');
+    expect(img).toHaveAttribute('src', 'https://example.com/art-250.jpg');
     expect(img).toHaveAttribute('alt', 'Opeth – Blackwater Park');
   });
 

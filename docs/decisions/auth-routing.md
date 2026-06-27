@@ -29,3 +29,19 @@ Auth uses the existing `VITE_SUPABASE_PUBLISHABLE_KEY` (anon key) via `src/supab
 - **Signup confirm-password:** `LoginPage` validates that password and confirm-password match client-side before calling `signUp()`. Error shown inline; no API call made on mismatch.
 - **Forgot password:** `LoginPage` gains a third mode `'forgot-password'`. Clicking "Forgot password?" shows an email-only form that calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/auth/callback' })`. On success shows a neutral "check your email" screen (no email-existence leak).
 - **Password recovery at /auth/callback:** `AuthCallback` replaced `getSession()` with an `onAuthStateChange` listener. `PASSWORD_RECOVERY` event shows an inline "Set new password" form (password + confirm-password, same mismatch validation, calls `supabase.auth.updateUser({ password })`). All other events with a session navigate to `/`; no session navigates to `/login`.
+
+---
+
+## Follow-up — Route protection built, reserved route renamed (Phase 7)
+
+"Protecting any route behind auth" — described above as not yet built — was
+implemented in the favorites-view session: `RequireAuth` (`src/RequireAuth.tsx`)
+is the first reusable auth guard in the codebase, and `/favorites` is now
+wrapped in it (redirects to `/login` when logged out).
+
+The reserved `/list/:shareId` slot mentioned above was renamed to
+`/aoty/:shareId` to match the actual planned AOTY feature name.
+
+See `favorites-view.md` ("RequireAuth," "Route registration") for full detail.
+This note exists so this file is not read in isolation as if no routes are
+protected.

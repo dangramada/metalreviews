@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
+import { primaryButton } from './theme';
 
 type Mode = 'login' | 'signup' | 'forgot-password';
 
@@ -81,7 +82,7 @@ export function LoginPage() {
     return (
       <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
         <Container maxW="sm">
-          <VStack spacing={4} textAlign="center">
+          <VStack gap={4} textAlign="center">
             <Text fontSize="lg">Check your email to confirm your account.</Text>
             <Text fontSize="sm" color="text.dim">
               Once confirmed, you can log in below.
@@ -99,7 +100,7 @@ export function LoginPage() {
     return (
       <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
         <Container maxW="sm">
-          <VStack spacing={4} textAlign="center">
+          <VStack gap={4} textAlign="center">
             <Text fontSize="lg">Check your email for a password reset link.</Text>
             <Link as={RouterLink} to="/login" color="accent.text" fontSize="sm">
               Back to log in
@@ -113,13 +114,13 @@ export function LoginPage() {
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="sm">
-        <VStack spacing={6} align="stretch">
+        <VStack gap={6} align="stretch">
           <Heading size="lg" textAlign="center" color="text.primary">
             {mode === 'login' ? 'Log in' : mode === 'signup' ? 'Sign up' : 'Reset password'}
           </Heading>
 
           <Box as="form" onSubmit={handleSubmit}>
-            <VStack spacing={4}>
+            <VStack gap={4}>
               <Input
                 {...inputStyle}
                 type="email"
@@ -160,13 +161,10 @@ export function LoginPage() {
               )}
 
               <Button
+                {...primaryButton}
                 type="submit"
                 w="100%"
-                bg="accent.border"
-                color="white"
-                _hover={{ bg: 'teal.600' }}
-                _active={{ bg: 'teal.700' }}
-                isLoading={loading}
+                loading={loading}
               >
                 {mode === 'login' ? 'Log in' : mode === 'signup' ? 'Sign up' : 'Send reset link'}
               </Button>

@@ -12,6 +12,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
+import { primaryButton } from './theme';
 
 type CallbackMode = 'loading' | 'recovery';
 
@@ -78,12 +79,12 @@ export function AuthCallback() {
     return (
       <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
         <Container maxW="sm">
-          <VStack spacing={6} align="stretch">
+          <VStack gap={6} align="stretch">
             <Heading size="lg" textAlign="center" color="text.primary">
               Set new password
             </Heading>
             <Box as="form" onSubmit={handleUpdatePassword}>
-              <VStack spacing={4}>
+              <VStack gap={4}>
                 <Input
                   {...inputStyle}
                   type="password"
@@ -108,13 +109,10 @@ export function AuthCallback() {
                   </Text>
                 )}
                 <Button
+                  {...primaryButton}
                   type="submit"
                   w="100%"
-                  bg="accent.border"
-                  color="white"
-                  _hover={{ bg: 'teal.600' }}
-                  _active={{ bg: 'teal.700' }}
-                  isLoading={loading}
+                  loading={loading}
                 >
                   Update password
                 </Button>

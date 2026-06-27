@@ -310,7 +310,6 @@ function normalizeScore(raw: string): number {
   return 0;
 }
 
-
 function computeId(band: string, album: string): string {
   const key = `${band.toLowerCase().replace(/\s+/g, '')}_${album.toLowerCase().replace(/\s+/g, '')}`;
   // Simple hash – we'll just use base64 of the key.
@@ -387,9 +386,7 @@ export async function runIngestion() {
     const { data, error } = await supabase.from('reviews').select('*');
     if (error) throw error;
     // Extract attempt counts before fromDbRow discards the field (not part of MetalReview).
-    mbAttemptsById = new Map(
-      (data as DbRow[]).map((row) => [row.id, row.mb_lookup_attempts ?? 0])
-    );
+    mbAttemptsById = new Map((data as DbRow[]).map((row) => [row.id, row.mb_lookup_attempts ?? 0]));
     existingReviews = (data ?? []).map(fromDbRow);
   } catch (e) {
     console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
@@ -478,7 +475,12 @@ export async function runIngestion() {
   // forever without this second pass.
   const finalIds = new Set(final.map((r) => r.id));
   const backfilledIds = new Set<string>();
-  const candidates = selectBackfillCandidates(existingReviews, finalIds, mbAttemptsById, new Date());
+  const candidates = selectBackfillCandidates(
+    existingReviews,
+    finalIds,
+    mbAttemptsById,
+    new Date()
+  );
   for (const r of candidates) {
     const mbData = await lookupMusicBrainz(r.band, r.album);
     backfilledIds.add(r.id);
@@ -493,19 +495,17 @@ export async function runIngestion() {
 
   const output = applyMergeGuard(existingById, final);
 
-  const { error: upsertError } = await supabase
-    .from('reviews')
-    .upsert(
-      output.map((r) => ({
-        ...toDbRow(r),
-        // Increment only for backfill-path retries; RSS-path rows keep their existing count.
-        // New rows not yet in existingById fall back to 0, which is correct.
-        mb_lookup_attempts: backfilledIds.has(r.id)
-          ? (mbAttemptsById.get(r.id) ?? 0) + 1
-          : (mbAttemptsById.get(r.id) ?? 0),
-      })),
-      { onConflict: 'id' }
-    );
+  const { error: upsertError } = await supabase.from('reviews').upsert(
+    output.map((r) => ({
+      ...toDbRow(r),
+      // Increment only for backfill-path retries; RSS-path rows keep their existing count.
+      // New rows not yet in existingById fall back to 0, which is correct.
+      mb_lookup_attempts: backfilledIds.has(r.id)
+        ? (mbAttemptsById.get(r.id) ?? 0) + 1
+        : (mbAttemptsById.get(r.id) ?? 0),
+    })),
+    { onConflict: 'id' }
+  );
   if (upsertError) {
     throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
   }

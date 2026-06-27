@@ -7,7 +7,7 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import App from '../App';
-import theme from '../theme';
+import system from '../theme';
 
 const mockShowAction = vi.fn();
 const mockShowSuccess = vi.fn();
@@ -114,7 +114,7 @@ function makeFromImpl(
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={system}>
       <MemoryRouter>{children}</MemoryRouter>
     </ChakraProvider>
   );
@@ -151,13 +151,6 @@ describe('App favorites — logged in', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({ user: mockUser, loading: false });
-  });
-
-  it('shows the favorites switch when logged in', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl());
-    render(<App />, { wrapper });
-    await waitFor(() => screen.getByText(/Opeth/));
-    expect(screen.getByLabelText(/favorites only/i)).toBeInTheDocument();
   });
 
   it('shows a filled heart for a favorited review on load', async () => {
@@ -197,29 +190,5 @@ describe('App favorites — logged in', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
-  });
-
-  it('filters the grid to only favorited reviews when the switch is toggled', async () => {
-    const anotherRow = {
-      ...mockDbRow,
-      id: 'rev2',
-      band: 'Metallica',
-      album: 'Master of Puppets',
-    };
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({
-        reviewsData: [mockDbRow, anotherRow],
-        favoritesData: [{ review_id: 'rev1' }],
-      })
-    );
-    render(<App />, { wrapper });
-    // Band names appear inside "Band – Album" strings, so use partial match
-    await waitFor(() => screen.getByText(/Metallica/));
-    expect(screen.getByText(/Opeth/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByLabelText(/favorites only/i));
-
-    await waitFor(() => expect(screen.queryByText(/Metallica/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Opeth/)).toBeInTheDocument();
   });
 });

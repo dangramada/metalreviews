@@ -80,6 +80,7 @@ Note: the `mbAlreadyFetched` third condition (`typeof r.releaseDate === 'string'
 ### Fix: backfill pass in `runIngestion()`
 
 After the main `allRaw` enrichment loop, a second pass runs over existing rows that:
+
 1. Are NOT already in `final` (not covered by the RSS loop this run)
 2. Are missing at least one MB field: `!(typeof artworkUrl === 'string' && genre.length > 0 && typeof releaseDate === 'string')`
 3. Are NOT past the retry cap (see below)

@@ -5,7 +5,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Header } from '../Header';
-import theme from '../theme';
+import system from '../theme';
 
 vi.mock('../AuthContext', () => ({
   useAuth: vi.fn(),
@@ -21,7 +21,7 @@ import { useAuth } from '../AuthContext';
 function makeWrapper(initialPath = '/') {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
-      <ChakraProvider theme={theme}>
+      <ChakraProvider value={system}>
         <MemoryRouter initialEntries={[initialPath]}>{children}</MemoryRouter>
       </ChakraProvider>
     );

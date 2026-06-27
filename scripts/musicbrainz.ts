@@ -88,8 +88,7 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
             params: { inc: 'genres', fmt: 'json' },
             headers: { 'User-Agent': MB_USER_AGENT },
           });
-          const artistGenres: Array<{ name: string; count: number }> =
-            artistRes.data?.genres ?? [];
+          const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
           topGenres = [...artistGenres]
             .sort((a, b) => b.count - a.count)
             .slice(0, 3)

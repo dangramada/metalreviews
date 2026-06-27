@@ -64,9 +64,7 @@ app.post('/api/manual-album-lookup', async (req, res) => {
   // Extract Bearer token from Authorization header
   const authHeader = req.headers['authorization'];
   const token =
-    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : null;
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
   if (!token) {
     res.status(401).json({ error: 'Missing or invalid Authorization header' });
@@ -86,7 +84,9 @@ app.post('/api/manual-album-lookup', async (req, res) => {
 
   const { band, album } = (req.body ?? {}) as { band?: unknown; album?: unknown };
   if (typeof band !== 'string' || typeof album !== 'string' || !band.trim() || !album.trim()) {
-    res.status(400).json({ error: 'Request body must include non-empty "band" and "album" strings' });
+    res
+      .status(400)
+      .json({ error: 'Request body must include non-empty "band" and "album" strings' });
     return;
   }
 

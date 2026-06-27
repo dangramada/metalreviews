@@ -5,7 +5,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LoginPage } from '../LoginPage';
-import theme from '../theme';
+import system from '../theme';
 
 vi.mock('../supabaseClient', () => ({
   supabase: {
@@ -27,7 +27,7 @@ import { supabase } from '../supabaseClient';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={system}>
       <MemoryRouter>{children}</MemoryRouter>
     </ChakraProvider>
   );

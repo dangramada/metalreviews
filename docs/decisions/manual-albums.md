@@ -59,7 +59,10 @@ Single policy for all operations (`for all`), matching the pattern used for `fav
 `POST /api/manual-album-lookup` validates the caller's Supabase session via:
 
 ```ts
-const { data: { user }, error } = await supabase.auth.getUser(token)
+const {
+  data: { user },
+  error,
+} = await supabase.auth.getUser(token);
 ```
 
 Where `supabase` is the service-role client from `scripts/supabaseClient.ts`. In Supabase JS v2, `auth.getUser(jwt)` sends the token to Supabase's `/auth/v1/user` endpoint regardless of the client's own key — it validates the user's JWT, not the service-role key. Returns `401` for missing/invalid tokens.
@@ -87,7 +90,8 @@ No `release_year` column was added. Year for any item (review-sourced or manual)
 ```ts
 await supabase.from('manual_albums').insert({
   user_id: user.id,
-  band, album,
+  band,
+  album,
   artwork_url: lookupResult.artworkUrl,
   genre: lookupResult.genre,
   release_date: finalReleaseDate,

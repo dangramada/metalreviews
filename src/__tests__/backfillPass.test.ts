@@ -4,7 +4,7 @@ import type { MetalReview } from '../types';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 const RECENT = '2026-06-18T00:00:00.000Z'; // 3 days ago — within 14-day window
-const OLD = '2026-06-01T00:00:00.000Z';    // 20 days ago — outside 14-day window
+const OLD = '2026-06-01T00:00:00.000Z'; // 20 days ago — outside 14-day window
 
 const base: MetalReview = {
   id: 'abc',
@@ -32,12 +32,7 @@ const complete: MetalReview = {
 
 describe('selectBackfillCandidates', () => {
   it('includes an incomplete row under the cap', () => {
-    const result = selectBackfillCandidates(
-      [base],
-      new Set(),
-      new Map([['abc', 2]]),
-      NOW
-    );
+    const result = selectBackfillCandidates([base], new Set(), new Map([['abc', 2]]), NOW);
     expect(result.map((r) => r.id)).toContain('abc');
   });
 
@@ -53,12 +48,7 @@ describe('selectBackfillCandidates', () => {
 
   it('includes a row with attempts >= 5 but age <= 14 days (age is the binding constraint)', () => {
     const recent = { ...base, id: 'recent', publishedAt: RECENT };
-    const result = selectBackfillCandidates(
-      [recent],
-      new Set(),
-      new Map([['recent', 5]]),
-      NOW
-    );
+    const result = selectBackfillCandidates([recent], new Set(), new Map([['recent', 5]]), NOW);
     expect(result.map((r) => r.id)).toContain('recent');
   });
 
@@ -73,22 +63,12 @@ describe('selectBackfillCandidates', () => {
   });
 
   it('excludes a row where all three MB fields are present', () => {
-    const result = selectBackfillCandidates(
-      [complete],
-      new Set(),
-      new Map([['complete', 0]]),
-      NOW
-    );
+    const result = selectBackfillCandidates([complete], new Set(), new Map([['complete', 0]]), NOW);
     expect(result).toHaveLength(0);
   });
 
   it('excludes a row already present in finalIds (covered by RSS loop this run)', () => {
-    const result = selectBackfillCandidates(
-      [base],
-      new Set(['abc']),
-      new Map([['abc', 0]]),
-      NOW
-    );
+    const result = selectBackfillCandidates([base], new Set(['abc']), new Map([['abc', 0]]), NOW);
     expect(result).toHaveLength(0);
   });
 
@@ -104,23 +84,13 @@ describe('selectBackfillCandidates', () => {
 
   it('includes a row missing artworkUrl even when genre and releaseDate are present', () => {
     const noArtwork = { ...base, id: 'no-art', artworkUrl: null, releaseDate: '2026-06-12' };
-    const result = selectBackfillCandidates(
-      [noArtwork],
-      new Set(),
-      new Map([['no-art', 0]]),
-      NOW
-    );
+    const result = selectBackfillCandidates([noArtwork], new Set(), new Map([['no-art', 0]]), NOW);
     expect(result.map((r) => r.id)).toContain('no-art');
   });
 
   it('includes a row missing genre even when artworkUrl and releaseDate are present', () => {
     const noGenre = { ...base, id: 'no-genre', genre: [], releaseDate: '2026-06-12' };
-    const result = selectBackfillCandidates(
-      [noGenre],
-      new Set(),
-      new Map([['no-genre', 0]]),
-      NOW
-    );
+    const result = selectBackfillCandidates([noGenre], new Set(), new Map([['no-genre', 0]]), NOW);
     expect(result.map((r) => r.id)).toContain('no-genre');
   });
 });

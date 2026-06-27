@@ -7,6 +7,7 @@ A protected `/favorites` route that shows the user's favorited and manually-adde
 ## RequireAuth
 
 `src/RequireAuth.tsx` is the first reusable auth guard in the codebase. It returns:
+
 - `null` while `loading` (avoids flash of the login redirect)
 - `<Navigate to="/login" replace />` when logged out
 - `<>{children}</>` when logged in
@@ -16,6 +17,7 @@ Tests for RequireAuth use `MemoryRouter` + `Routes`/`Route` WITHOUT `ChakraProvi
 ## useFavoritesList hook
 
 `src/hooks/useFavoritesList.ts` implements a three-source async load:
+
 1. `.from('favorites').select('review_id')` → IDs of hearted reviews
 2. `.from('manual_albums').select('*')` → user's manually-added albums (RLS-filtered)
 3. `.from('reviews').select('*').in('id', ids)` → full review rows (skipped when 0 hearted)
@@ -23,6 +25,7 @@ Tests for RequireAuth use `MemoryRouter` + `Routes`/`Route` WITHOUT `ChakraProvi
 Results are merged and sorted descending by release date via `sortByReleaseDateDesc()`.
 
 `FavoriteListItem` has:
+
 - `type: 'review' | 'manual'` — discriminator, NOT rendered in the UI
 - `publishedAt: string | null` — the review's ISO `published_at`; null for manual items. Used as year fallback when `releaseDate` is null for review-sourced items (display/filtering only — never written back to the DB).
 
@@ -34,11 +37,20 @@ Stale-closure guard: `let cancelled = false` in useEffect cleanup prevents state
 
 `FavoriteListItemRow` is exported from `FavoritesPage.tsx` and is used in **two places**: the favorites list and the AddAlbumDrawer preview. This avoids duplicating the row layout markup.
 
+### Artwork thumbnail transform (June 2026 follow-up)
+
+When this component was first written, it rendered `item.artworkUrl` directly — full-resolution CAA URL, no transform. This was discovered during a later audit and fixed to match the pattern in `ArtworkBlock`.
+
+`toThumbnailUrl(url, size)` (exported from `src/App.tsx`) is called with `size=250` for this component's 64px box. The dashboard's `ArtworkBlock` uses `size=500`; both call the same function.
+
+**Load-failure handling was also absent** in the original: the component only guarded against `artworkUrl === null` (no artwork stored). There was no `onError` path — a failure fetching the 250px thumbnail would have shown a broken image. A `imgFailed` boolean state and `onError={() => setImgFailed(true)}` on `<Image>` were added at the same time, mirroring `ArtworkBlock`'s pattern. When `imgFailed` is true, the ♪ placeholder renders (same as when `artworkUrl` is null).
+
 ## Year-bounded view
 
 **Year is derived, not stored.** `getReleaseYear(dateStr)` (exported from `src/App.tsx`) extracts the leading 4 digits from any date string (partial MB dates, ISO timestamps, null). For review-sourced items with null `releaseDate`, the fallback is `publishedAt`; for manual items the fallback is user-supplied date at save time.
 
 A year dropdown sits left of the heading:
+
 - "All years" option always present
 - Distinct years derived from current items, descending
 - Current calendar year always included even if no items exist for it yet
@@ -60,6 +72,7 @@ Genre tags use `bg="whiteAlpha.100" color="purple.300"` — same hardcoded palet
 `AddAlbumDrawer` is defined in `FavoritesPage.tsx` (same file, private component) to avoid a circular import between FavoritesPage and AddAlbumDrawer (since both need `FavoriteListItemRow`).
 
 **Flow:**
+
 1. User clicks `+ Add album` → Drawer opens
 2. User fills Band + Album fields, submits the lookup form
 3. `POST /api/manual-album-lookup` is called with a Bearer token from `supabase.auth.getSession()` (per `manual-albums.md` auth pattern)
@@ -75,6 +88,21 @@ Genre tags use `bg="whiteAlpha.100" color="purple.300"` — same hardcoded palet
 **Year mismatch** is display-only — the mismatch notice does not block save and does not change what gets stored. The saved row's year is whatever its release_date resolves to.
 
 Drawer state is fully reset (all fields + lookup result) when `isOpen` transitions from true to false.
+
+## AddAlbumDrawer draft persistence (June 2026 follow-up)
+
+`band` and `album` text are persisted to `localStorage` under a per-user key (`manualAlbumDraft:<userId>`) so typed text survives accidental drawer closure (overlay click, Esc, route navigation). Only these two fields are persisted — lookup result, manual date input, and year-mismatch state are not.
+
+**Exit paths:**
+- Overlay click / Esc — Chakra's built-in `onClose` fires; draft is untouched. No prompt.
+- Cancel button / X (close icon) with both fields empty — closes immediately, no prompt.
+- Cancel button / X with text in either field — opens an `AlertDialog` ("Discard this album?"). "Keep editing" (least-destructive default focus) cancels the dialog; "Discard" clears the draft and closes.
+- Successful save — `clearDraft(user.id)` is called alongside the existing `showSuccess` / `onInsertSuccess` / close flow.
+
+**Implementation notes:**
+- `DrawerCloseButton` is replaced by a positioned `CloseButton` that calls `handleRequestClose` instead of the Drawer's `onClose` directly. This allows the X button to show the confirm dialog while overlay click and Esc continue to use the Drawer's native close.
+- Draft storage helpers (`draftKey`, `saveDraft`, `loadDraft`, `clearDraft`) are colocated in `FavoritesPage.tsx` — no separate module.
+- The open/restore effect (`useEffect([isOpen, user])`) calls setState in its body; this is suppressed with `/* eslint-disable/enable react-hooks/set-state-in-effect */` because this is the canonical React pattern for "reinitialize on prop change" when the `key` trick doesn't apply.
 
 ## /favorites nav link — always visible
 

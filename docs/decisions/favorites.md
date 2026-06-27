@@ -35,3 +35,15 @@ The heart icon and success toast fire together only after the Supabase write con
 - The `useFeedbackToast` hook is the single toast call site. Do not add `useToast` calls elsewhere.
 - `favoritedIds` is a `Set<string>` updated immutably (always `new Set(prev)`). Do not mutate in place.
 - The hydration effect has a stale-closure guard (`let cancelled = false`). Do not remove it.
+
+---
+
+## Follow-up — "Favorites only" toggle removed (2026-06-26)
+
+The "Favorites only" Switch in the counter row was removed from `src/App.tsx`. The `showFavoritesOnly` state, its setter, the filter pipeline step, and the `{user && <FormControl>…</FormControl>}` JSX block are all gone. The `Switch`, `FormLabel`, and `FormControl` Chakra imports were removed too.
+
+**Why:** The dedicated `/favorites` route (Phase 7) made the toggle redundant. The toggle also never included manually-added albums (only `reviews` table rows), while the `/favorites` page covers all three sources via `useFavoritesList`. The only thing the toggle uniquely offered — seeing favorited albums alongside critic score badges — was judged not worth the UI clutter.
+
+**What was NOT removed:** `favoritedIds` (the `Set<string>`), its hydration effect, and the heart toggle on cards are all intact. They are still needed for heart fill state on the review grid.
+
+**Revert point:** git tag `pre-remove-favorites-toggle` captures the commit immediately before removal. To restore just the App.tsx changes: `git checkout pre-remove-favorites-toggle -- src/App.tsx`.
