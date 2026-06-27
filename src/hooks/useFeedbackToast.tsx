@@ -1,67 +1,22 @@
-import React from 'react';
-import { useToast, Box, Button } from '@chakra-ui/react';
+import { toaster } from '../components/ui/toaster';
 
 export function useFeedbackToast() {
-  const toast = useToast();
-
   function showSuccess(message: string) {
-    toast({
-      title: message,
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
-      position: 'bottom-right',
-    });
+    toaster.create({ title: message, type: 'success', duration: 3000, closable: true });
   }
 
   function showError(message: string) {
-    toast({
-      title: message,
-      status: 'error',
-      duration: 4000,
-      isClosable: true,
-      position: 'bottom-right',
-    });
+    toaster.create({ title: message, type: 'error', duration: 4000, closable: true });
   }
 
   function showAction(message: string, action: { label: string; onClick: () => void }) {
-    toast({
-      id: `action-${message}`,
-      position: 'bottom-right',
+    toaster.create({
+      title: message,
+      type: 'info',
       duration: 6000,
-      isClosable: true,
-      render: ({ onClose }) => (
-        <Box
-          bg="surface.card"
-          color="text.primary"
-          px={4}
-          py={3}
-          borderRadius="md"
-          boxShadow="lg"
-          display="flex"
-          alignItems="center"
-          gap={3}
-          border="1px solid"
-          borderColor="border.default"
-        >
-          <Box flex={1} fontSize="sm">
-            {message}
-          </Box>
-          <Button
-            size="sm"
-            variant="outline"
-            borderColor="border.default"
-            color="text.primary"
-            _hover={{ borderColor: 'border.hover' }}
-            onClick={() => {
-              action.onClick();
-              onClose();
-            }}
-          >
-            {action.label}
-          </Button>
-        </Box>
-      ),
+      closable: true,
+      action,
+      id: `action-${message}`,
     });
   }
 

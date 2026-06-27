@@ -1,66 +1,54 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
-import { renderHook } from '@testing-library/react';
-import { ChakraProvider } from '@chakra-ui/react';
-import theme from '../theme';
 import { useFeedbackToast } from '../hooks/useFeedbackToast';
 
-const mockToast = vi.fn();
+const { mockCreate } = vi.hoisted(() => ({ mockCreate: vi.fn() }));
 
-vi.mock('@chakra-ui/react', async () => {
-  const actual = await vi.importActual<typeof import('@chakra-ui/react')>('@chakra-ui/react');
-  return { ...actual, useToast: () => mockToast };
-});
-
-function wrapper({ children }: { children: React.ReactNode }) {
-  return <ChakraProvider theme={theme}>{children}</ChakraProvider>;
-}
+vi.mock('../components/ui/toaster', () => ({
+  toaster: { create: mockCreate },
+}));
 
 describe('useFeedbackToast', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('showSuccess calls toast with success status and 3000ms duration', () => {
-    const { result } = renderHook(() => useFeedbackToast(), { wrapper });
-    result.current.showSuccess('Added to favorites');
-    expect(mockToast).toHaveBeenCalledWith(
+  it('showSuccess calls toaster.create with success type and 3000ms duration', () => {
+    const { showSuccess } = useFeedbackToast();
+    showSuccess('Added to favorites');
+    expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Added to favorites',
-        status: 'success',
+        type: 'success',
         duration: 3000,
-        isClosable: true,
-        position: 'bottom-right',
+        closable: true,
       })
     );
   });
 
-  it('showError calls toast with error status and 4000ms duration', () => {
-    const { result } = renderHook(() => useFeedbackToast(), { wrapper });
-    result.current.showError('Could not save — try again');
-    expect(mockToast).toHaveBeenCalledWith(
+  it('showError calls toaster.create with error type and 4000ms duration', () => {
+    const { showError } = useFeedbackToast();
+    showError('Could not save — try again');
+    expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'Could not save — try again',
-        status: 'error',
+        type: 'error',
         duration: 4000,
-        isClosable: true,
-        position: 'bottom-right',
+        closable: true,
       })
     );
   });
 
-  it('showAction calls toast with 6000ms duration, dedup id, and a render prop', () => {
-    const { result } = renderHook(() => useFeedbackToast(), { wrapper });
-    result.current.showAction('Log in to save favorites', {
-      label: 'Log in',
-      onClick: vi.fn(),
-    });
-    expect(mockToast).toHaveBeenCalledWith(
+  it('showAction calls toaster.create with info type, 6000ms duration, action, and dedup id', () => {
+    const onClick = vi.fn();
+    const { showAction } = useFeedbackToast();
+    showAction('Log in to save favorites', { label: 'Log in', onClick });
+    expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: 'action-Log in to save favorites',
+        title: 'Log in to save favorites',
+        type: 'info',
         duration: 6000,
-        isClosable: true,
-        position: 'bottom-right',
-        render: expect.any(Function),
+        closable: true,
+        action: { label: 'Log in', onClick },
+        id: 'action-Log in to save favorites',
       })
     );
   });

@@ -7,8 +7,11 @@ import { LoginPage } from './LoginPage';
 import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
-import { FavoritesPage } from './FavoritesPage';
-import theme from './theme';
+import { StyleGuide } from './StyleGuide';
+// Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
+const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
+import system from './theme';
+import { Toaster } from './components/ui/toaster';
 
 const router = createBrowserRouter([
   { path: '/', element: <App /> },
@@ -18,16 +21,20 @@ const router = createBrowserRouter([
     path: '/favorites',
     element: (
       <RequireAuth>
-        <FavoritesPage />
+        <React.Suspense fallback={null}>
+          <FavoritesPage />
+        </React.Suspense>
       </RequireAuth>
     ),
   },
+  { path: '/style-guide', element: <StyleGuide /> },
   // { path: '/aoty/:shareId', element: <SharedList /> }  — reserved for shareable favorites
 ]);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={system}>
+      <Toaster />
       <AuthProvider>
         <RouterProvider router={router} />
       </AuthProvider>

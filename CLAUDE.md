@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Chakra UI v2 → v3 migration — ✅ COMPLETE
+
+**The frontend has fully migrated from Chakra UI v2 to v3.** Steps 0–7 are complete and verified (full test suite green, 210/210). The full history of how this happened lives in `docs/decisions/chakra-v3-migration-plan.md`, kept for reference — no further migration work is expected.
+
+
 ## Working conventions
 
 - Always read this file fully before starting any task
@@ -14,21 +19,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Detailed rationale, gotchas, and "what NOT to change" notes for completed features live in `docs/decisions/`. **Read the matching file before changing related code** — don't rely on memory of past sessions for these areas:
 
-- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio, `-500` thumbnail transform, load-failure fallback (`failed` state → placeholder)
+- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio
 - `persistent-history-superseded.md` — historical only; the original JSON merge-guard approach, superseded by Supabase
-- `refresh-button.md` — Express server, manual refresh button, polling, controls bar styling pattern
-- `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
+- `refresh-button.md` — Express server, manual refresh button, polling, controls bar styling pattern (NB: polling/reload mechanism described here was later superseded — see `supabase-migration.md` and `render-deployment.md`)
+- `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling (NB: skip-logic bug in the conditions described here was later fixed — see `genre-artwork-bugfixes.md`)
 - `genre-artwork-bugfixes.md` — RSS title pollution root cause, the three bugs it caused, and their fixes
 - `controls-bar.md` — score filter, review counter, responsive flex layout breakpoints
-- `design-tokens.md` — `src/theme.ts` token groups, border radii rules, intentional non-token carve-outs
+- `design-tokens.md` — `src/theme.ts` token groups, contextual badge tokens + configs (`sourceBadge`/`scoreBadge`/`genreBadge`), button style sets (`primaryButton`/`secondaryButton`), theme-level gray hover compound variants, intentional non-token carve-outs, `/style-guide` dev route
 - `supabase-migration.md` — ingest pipeline + frontend migration from `reviews.json` to Supabase, schema, mapping layer
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
 - `favorites.md` — Phase 6: favorites heart toggle, useFeedbackToast convention, toast variants, optimistic-update decision
 - `release-date.md` — release date field: MB data source, text storage, precision-aware merge guard, mbAlreadyFetched third condition, card layout order, formatReleaseDate formatter
 - `header-redesign.md` — Header rewrite: useLocation active state, two Menu instances, sx @media breakpoints (not Chakra responsive props), always-visible Favorites link
-- `favorites-view.md` — /favorites route: RequireAuth, useFavoritesList (three-source merge: favorites + reviews + manual_albums), year-bounded dropdown, AddAlbumDrawer (lookup → preview → confirm insert), FavoriteListItemRow shared component, getReleaseYear helper
+- `favorites-view.md` — /favorites route: RequireAuth, useFavoritesList (three-source merge: favorites + reviews + manual_albums), year-bounded dropdown, AddAlbumDrawer (lookup → preview → confirm insert), FavoriteListItemRow shared component, getReleaseYear helper. AddAlbumDrawer's release-date field includes a Chakra v3 `DatePickerRoot` (size="xl", closeOnSelect) triggered by a calendar icon in an InputGroup endElement — only shown when MB returns no date; picker writes YYYY-MM-DD into the same manualReleaseDate string field, free-text entry unchanged.
 - `manual-albums.md` — manual_albums table schema + RLS, POST /api/manual-album-lookup endpoint, MB lookup extraction into scripts/musicbrainz.ts, year-bounding decisions, client-side insert pattern, refetch-after-insert
+- `chakra-v3-migration-plan.md` — full sequenced history of the now-complete Chakra v2→v3 migration (Steps 0–7): step-by-step verification records, grep-confirmed surface-area inventory, what NOT to do during a migration like this. Kept for reference, not actively changing.
+- `chakra-v3-foundation-audit-brief.md` — a separate, later initiative to re-examine v2-era styling hacks now that the migration is done. Eligible to start; not started automatically.
+- `documentation-audit-june2026.md` — June 2026 doc-layer audit: what was found (missing brief, contradictory gate, two stale docs, two index gaps) and what was fixed.
 
 ## Commands
 
@@ -74,7 +82,7 @@ Each source has its own extractor module in `src/scraper/`:
 
 ### 2. Frontend (`src/App.tsx`)
 
-A React + Chakra UI app with client-side routing via React Router v7 (`react-router-dom`, using `createBrowserRouter` + `RouterProvider`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
+Fully migrated to Chakra UI v3 (see `docs/decisions/chakra-v3-migration-plan.md` for history). A React + Chakra UI app with client-side routing via React Router v7 (`react-router-dom`, using `createBrowserRouter` + `RouterProvider`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
 
 Key data flow: Supabase `reviews` table → `supabase.from('reviews').select('*')` → `fromDbRow` mapping → React state → filter/sort → card grid.
 
@@ -110,15 +118,17 @@ Textual ratings from AMG and Progressive Subway are first converted to a 0–10 
 
 ## Toast feedback convention
 
+**Rebuilt for Chakra v3 in Step 6.** `useFeedbackToast` now delegates to `toaster.create()` from `src/components/ui/toaster.tsx`. The `<Toaster>` component is rendered once at the app root in `main.tsx`.
+
 Every CRUD action (create/update/delete) shows a toast via `useFeedbackToast()` from `src/hooks/useFeedbackToast.tsx`.
 
 - `showSuccess(message)` — green, 3 s
 - `showError(message)` — red, 4 s
-- `showAction(message, { label, onClick })` — neutral, persistent; used for logged-out attempts at gated actions (shows a button in the toast body, no hard redirect)
+- `showAction(message, { label, onClick })` — neutral, duration per original convention (verify exact value in `toaster.tsx` if precision matters); used for logged-out attempts at gated actions (shows a button in the toast body, no hard redirect)
 
-`useFeedbackToast` is the **only** `useToast` call site in the codebase. Do not call `useToast` directly.
+`useFeedbackToast` is the **only** toast call site in the codebase (was `useToast` under v2; now uses `toaster.create()` from `src/components/ui/toaster.tsx` under v3). Do not call a toast API directly from elsewhere — always go through this hook.
 
-See `docs/decisions/favorites.md` for full Phase 6 rationale (written after implementation).
+See `docs/decisions/favorites.md` for full Phase 6 rationale (written after implementation, under v2) and `docs/decisions/chakra-v3-migration-plan.md` for the v3 rebuild plan.
 
 ## Adding a new scraper source
 
