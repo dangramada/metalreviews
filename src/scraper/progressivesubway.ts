@@ -66,8 +66,14 @@ export function extractRating(html: string): number | null {
     .join('|');
 
   // Matches "Final verdict: X/10", "Final verdict: Word", etc.
+  //
+  // The denominator is pinned to a literal "10" (never a generic \d+) so that an
+  // inline footnote marker glued directly onto the score with no separator — e.g.
+  // "Final verdict: 8.5/10<sup>9</sup>", which cheerio's .text() flattens to
+  // "8.5/109" — can't be swallowed into the match as part of the denominator.
+  // (\d+ would greedily consume "109" whole; a fixed-width literal "10" can't.)
   const regex = new RegExp(
-    `Final\\s+verdict:\\s*(\\d+(?:\\.\\d+)?\\s*\\/\\s*\\d+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?|${ratingWords})`,
+    `Final\\s+verdict:\\s*(\\d+(?:\\.\\d+)?\\s*\\/\\s*10(?!\\d)|\\d+(?:\\.\\d+)?|${ratingWords})`,
     'i'
   );
 

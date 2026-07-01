@@ -287,25 +287,38 @@ async function fetchMetalStormRating(
   }
 }
 
-function normalizeScore(raw: string): number {
+// A normalized score must land in [0, 100] and never carry more precision than a
+// real score can have (nothing on any source goes beyond one decimal place, e.g.
+// "8.5/10" or "7.3/10"). Anything outside those bounds is treated as a failed
+// extraction (returns null) rather than stored as a corrupted number — this is a
+// safety net for unknown pollution patterns (e.g. footnote markers merging into a
+// captured number upstream), not a substitute for fixing extraction at the source.
+export function normalizeScore(raw: string): number | null {
   // Convert various formats to a 0-100 scale.
   if (!raw) return 0;
   // Percentages
   if (raw.includes('%')) {
     const num = parseFloat(raw.replace('%', '').trim());
+    if (isNaN(num) || num < 0 || num > 100) return null;
     return num;
   }
   // X/5, X/10 etc.
   const slashMatch = raw.match(/([0-9]+(?:\.[0-9]+)?)\s*\/\s*([0-9]+)/);
   if (slashMatch) {
+    if (/\.\d{2,}$/.test(slashMatch[1])) return null;
     const val = parseFloat(slashMatch[1]);
     const max = parseFloat(slashMatch[2]);
-    return (val / max) * 100;
+    const result = (val / max) * 100;
+    if (!isFinite(result) || result < 0 || result > 100) return null;
+    return result;
   }
   // Plain number (assume out of 10)
   const num = parseFloat(raw);
   if (!isNaN(num)) {
-    return (num / 10) * 100;
+    if (/\.\d{2,}$/.test(raw.trim())) return null;
+    const result = (num / 10) * 100;
+    if (result < 0 || result > 100) return null;
+    return result;
   }
   return 0;
 }
@@ -451,14 +464,18 @@ export async function runIngestion() {
       releaseDate = mbData.releaseDate;
       await sleep(1000); // MB rate limit: gap between the last request in this review and the first of the next
     }
+    // A malformed score (see normalizeScore's sanity guard) is treated the same as
+    // "no score found" — the existing empty-string/0 sentinel, not a stored null —
+    // so the card-rendering logic doesn't need a new state to handle it.
+    const normalized = normalizeScore(r.score);
     final.push({
       id,
       source: r.source,
       band,
       album,
       genre: genres,
-      score: r.score,
-      normalizedScore: normalizeScore(r.score),
+      score: normalized === null ? '' : r.score,
+      normalizedScore: normalized === null ? 0 : normalized,
       summary: r.summary,
       url: r.url,
       publishedAt: r.publishedAt as unknown as string,

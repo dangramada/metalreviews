@@ -40,4 +40,13 @@ describe('Progressive Subway extractRating', () => {
     const html = `<p>No verdict here</p>`;
     expect(extractRating(html)).toBeNull();
   });
+
+  it('ignores a footnote digit glued directly onto the score (no separator)', () => {
+    // Real-world case: PS renders inline footnote markers as <sup> tags with no
+    // separating whitespace, e.g. "Final verdict: 8.5/10<sup>9</sup>". Cheerio's
+    // .text() flattens this to "Final verdict: 8.5/109" with no boundary between
+    // the real denominator and the footnote digit.
+    const html = `<p><strong>Final verdict: 8.5/10<sup>9</sup></strong></p>`;
+    expect(extractRating(html)).toBe(8.5);
+  });
 });

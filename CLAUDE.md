@@ -37,13 +37,15 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `chakra-v3-migration-plan.md` — full sequenced history of the now-complete Chakra v2→v3 migration (Steps 0–7): step-by-step verification records, grep-confirmed surface-area inventory, what NOT to do during a migration like this. Kept for reference, not actively changing.
 - `chakra-v3-foundation-audit-brief.md` — a separate, later initiative to re-examine v2-era styling hacks now that the migration is done. Eligible to start; not started automatically.
 - `documentation-audit-june2026.md` — June 2026 doc-layer audit: what was found (missing brief, contradictory gate, two stale docs, two index gaps) and what was fixed.
+- `ingest-trigger-and-security.md` — ingest-trigger decision (refresh button removal + move to scheduled job, deferred) + dated security audit cross-check record (11 findings, severity notes, git-history confirmations)
+- `score-parsing-bugfixes.md` — Progressive Subway "Final verdict:" footnote-digit-pollution bug: root cause (footnote glued onto score denominator, no separator), extraction regex fix (literal `10` denominator), `normalizeScore()` sanity guard (returns `null` for out-of-range/over-precision scores), data cleanup outcome
 
 ## Commands
 
 ```bash
 npm run dev           # Start Vite dev server + Express API server together (via concurrently)
 npm run build         # Build frontend for production
-npm run ingest        # Run the scraper/ingestion pipeline once (also starts cron)
+npm run ingest        # Run the scraper/ingestion pipeline (starts cron wiring in ingest-cli.ts, but no scheduled process runs in production — see docs/decisions/ingest-trigger-and-security.md)
 npm run server        # Start Express API server alone (port 3001)
 npm run test          # Run all tests (Vitest, watch mode)
 npm run lint          # ESLint check
@@ -72,7 +74,7 @@ A Node.js script (run with `tsx`) that:
 - Fetches artwork URL, genre tags, and release date from MusicBrainz / Cover Art Archive — see `docs/decisions/artwork.md`, `genre-data.md`, and `release-date.md` before touching this
 - Reads existing rows from Supabase, merges with fresh results via `applyMergeGuard()` (preserves artwork/genre from prior runs on transient failures) — see `docs/decisions/supabase-migration.md`
 - Upserts the merged result to the Supabase `reviews` table
-- Schedules itself via `node-cron` to run at 07:00 and 19:00 daily
+- Contains `node-cron` scheduling wiring in `scripts/ingest-cli.ts` (07:00 and 19:00 daily) — the code is real and functional, but no production process runs `ingest-cli.ts`, so the schedule never fires. Ingest is currently manual-only. See `docs/decisions/ingest-trigger-and-security.md` for the decision to move to a proper scheduled job.
 
 Each source has its own extractor module in `src/scraper/`:
 
