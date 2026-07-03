@@ -39,6 +39,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `documentation-audit-june2026.md` — June 2026 doc-layer audit: what was found (missing brief, contradictory gate, two stale docs, two index gaps) and what was fixed.
 - `ingest-trigger-and-security.md` — ingest-trigger decision (refresh button removal + move to scheduled job, deferred) + dated security audit cross-check record (11 findings, severity notes, git-history confirmations)
 - `score-parsing-bugfixes.md` — Progressive Subway "Final verdict:" footnote-digit-pollution bug: root cause (footnote glued onto score denominator, no separator), extraction regex fix (literal `10` denominator), `normalizeScore()` sanity guard (returns `null` for out-of-range/over-precision scores), data cleanup outcome
+- `album-identity-diagnosis.md` — read-only diagnostic (July 2026): `computeId` collides across sources (band+album only, no source), confirmed silent data loss in the live table (Progressive Subway's Fires in the Distance review overwritten by the Metal Storm row), skip-set score-misattribution mechanism, merge-path trace. Findings only — no fix designed yet.
 
 ## Commands
 
