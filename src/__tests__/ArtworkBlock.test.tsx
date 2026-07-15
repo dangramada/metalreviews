@@ -36,18 +36,23 @@ vi.mock('../hooks/useFeedbackToast', () => ({
 }));
 
 const mockReview = {
-  id: 'rev1',
-  source: 'Angry Metal Guy',
+  albumId: 'album1',
   band: 'Opeth',
   album: 'Blackwater Park',
   genre: ['progressive metal'],
-  score: '9/10',
-  summary: 'A classic.',
-  url: 'https://example.com',
-  publishedAt: '2006-01-01T00:00:00Z',
-  publishedDate: '1 Jan 2006',
-  normalizedScore: 90,
   artworkUrl: null,
+  releaseDate: null,
+  reviews: [
+    {
+      source: 'Angry Metal Guy',
+      score: '9/10',
+      url: 'https://example.com',
+      publishedAt: '2006-01-01T00:00:00Z',
+      publishedDate: '1 Jan 2006',
+    },
+  ],
+  averageScore: 90,
+  publishedAt: '2006-01-01T00:00:00Z',
 };
 
 function wrapper({ children }: { children: React.ReactNode }) {

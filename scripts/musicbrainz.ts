@@ -7,11 +7,14 @@ export interface MusicBrainzData {
   artworkUrl: string | null;
   genres: string[];
   releaseDate: string | null;
+  // Release-group MBID — the strong album-identity key (see docs/decisions/album-identity-decisions.md
+  // §4). Comes free on the default release search response (no extra request/rate-limit cost).
+  releaseGroupId: string | null;
 }
 
 /**
- * Look up artwork, genres, and release date for a given band + album from MusicBrainz
- * and Cover Art Archive. Returns nulls/empty array for any field that cannot be found.
+ * Look up artwork, genres, release date, and release-group id for a given band + album from
+ * MusicBrainz and Cover Art Archive. Returns nulls/empty array for any field that cannot be found.
  *
  * Rate-limit discipline: up to 4 sequential MB requests per call (search, detail,
  * artist search, artist detail), each separated by a 1 req/sec sleep.
@@ -23,7 +26,7 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
     const bandForSearch = band.replace(/^Review:\s*/i, '').trim() || band;
     const albumForSearch = album.replace(/\s+(EP\s+)?Review$/i, '').trim() || album;
 
-    // Step A: search for the release to get its MBID and release date
+    // Step A: search for the release to get its MBID, release-group id, and release date
     const mbSearch = await axios.get('https://musicbrainz.org/ws/2/release/', {
       params: {
         query: `artist:"${bandForSearch}" AND release:"${albumForSearch}"`,
@@ -32,9 +35,11 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
       headers: { 'User-Agent': MB_USER_AGENT },
     });
     const releases: any[] = mbSearch.data?.releases ?? [];
-    if (releases.length === 0) return { artworkUrl: null, genres: [], releaseDate: null };
+    if (releases.length === 0)
+      return { artworkUrl: null, genres: [], releaseDate: null, releaseGroupId: null };
 
     const mbid: string = releases[0].id;
+    const releaseGroupId: string | null = releases[0]['release-group']?.id ?? null;
 
     // MB rate limit: 1 req/sec between requests
     await sleep(1000);
@@ -99,8 +104,8 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
       }
     }
 
-    return { artworkUrl, genres: topGenres, releaseDate };
+    return { artworkUrl, genres: topGenres, releaseDate, releaseGroupId };
   } catch {
-    return { artworkUrl: null, genres: [], releaseDate: null };
+    return { artworkUrl: null, genres: [], releaseDate: null, releaseGroupId: null };
   }
 }

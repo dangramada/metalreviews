@@ -56,10 +56,11 @@ app.get('/api/ingest/status', (_req, res) => {
   res.json({ status: ingesting ? 'running' : 'idle' });
 });
 
-// Look up MusicBrainz enrichment data (artwork, genres, release date) for a
-// user-supplied band + album. Auth is validated via the caller's Supabase session
+// Look up MusicBrainz enrichment data (artwork, genres, release date, release-group id)
+// for a user-supplied band + album. Auth is validated via the caller's Supabase session
 // JWT — never the shared INGEST_SECRET_TOKEN, which is a server-only secret.
-// No DB write happens here; the client inserts into manual_albums directly via RLS.
+// No DB write happens here; the client checks for an existing album match (by
+// releaseGroupId or norm_key) and inserts into albums/favorites directly via RLS.
 app.post('/api/manual-album-lookup', async (req, res) => {
   // Extract Bearer token from Authorization header
   const authHeader = req.headers['authorization'];
@@ -91,9 +92,12 @@ app.post('/api/manual-album-lookup', async (req, res) => {
   }
 
   // A failed MB lookup is not an error — returns nulls, client proceeds without enrichment.
-  const { artworkUrl, genres, releaseDate } = await lookupMusicBrainz(band.trim(), album.trim());
+  const { artworkUrl, genres, releaseDate, releaseGroupId } = await lookupMusicBrainz(
+    band.trim(),
+    album.trim()
+  );
 
-  res.json({ artworkUrl, genre: genres, releaseDate });
+  res.json({ artworkUrl, genre: genres, releaseDate, releaseGroupId });
 });
 
 // Catch-all for client-side routes: serve index.html so React Router handles

@@ -1,96 +1,154 @@
 import { describe, it, expect } from 'vitest';
-import { selectBackfillCandidates } from '../../scripts/ingest';
-import type { MetalReview } from '../types';
+import { selectAlbumBackfillCandidates, type AlbumRow } from '../../scripts/ingest';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 const RECENT = '2026-06-18T00:00:00.000Z'; // 3 days ago — within 14-day window
 const OLD = '2026-06-01T00:00:00.000Z'; // 20 days ago — outside 14-day window
 
-const base: MetalReview = {
+const incompleteAlbum: AlbumRow = {
   id: 'abc',
-  source: 'Angry Metal Guy',
   band: 'Malist',
   album: 'Eternal Echo of the Fall',
+  mb_release_group_id: null,
+  norm_key: 'malist__eternal echo of the fall',
+  artwork_url: 'https://cdn.example.com/art.jpg',
   genre: ['black metal'],
-  score: '8/10',
-  normalizedScore: 80,
-  summary: 'A cold, bleak record.',
-  url: 'https://example.com/review',
-  publishedAt: OLD,
-  publishedDate: '01 Jun 2026',
-  artworkUrl: 'https://cdn.example.com/art.jpg',
-  releaseDate: null, // incomplete — missing releaseDate
+  release_date: null, // incomplete — missing release_date
 };
 
-const complete: MetalReview = {
-  ...base,
+const completeAlbum: AlbumRow = {
+  ...incompleteAlbum,
   id: 'complete',
-  artworkUrl: 'https://cdn.example.com/art.jpg',
-  genre: ['black metal'],
-  releaseDate: '2026-06-12',
+  release_date: '2026-06-12',
 };
 
-describe('selectBackfillCandidates', () => {
-  it('includes an incomplete row under the cap', () => {
-    const result = selectBackfillCandidates([base], new Set(), new Map([['abc', 2]]), NOW);
-    expect(result.map((r) => r.id)).toContain('abc');
+function review(
+  overrides: Partial<{ id: string; mb_lookup_attempts: number; published_at: string }> = {}
+) {
+  return {
+    id: overrides.id ?? 'r1',
+    band: incompleteAlbum.band,
+    album: incompleteAlbum.album,
+    source: 'Angry Metal Guy',
+    score: '8/10',
+    normalized_score: 80,
+    summary: '',
+    url: 'https://example.com',
+    published_at: overrides.published_at ?? OLD,
+    published_date: '01 Jun 2026',
+    album_id: incompleteAlbum.id,
+    mb_lookup_attempts: overrides.mb_lookup_attempts ?? 0,
+  };
+}
+
+describe('selectAlbumBackfillCandidates', () => {
+  it('includes an incomplete album with an attached review under the cap', () => {
+    const reviewsByAlbumId = new Map([[incompleteAlbum.id, [review({ mb_lookup_attempts: 2 })]]]);
+    const result = selectAlbumBackfillCandidates(
+      [incompleteAlbum],
+      new Set(),
+      reviewsByAlbumId,
+      NOW
+    );
+    expect(result.map((a) => a.id)).toContain('abc');
   });
 
-  it('excludes a row past the cap: attempts >= 5 AND age > 14 days', () => {
-    const result = selectBackfillCandidates(
-      [base], // publishedAt = OLD (20 days ago)
+  it('excludes an album whose only attached review is past the cap: attempts >= 5 AND age > 14 days', () => {
+    const reviewsByAlbumId = new Map([
+      [incompleteAlbum.id, [review({ mb_lookup_attempts: 5, published_at: OLD })]],
+    ]);
+    const result = selectAlbumBackfillCandidates(
+      [incompleteAlbum],
       new Set(),
-      new Map([['abc', 5]]),
+      reviewsByAlbumId,
       NOW
     );
     expect(result).toHaveLength(0);
   });
 
-  it('includes a row with attempts >= 5 but age <= 14 days (age is the binding constraint)', () => {
-    const recent = { ...base, id: 'recent', publishedAt: RECENT };
-    const result = selectBackfillCandidates([recent], new Set(), new Map([['recent', 5]]), NOW);
-    expect(result.map((r) => r.id)).toContain('recent');
-  });
-
-  it('includes a row older than 14 days but attempts < 5', () => {
-    const result = selectBackfillCandidates(
-      [base], // OLD, but only 4 attempts
+  it('includes an album where attempts >= 5 but age <= 14 days (age is the binding constraint)', () => {
+    const reviewsByAlbumId = new Map([
+      [incompleteAlbum.id, [review({ mb_lookup_attempts: 5, published_at: RECENT })]],
+    ]);
+    const result = selectAlbumBackfillCandidates(
+      [incompleteAlbum],
       new Set(),
-      new Map([['abc', 4]]),
+      reviewsByAlbumId,
       NOW
     );
-    expect(result.map((r) => r.id)).toContain('abc');
+    expect(result.map((a) => a.id)).toContain('abc');
   });
 
-  it('excludes a row where all three MB fields are present', () => {
-    const result = selectBackfillCandidates([complete], new Set(), new Map([['complete', 0]]), NOW);
+  it('includes an album older than 14 days but attempts < 5', () => {
+    const reviewsByAlbumId = new Map([
+      [incompleteAlbum.id, [review({ mb_lookup_attempts: 4, published_at: OLD })]],
+    ]);
+    const result = selectAlbumBackfillCandidates(
+      [incompleteAlbum],
+      new Set(),
+      reviewsByAlbumId,
+      NOW
+    );
+    expect(result.map((a) => a.id)).toContain('abc');
+  });
+
+  it('is still eligible when one attached review is past the cap but another is not (OR across reviews)', () => {
+    const exhausted = review({ id: 'r-exhausted', mb_lookup_attempts: 5, published_at: OLD });
+    const fresh = review({ id: 'r-fresh', mb_lookup_attempts: 0, published_at: RECENT });
+    const reviewsByAlbumId = new Map([[incompleteAlbum.id, [exhausted, fresh]]]);
+    const result = selectAlbumBackfillCandidates(
+      [incompleteAlbum],
+      new Set(),
+      reviewsByAlbumId,
+      NOW
+    );
+    expect(result.map((a) => a.id)).toContain('abc');
+  });
+
+  it('excludes an album where all three enrichment fields are present', () => {
+    const reviewsByAlbumId = new Map([
+      [completeAlbum.id, [review({ id: 'r-complete', mb_lookup_attempts: 0 })]],
+    ]);
+    const result = selectAlbumBackfillCandidates([completeAlbum], new Set(), reviewsByAlbumId, NOW);
     expect(result).toHaveLength(0);
   });
 
-  it('excludes a row already present in finalIds (covered by RSS loop this run)', () => {
-    const result = selectBackfillCandidates([base], new Set(['abc']), new Map([['abc', 0]]), NOW);
+  it('excludes an album already touched this run (covered by the main resolution loop)', () => {
+    const reviewsByAlbumId = new Map([[incompleteAlbum.id, [review({ mb_lookup_attempts: 0 })]]]);
+    const result = selectAlbumBackfillCandidates(
+      [incompleteAlbum],
+      new Set([incompleteAlbum.id]),
+      reviewsByAlbumId,
+      NOW
+    );
     expect(result).toHaveLength(0);
   });
 
-  it('treats a missing attempts entry as 0 (new row never retried)', () => {
-    const result = selectBackfillCandidates(
-      [base],
-      new Set(),
-      new Map(), // no entry for 'abc'
-      NOW
-    );
-    expect(result.map((r) => r.id)).toContain('abc');
+  it('includes an incomplete album with no attached reviews at all (no attempt history)', () => {
+    const result = selectAlbumBackfillCandidates([incompleteAlbum], new Set(), new Map(), NOW);
+    expect(result.map((a) => a.id)).toContain('abc');
   });
 
-  it('includes a row missing artworkUrl even when genre and releaseDate are present', () => {
-    const noArtwork = { ...base, id: 'no-art', artworkUrl: null, releaseDate: '2026-06-12' };
-    const result = selectBackfillCandidates([noArtwork], new Set(), new Map([['no-art', 0]]), NOW);
-    expect(result.map((r) => r.id)).toContain('no-art');
+  it('includes an album missing only artwork_url even when genre and release_date are present', () => {
+    const noArtwork = {
+      ...incompleteAlbum,
+      id: 'no-art',
+      artwork_url: null,
+      release_date: '2026-06-12',
+    };
+    const reviewsByAlbumId = new Map([
+      ['no-art', [review({ id: 'r-no-art', mb_lookup_attempts: 0 })]],
+    ]);
+    const result = selectAlbumBackfillCandidates([noArtwork], new Set(), reviewsByAlbumId, NOW);
+    expect(result.map((a) => a.id)).toContain('no-art');
   });
 
-  it('includes a row missing genre even when artworkUrl and releaseDate are present', () => {
-    const noGenre = { ...base, id: 'no-genre', genre: [], releaseDate: '2026-06-12' };
-    const result = selectBackfillCandidates([noGenre], new Set(), new Map([['no-genre', 0]]), NOW);
-    expect(result.map((r) => r.id)).toContain('no-genre');
+  it('includes an album missing only genre even when artwork_url and release_date are present', () => {
+    const noGenre = { ...incompleteAlbum, id: 'no-genre', genre: [], release_date: '2026-06-12' };
+    const reviewsByAlbumId = new Map([
+      ['no-genre', [review({ id: 'r-no-genre', mb_lookup_attempts: 0 })]],
+    ]);
+    const result = selectAlbumBackfillCandidates([noGenre], new Set(), reviewsByAlbumId, NOW);
+    expect(result.map((a) => a.id)).toContain('no-genre');
   });
 });

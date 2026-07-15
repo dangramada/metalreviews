@@ -11,56 +11,22 @@ vi.mock('../supabaseClient', () => ({
 
 import { supabase } from '../supabaseClient';
 
-// Helper: builds a supabase.from mock for the three-table query pattern:
-//   .from('favorites').select('review_id').then(cb)
-//   .from('manual_albums').select('*').then(cb)
-//   .from('reviews').select('*').in('id', ids).then(cb)
+// Helper: builds a supabase.from mock for the single-query pattern:
+//   .from('favorites').select('album_id, albums(...)').then(cb)
 function makeFromImpl(
   options: {
-    favoritesData?: { review_id: string }[];
-    favoritesError?: { message: string } | null;
-    reviewsData?: Record<string, unknown>[];
-    reviewsError?: { message: string } | null;
-    manualData?: Record<string, unknown>[];
-    manualError?: { message: string } | null;
+    data?: Record<string, unknown>[];
+    error?: { message: string } | null;
   } = {}
 ) {
-  const {
-    favoritesData = [],
-    favoritesError = null,
-    reviewsData = [],
-    reviewsError = null,
-    manualData = [],
-    manualError = null,
-  } = options;
+  const { data = [], error = null } = options;
 
   return (table: string) => {
     if (table === 'favorites') {
       return {
         select: vi.fn().mockReturnValue({
-          then: (cb: (v: unknown) => unknown) =>
-            Promise.resolve({ data: favoritesData, error: favoritesError }).then(cb),
+          then: (cb: (v: unknown) => unknown) => Promise.resolve({ data, error }).then(cb),
           catch: (cb: (e: unknown) => unknown) => Promise.resolve().catch(cb),
-        }),
-      };
-    }
-    if (table === 'manual_albums') {
-      return {
-        select: vi.fn().mockReturnValue({
-          then: (cb: (v: unknown) => unknown) =>
-            Promise.resolve({ data: manualData, error: manualError }).then(cb),
-          catch: (cb: (e: unknown) => unknown) => Promise.resolve().catch(cb),
-        }),
-      };
-    }
-    if (table === 'reviews') {
-      return {
-        select: vi.fn().mockReturnValue({
-          in: vi.fn().mockReturnValue({
-            then: (cb: (v: unknown) => unknown) =>
-              Promise.resolve({ data: reviewsData, error: reviewsError }).then(cb),
-            catch: (cb: (e: unknown) => unknown) => Promise.resolve().catch(cb),
-          }),
         }),
       };
     }
@@ -68,31 +34,41 @@ function makeFromImpl(
   };
 }
 
-const mockReviewRow = {
-  id: 'rev1',
-  band: 'Opeth',
-  album: 'Blackwater Park',
-  artwork_url: 'https://example.com/art.jpg',
-  release_date: '2001-03-16',
-  genre: ['progressive metal', 'death metal'],
-  score: '9/10',
-  normalized_score: 90,
-  source: 'Angry Metal Guy',
-  summary: 'A classic.',
-  url: 'https://example.com',
-  published_at: '2006-01-01T00:00:00Z',
-  published_date: '1 Jan 2006',
-};
+function makeFavoriteRow(overrides: {
+  albumId?: string;
+  band?: string;
+  album?: string;
+  artworkUrl?: string | null;
+  releaseDate?: string | null;
+  genre?: string[] | null;
+  createdAt?: string | null;
+  reviews?: { published_at: string | null }[];
+}) {
+  const {
+    albumId = 'album1',
+    band = 'Opeth',
+    album = 'Blackwater Park',
+    artworkUrl = 'https://example.com/art.jpg',
+    releaseDate = '2001-03-16',
+    genre = ['progressive metal', 'death metal'],
+    createdAt = '2001-01-01T00:00:00Z',
+    reviews = [{ published_at: '2006-01-01T00:00:00Z' }],
+  } = overrides;
 
-const mockManualRow = {
-  id: 'man1',
-  user_id: 'user-abc',
-  band: 'Tool',
-  album: 'Lateralus',
-  artwork_url: null,
-  release_date: '2001-05-15',
-  genre: ['progressive metal'],
-};
+  return {
+    album_id: albumId,
+    albums: {
+      id: albumId,
+      band,
+      album,
+      artwork_url: artworkUrl,
+      release_date: releaseDate,
+      genre,
+      created_at: createdAt,
+      reviews,
+    },
+  };
+}
 
 describe('useFavoritesList', () => {
   beforeEach(() => {
@@ -105,28 +81,23 @@ describe('useFavoritesList', () => {
     expect(result.current.loading).toBe(true);
   });
 
-  it('returns an empty list when user has no favorites and no manual albums', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ favoritesData: [] }));
+  it('returns an empty list when the user has no favorites', async () => {
+    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ data: [] }));
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toEqual([]);
     expect(result.current.error).toBeNull();
   });
 
-  it('maps a favorited review to FavoriteListItem shape with type: "review"', async () => {
+  it('maps a favorited, reviewed album to FavoriteListItem shape', async () => {
     vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({
-        favoritesData: [{ review_id: 'rev1' }],
-        reviewsData: [mockReviewRow],
-      })
+      makeFromImpl({ data: [makeFavoriteRow({})] })
     );
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(1);
-    const item = result.current.items[0];
-    expect(item).toMatchObject({
-      id: 'rev1',
-      type: 'review',
+    expect(result.current.items[0]).toMatchObject({
+      albumId: 'album1',
       band: 'Opeth',
       album: 'Blackwater Park',
       artworkUrl: 'https://example.com/art.jpg',
@@ -136,16 +107,27 @@ describe('useFavoritesList', () => {
     });
   });
 
-  it('maps a manual album to FavoriteListItem shape with type: "manual"', async () => {
+  it('maps a favorited, zero-review (manually-added) album with publishedAt null', async () => {
     vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesData: [], manualData: [mockManualRow] })
+      makeFromImpl({
+        data: [
+          makeFavoriteRow({
+            albumId: 'album2',
+            band: 'Tool',
+            album: 'Lateralus',
+            artworkUrl: null,
+            releaseDate: '2001-05-15',
+            genre: ['progressive metal'],
+            reviews: [],
+          }),
+        ],
+      })
     );
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(1);
     expect(result.current.items[0]).toMatchObject({
-      id: 'man1',
-      type: 'manual',
+      albumId: 'album2',
       band: 'Tool',
       album: 'Lateralus',
       artworkUrl: null,
@@ -155,25 +137,61 @@ describe('useFavoritesList', () => {
     });
   });
 
-  it('merges review and manual items, sorted by releaseDate descending', async () => {
+  it('uses the most recent review publishedAt as the fallback for multi-review albums', async () => {
     vi.mocked(supabase.from).mockImplementation(
       makeFromImpl({
-        favoritesData: [{ review_id: 'rev1' }],
-        reviewsData: [mockReviewRow], // 2001-03-16
-        manualData: [{ ...mockManualRow, release_date: '2024-01-01' }],
+        data: [
+          makeFavoriteRow({
+            albumId: 'album3',
+            releaseDate: null,
+            reviews: [
+              { published_at: '2020-01-01T00:00:00Z' },
+              { published_at: '2022-06-15T00:00:00Z' },
+              { published_at: '2021-03-01T00:00:00Z' },
+            ],
+          }),
+        ],
       })
     );
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.items).toHaveLength(2);
-    // 2024 should come before 2001
-    expect(result.current.items[0].releaseDate).toBe('2024-01-01');
-    expect(result.current.items[1].releaseDate).toBe('2001-03-16');
+    expect(result.current.items[0].publishedAt).toBe('2022-06-15T00:00:00Z');
   });
 
-  it('sets error state when favorites query fails', async () => {
+  it('sorts items by releaseDate descending, sorted by year', async () => {
     vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesError: { message: 'DB error' } })
+      makeFromImpl({
+        data: [
+          makeFavoriteRow({ albumId: 'a', releaseDate: '2020-01-01' }),
+          makeFavoriteRow({ albumId: 'b', releaseDate: '2024-06-15' }),
+        ],
+      })
+    );
+    const { result } = renderHook(() => useFavoritesList());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const ids = result.current.items.map((i) => i.albumId);
+    expect(ids).toEqual(['b', 'a']);
+  });
+
+  it('sorts items by releaseDate descending, nulls last', async () => {
+    vi.mocked(supabase.from).mockImplementation(
+      makeFromImpl({
+        data: [
+          makeFavoriteRow({ albumId: 'a', releaseDate: '2020-01-01' }),
+          makeFavoriteRow({ albumId: 'b', releaseDate: null }),
+          makeFavoriteRow({ albumId: 'c', releaseDate: '2024-06-15' }),
+        ],
+      })
+    );
+    const { result } = renderHook(() => useFavoritesList());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const ids = result.current.items.map((i) => i.albumId);
+    expect(ids).toEqual(['c', 'a', 'b']);
+  });
+
+  it('sets error state when the favorites query fails', async () => {
+    vi.mocked(supabase.from).mockImplementation(
+      makeFromImpl({ error: { message: 'DB error' } })
     );
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -181,56 +199,35 @@ describe('useFavoritesList', () => {
     expect(result.current.items).toEqual([]);
   });
 
-  it('sets error state when reviews query fails', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({
-        favoritesData: [{ review_id: 'rev1' }],
-        reviewsError: { message: 'reviews error' },
-      })
-    );
+  // Regression guard for the missing-favorite bug investigated in
+  // docs/decisions/album-identity-visibility-and-duplicate-fix.md's July 2026 follow-up:
+  // useFavoritesList's query must stay a plain (non-inner) reviews embed. The home page's
+  // ALBUMS_WITH_REVIEWS_SELECT (src/App.tsx) deliberately uses reviews!inner(...) to exclude
+  // zero-review albums — that must never leak into this query, which is supposed to show
+  // every favorited album regardless of review count.
+  it('queries favorites with a plain (non-inner) reviews embed, not excluding zero-review albums', async () => {
+    const selectSpy = vi.fn().mockReturnValue({
+      then: (cb: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(cb),
+      catch: (cb: (e: unknown) => unknown) => Promise.resolve().catch(cb),
+    });
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'favorites') return { select: selectSpy };
+      return { select: vi.fn() };
+    });
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe('Failed to load review data');
-  });
 
-  it('sets error state when manual_albums query fails', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({
-        favoritesData: [],
-        manualError: { message: 'manual error' },
-      })
-    );
-    const { result } = renderHook(() => useFavoritesList());
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.error).toBe('Failed to load favorites');
-  });
-
-  it('sorts items by releaseDate descending, nulls last', async () => {
-    const rows = [
-      { ...mockReviewRow, id: 'a', release_date: '2020-01-01' },
-      { ...mockReviewRow, id: 'b', release_date: null },
-      { ...mockReviewRow, id: 'c', release_date: '2024-06-15' },
-    ];
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({
-        favoritesData: [{ review_id: 'a' }, { review_id: 'b' }, { review_id: 'c' }],
-        reviewsData: rows,
-      })
-    );
-    const { result } = renderHook(() => useFavoritesList());
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    const ids = result.current.items.map((i) => i.id);
-    expect(ids).toEqual(['c', 'a', 'b']);
+    expect(selectSpy).toHaveBeenCalledWith(expect.stringContaining('reviews('));
+    expect(selectSpy).toHaveBeenCalledWith(expect.not.stringContaining('reviews!inner('));
   });
 
   it('exposes refetch that triggers a re-load', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ favoritesData: [] }));
+    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ data: [] }));
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    // Update mock to return a manual album on next load
     vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesData: [], manualData: [mockManualRow] })
+      makeFromImpl({ data: [makeFavoriteRow({ band: 'Tool', album: 'Lateralus' })] })
     );
     act(() => {
       result.current.refetch();

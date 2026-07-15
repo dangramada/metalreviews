@@ -1,5 +1,10 @@
 # Session decisions — Favorites view (June 2026)
 
+> **PARTIALLY SUPERSEDED by `album-identity-frontend-favorites.md`.** The data-loading layer
+> described below (`favorites.review_id`, `manual_albums`) was replaced by the album-identity
+> migration. The UX/interaction design here (dense rows, year dropdown, artwork thumbnails,
+> `RequireAuth`, `AddAlbumDrawer` flow) is unchanged and still accurate.
+
 ## What was built
 
 A protected `/favorites` route that shows the user's favorited and manually-added albums as a dense list, year-bounded by a dropdown. Each row shows: 48px artwork thumbnail (♪ placeholder when none), band–album name, release date, and genre tags. No score, no source, no summary, no published date.
