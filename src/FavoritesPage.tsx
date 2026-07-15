@@ -45,6 +45,7 @@ import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { genreBadge, primaryButton, secondaryButton } from './theme';
+import { computeNormKey } from '../scripts/normalizeKey';
 
 // ─── Shared list-item row ─────────────────────────────────────────────────────
 // Used in both the favorites list and the AddAlbumDrawer preview.
@@ -176,6 +177,71 @@ interface LookupResult {
   artworkUrl: string | null;
   genre: string[];
   releaseDate: string | null;
+  releaseGroupId: string | null;
+}
+
+// An existing `albums` row found to already represent the looked-up band+album — either by
+// MusicBrainz release-group id (checked first, matching resolveAlbumIdentity's dual-key order
+// in scripts/ingest.ts) or by norm_key fallback. When set, Confirm favorites this album instead
+// of creating a duplicate — see docs/decisions/album-identity-decisions.md §5 Layer 1.
+interface AlbumMatch {
+  albumId: string;
+  band: string;
+  album: string;
+  artworkUrl: string | null;
+  genre: string[];
+  releaseDate: string | null;
+}
+
+type AlbumMatchRow = {
+  id: string;
+  band: string;
+  album: string;
+  artwork_url: string | null;
+  genre: string[] | null;
+  release_date: string | null;
+};
+
+function toAlbumMatch(row: AlbumMatchRow): AlbumMatch {
+  return {
+    albumId: row.id,
+    band: row.band,
+    album: row.album,
+    artworkUrl: row.artwork_url,
+    genre: row.genre ?? [],
+    releaseDate: row.release_date,
+  };
+}
+
+// Checks for an existing album before a manual add is allowed to create a new row.
+// Mirrors resolveAlbumIdentity's matching order (scripts/ingest.ts): mb_release_group_id
+// first (the strong key — collapses editions/formats norm_key structurally can't), then
+// norm_key as the fallback only when no release-group id matched.
+// Exported for direct unit testing (see src/__tests__/findExistingAlbum.test.ts) — not part
+// of the page's public API otherwise.
+export async function findExistingAlbum(
+  releaseGroupId: string | null,
+  band: string,
+  album: string
+): Promise<AlbumMatch | null> {
+  const ALBUM_MATCH_SELECT = 'id, band, album, artwork_url, genre, release_date';
+
+  if (releaseGroupId) {
+    const { data } = await supabase
+      .from('albums')
+      .select(ALBUM_MATCH_SELECT)
+      .eq('mb_release_group_id', releaseGroupId)
+      .maybeSingle();
+    if (data) return toAlbumMatch(data as AlbumMatchRow);
+  }
+
+  const normKey = computeNormKey(band, album);
+  const { data } = await supabase
+    .from('albums')
+    .select(ALBUM_MATCH_SELECT)
+    .eq('norm_key', normKey)
+    .maybeSingle();
+  return data ? toAlbumMatch(data as AlbumMatchRow) : null;
 }
 
 interface AddAlbumDrawerProps {
@@ -184,9 +250,20 @@ interface AddAlbumDrawerProps {
   selectedYear: number | 'all';
   // Called with the inserted album's release year so the parent can switch the filter
   onInsertSuccess: (year: number | null) => void;
+  // Album ids the current user has already favorited (from useFavoritesList's live-loaded
+  // items, which RLS already scopes to this user). Used to tell "album exists but isn't
+  // favorited yet" apart from "album exists and is already favorited" when
+  // findExistingAlbum() finds a match — see docs/decisions/album-identity-visibility-and-duplicate-fix.md.
+  favoritedAlbumIds: Set<string>;
 }
 
-function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddAlbumDrawerProps) {
+function AddAlbumDrawer({
+  isOpen,
+  onClose,
+  selectedYear,
+  onInsertSuccess,
+  favoritedAlbumIds,
+}: AddAlbumDrawerProps) {
   const { user } = useAuth();
   const { showSuccess, showError } = useFeedbackToast();
 
@@ -196,6 +273,9 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
   const [lookedUpBand, setLookedUpBand] = useState('');
   const [lookedUpAlbum, setLookedUpAlbum] = useState('');
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
+  // Set when the lookup matches an already-existing albums row (see findExistingAlbum).
+  // Confirm favorites this album instead of inserting a new one.
+  const [existingMatch, setExistingMatch] = useState<AlbumMatch | null>(null);
   // Shown only when MB returns no release date; lets the user supply one manually
   const [manualReleaseDate, setManualReleaseDate] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -221,6 +301,7 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
     setLookedUpBand('');
     setLookedUpAlbum('');
     setLookupResult(null);
+    setExistingMatch(null);
     setManualReleaseDate(''); setPickerOpen(false);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [isOpen, user]);
@@ -254,6 +335,7 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
     e.preventDefault();
     setLookupLoading(true);
     setLookupResult(null);
+    setExistingMatch(null);
     setManualReleaseDate(''); setPickerOpen(false);
     try {
       const {
@@ -270,9 +352,13 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
       });
       if (!res.ok) throw new Error(`Lookup returned ${res.status}`);
       const data = (await res.json()) as LookupResult;
-      setLookedUpBand(toTitleCase(band));
-      setLookedUpAlbum(toTitleCase(album));
+      const titleCasedBand = toTitleCase(band);
+      const titleCasedAlbum = toTitleCase(album);
+      setLookedUpBand(titleCasedBand);
+      setLookedUpAlbum(titleCasedAlbum);
       setLookupResult(data);
+      const match = await findExistingAlbum(data.releaseGroupId, titleCasedBand, titleCasedAlbum);
+      setExistingMatch(match);
     } catch (err) {
       console.warn('Manual album lookup failed', err);
       showError('Could not look up album — try again');
@@ -283,19 +369,57 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
 
   async function handleConfirm() {
     if (!lookupResult || !user) return;
+
+    // Album already exists AND this user has already favorited it — nothing to write.
+    // Treat as a no-op rather than silently inserting a duplicate `favorites` row (there's
+    // no unique constraint on (user_id, album_id) — see supabase/favorites-drop-review-id.sql).
+    if (existingMatch && favoritedAlbumIds.has(existingMatch.albumId)) {
+      showSuccess(`${existingMatch.band} – ${existingMatch.album} is already in your favorites`);
+      clearDraft(user.id);
+      onClose();
+      return;
+    }
+
     setSaving(true);
-    // User-supplied date is used only if MB returned nothing
-    const finalReleaseDate = lookupResult.releaseDate ?? (manualReleaseDate.trim() || null);
-    const { error } = await supabase.from('manual_albums').insert({
-      user_id: user.id,
-      band: lookedUpBand,
-      album: lookedUpAlbum,
-      artwork_url: lookupResult.artworkUrl,
-      genre: lookupResult.genre,
-      release_date: finalReleaseDate,
-    });
+
+    let albumId: string;
+    let finalReleaseDate: string | null;
+
+    if (existingMatch) {
+      // Album exists but this user hasn't favorited it yet — favorite the existing album,
+      // don't create a duplicate `albums` row.
+      albumId = existingMatch.albumId;
+      finalReleaseDate = existingMatch.releaseDate;
+    } else {
+      // User-supplied date is used only if MB returned nothing
+      finalReleaseDate = lookupResult.releaseDate ?? (manualReleaseDate.trim() || null);
+      const { data: inserted, error: albumError } = await supabase
+        .from('albums')
+        .insert({
+          band: lookedUpBand,
+          album: lookedUpAlbum,
+          mb_release_group_id: lookupResult.releaseGroupId,
+          norm_key: computeNormKey(lookedUpBand, lookedUpAlbum),
+          artwork_url: lookupResult.artworkUrl,
+          genre: lookupResult.genre,
+          release_date: finalReleaseDate,
+          created_by: user.id,
+        })
+        .select('id')
+        .single();
+      if (albumError || !inserted) {
+        setSaving(false);
+        showError('Could not save album — try again');
+        return;
+      }
+      albumId = inserted.id;
+    }
+
+    const { error: favError } = await supabase
+      .from('favorites')
+      .insert({ user_id: user.id, album_id: albumId });
     setSaving(false);
-    if (error) {
+    if (favError) {
       showError('Could not save album — try again');
       return;
     }
@@ -306,22 +430,38 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
     onClose();
   }
 
-  // Soft mismatch notice: only when a specific year is selected and MB resolved a different year
-  const lookupYear = lookupResult ? getReleaseYear(lookupResult.releaseDate) : null;
+  // Soft mismatch notice: only when a specific year is selected and the resolved year (existing
+  // match's stored date, or a fresh MB lookup) differs from it.
+  const lookupYear = existingMatch
+    ? getReleaseYear(existingMatch.releaseDate)
+    : lookupResult
+      ? getReleaseYear(lookupResult.releaseDate)
+      : null;
   const yearMismatch = selectedYear !== 'all' && lookupYear !== null && lookupYear !== selectedYear;
 
-  // Preview item shape — mirrors FavoriteListItem so FavoriteListItemRow can render it directly
+  // Preview item shape — mirrors FavoriteListItem so FavoriteListItemRow can render it directly.
+  // When existingMatch is set, show the already-stored album's real data (its canonical
+  // band/album/artwork may differ slightly from this fresh lookup) rather than the fresh lookup.
   const previewItem: FavoriteListItem | null = lookupResult
-    ? {
-        id: '__preview__',
-        type: 'manual',
-        band: lookedUpBand,
-        album: lookedUpAlbum,
-        artworkUrl: lookupResult.artworkUrl,
-        releaseDate: lookupResult.releaseDate ?? (manualReleaseDate.trim() || null),
-        genre: lookupResult.genre,
-        publishedAt: null,
-      }
+    ? existingMatch
+      ? {
+          albumId: existingMatch.albumId,
+          band: existingMatch.band,
+          album: existingMatch.album,
+          artworkUrl: existingMatch.artworkUrl,
+          releaseDate: existingMatch.releaseDate,
+          genre: existingMatch.genre,
+          publishedAt: null,
+        }
+      : {
+          albumId: '__preview__',
+          band: lookedUpBand,
+          album: lookedUpAlbum,
+          artworkUrl: lookupResult.artworkUrl,
+          releaseDate: lookupResult.releaseDate ?? (manualReleaseDate.trim() || null),
+          genre: lookupResult.genre,
+          publishedAt: null,
+        }
     : null;
 
   return (
@@ -388,6 +528,19 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
                   p={4}
                   bg="gray.900"
                 >
+                  {existingMatch && favoritedAlbumIds.has(existingMatch.albumId) && (
+                    <Box
+                      mb={3}
+                      p={3}
+                      bg="blue.900"
+                      borderRadius="md"
+                      fontSize="sm"
+                      color="blue.200"
+                    >
+                      Already in your favorites
+                    </Box>
+                  )}
+
                   {yearMismatch && (
                     <Box
                       mb={3}
@@ -404,7 +557,7 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
 
                   <FavoriteListItemRow item={previewItem} />
 
-                  {lookupResult.releaseDate === null && (
+                  {!existingMatch && lookupResult.releaseDate === null && (
                     <DatePickerRoot
                       size="xl"
                       mt={4}
@@ -524,7 +677,9 @@ function AddAlbumDrawer({ isOpen, onClose, selectedYear, onInsertSuccess }: AddA
               <Button
                 {...primaryButton}
                 loading={saving}
-                disabled={lookupResult?.releaseDate === null && !manualReleaseDate.trim()}
+                disabled={
+                  !existingMatch && lookupResult?.releaseDate === null && !manualReleaseDate.trim()
+                }
                 onClick={handleConfirm}
               >
                 Confirm
@@ -571,12 +726,15 @@ export function FavoritesPage() {
 
   async function handleRemove(item: FavoriteListItem) {
     if (removingId || !user) return;
-    setRemovingId(item.id);
+    setRemovingId(item.albumId);
 
-    const { error: deleteError } =
-      item.type === 'review'
-        ? await supabase.from('favorites').delete().eq('user_id', user.id).eq('review_id', item.id)
-        : await supabase.from('manual_albums').delete().eq('id', item.id);
+    // Only the favorites row is deleted — the underlying albums row (reviewed or
+    // manually-added) is never removed by unfavoriting it.
+    const { error: deleteError } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('album_id', item.albumId);
 
     setRemovingId(null);
 
@@ -587,6 +745,10 @@ export function FavoritesPage() {
     showSuccess(`${item.band} – ${item.album} removed from favorites`);
     refetch();
   }
+
+  // Album ids this user has already favorited — passed to AddAlbumDrawer so it can tell
+  // "album exists but not yet favorited" apart from "album exists and already favorited".
+  const favoritedAlbumIds = useMemo(() => new Set(items.map((item) => item.albumId)), [items]);
 
   // Distinct years derived from items (review items fall back to publishedAt when releaseDate is null)
   const distinctYears = useMemo(() => {
@@ -668,10 +830,10 @@ export function FavoritesPage() {
             <VStack gap={3} align="stretch">
               {filteredItems.map((item) => (
                 <FavoriteListItemRow
-                  key={item.id}
+                  key={item.albumId}
                   item={item}
                   onRemove={() => handleRemove(item)}
-                  removing={removingId === item.id}
+                  removing={removingId === item.albumId}
                 />
               ))}
             </VStack>
@@ -688,6 +850,7 @@ export function FavoritesPage() {
           // Switch the year filter so the newly added item is immediately visible
           if (year !== null) setSelectedYear(year);
         }}
+        favoritedAlbumIds={favoritedAlbumIds}
       />
     </Box>
   );

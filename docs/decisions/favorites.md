@@ -1,5 +1,10 @@
 # Session decisions — Phase 6: Favorites + Toast Convention (June 2026)
 
+> **PARTIALLY SUPERSEDED by `album-identity-visibility-and-duplicate-fix.md`.** The "composite
+> primary key prevents duplicates at the DB level" claim below is stale — no DB-level duplicate
+> guard currently exists on `favorites`. The rest of this doc (toast convention, favorites UX
+> decisions) is still accurate.
+
 ## What was built
 
 - **`useFeedbackToast`** (`src/hooks/useFeedbackToast.tsx`) — wraps Chakra's `useToast` into three named methods: `showSuccess`, `showError`, `showAction`. This is now the only `useToast` call site in the codebase. All CRUD toasts go through it.
@@ -37,6 +42,27 @@ The heart icon and success toast fire together only after the Supabase write con
 - The hydration effect has a stale-closure guard (`let cancelled = false`). Do not remove it.
 
 ---
+
+## Follow-up — `favorites` no longer has a DB-level duplicate guard (2026-07, album-identity migration)
+
+The "favorites table uses composite primary key" decision above (`PRIMARY KEY (user_id,
+review_id)`) is **no longer accurate**. The album-identity migration dropped `review_id`
+entirely in favor of `album_id` (`supabase/favorites-add-album-id.sql` +
+`supabase/favorites-drop-review-id.sql`) — see `album-identity-migration.md`. Critically, **no
+replacement unique constraint was added** on `(user_id, album_id)`; the drop-review-id migration
+explicitly deferred that ("out of scope; add one only if/when duplicate inserts become an
+observed problem"). So the DB-level "insert-on-duplicate is a no-op" guarantee this section
+describes does not currently exist for any code path.
+
+This gap was closed at the **application layer**, not the DB layer: see
+`album-identity-visibility-and-duplicate-fix.md` — `AddAlbumDrawer`'s manual-add flow now checks
+`favoritedAlbumIds` (from the current user's already-loaded favorites) before inserting, and
+treats "already favorited" as a no-op client-side. The heart-toggle path on the home page
+(`src/App.tsx`) doesn't have the same exposure in practice: it always deletes-then-inserts (or
+vice versa) as an explicit user action against a specific known `album_id`, not a "does this
+already exist" search, but it likewise no longer has any DB-level backstop against a
+double-submit race. If that's ever observed as a real problem, the fix belongs at the DB layer
+(a real unique constraint), not by re-adding more client-side checks.
 
 ## Follow-up — "Favorites only" toggle removed (2026-06-26)
 

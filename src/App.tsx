@@ -36,6 +36,7 @@ import {
   Image,
   Skeleton,
   Icon,
+  List,
 } from '@chakra-ui/react';
 
 // Icons for the Refresh button's different states
@@ -44,45 +45,38 @@ import { LuCheck, LuRepeat, LuTriangleAlert } from 'react-icons/lu';
 // Heart icons for favoriting
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
-// Supabase client and data mapping for Phase 3 (frontend reading from Supabase)
+// Supabase client and data mapping. Post-album-identity-migration, the home page reads
+// `albums` joined to `reviews` (see docs/decisions/album-identity-frontend-homepage.md) —
+// fromDbRow/DbRow (the old flat-reviews shape) are no longer used here.
 import { supabase } from './supabaseClient';
-import { fromDbRow } from './dbMapping';
-import type { DbRow } from './dbMapping';
+import { fromAlbumWithReviews } from './dbMapping';
+import type { AlbumWithReviewsRow, AlbumCard } from './dbMapping';
 import { Header } from './Header';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { sourceBadge, scoreBadge, genreBadge, secondaryButton } from './theme';
 
+// PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
+// an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
+// albums with at least one review come back — this is what keeps zero-review manually-added
+// albums (e.g. from AddAlbumDrawer) off the public home page; `created_by` is irrelevant to
+// this filter, it's purely "has reviews" (see
+// docs/decisions/album-identity-visibility-and-duplicate-fix.md). /favorites still shows
+// manual adds regardless of review count via its own separate query (useFavoritesList.ts) —
+// not touched here. Shared by the initial load and the post-refresh reload so both stay in sync.
+const ALBUMS_WITH_REVIEWS_SELECT =
+  'id, band, album, artwork_url, release_date, genre, created_at, ' +
+  'reviews!inner(id, source, score, normalized_score, summary, url, published_at, published_date)';
+
 // =============================================================================
 // TYPE DEFINITION
 // =============================================================================
 
-/**
- * The shape of a single review as the frontend sees it.
- * This mirrors the MetalReview type in src/types.ts — they should stay in sync.
- * (A future refactor could import MetalReview directly instead of duplicating it.)
- *
- * Two date fields exist for different purposes:
- *   publishedAt   — ISO string used for sorting (easy to compare numerically)
- *   publishedDate — Human-readable string used for display (e.g. "14 Jun 2026")
- */
-interface Review {
-  id: string;
-  source: string;
-  band: string;
-  album: string;
-  genre: string[]; // Top-3 genres from MusicBrainz ([] when unknown)
-  score: string; // Raw score as stored, e.g. "8.5/10"
-  summary: string;
-  url: string;
-  publishedAt: string; // ISO date string, used for date sorting
-  publishedDate: string; // Formatted display date, e.g. "14 Jun 2026"
-  normalizedScore: number; // 0–100, used for score sorting
-  artworkUrl: string | null;
-  releaseDate: string | null;
-  isDoublePositive?: boolean; // Legacy field — Double Positive feature was removed,
-  // but the field is kept so old reviews.json files don't break
-}
+// The shape of a single card as the frontend sees it — one row per album, sourced from
+// dbMapping's AlbumCard (see docs/decisions/album-identity-frontend-homepage.md). Re-exported
+// locally as `Review` to minimize the diff across this file's many `rev: Review` usages; it no
+// longer mirrors MetalReview (which still describes a single scraper-side review row).
+type Review = AlbumCard;
 
 // =============================================================================
 // HELPERS
@@ -115,6 +109,12 @@ export function getReleaseYear(dateStr: string | null): number | null {
   if (!dateStr) return null;
   const year = parseInt(dateStr.substring(0, 4), 10);
   return isNaN(year) ? null : year;
+}
+
+// Formats the album's averageScore (0–100 scale) for the score badge as an "x.x" figure
+// on the site's usual /10 scale — e.g. 87 -> "8.7".
+export function formatAverageScore(score: number): string {
+  return (score / 10).toFixed(1);
 }
 
 export function formatReleaseDate(d: string | null): string {
@@ -228,8 +228,10 @@ export function ArtworkBlock({
       )}
 
       {/* Heart toggle — top-right corner (the one open corner: source is bottom-left,
-          score is bottom-right). e.stopPropagation() prevents the wrapping <Link>
-          from navigating to the review URL when the heart is clicked. */}
+          score is bottom-right). Exactly-one-review cards are wrapped in an outer <Link>
+          (see the card-level link below) — e.stopPropagation()/preventDefault() stop that
+          Link from navigating when the heart is clicked. Zero- and multi-review cards have
+          no such wrapper, so these calls are no-ops there, which is harmless. */}
       <Box
         as="button"
         type="button"
@@ -283,32 +285,72 @@ export function ArtworkBlock({
         )}
       </Box>
 
-      {/* Source badge — bottom-left corner */}
-      <Badge
-        {...sourceBadge}
-        position="absolute"
-        bottom={2}
-        left={2}
-        maxW="calc(100% - 70px)"
-        overflow="hidden"
-        textOverflow="ellipsis"
-        whiteSpace="nowrap"
-      >
-        {rev.source}
-      </Badge>
+      {/* Badges branch on review count (see docs/decisions/album-identity-frontend-homepage.md's
+          bugfix note): zero reviews shows nothing; exactly one review shows the original
+          single source+score badge pairing; two or more shows the wrapping multi-source
+          badges + computed average. */}
+      {rev.reviews.length === 1 && (
+        <>
+          {/* Source badge — bottom-left corner, single review's source. */}
+          <Badge
+            {...sourceBadge}
+            position="absolute"
+            bottom={2}
+            left={2}
+            maxW="calc(100% - 70px)"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            whiteSpace="nowrap"
+          >
+            {rev.reviews[0].source}
+          </Badge>
+          {/* Score badge — bottom-right corner; only when a score exists */}
+          {rev.reviews[0].score && rev.reviews[0].score !== '' && (
+            <Badge
+              {...scoreBadge}
+              position="absolute"
+              bottom={2}
+              right={2}
+              size="md"
+              fontWeight={600}
+            >
+              {rev.reviews[0].score}
+            </Badge>
+          )}
+        </>
+      )}
 
-      {/* Score badge — bottom-right corner; only when a score exists */}
-      {rev.score && rev.score !== '' && (
-        <Badge
-          {...scoreBadge}
-          position="absolute"
-          bottom={2}
-          right={2}
-          size="md"
-          fontWeight={600}
-        >
-          {rev.score}
-        </Badge>
+      {rev.reviews.length > 1 && (
+        <>
+          {/* Source badges — bottom-left corner, one per attached review. Wrap/WrapItem
+              (same pattern the genre-tag row below the artwork already uses) lets multiple
+              badges stack onto additional lines on narrow cards instead of overflowing or
+              clipping. */}
+          <Wrap position="absolute" bottom={2} left={2} maxW="calc(100% - 70px)" gap={1}>
+            {rev.reviews.map((r) => (
+              <WrapItem key={r.source}>
+                <Badge {...sourceBadge} whiteSpace="nowrap">
+                  {r.source}
+                </Badge>
+              </WrapItem>
+            ))}
+          </Wrap>
+
+          {/* Score badge — bottom-right corner; shows the average across all attached
+              reviews' scores. Only when at least one review has a score to average. */}
+          {rev.averageScore !== null && (
+            <Badge
+              {...scoreBadge}
+              position="absolute"
+              bottom={2}
+              right={2}
+              size="md"
+              fontWeight={600}
+            >
+              {formatAverageScore(rev.averageScore)}
+            </Badge>
+          )}
+        </>
       )}
     </Box>
   );
@@ -332,7 +374,7 @@ function App() {
   // Which source to show — 'All' passes everything through.
   const [filterSource, setFilterSource] = useState('All');
 
-  // Minimum score filter — '' means no filter; '8' means normalizedScore >= 80.
+  // Minimum score filter — '' means no filter; '8' means averageScore >= 80.
   const [minScore, setMinScore] = useState('');
 
   // True while the initial reviews.json load is in flight.
@@ -403,11 +445,11 @@ function App() {
           if (status === 'idle') {
             clearInterval(pollId);
             const { data, error } = await supabase
-              .from('reviews')
-              .select('*')
-              .order('published_at', { ascending: false });
+              .from('albums')
+              .select(ALBUMS_WITH_REVIEWS_SELECT)
+              .order('created_at', { ascending: false });
             if (!error && data) {
-              setReviews((data as DbRow[]).map(fromDbRow));
+              setReviews((data as unknown as AlbumWithReviewsRow[]).map(fromAlbumWithReviews));
               setRefreshState('success');
             } else {
               // Ingest succeeded but the reload failed — show error so the user knows to refresh.
@@ -435,24 +477,26 @@ function App() {
   // =============================================================================
 
   // useEffect with [] runs exactly once, after the component first appears on screen.
-  // Phase 3: Query Supabase reviews table instead of reading reviews.json.
+  // Post-album-identity-migration: query `albums` joined to its `reviews` (embedded array via
+  // Supabase/PostgREST FK detection) instead of the old flat `reviews` table — an album shows
+  // up here even with zero attached reviews (e.g. manually added, not yet scraped).
   // The Supabase client uses VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
   // from .env (frontend-safe, uses RLS if configured on the table).
   useEffect(() => {
     supabase
-      .from('reviews')
-      .select('*')
-      .order('published_at', { ascending: false })
+      .from('albums')
+      .select(ALBUMS_WITH_REVIEWS_SELECT)
+      .order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (error) {
-          console.warn('Failed to load reviews from Supabase', error);
+          console.warn('Failed to load albums from Supabase', error);
         } else {
-          setReviews((data as DbRow[]).map(fromDbRow));
+          setReviews((data as unknown as AlbumWithReviewsRow[]).map(fromAlbumWithReviews));
         }
         setLoading(false);
       })
       .catch((e) => {
-        console.warn('Failed to load reviews', e);
+        console.warn('Failed to load albums', e);
         setLoading(false);
       });
   }, []); // [] = run once on mount, never re-run
@@ -461,8 +505,10 @@ function App() {
   // FAVORITES HYDRATION
   // =============================================================================
 
-  // Fetch the current user's favorited review IDs on login; clear on logout.
-  // RLS restricts the query to the signed-in user's own rows automatically.
+  // Fetch the current user's favorited album IDs on login; clear on logout.
+  // `favorites` is keyed by album_id post-migration (review_id column dropped — see
+  // docs/decisions/album-identity-migration.md). RLS restricts the query to the
+  // signed-in user's own rows automatically.
   useEffect(() => {
     if (!user) {
       // Intentionally resetting derived state on logout. The setState calls are
@@ -476,7 +522,7 @@ function App() {
     let cancelled = false;
     supabase
       .from('favorites')
-      .select('review_id')
+      .select('album_id')
       .then(({ data, error }) => {
         if (cancelled) return;
         if (error) {
@@ -484,7 +530,7 @@ function App() {
           return;
         }
         if (data) {
-          setFavoritedIds(new Set(data.map((row) => row.review_id)));
+          setFavoritedIds(new Set(data.map((row) => row.album_id)));
         }
       });
     return () => {
@@ -499,7 +545,7 @@ function App() {
   // Persist to Supabase first; update local Set only on confirmed success.
   // On error the Set is NOT rolled back — the error toast tells the user to retry,
   // and the next hydration (on re-login) will restore the correct state.
-  async function toggleFavorite(reviewId: string) {
+  async function toggleFavorite(albumId: string) {
     if (!user) {
       showAction('Log in to save favorites', {
         label: 'Log in',
@@ -507,32 +553,32 @@ function App() {
       });
       return;
     }
-    const isFavorited = favoritedIds.has(reviewId);
+    const isFavorited = favoritedIds.has(albumId);
     if (isFavorited) {
       const { error } = await supabase
         .from('favorites')
         .delete()
         .eq('user_id', user.id)
-        .eq('review_id', reviewId);
+        .eq('album_id', albumId);
       if (error) {
         showError('Could not remove favorite — try again');
         return;
       }
       setFavoritedIds((prev) => {
         const next = new Set(prev);
-        next.delete(reviewId);
+        next.delete(albumId);
         return next;
       });
       showSuccess('Removed from favorites');
     } else {
       const { error } = await supabase
         .from('favorites')
-        .insert({ user_id: user.id, review_id: reviewId });
+        .insert({ user_id: user.id, album_id: albumId });
       if (error) {
         showError('Could not save favorite — try again');
         return;
       }
-      setFavoritedIds((prev) => new Set(prev).add(reviewId));
+      setFavoritedIds((prev) => new Set(prev).add(albumId));
       showSuccess('Added to favorites');
     }
   }
@@ -541,16 +587,19 @@ function App() {
   // FILTERING, SEARCHING, AND SORTING
   // =============================================================================
 
-  // Derive source names from live data so the dropdown always matches reviews.json —
-  // no hardcoding needed when a new scraper source is added.
-  const sources = Array.from(new Set(reviews.map((r) => r.source)));
+  // Derive source names from live data so the dropdown always matches what's loaded —
+  // no hardcoding needed when a new scraper source is added. An album can now have up to
+  // three attached reviews, so this flattens across all of them (previously one per album).
+  const sources = Array.from(new Set(reviews.flatMap((r) => r.reviews.map((rv) => rv.source))));
 
   // `filtered` recomputes on every render automatically — React re-renders whenever
   // state changes, so this updates the moment the user types or changes a dropdown.
   // Pipeline order: source → score → search → sort
   const filtered = reviews
-    .filter((r) => (filterSource === 'All' ? true : r.source === filterSource))
-    .filter((r) => (minScore === '' ? true : r.normalizedScore >= parseFloat(minScore) * 10))
+    .filter((r) =>
+      filterSource === 'All' ? true : r.reviews.some((rv) => rv.source === filterSource)
+    )
+    .filter((r) => (minScore === '' ? true : (r.averageScore ?? 0) >= parseFloat(minScore) * 10))
     .filter((r) => {
       const term = search.toLowerCase();
       return (
@@ -565,7 +614,7 @@ function App() {
         // Subtracting b from a puts the largest (newest) value first.
         return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
       }
-      return b.normalizedScore - a.normalizedScore; // 0–100, consistent across all sources
+      return (b.averageScore ?? 0) - (a.averageScore ?? 0); // 0–100, consistent across all sources
     });
 
   // =============================================================================
@@ -716,23 +765,24 @@ function App() {
           ) : (
             // 1 column on mobile, 2 on tablet, 3 on desktop
             <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
-              {filtered.map((rev) => (
-                // Wrap the entire card in a Link so clicking anywhere opens the review.
-                // _hover textDecoration="none" stops Chakra underlining the card on hover.
-                <Link
-                  href={rev.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  key={rev.id}
-                  color="inherit"
-                  _hover={{ textDecoration: 'none' }}
-                  display="block"
-                >
+              {filtered.map((rev) => {
+                // Card rendering branches on review count (see docs/decisions/
+                // album-identity-frontend-homepage.md's bugfix note):
+                //   0 reviews  -> album-info-only, no card-level link (manually added, not
+                //                 yet scraped; ArtworkBlock shows no badges either).
+                //   1 review   -> original single-review layout: summary excerpt, one
+                //                 review-date line, and the whole card links out to that
+                //                 review's url.
+                //   2+ reviews -> multi-source layout: per-source <li> lines instead of a
+                //                 summary, no card-level link (each line links out on its own).
+                const singleReview = rev.reviews.length === 1 ? rev.reviews[0] : null;
+
+                const cardBody = (
                   <Box {...cardStyle} h="100%">
                     <ArtworkBlock
                       rev={rev}
-                      isFavorited={favoritedIds.has(rev.id)}
-                      onToggle={() => toggleFavorite(rev.id)}
+                      isFavorited={favoritedIds.has(rev.albumId)}
+                      onToggle={() => toggleFavorite(rev.albumId)}
                     />
                     <Box p={4}>
                       <Heading size={{ base: "xl", md: "2xl"}}  mb={2}>
@@ -753,17 +803,64 @@ function App() {
                           ))}
                         </Wrap>
                       )}
-                      {/* lineClamp={3} truncates long summaries with an ellipsis (v3 prop) */}
-                      <Text fontSize="m" color="text.dim" lineClamp={3} mb={2}>
-                        {rev.summary || 'No summary available.'}
-                      </Text>
-                      <Text fontSize="xs" color="text.muted" title='Review date'>
-                        {rev.publishedDate}
-                      </Text>
+                      {singleReview && (
+                        <>
+                          {/* lineClamp={3} truncates long summaries with an ellipsis (v3 prop) */}
+                          <Text fontSize="m" color="text.dim" lineClamp={3} mb={2}>
+                            {singleReview.summary || 'No summary available.'}
+                          </Text>
+                          {singleReview.publishedDate && (
+                            <Text fontSize="xs" color="text.muted" title="Review date">
+                              {singleReview.publishedDate}
+                            </Text>
+                          )}
+                        </>
+                      )}
+                      {rev.reviews.length > 1 && (
+                        <List.Root as="ul" listStyleType="none" ml={0} mb={2}>
+                          {rev.reviews.map((r) => (
+                            <List.Item key={r.source} fontSize="sm" color="text.dim">
+                              {r.source}: {r.score}
+                              {r.publishedDate ? ` — ${r.publishedDate}` : ''}{' '}
+                              {r.url && (
+                                <Link
+                                  href={r.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  color="accent.start"
+                                >
+                                  [see review]
+                                </Link>
+                              )}
+                            </List.Item>
+                          ))}
+                        </List.Root>
+                      )}
                     </Box>
                   </Box>
-                </Link>
-              ))}
+                );
+
+                return singleReview?.url ? (
+                  // Exactly one review — the whole card links out to it, same as the
+                  // pre-multi-source-display behavior. _hover textDecoration="none" stops
+                  // Chakra underlining the card on hover.
+                  <Link
+                    href={singleReview.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    key={rev.albumId}
+                    color="inherit"
+                    _hover={{ textDecoration: 'none' }}
+                    display="block"
+                  >
+                    {cardBody}
+                  </Link>
+                ) : (
+                  <Box key={rev.albumId} display="block">
+                    {cardBody}
+                  </Box>
+                );
+              })}
             </SimpleGrid>
           )}
 

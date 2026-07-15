@@ -1,6 +1,6 @@
 # Session decisions — Genre data + card badge redesign (June 2026)
 
-> Note: a follow-up session fixed bugs in the skip-logic described below — see `docs/decisions/genre-artwork-bugfixes.md` for the corrected conditions.
+> **PARTIALLY SUPERSEDED by `genre-artwork-bugfixes.md`.** A follow-up session fixed bugs in the skip-logic described below; see that file for the corrected conditions.
 
 ## What was built
 

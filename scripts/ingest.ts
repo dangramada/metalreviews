@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import RSSParser from 'rss-parser';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
@@ -8,11 +9,15 @@ import { extractRating } from '../src/scraper/angrymetal.js';
 import { extractRating as extractPSRating } from '../src/scraper/progressivesubway';
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
-import { fromDbRow, type DbRow } from '../src/dbMapping';
-import { lookupMusicBrainz } from './musicbrainz';
+import type { DbRow } from '../src/dbMapping';
+import { lookupMusicBrainz, type MusicBrainzData } from './musicbrainz';
+import { computeNormKey } from './normalizeKey';
 
+// toDbRow/DbRow kept only for scripts/seed-from-json.ts, a pre-Supabase-migration relic that
+// was already broken by the album-identity schema migration (it writes artwork_url/genre/
+// release_date onto `reviews`, columns that no longer exist there). Not part of the live
+// pipeline below — do not wire it back into runIngestion().
 export type { DbRow };
-
 export function toDbRow(r: MetalReview): DbRow {
   return {
     id: r.id,
@@ -35,12 +40,58 @@ interface RawReview {
   source: string;
   band: string;
   album: string;
-  genre: string[];
   score: string;
   summary: string;
   url: string;
   publishedAt: Date;
-  artworkUrl: string | null;
+}
+
+// Mirrors the real, current `reviews` table columns (post album-identity migration:
+// artwork_url/genre/release_date dropped, album_id added). Kept local to this file rather
+// than reusing src/dbMapping.ts's DbRow, which is the frontend's boundary type and still
+// describes the pre-migration shape — that's the frontend session's file to update.
+interface ExistingReviewRow {
+  id: string;
+  band: string;
+  album: string;
+  source: string;
+  score: string | null;
+  normalized_score: number | null;
+  summary: string | null;
+  url: string | null;
+  published_at: string | null;
+  published_date: string | null;
+  album_id: string;
+  mb_lookup_attempts: number | null;
+}
+
+interface ReviewWriteRow {
+  id: string;
+  band: string;
+  album: string;
+  source: string;
+  score: string;
+  normalized_score: number;
+  summary: string;
+  url: string;
+  published_at: string;
+  published_date: string;
+  album_id: string;
+  mb_lookup_attempts: number;
+}
+
+// Mirrors the `albums` table (see supabase/albums.sql). created_by/created_at are
+// intentionally omitted — this pipeline never sets them (defaults handle inserts;
+// existing values must survive updates untouched, see the upsert note below).
+export interface AlbumRow {
+  id: string;
+  band: string;
+  album: string;
+  mb_release_group_id: string | null;
+  norm_key: string;
+  artwork_url: string | null;
+  genre: string[];
+  release_date: string | null;
 }
 
 const parser = new RSSParser();
@@ -62,25 +113,28 @@ async function fetchAngryMetalGuyRating(reviewUrl: string): Promise<number | nul
   }
 }
 
-// ratingAlreadyFetched: IDs of reviews already in Supabase with a non-empty score.
-// Skipping known reviews avoids one HTTP request per review page on every refresh.
-async function fetchAngryMetalGuy(
-  ratingAlreadyFetched: Set<string>,
-  existingById: Map<string, MetalReview>
-): Promise<RawReview[]> {
+// scoreByNormKey: norm_key -> score string, for existing reviews from THIS source only
+// (see buildScoreByNormKey in runIngestion). Keying by norm_key instead of the old
+// band+album-only computeId fixes the cross-source collision bug (see
+// docs/decisions/album-identity-diagnosis.md) — two sources reviewing the same album now
+// get distinct skip-set lookups since each fetcher only ever sees its own source's map.
+async function fetchAngryMetalGuy(scoreByNormKey: Map<string, string>): Promise<RawReview[]> {
   const feed = await parser.parseURL('https://www.angrymetalguy.com/feed/');
   const reviews = await Promise.all(
     feed.items.map(async (item) => {
       // AMG RSS titles are formatted "Band – Album Review" or "Band – Album EP Review".
       // Strip the trailing suffix before parsing so the stored album name is clean.
       const rawTitle = (item.title ?? '').replace(/\s+(EP\s+)?Review$/i, '').trim();
-      const [band, album] = extractBandAlbum(rawTitle);
+      const [bandRaw, albumRaw] = extractBandAlbum(rawTitle);
+      const band = bandRaw.trim() || 'Unknown Band';
+      const album = albumRaw.trim() || 'Unknown Album';
       const url = item.link ?? '';
-      const id = computeId(band.trim() || 'Unknown Band', album.trim() || 'Unknown Album');
+      const normKey = computeNormKey(band, album);
       let score: string;
-      if (ratingAlreadyFetched.has(id)) {
+      const knownScore = scoreByNormKey.get(normKey);
+      if (knownScore) {
         // Review already scored — reuse stored value, skip the HTTP fetch.
-        score = existingById.get(id)?.score ?? '';
+        score = knownScore;
       } else {
         const rating = await fetchAngryMetalGuyRating(url);
         score = rating !== null ? `${rating}/10` : '';
@@ -89,12 +143,10 @@ async function fetchAngryMetalGuy(
         source: 'Angry Metal Guy',
         band,
         album,
-        genre: [],
         score,
         summary: item.contentSnippet ?? '',
         url,
         publishedAt: new Date(item.isoDate ?? item.pubDate ?? Date.now()),
-        artworkUrl: null,
       };
     })
   );
@@ -128,23 +180,22 @@ async function fetchProgressiveSubwayRating(item: any): Promise<number | null> {
 }
 
 // Same skip logic as fetchAngryMetalGuy — avoids re-fetching pages for known reviews.
-async function fetchProgressiveSubway(
-  ratingAlreadyFetched: Set<string>,
-  existingById: Map<string, MetalReview>
-): Promise<RawReview[]> {
+async function fetchProgressiveSubway(scoreByNormKey: Map<string, string>): Promise<RawReview[]> {
   const feed = await parser.parseURL('https://theprogressivesubway.com/feed');
   const reviews = await Promise.all(
     feed.items.map(async (item) => {
       // PS RSS titles are formatted "Review: Band – Album". Strip the "Review: " prefix
-      // before parsing so the band name stored in JSON (and used for MB search) is clean.
+      // before parsing so the band name stored (and used for MB search) is clean.
       const rawTitle = (item.title ?? '').replace(/^Review:\s*/i, '');
-      const [band, album] = extractBandAlbum(rawTitle);
+      const [bandRaw, albumRaw] = extractBandAlbum(rawTitle);
+      const band = bandRaw.trim() || 'Unknown Band';
+      const album = albumRaw.trim() || 'Unknown Album';
       const url = item.link ?? '';
-      const id = computeId(band.trim() || 'Unknown Band', album.trim() || 'Unknown Album');
+      const normKey = computeNormKey(band, album);
       let score: string;
-      if (ratingAlreadyFetched.has(id)) {
-        // Review already scored — reuse stored value, skip the HTTP fetch.
-        score = existingById.get(id)?.score ?? '';
+      const knownScore = scoreByNormKey.get(normKey);
+      if (knownScore) {
+        score = knownScore;
       } else {
         const rating = await fetchProgressiveSubwayRating(item);
         score = rating !== null ? `${rating}/10` : '';
@@ -153,12 +204,10 @@ async function fetchProgressiveSubway(
         source: 'The Progressive Subway',
         band,
         album,
-        genre: [],
         score,
         summary: item.contentSnippet ?? '',
         url,
         publishedAt: new Date(item.isoDate ?? item.pubDate ?? Date.now()),
-        artworkUrl: null,
       };
     })
   );
@@ -168,22 +217,21 @@ async function fetchProgressiveSubway(
 // Metal Storm scores require JS rendering, so Puppeteer is used instead of axios+cheerio.
 // Puppeteer launch is expensive (~3-5s) — we skip it entirely when all feed items are
 // already scored, which is the common case on a warm refresh.
-async function fetchMetalStorm(
-  ratingAlreadyFetched: Set<string>,
-  existingById: Map<string, MetalReview>
-): Promise<RawReview[]> {
+async function fetchMetalStorm(scoreByNormKey: Map<string, string>): Promise<RawReview[]> {
   const feed = await parser.parseURL('https://metalstorm.net/rss/reviews.xml');
 
-  // Pre-compute IDs for all feed items so we can check the skip set before launching Puppeteer.
+  // Pre-compute normKeys for all feed items so we can check the skip set before launching Puppeteer.
   const itemsWithMeta = feed.items.map((item) => {
-    const [band, album] = extractBandAlbum(item.title ?? '', '–');
-    const id = computeId(band.trim() || 'Unknown Band', album.trim() || 'Unknown Album');
-    return { item, band, album, id };
+    const [bandRaw, albumRaw] = extractBandAlbum(item.title ?? '', '–');
+    const band = bandRaw.trim() || 'Unknown Band';
+    const album = albumRaw.trim() || 'Unknown Album';
+    const normKey = computeNormKey(band, album);
+    return { item, band, album, normKey };
   });
 
   // Only the subset of items not yet in Supabase need Puppeteer page loads.
-  const needsFetch = itemsWithMeta.filter(({ id }) => !ratingAlreadyFetched.has(id));
-  const scoreMap = new Map<string, string>(); // id -> fetched score string
+  const needsFetch = itemsWithMeta.filter(({ normKey }) => !scoreByNormKey.has(normKey));
+  const scoreMap = new Map<string, string>(); // normKey -> fetched score string
 
   if (needsFetch.length > 0) {
     // Launch a single browser shared across all new review pages to minimise overhead.
@@ -192,9 +240,9 @@ async function fetchMetalStorm(
       browser = await puppeteer.launch({ headless: true });
       try {
         await Promise.all(
-          needsFetch.map(async ({ id, item }) => {
+          needsFetch.map(async ({ normKey, item }) => {
             const rating = await fetchMetalStormRating(browser!, item.link ?? '');
-            scoreMap.set(id, rating !== null ? `${rating}/10` : '');
+            scoreMap.set(normKey, rating !== null ? `${rating}/10` : '');
           })
         );
       } finally {
@@ -210,18 +258,16 @@ async function fetchMetalStorm(
   }
 
   // Merge: known reviews get their stored score, new ones get the Puppeteer-fetched score.
-  return itemsWithMeta.map(({ item, band, album, id }) => ({
+  return itemsWithMeta.map(({ item, band, album, normKey }) => ({
     source: 'Metal Storm',
     band,
     album,
-    genre: [],
-    score: ratingAlreadyFetched.has(id)
-      ? (existingById.get(id)?.score ?? '')
-      : (scoreMap.get(id) ?? ''),
+    score: scoreByNormKey.has(normKey)
+      ? (scoreByNormKey.get(normKey) ?? '')
+      : (scoreMap.get(normKey) ?? ''),
     summary: item.contentSnippet ?? '',
     url: item.link ?? '',
     publishedAt: new Date(item.isoDate ?? item.pubDate ?? Date.now()),
-    artworkUrl: null,
   }));
 }
 
@@ -323,15 +369,9 @@ export function normalizeScore(raw: string): number | null {
   return 0;
 }
 
-function computeId(band: string, album: string): string {
-  const key = `${band.toLowerCase().replace(/\s+/g, '')}_${album.toLowerCase().replace(/\s+/g, '')}`;
-  // Simple hash – we'll just use base64 of the key.
-  return Buffer.from(key).toString('base64');
-}
-
-// Returns a precision rank so the merge guard can avoid downgrading an existing
-// precise date with a less-precise fresh one. MB dates can be "2024", "2024-03",
-// or "2024-03-15" — all valid, but not equally useful.
+// Returns a precision rank so album enrichment never downgrades an existing precise date
+// with a less-precise fresh one. MB dates can be "2024", "2024-03", or "2024-03-15" — all
+// valid, but not equally useful.
 function releaseDatePrecision(d: string | null): number {
   if (!d) return 0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return 3; // full date
@@ -340,191 +380,343 @@ function releaseDatePrecision(d: string | null): number {
   return 0; // unrecognized format — treat as no info
 }
 
-// Returns existing reviews that need a MB backfill retry this run.
-// A row is a candidate when: not already refreshed by the RSS loop (not in finalIds),
-// missing at least one MB field, and not past the retry cap.
-// Cap: skip permanently when attempts >= 5 AND review is older than 14 days —
-// the age bound is the binding constraint in practice (see docs/decisions/release-date.md).
-export function selectBackfillCandidates(
-  existingReviews: MetalReview[],
-  finalIds: Set<string>,
-  mbAttemptsById: Map<string, number>,
+export function isAlbumEnriched(a: AlbumRow): boolean {
+  return (
+    typeof a.artwork_url === 'string' && a.genre.length > 0 && typeof a.release_date === 'string'
+  );
+}
+
+// Album-level replacement for the old whole-table applyMergeGuard: instead of reconciling
+// every existing review row against every fresh one on every run, enrichment merging now
+// happens once, at the point a single album is resolved, against just that album's stored
+// row. Same non-regression philosophy as before (never let a fresh empty/coarser value
+// overwrite a good stored one) — see docs/decisions/release-date.md for why releaseDate
+// needs the precision-aware rule instead of the simpler "fresh if non-null" one.
+export function applyAlbumEnrichment(existing: AlbumRow, fresh: MusicBrainzData): AlbumRow {
+  return {
+    ...existing,
+    artwork_url: fresh.artworkUrl ?? existing.artwork_url,
+    genre: fresh.genres.length > 0 ? fresh.genres : existing.genre,
+    release_date:
+      releaseDatePrecision(fresh.releaseDate) >= releaseDatePrecision(existing.release_date)
+        ? fresh.releaseDate
+        : existing.release_date,
+  };
+}
+
+export interface AlbumResolution {
+  album: AlbumRow;
+  isNewAlbum: boolean;
+  backfilledMbId: boolean;
+}
+
+// Resolves which album a (band, album) pair belongs to, per docs/decisions/album-identity-decisions.md
+// §4's dual-key strategy: mb_release_group_id checked first (when a fresh lookup resolved one),
+// norm_key as the fallback — never the reverse. `mbResult` is null when the caller decided to
+// skip the MusicBrainz call entirely (see needMbCall in runIngestion) — in that case only the
+// norm_key path is available, mirroring "MB lookup failed or returned nothing" from the brief.
+//
+// makeId is injected (rather than calling randomUUID() directly) so this stays a pure,
+// easily-testable function.
+export function resolveAlbumIdentity(
+  band: string,
+  album: string,
+  mbResult: MusicBrainzData | null,
+  albumByNormKey: Map<string, AlbumRow>,
+  albumByMbId: Map<string, AlbumRow>,
+  makeId: () => string
+): AlbumResolution {
+  const normKey = computeNormKey(band, album);
+  const normKeyMatch = albumByNormKey.get(normKey);
+
+  if (mbResult?.releaseGroupId) {
+    const mbMatch = albumByMbId.get(mbResult.releaseGroupId);
+    if (mbMatch) {
+      return {
+        album: applyAlbumEnrichment(mbMatch, mbResult),
+        isNewAlbum: false,
+        backfilledMbId: false,
+      };
+    }
+    // No album has this release-group id yet. Before creating a new album, check whether an
+    // existing norm_key-matched row (created via fallback or manual add) can now be upgraded —
+    // this is the "opportunistic, not retroactive-sweep" backfill from album-identity-decisions.md §4.
+    if (normKeyMatch && !normKeyMatch.mb_release_group_id) {
+      const enriched = applyAlbumEnrichment(normKeyMatch, mbResult);
+      enriched.mb_release_group_id = mbResult.releaseGroupId;
+      return { album: enriched, isNewAlbum: false, backfilledMbId: true };
+    }
+    return {
+      album: {
+        id: makeId(),
+        band,
+        album,
+        norm_key: normKey,
+        mb_release_group_id: mbResult.releaseGroupId,
+        artwork_url: mbResult.artworkUrl,
+        genre: mbResult.genres,
+        release_date: mbResult.releaseDate,
+      },
+      isNewAlbum: true,
+      backfilledMbId: false,
+    };
+  }
+
+  // MB lookup was skipped, or ran and found nothing usable — fall back to norm_key.
+  if (normKeyMatch) {
+    return {
+      album: mbResult ? applyAlbumEnrichment(normKeyMatch, mbResult) : normKeyMatch,
+      isNewAlbum: false,
+      backfilledMbId: false,
+    };
+  }
+  return {
+    album: {
+      id: makeId(),
+      band,
+      album,
+      norm_key: normKey,
+      mb_release_group_id: null,
+      artwork_url: mbResult?.artworkUrl ?? null,
+      genre: mbResult?.genres ?? [],
+      release_date: mbResult?.releaseDate ?? null,
+    },
+    isNewAlbum: true,
+    backfilledMbId: false,
+  };
+}
+
+// Returns existing albums that need an MB backfill retry this run — the album-level
+// replacement for the old selectBackfillCandidates (see docs/decisions/release-date.md's
+// "Bug: MB fields frozen..." section for why this pass exists at all: reviews age off the
+// RSS window before MB has finished indexing them, so nothing else ever revisits them).
+//
+// mb_lookup_attempts still lives on `reviews`, not `albums` (no schema change made this
+// session — re-deriving the retry cap at album granularity from review-level counters was
+// judged preferable to an extra migration). Since up to 3 reviews can share one album, the
+// cap is evaluated as "at least one attached review hasn't exhausted its budget" (OR across
+// attached reviews) rather than requiring all of them to agree — a newer source's review
+// shouldn't be blocked from retrying just because an older source's review on the same
+// album already hit its cap.
+export function selectAlbumBackfillCandidates(
+  existingAlbums: AlbumRow[],
+  touchedAlbumIds: Set<string>,
+  reviewsByAlbumId: Map<string, ExistingReviewRow[]>,
   now: Date
-): MetalReview[] {
+): AlbumRow[] {
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  return existingReviews.filter((r) => {
-    if (finalIds.has(r.id)) return false;
-    const mbComplete =
-      typeof r.artworkUrl === 'string' && r.genre.length > 0 && typeof r.releaseDate === 'string';
-    if (mbComplete) return false;
-    const attempts = mbAttemptsById.get(r.id) ?? 0;
-    const tooOld = new Date(r.publishedAt) < fourteenDaysAgo;
-    if (attempts >= 5 && tooOld) return false;
-    return true;
+  return existingAlbums.filter((a) => {
+    if (touchedAlbumIds.has(a.id)) return false;
+    if (isAlbumEnriched(a)) return false;
+    const reviews = reviewsByAlbumId.get(a.id) ?? [];
+    if (reviews.length === 0) return true; // no attempt history at all — worth trying
+    return reviews.some((r) => {
+      const attempts = r.mb_lookup_attempts ?? 0;
+      const tooOld = new Date(r.published_at ?? 0) < fourteenDaysAgo;
+      return !(attempts >= 5 && tooOld);
+    });
   });
 }
 
-export function applyMergeGuard(
-  existingById: Map<string, MetalReview>,
-  freshReviews: MetalReview[]
-): MetalReview[] {
-  const merged = new Map(existingById);
-  for (const review of freshReviews) {
-    const existing = merged.get(review.id);
-    merged.set(review.id, {
-      ...existing,
-      ...review,
-      artworkUrl: review.artworkUrl ?? existing?.artworkUrl ?? null,
-      genre: review.genre && review.genre.length > 0 ? review.genre : (existing?.genre ?? []),
-      // Precision-aware: keep existing if it's more precise than the fresh value.
-      // Differs from artworkUrl/genre rules — do not replace with the simpler pattern.
-      releaseDate:
-        releaseDatePrecision(review.releaseDate) >=
-        releaseDatePrecision(existing?.releaseDate ?? null)
-          ? review.releaseDate
-          : (existing?.releaseDate ?? null),
-    });
-  }
-  return Array.from(merged.values()).sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
-}
-
 export async function runIngestion() {
-  // Fetch all existing rows from Supabase to build skip-sets and the merge map.
+  // Load current state once, up front: reviews (real post-migration columns) and albums.
   // A read failure is non-fatal — we start fresh rather than aborting the entire run.
-  let existingReviews: MetalReview[] = [];
-  let mbAttemptsById = new Map<string, number>();
+  let existingReviews: ExistingReviewRow[] = [];
+  let existingAlbums: AlbumRow[] = [];
   try {
-    const { data, error } = await supabase.from('reviews').select('*');
-    if (error) throw error;
-    // Extract attempt counts before fromDbRow discards the field (not part of MetalReview).
-    mbAttemptsById = new Map((data as DbRow[]).map((row) => [row.id, row.mb_lookup_attempts ?? 0]));
-    existingReviews = (data ?? []).map(fromDbRow);
+    const [reviewsRes, albumsRes] = await Promise.all([
+      supabase
+        .from('reviews')
+        .select(
+          'id, band, album, source, score, normalized_score, summary, url, published_at, published_date, album_id, mb_lookup_attempts'
+        ),
+      supabase
+        .from('albums')
+        .select('id, band, album, mb_release_group_id, norm_key, artwork_url, genre, release_date'),
+    ]);
+    if (reviewsRes.error) throw reviewsRes.error;
+    if (albumsRes.error) throw albumsRes.error;
+    existingReviews = (reviewsRes.data ?? []) as ExistingReviewRow[];
+    existingAlbums = (albumsRes.data ?? []) as AlbumRow[];
   } catch (e) {
-    console.warn('Failed to fetch existing reviews from Supabase, starting fresh:', e);
+    console.warn('Failed to fetch existing reviews/albums from Supabase, starting fresh:', e);
   }
 
-  // Map for O(1) lookups when reusing stored scores and artwork URLs.
-  const existingById = new Map(existingReviews.map((r) => [r.id, r]));
-
-  // Reviews with a non-empty score don't need their rating page re-fetched.
-  const ratingAlreadyFetched = new Set(
-    existingReviews.filter((r) => r.score && r.score !== '').map((r) => r.id)
+  const albumById = new Map(existingAlbums.map((a) => [a.id, a]));
+  const reviewsByAlbumId = new Map<string, ExistingReviewRow[]>();
+  for (const r of existingReviews) {
+    if (!reviewsByAlbumId.has(r.album_id)) reviewsByAlbumId.set(r.album_id, []);
+    reviewsByAlbumId.get(r.album_id)!.push(r);
+  }
+  const existingReviewByAlbumSource = new Map(
+    existingReviews.map((r) => [`${r.album_id}::${r.source}`, r])
   );
 
-  // Skip MusicBrainz only when artwork is a real URL (non-null string) AND genres are
-  // non-empty. Using typeof === 'string' rather than !== undefined/null so that reviews
-  // with artworkUrl: null (MB was tried but CAA returned nothing) are retried — CAA
-  // coverage improves over time and null is not a permanent signal.
-  const mbAlreadyFetched = new Set(
-    existingReviews
-      .filter(
-        (r) =>
-          typeof r.artworkUrl === 'string' &&
-          Array.isArray(r.genre) &&
-          r.genre.length > 0 &&
-          typeof r.releaseDate === 'string'
-      )
-      .map((r) => r.id)
-  );
+  // Rating-fetch skip set, per source: norm_key -> already-stored score. Deliberately
+  // decoupled from any MB/album lookup — this only needs to answer "do we already have a
+  // non-empty score for this (band+album) from this specific source," which is knowable
+  // purely from existing reviews joined through their album's norm_key. No network cost.
+  function scoreByNormKeyForSource(source: string): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const r of existingReviews) {
+      if (r.source !== source || !r.score) continue;
+      const album = albumById.get(r.album_id);
+      if (!album) continue;
+      map.set(album.norm_key, r.score);
+    }
+    return map;
+  }
 
   // All three source fetchers run in parallel. Each skips HTTP calls for known reviews.
   const [amg, ps, ms, sp] = await Promise.all([
-    fetchAngryMetalGuy(ratingAlreadyFetched, existingById),
-    fetchProgressiveSubway(ratingAlreadyFetched, existingById),
-    fetchMetalStorm(ratingAlreadyFetched, existingById),
+    fetchAngryMetalGuy(scoreByNormKeyForSource('Angry Metal Guy')),
+    fetchProgressiveSubway(scoreByNormKeyForSource('The Progressive Subway')),
+    fetchMetalStorm(scoreByNormKeyForSource('Metal Storm')),
     fetchSputnik(),
   ]);
   const allRaw = [...amg, ...ps, ...ms, ...sp];
-  const final: MetalReview[] = [];
 
+  // Live album-lookup maps, seeded from Supabase and updated as this run resolves/creates
+  // albums — so if two sources in the same run both review a brand-new album, the second
+  // one sees the first one's resolution instead of creating a duplicate row.
+  const liveAlbumByNormKey = new Map(existingAlbums.map((a) => [a.norm_key, a]));
+  const liveAlbumByMbId = new Map(
+    existingAlbums
+      .filter((a) => a.mb_release_group_id)
+      .map((a) => [a.mb_release_group_id as string, a])
+  );
+  const albumsToUpsert = new Map<string, AlbumRow>();
+  const reviewsToUpsert = new Map<string, ReviewWriteRow>();
+  const touchedAlbumIds = new Set<string>();
+
+  // Sequential — MB lookups below share MusicBrainz's 1 req/sec limit, so this loop cannot
+  // be parallelized without breaking rate-limit discipline (same constraint as before).
   for (const r of allRaw) {
     const band = r.band.trim() || 'Unknown Band';
     const album = r.album.trim() || 'Unknown Album';
-    const id = computeId(band, album);
+    const normKey = computeNormKey(band, album);
+    const normKeyMatch = liveAlbumByNormKey.get(normKey);
+
+    // Skip the MB call only when we already have a norm_key match with complete enrichment —
+    // the album-scoped equivalent of the old mbAlreadyFetched set. Note: this means a fully
+    // enriched norm_key-matched album whose mb_release_group_id is still null will NOT get an
+    // opportunistic backfill attempt here (that only happens when resolveAlbumIdentity is
+    // actually given a fresh mbResult). See docs/decisions/album-identity-ingest.md for why
+    // this coverage gap is accepted rather than closed this session.
+    const needMbCall = !normKeyMatch || !isAlbumEnriched(normKeyMatch);
+    let mbResult: MusicBrainzData | null = null;
+    if (needMbCall) {
+      mbResult = await lookupMusicBrainz(band, album);
+      await sleep(1000); // MB rate limit: gap before the next lookup
+    }
+
+    const resolution = resolveAlbumIdentity(
+      band,
+      album,
+      mbResult,
+      liveAlbumByNormKey,
+      liveAlbumByMbId,
+      randomUUID
+    );
+    const resolvedAlbum = resolution.album;
+
+    liveAlbumByNormKey.set(resolvedAlbum.norm_key, resolvedAlbum);
+    if (resolvedAlbum.mb_release_group_id)
+      liveAlbumByMbId.set(resolvedAlbum.mb_release_group_id, resolvedAlbum);
+    if (needMbCall) albumsToUpsert.set(resolvedAlbum.id, resolvedAlbum);
+    touchedAlbumIds.add(resolvedAlbum.id);
+
+    // A malformed score (see normalizeScore's sanity guard) is treated the same as
+    // "no score found" — the existing empty-string/0 sentinel, not a stored null —
+    // so downstream logic doesn't need a new state to handle it.
+    const normalized = normalizeScore(r.score);
     const publishedDate = new Date(r.publishedAt).toLocaleDateString('en-US', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
-    let artworkUrl: string | null;
-    let genres: string[];
-    let releaseDate: string | null;
-    if (mbAlreadyFetched.has(id)) {
-      // artwork, genres, and releaseDate are all already stored — reuse them.
-      // MusicBrainz enforces 1 req/sec; skipping known reviews keeps warm runs fast.
-      artworkUrl = existingById.get(id)?.artworkUrl ?? null;
-      genres = existingById.get(id)?.genre ?? [];
-      releaseDate = existingById.get(id)?.releaseDate ?? null;
-    } else {
-      const mbData = await lookupMusicBrainz(band, album);
-      artworkUrl = mbData.artworkUrl;
-      genres = mbData.genres;
-      releaseDate = mbData.releaseDate;
-      await sleep(1000); // MB rate limit: gap between the last request in this review and the first of the next
-    }
-    // A malformed score (see normalizeScore's sanity guard) is treated the same as
-    // "no score found" — the existing empty-string/0 sentinel, not a stored null —
-    // so the card-rendering logic doesn't need a new state to handle it.
-    const normalized = normalizeScore(r.score);
-    final.push({
-      id,
-      source: r.source,
+    const existingReview = existingReviewByAlbumSource.get(`${resolvedAlbum.id}::${r.source}`);
+    const reviewId = existingReview?.id ?? randomUUID();
+
+    reviewsToUpsert.set(reviewId, {
+      id: reviewId,
       band,
       album,
-      genre: genres,
+      source: r.source,
       score: normalized === null ? '' : r.score,
-      normalizedScore: normalized === null ? 0 : normalized,
+      normalized_score: normalized === null ? 0 : normalized,
       summary: r.summary,
       url: r.url,
-      publishedAt: r.publishedAt as unknown as string,
-      publishedDate,
-      artworkUrl,
-      releaseDate,
+      published_at: r.publishedAt as unknown as string,
+      published_date: publishedDate,
+      album_id: resolvedAlbum.id,
+      mb_lookup_attempts: existingReview?.mb_lookup_attempts ?? 0, // RSS path never increments this
     });
   }
 
-  // Backfill pass: retry MB for reviews that have aged off the RSS window.
-  // The main loop above only calls lookupMusicBrainz for reviews currently in allRaw.
-  // Reviews older than the feed's rolling window never appear there, so any MB fields
-  // that were null on first ingest (e.g. MB hadn't indexed the release yet) stay null
-  // forever without this second pass.
-  const finalIds = new Set(final.map((r) => r.id));
-  const backfilledIds = new Set<string>();
-  const candidates = selectBackfillCandidates(
-    existingReviews,
-    finalIds,
-    mbAttemptsById,
+  // Backfill pass: retry MB for albums that have aged off the RSS window without ever
+  // completing enrichment (see selectAlbumBackfillCandidates for why this is evaluated at
+  // album granularity now, and how the review-level attempts counter is aggregated).
+  const candidates = selectAlbumBackfillCandidates(
+    existingAlbums,
+    touchedAlbumIds,
+    reviewsByAlbumId,
     new Date()
   );
-  for (const r of candidates) {
-    const mbData = await lookupMusicBrainz(r.band, r.album);
-    backfilledIds.add(r.id);
-    final.push({
-      ...r,
-      artworkUrl: mbData.artworkUrl ?? r.artworkUrl,
-      genre: mbData.genres.length > 0 ? mbData.genres : r.genre,
-      releaseDate: mbData.releaseDate ?? r.releaseDate,
-    });
+  for (const a of candidates) {
+    const mbData = await lookupMusicBrainz(a.band, a.album);
+    const enriched = applyAlbumEnrichment(a, mbData);
+    if (mbData.releaseGroupId && !enriched.mb_release_group_id) {
+      enriched.mb_release_group_id = mbData.releaseGroupId;
+    }
+    albumsToUpsert.set(a.id, enriched);
+    // Bump the retry counter on every review attached to this album — see
+    // selectAlbumBackfillCandidates for why attempts live on reviews, not albums.
+    for (const rv of reviewsByAlbumId.get(a.id) ?? []) {
+      reviewsToUpsert.set(rv.id, {
+        id: rv.id,
+        band: rv.band,
+        album: rv.album,
+        source: rv.source,
+        score: rv.score ?? '',
+        normalized_score: rv.normalized_score ?? 0,
+        summary: rv.summary ?? '',
+        url: rv.url ?? '',
+        published_at: rv.published_at ?? new Date().toISOString(),
+        published_date: rv.published_date ?? '',
+        album_id: rv.album_id,
+        mb_lookup_attempts: (rv.mb_lookup_attempts ?? 0) + 1,
+      });
+    }
     await sleep(1000);
   }
 
-  const output = applyMergeGuard(existingById, final);
-
-  const { error: upsertError } = await supabase.from('reviews').upsert(
-    output.map((r) => ({
-      ...toDbRow(r),
-      // Increment only for backfill-path retries; RSS-path rows keep their existing count.
-      // New rows not yet in existingById fall back to 0, which is correct.
-      mb_lookup_attempts: backfilledIds.has(r.id)
-        ? (mbAttemptsById.get(r.id) ?? 0) + 1
-        : (mbAttemptsById.get(r.id) ?? 0),
-    })),
-    { onConflict: 'id' }
-  );
-  if (upsertError) {
-    throw new Error(`Failed to upsert reviews to Supabase: ${upsertError.message}`);
+  if (albumsToUpsert.size > 0) {
+    const { error: albumsError } = await supabase
+      .from('albums')
+      .upsert([...albumsToUpsert.values()], { onConflict: 'id' });
+    if (albumsError) {
+      throw new Error(`Failed to upsert albums to Supabase: ${albumsError.message}`);
+    }
   }
-  console.log('✅ Ingestion completed, upserted', output.length, 'reviews to Supabase');
+
+  if (reviewsToUpsert.size > 0) {
+    // onConflict targets `id` (still the PK), not (album_id, source) — but by this point
+    // every row's `id` was already resolved via existingReviewByAlbumSource (reused for
+    // updates, freshly generated only for genuine new (album_id, source) pairs), so the
+    // (album_id, source) uniqueness check has already happened in application code above.
+    // reviews.id itself is no longer read or branched on anywhere in this file beyond that
+    // — it survives purely because the column is a NOT NULL PK and Supabase upsert needs a
+    // conflict target.
+    const { error: reviewsError } = await supabase
+      .from('reviews')
+      .upsert([...reviewsToUpsert.values()], { onConflict: 'id' });
+    if (reviewsError) {
+      throw new Error(`Failed to upsert reviews to Supabase: ${reviewsError.message}`);
+    }
+  }
+
+  console.log(
+    `✅ Ingestion completed — upserted ${albumsToUpsert.size} album(s), ${reviewsToUpsert.size} review(s)`
+  );
 }

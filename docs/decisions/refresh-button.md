@@ -1,6 +1,6 @@
 # Session decisions — Manual refresh / Express server (June 2026)
 
-> Note: the polling target and reload mechanism described here were later updated — see `docs/decisions/supabase-migration.md` ("Refresh button polling — Phase 3") and `docs/decisions/render-deployment.md` ("Ingest endpoint auth") for the current behaviour. This file documents the original implementation and the styling patterns, which are still current.
+> **PARTIALLY SUPERSEDED by `supabase-migration.md` and `render-deployment.md`.** The polling target and reload mechanism were later updated. The original implementation and the controls-bar styling patterns below are still current.
 
 ## What was built
 

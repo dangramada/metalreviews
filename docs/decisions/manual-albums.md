@@ -1,5 +1,13 @@
 # Session decisions — manual_albums table + MusicBrainz lookup endpoint (June 2026)
 
+> **SUPERSEDED by `album-identity-frontend-favorites.md`.** The `manual_albums` table concept
+> was removed — manually-added albums now live in `albums` (distinguished by `created_by`),
+> with duplicate-prevention (`mb_release_group_id`/`norm_key` matching before insert) added.
+> The MB lookup endpoint's auth pattern and `scripts/musicbrainz.ts` extraction described below
+> are unchanged and still accurate. Confirmed dead in all live code paths July 2026 (see
+> `album-identity-visibility-and-duplicate-fix.md`'s follow-up section) — `supabase/manual_albums-drop.sql`
+> has been written to drop the table; pending Dan running it in the Supabase SQL editor.
+
 ## What was built
 
 - **`manual_albums` Supabase table** — schema and RLS for user-curated album entries
@@ -110,8 +118,17 @@ On successful insert, `useFavoritesList.refetch()` is called (increments a refre
 
 ## What NOT to change
 
-- Do not merge `manual_albums` and `favorites` into a polymorphic table — two distinct tables was an explicit architectural decision.
 - Do not change `release_date` to `date` type — partial MB dates break native `date` columns.
 - Do not add `personal_score` — out of scope until Phase 7 defines it.
 - `lookupMusicBrainz` in `musicbrainz.ts` is the single MB lookup implementation. Do not add a second implementation in `ingest.ts` or anywhere else.
 - The endpoint does not insert rows. Do not add a DB write to it — client-side insert via RLS is the correct pattern.
+
+### Superseded guidance (kept for context)
+
+- ~~Do not merge `manual_albums` and `favorites` into a polymorphic table — two distinct tables
+  was an explicit architectural decision.~~ — **superseded**: the album-identity restructure
+  reversed the underlying decision this bullet protected. What actually happened isn't literally
+  a `manual_albums`+`favorites` merge — `favorites` is still its own table — but `manual_albums`
+  itself was folded into `albums`, the same table reviewed albums live in, distinguished only by
+  `created_by`. The "keep manually-added data in its own distinct table" decision no longer
+  holds. See `album-identity-frontend-favorites.md`.

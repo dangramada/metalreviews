@@ -1,108 +1,90 @@
 import { describe, it, expect } from 'vitest';
-import { applyMergeGuard } from '../../scripts/ingest';
-import type { MetalReview } from '../types';
+import { applyAlbumEnrichment, type AlbumRow } from '../../scripts/ingest';
+import type { MusicBrainzData } from '../../scripts/musicbrainz';
 
-const base: MetalReview = {
+const baseAlbum: AlbumRow = {
   id: 'abc',
-  source: 'Angry Metal Guy',
   band: 'Opeth',
   album: 'Blackwater Park',
+  mb_release_group_id: null,
+  norm_key: 'opeth__blackwater park',
+  artwork_url: 'https://cdn.example.com/art.jpg',
   genre: ['progressive metal', 'death metal'],
-  score: '9/10',
-  normalizedScore: 90,
-  summary: 'Great album',
-  url: 'https://example.com',
-  publishedAt: '2024-01-01T00:00:00.000Z',
-  publishedDate: '01 Jan 2024',
-  artworkUrl: 'https://cdn.example.com/art.jpg',
-  releaseDate: null,
+  release_date: null,
 };
 
-describe('applyMergeGuard', () => {
+const baseFresh: MusicBrainzData = {
+  artworkUrl: 'https://new.example.com/art.jpg',
+  genres: ['doom metal'],
+  releaseDate: null,
+  releaseGroupId: null,
+};
+
+describe('applyAlbumEnrichment', () => {
   it('uses fresh artworkUrl when it is a non-null string', () => {
-    const fresh = { ...base, artworkUrl: 'https://new.example.com/art.jpg' };
-    const existing = new Map([['abc', { ...base, artworkUrl: 'https://old.example.com/art.jpg' }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.artworkUrl).toBe('https://new.example.com/art.jpg');
+    const result = applyAlbumEnrichment(baseAlbum, {
+      ...baseFresh,
+      artworkUrl: 'https://new.example.com/art.jpg',
+    });
+    expect(result.artwork_url).toBe('https://new.example.com/art.jpg');
   });
 
-  it('keeps existing artworkUrl when fresh artworkUrl is null', () => {
-    const fresh = { ...base, artworkUrl: null };
-    const existing = new Map([['abc', { ...base, artworkUrl: 'https://old.example.com/art.jpg' }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.artworkUrl).toBe('https://old.example.com/art.jpg');
+  it('keeps existing artwork_url when fresh artworkUrl is null', () => {
+    const result = applyAlbumEnrichment(baseAlbum, { ...baseFresh, artworkUrl: null });
+    expect(result.artwork_url).toBe('https://cdn.example.com/art.jpg');
   });
 
-  it('uses null artworkUrl when fresh is null and there is no existing row', () => {
-    const fresh = { ...base, id: 'new-id', artworkUrl: null };
-    const existing = new Map<string, MetalReview>();
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.artworkUrl).toBeNull();
+  it('uses null artwork_url when fresh is null and there is no existing value', () => {
+    const noArt = { ...baseAlbum, artwork_url: null };
+    const result = applyAlbumEnrichment(noArt, { ...baseFresh, artworkUrl: null });
+    expect(result.artwork_url).toBeNull();
   });
 
   it('uses fresh genre when it is non-empty', () => {
-    const fresh = { ...base, genre: ['doom metal'] };
-    const existing = new Map([['abc', { ...base, genre: ['progressive metal'] }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
+    const result = applyAlbumEnrichment(baseAlbum, { ...baseFresh, genres: ['doom metal'] });
     expect(result.genre).toEqual(['doom metal']);
   });
 
   it('keeps existing genre when fresh genre is empty', () => {
-    const fresh = { ...base, genre: [] };
-    const existing = new Map([['abc', { ...base, genre: ['progressive metal', 'death metal'] }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
+    const result = applyAlbumEnrichment(baseAlbum, { ...baseFresh, genres: [] });
     expect(result.genre).toEqual(['progressive metal', 'death metal']);
   });
 
-  it('uses empty genre when fresh is empty and there is no existing row', () => {
-    const fresh = { ...base, id: 'new-id', genre: [] };
-    const existing = new Map<string, MetalReview>();
-    const [result] = applyMergeGuard(existing, [fresh]);
+  it('uses empty genre when fresh is empty and there is no existing genre', () => {
+    const noGenre = { ...baseAlbum, genre: [] };
+    const result = applyAlbumEnrichment(noGenre, { ...baseFresh, genres: [] });
     expect(result.genre).toEqual([]);
   });
 
-  it('preserves existing rows not present in fresh results', () => {
-    const oldReview = { ...base, id: 'old-only', band: 'Candlemass', album: 'Epicus' };
-    const fresh = [{ ...base, id: 'fresh-only', band: 'Paradise Lost', album: 'Gothic' }];
-    const existing = new Map([['old-only', oldReview]]);
-    const result = applyMergeGuard(existing, fresh);
-    expect(result.some((r) => r.id === 'old-only')).toBe(true);
-    expect(result.some((r) => r.id === 'fresh-only')).toBe(true);
-  });
-
   it('uses fresh releaseDate when it is more precise than existing (full overwrites year-only)', () => {
-    const fresh = { ...base, releaseDate: '2024-03-15' };
-    const existing = new Map([['abc', { ...base, releaseDate: '2024' }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.releaseDate).toBe('2024-03-15');
+    const withYear = { ...baseAlbum, release_date: '2024' };
+    const result = applyAlbumEnrichment(withYear, { ...baseFresh, releaseDate: '2024-03-15' });
+    expect(result.release_date).toBe('2024-03-15');
   });
 
   it('keeps existing releaseDate when fresh is less precise (year-only does NOT overwrite full date)', () => {
-    const fresh = { ...base, releaseDate: '2024' };
-    const existing = new Map([['abc', { ...base, releaseDate: '2024-03-15' }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.releaseDate).toBe('2024-03-15');
+    const withFullDate = { ...baseAlbum, release_date: '2024-03-15' };
+    const result = applyAlbumEnrichment(withFullDate, { ...baseFresh, releaseDate: '2024' });
+    expect(result.release_date).toBe('2024-03-15');
   });
 
   it('keeps existing releaseDate when fresh is null', () => {
-    const fresh = { ...base, releaseDate: null };
-    const existing = new Map([['abc', { ...base, releaseDate: '2024-03-15' }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.releaseDate).toBe('2024-03-15');
+    const withFullDate = { ...baseAlbum, release_date: '2024-03-15' };
+    const result = applyAlbumEnrichment(withFullDate, { ...baseFresh, releaseDate: null });
+    expect(result.release_date).toBe('2024-03-15');
   });
 
   it('stays null when both fresh and existing releaseDate are null', () => {
-    const fresh = { ...base, releaseDate: null };
-    const existing = new Map([['abc', { ...base, releaseDate: null }]]);
-    const [result] = applyMergeGuard(existing, [fresh]);
-    expect(result.releaseDate).toBeNull();
+    const result = applyAlbumEnrichment(baseAlbum, { ...baseFresh, releaseDate: null });
+    expect(result.release_date).toBeNull();
   });
 
-  it('sorts output by publishedAt descending', () => {
-    const older = { ...base, id: 'older', publishedAt: '2024-01-01T00:00:00.000Z' };
-    const newer = { ...base, id: 'newer', publishedAt: '2024-06-01T00:00:00.000Z' };
-    const result = applyMergeGuard(new Map(), [older, newer]);
-    expect(result[0].id).toBe('newer');
-    expect(result[1].id).toBe('older');
+  it('does not touch mb_release_group_id, band, album, norm_key, or id', () => {
+    const result = applyAlbumEnrichment(baseAlbum, baseFresh);
+    expect(result.id).toBe('abc');
+    expect(result.band).toBe('Opeth');
+    expect(result.album).toBe('Blackwater Park');
+    expect(result.norm_key).toBe('opeth__blackwater park');
+    expect(result.mb_release_group_id).toBeNull();
   });
 });

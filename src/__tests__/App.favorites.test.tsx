@@ -41,46 +41,54 @@ vi.mock('../hooks/useFeedbackToast', () => ({
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 
-// Minimal DbRow shape matching the columns App reads via fromDbRow
-const mockDbRow = {
-  id: 'rev1',
-  source: 'Angry Metal Guy',
+// Minimal AlbumWithReviewsRow shape matching the columns App reads via fromAlbumWithReviews
+// (post-album-identity-migration: albums joined to a nested reviews array).
+const mockAlbumRow = {
+  id: 'album1',
   band: 'Opeth',
   album: 'Blackwater Park',
   genre: ['progressive metal'],
-  score: '9/10',
-  summary: 'A classic.',
-  url: 'https://example.com',
-  published_at: '2006-01-01T00:00:00Z',
-  published_date: '1 Jan 2006',
-  normalized_score: 90,
   artwork_url: null,
+  release_date: null,
+  created_at: '2006-01-01T00:00:00Z',
+  reviews: [
+    {
+      id: 'rev1',
+      source: 'Angry Metal Guy',
+      score: '9/10',
+      normalized_score: 90,
+      summary: 'A classic.',
+      url: 'https://example.com',
+      published_at: '2006-01-01T00:00:00Z',
+      published_date: '1 Jan 2006',
+    },
+  ],
 };
 
 // Returns a plain function suitable for mockImplementation(). Builds a chain
 // that matches the call shapes used by App.tsx:
-//   reviews:   .from('reviews').select('*').order(...).then(cb)
-//   favorites: .from('favorites').select('review_id').then(cb)
+//   albums:    .from('albums').select(...).order(...).then(cb)
+//   favorites: .from('favorites').select('album_id').then(cb)
 //              .from('favorites').insert({...})
 //              .from('favorites').delete().eq(...).eq(...)
 function makeFromImpl(
   options: {
-    reviewsData?: (typeof mockDbRow)[];
-    favoritesData?: { review_id: string }[];
+    albumsData?: (typeof mockAlbumRow)[];
+    favoritesData?: { album_id: string }[];
     insertError?: { message: string } | null;
     deleteError?: { message: string } | null;
   } = {}
 ) {
   const {
-    reviewsData = [mockDbRow],
+    albumsData = [mockAlbumRow],
     favoritesData = [],
     insertError = null,
     deleteError = null,
   } = options;
 
   return (table: string) => {
-    if (table === 'reviews') {
-      const result = { data: reviewsData, error: null };
+    if (table === 'albums') {
+      const result = { data: albumsData, error: null };
       return {
         select: vi.fn().mockReturnValue({
           order: vi.fn().mockReturnValue({
@@ -155,7 +163,7 @@ describe('App favorites — logged in', () => {
 
   it('shows a filled heart for a favorited review on load', async () => {
     vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesData: [{ review_id: 'rev1' }] })
+      makeFromImpl({ favoritesData: [{ album_id: 'album1' }] })
     );
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
@@ -172,7 +180,7 @@ describe('App favorites — logged in', () => {
 
   it('unfills the heart and shows success toast after a successful unfavorite', async () => {
     vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesData: [{ review_id: 'rev1' }] })
+      makeFromImpl({ favoritesData: [{ album_id: 'album1' }] })
     );
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
@@ -190,5 +198,119 @@ describe('App favorites — logged in', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
+  });
+});
+
+describe('App album cards — review-count branching', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false });
+  });
+
+  it('degrades sensibly for a manually-added album with zero attached reviews', async () => {
+    const zeroReviewAlbum = {
+      ...mockAlbumRow,
+      id: 'album-manual',
+      band: 'Manual Band',
+      album: 'Manual Album',
+      reviews: [],
+    };
+    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ albumsData: [zeroReviewAlbum] }));
+    render(<App />, { wrapper });
+    await waitFor(() => screen.getByText(/Manual Band/));
+
+    // No source badge, no average-score badge, no per-source review lines — just album
+    // info. The heart toggle is still present and functional even with no review data.
+    expect(screen.queryByText('Angry Metal Guy')).not.toBeInTheDocument();
+    expect(screen.queryByText('9/10', { exact: false })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument();
+  });
+
+  it('renders the original single-review layout for an album with exactly one attached review', async () => {
+    vi.mocked(supabase.from).mockImplementation(makeFromImpl());
+    render(<App />, { wrapper });
+    await waitFor(() => screen.getByText(/Opeth/));
+
+    // Summary excerpt and its single review-date line — not the per-source <li> list.
+    expect(screen.getByText('A classic.')).toBeInTheDocument();
+    expect(screen.getByText('1 Jan 2006')).toBeInTheDocument();
+    // Single source+score badge (not a wrapped multi-badge row, not an average).
+    expect(screen.getByText('Angry Metal Guy', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getByText('9/10', { selector: 'span' })).toBeInTheDocument();
+    // No per-source "[see review]" line — that's the 2+ review layout only.
+    expect(screen.queryByText('[see review]')).not.toBeInTheDocument();
+    // The whole card links out to the single review's url.
+    const cardLink = screen.getByText(/Opeth/).closest('a');
+    expect(cardLink).toHaveAttribute('href', 'https://example.com');
+  });
+
+  it('renders every attached review as its own line with the correct average score badge', async () => {
+    const multiReviewAlbum = {
+      ...mockAlbumRow,
+      id: 'album-multi',
+      band: 'Multi Band',
+      album: 'Multi Album',
+      reviews: [
+        {
+          id: 'rev-lower',
+          source: 'Metal Storm',
+          score: '7/10',
+          normalized_score: 70,
+          summary: 'Decent.',
+          url: 'https://example.com/lower',
+          published_at: '2006-02-01T00:00:00Z',
+          published_date: '1 Feb 2006',
+        },
+        {
+          id: 'rev-higher',
+          source: 'Angry Metal Guy',
+          score: '9/10',
+          normalized_score: 90,
+          summary: 'A classic.',
+          url: 'https://example.com/higher',
+          published_at: '2006-01-01T00:00:00Z',
+          published_date: '1 Jan 2006',
+        },
+      ],
+    };
+    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ albumsData: [multiReviewAlbum] }));
+    render(<App />, { wrapper });
+    await waitFor(() => screen.getByText(/Multi Band/));
+
+    // Both source badges render (over the artwork), stacked/wrapped rather than collapsed
+    // to one representative review.
+    expect(screen.getByText('Metal Storm', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getByText('Angry Metal Guy', { selector: 'span' })).toBeInTheDocument();
+
+    // Average of 70 and 90 (normalized 0–100) is 80 -> "8.0" on the /10 display scale.
+    expect(screen.getByText('8.0')).toBeInTheDocument();
+
+    // Per-source lines: each review's own score/date, linking to its own url.
+    expect(screen.getByText(/Metal Storm: 7\/10 — 1 Feb 2006/)).toBeInTheDocument();
+    expect(screen.getByText(/Angry Metal Guy: 9\/10 — 1 Jan 2006/)).toBeInTheDocument();
+    const lowerLink = screen.getAllByText('[see review]')[0].closest('a');
+    expect(lowerLink).toHaveAttribute('href', 'https://example.com/lower');
+
+    // No card-level outbound link with multiple reviews — only the per-source lines link out.
+    expect(screen.getByText(/Multi Band/).closest('a')).toBeNull();
+  });
+
+  it('queries albums with an inner join on reviews, excluding zero-review albums at the DB level', async () => {
+    const selectSpy = vi.fn().mockReturnValue({
+      order: vi.fn().mockReturnValue({
+        then: (cb: (v: unknown) => unknown) =>
+          Promise.resolve({ data: [mockAlbumRow], error: null }).then(cb),
+      }),
+    });
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      if (table === 'albums') return { select: selectSpy };
+      return makeFromImpl()(table);
+    });
+    render(<App />, { wrapper });
+    await waitFor(() => screen.getByText(/Opeth/));
+
+    // reviews!inner forces PostgREST to only return albums with at least one matching
+    // review — this is what keeps zero-review manually-added albums off the home page.
+    expect(selectSpy).toHaveBeenCalledWith(expect.stringContaining('reviews!inner('));
   });
 });
