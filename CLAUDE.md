@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **The frontend has fully migrated from Chakra UI v2 to v3.** Steps 0–7 are complete and verified (full test suite green, 210/210). The full history of how this happened lives in `docs/decisions/chakra-v3-migration-plan.md`, kept for reference — no further migration work is expected.
 
+## Album-identity restructure — ✅ COMPLETE (merged 2026-07-15)
+
+The `album-identity-migration` branch is merged to `master` (`--no-ff`, commit `e205d5d`). Fresh full verification before merge: 160/160 tests, `tsc --noEmit` clean, live spot-checks of the home page, `/favorites`, and manual-add-with-duplicate-check all passed, and the `favorites_user_album_unique` constraint was confirmed present in Supabase. Render build/deploy of the merged `master` confirmed successful. The branch is kept, not deleted, per project convention. Full history: `docs/decisions/album-identity-*.md`.
+
 ## Working conventions
 
 - Always read this file fully before starting any task
@@ -16,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Active branches
 
-- `album-identity-migration` — not yet merged to `master`. See `docs/decisions/album-identity-*.md` for the four-session implementation and `docs/decisions/album-identity-visibility-and-duplicate-fix.md` for the latest fix on this branch.
+None. `album-identity-migration` merged to `master` on 2026-07-15 (see closing note above) — branch retained per convention, not deleted.
 
 (Update this section, not individual decision docs, when branch status changes.)
 
