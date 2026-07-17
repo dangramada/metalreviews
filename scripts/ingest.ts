@@ -97,6 +97,69 @@ export interface AlbumRow {
 const parser = new RSSParser();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Per-source RSS <category> tag that marks a genuine single-album review post.
+// Confirmed by direct feed inspection (docs/decisions/unknown-band-collision-audit.md,
+// docs/decisions/roundup-skip-fix.md) — WordPress RSS feeds emit both taxonomy
+// categories and post tags as <category> elements, so this is a substring match
+// against item.categories, not a distinct "categories-only" field.
+const REVIEW_CATEGORY_TAGS: Record<string, string[]> = {
+  'Angry Metal Guy': ['Reviews', 'Review'],
+  'The Progressive Subway': ['Album Reviews'],
+};
+
+// Franchises that are genuine reviews but are filed under their own category
+// instead of the source's review tag, so they'd otherwise be false-negatived
+// by isGenuineReview. Deliberately a short, audit-confirmed list — do not add
+// speculative entries here (see roundup-skip-fix.md "judgment call flagged").
+const ALLOWLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
+  'Angry Metal Guy': ["Angry Metal Guy's Unsigned Band Rodeo"],
+};
+
+export function isGenuineReview(item: { categories?: string[] }, source: string): boolean {
+  const tags = REVIEW_CATEGORY_TAGS[source];
+  if (!tags) return true; // no tag check configured for this source (e.g. Metal Storm)
+  const categories = item.categories ?? [];
+  return tags.some((tag) => categories.includes(tag));
+}
+
+export function isAllowlistedFranchise(item: { categories?: string[] }, source: string): boolean {
+  const franchises = ALLOWLISTED_FRANCHISE_CATEGORIES[source];
+  if (!franchises) return false;
+  const categories = item.categories ?? [];
+  return franchises.some((name) => categories.includes(name));
+}
+
+// Logs a filtered-out (non-review) post for later manual review. Never throws —
+// a logging failure must not block real review ingestion (matches the existing
+// pattern of swallowing Supabase read/write failures elsewhere in this file).
+async function logSkippedPost(
+  source: string,
+  item: { title?: string; link?: string; isoDate?: string; pubDate?: string },
+  reason = 'non_review_category'
+): Promise<void> {
+  try {
+    const { error } = await supabase.from('skipped_posts').insert({
+      source,
+      title: item.title ?? '',
+      url: item.link ?? '',
+      published_at: item.isoDate ?? item.pubDate ?? null,
+      reason,
+    });
+    if (error) throw error;
+  } catch (e) {
+    console.warn(`Failed to log skipped post for ${source} (${item.title}):`, e);
+  }
+}
+
+// Combined skip decision: allowlisted franchises always proceed as reviews;
+// otherwise a post must carry its source's review category tag to proceed.
+// Metal Storm has no entry in either map above, so this always returns true
+// for it (confirmed structurally review-only, see roundup-skip-fix.md).
+export function shouldSkipPost(item: { categories?: string[] }, source: string): boolean {
+  if (isAllowlistedFranchise(item, source)) return false;
+  return !isGenuineReview(item, source);
+}
+
 async function fetchAngryMetalGuyRating(reviewUrl: string): Promise<number | null> {
   try {
     const { data } = await axios.get(reviewUrl, {
@@ -120,8 +183,16 @@ async function fetchAngryMetalGuyRating(reviewUrl: string): Promise<number | nul
 // get distinct skip-set lookups since each fetcher only ever sees its own source's map.
 async function fetchAngryMetalGuy(scoreByNormKey: Map<string, string>): Promise<RawReview[]> {
   const feed = await parser.parseURL('https://www.angrymetalguy.com/feed/');
+  const genuineItems: (typeof feed.items)[number][] = [];
+  for (const item of feed.items) {
+    if (shouldSkipPost(item, 'Angry Metal Guy')) {
+      await logSkippedPost('Angry Metal Guy', item);
+    } else {
+      genuineItems.push(item);
+    }
+  }
   const reviews = await Promise.all(
-    feed.items.map(async (item) => {
+    genuineItems.map(async (item) => {
       // AMG RSS titles are formatted "Band – Album Review" or "Band – Album EP Review".
       // Strip the trailing suffix before parsing so the stored album name is clean.
       const rawTitle = (item.title ?? '').replace(/\s+(EP\s+)?Review$/i, '').trim();
@@ -182,8 +253,16 @@ async function fetchProgressiveSubwayRating(item: any): Promise<number | null> {
 // Same skip logic as fetchAngryMetalGuy — avoids re-fetching pages for known reviews.
 async function fetchProgressiveSubway(scoreByNormKey: Map<string, string>): Promise<RawReview[]> {
   const feed = await parser.parseURL('https://theprogressivesubway.com/feed');
+  const genuineItems: (typeof feed.items)[number][] = [];
+  for (const item of feed.items) {
+    if (shouldSkipPost(item, 'The Progressive Subway')) {
+      await logSkippedPost('The Progressive Subway', item);
+    } else {
+      genuineItems.push(item);
+    }
+  }
   const reviews = await Promise.all(
-    feed.items.map(async (item) => {
+    genuineItems.map(async (item) => {
       // PS RSS titles are formatted "Review: Band – Album". Strip the "Review: " prefix
       // before parsing so the band name stored (and used for MB search) is clean.
       const rawTitle = (item.title ?? '').replace(/^Review:\s*/i, '');

@@ -10,6 +10,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The `album-identity-migration` branch is merged to `master` (`--no-ff`, commit `e205d5d`). Fresh full verification before merge: 160/160 tests, `tsc --noEmit` clean, live spot-checks of the home page, `/favorites`, and manual-add-with-duplicate-check all passed, and the `favorites_user_album_unique` constraint was confirmed present in Supabase. Render build/deploy of the merged `master` confirmed successful. The branch is kept, not deleted, per project convention. Full history: `docs/decisions/album-identity-*.md`.
 
+## Non-review post filtering during ingest — ✅ COMPLETE, verified live (2026-07-17)
+
+`scripts/ingest.ts` skips roundups/retrospective columns from Angry Metal Guy and The
+Progressive Subway via RSS `<category>` tag checks (`isGenuineReview`/`isAllowlistedFranchise`/
+`shouldSkipPost`), logging skipped posts to the `skipped_posts` Supabase table
+(`supabase/skipped_posts.sql`, already run). Verified against a live `npm run ingest`: known
+roundup/retrospective-column posts from both sources were skipped and logged with zero
+`albums`/`reviews` rows created; normal reviews from all three sources ingested unaffected. Full
+decision + rationale: `docs/decisions/roundup-skip-fix.md`. Preceded by the read-only audit in
+`docs/decisions/unknown-band-collision-audit.md`.
+
+The 3 pre-fix stale rows the audit found (including the `Unknown Band | Unknown Album` sentinel)
+were separately cleaned up the same day — see `docs/decisions/stale-row-cleanup.md`.
+
 ## Working conventions
 
 - Always read this file fully before starting any task
@@ -17,6 +31,7 @@ The `album-identity-migration` branch is merged to `master` (`--no-ff`, commit `
 - After each completed feature, update this file (or the relevant `docs/decisions/` file — see below) with decisions made
 - Target deployment: Render (current). Vercel migration is a possible future move — avoid permanent server dependencies where reasonably easy
 - Comment all non-trivial code: explain WHY, not just what. Prioritise scraper logic, ingestion pipeline, React state, and any API or browser quirks.
+- When a session identifies new deferred or postponed work, add it to `docs/decisions/deferred-work.md` rather than only stating it inline in that session's own doc.
 
 ## Active branches
 
@@ -56,6 +71,10 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `album-identity-frontend-homepage.md` — home-page session: multi-source display, `dbMapping.ts`
 - `album-identity-frontend-favorites.md` — `/favorites` session: `useFavoritesList` re-plumb, `findExistingAlbum`
 - `album-identity-visibility-and-duplicate-fix.md` — home-page visibility filter + duplicate-check fixes
+- `deferred-work.md` — consolidated tracker of all deferred/postponed work (product features, code/data gaps, design/branding, research findings) — check here first for what's still outstanding
+- `unknown-band-collision-audit.md` — read-only audit: full population of non-review posts (roundups, retrospective columns) confirmed across AMG/PS/Metal Storm, RSS category-tag signal discovery
+- `roundup-skip-fix.md` — implementation: RSS category-tag filtering, `skipped_posts` table, allowlist for AMG's Unsigned Band Rodeo
+- `stale-row-cleanup.md` — cleanup: migrated 3 pre-fix stale reviews/albums rows (incl. the `Unknown Band` sentinel) into `skipped_posts`, deleted orphaned albums
 
 ## Commands
 

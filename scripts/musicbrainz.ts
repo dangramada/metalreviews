@@ -16,8 +16,8 @@ export interface MusicBrainzData {
  * Look up artwork, genres, release date, and release-group id for a given band + album from
  * MusicBrainz and Cover Art Archive. Returns nulls/empty array for any field that cannot be found.
  *
- * Rate-limit discipline: up to 4 sequential MB requests per call (search, detail,
- * artist search, artist detail), each separated by a 1 req/sec sleep.
+ * Rate-limit discipline: up to 3 sequential MB requests per call (search, detail,
+ * artist genre lookup), each separated by a 1 req/sec sleep.
  */
 export async function lookupMusicBrainz(band: string, album: string): Promise<MusicBrainzData> {
   try {
@@ -40,6 +40,10 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
 
     const mbid: string = releases[0].id;
     const releaseGroupId: string | null = releases[0]['release-group']?.id ?? null;
+    // Captured here (free, same response) so Step C can reuse the artist MB already
+    // resolved by the release search instead of re-searching by name — see
+    // docs/decisions/genre-data.md for the wrong-artist bug this avoids.
+    const artistMbid: string | null = releases[0]['artist-credit']?.[0]?.artist?.id ?? null;
 
     // MB rate limit: 1 req/sec between requests
     await sleep(1000);
@@ -78,27 +82,18 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
     // Step C: artist-level genre fallback when the release has no genre tags.
     // Wrapped in its own try/catch so a network failure here doesn't discard
     // the artworkUrl and releaseDate already resolved above.
-    if (topGenres.length === 0) {
+    if (topGenres.length === 0 && artistMbid) {
       try {
         await sleep(1000);
-        const artistSearch = await axios.get('https://musicbrainz.org/ws/2/artist/', {
-          params: { query: `artist:"${band}"`, fmt: 'json', limit: 1 },
+        const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
+          params: { inc: 'genres', fmt: 'json' },
           headers: { 'User-Agent': MB_USER_AGENT },
         });
-        const artists: any[] = artistSearch.data?.artists ?? [];
-        if (artists.length > 0) {
-          const artistMbid: string = artists[0].id;
-          await sleep(1000);
-          const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
-            params: { inc: 'genres', fmt: 'json' },
-            headers: { 'User-Agent': MB_USER_AGENT },
-          });
-          const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
-          topGenres = [...artistGenres]
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 3)
-            .map((g: { name: string }) => g.name);
-        }
+        const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
+        topGenres = [...artistGenres]
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3)
+          .map((g: { name: string }) => g.name);
       } catch {
         // Artist fallback failed — artworkUrl and releaseDate are still returned
       }
