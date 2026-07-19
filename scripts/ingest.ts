@@ -9,32 +9,8 @@ import { extractRating } from '../src/scraper/angrymetal.js';
 import { extractRating as extractPSRating } from '../src/scraper/progressivesubway';
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
-import type { DbRow } from '../src/dbMapping';
 import { lookupMusicBrainz, type MusicBrainzData } from './musicbrainz';
 import { computeNormKey } from './normalizeKey';
-
-// toDbRow/DbRow kept only for scripts/seed-from-json.ts, a pre-Supabase-migration relic that
-// was already broken by the album-identity schema migration (it writes artwork_url/genre/
-// release_date onto `reviews`, columns that no longer exist there). Not part of the live
-// pipeline below — do not wire it back into runIngestion().
-export type { DbRow };
-export function toDbRow(r: MetalReview): DbRow {
-  return {
-    id: r.id,
-    band: r.band,
-    album: r.album,
-    source: r.source,
-    score: r.score,
-    normalized_score: r.normalizedScore,
-    summary: r.summary,
-    url: r.url,
-    published_at: r.publishedAt,
-    published_date: r.publishedDate,
-    artwork_url: r.artworkUrl,
-    release_date: r.releaseDate,
-    genre: r.genre,
-  };
-}
 
 interface RawReview {
   source: string;
@@ -47,9 +23,7 @@ interface RawReview {
 }
 
 // Mirrors the real, current `reviews` table columns (post album-identity migration:
-// artwork_url/genre/release_date dropped, album_id added). Kept local to this file rather
-// than reusing src/dbMapping.ts's DbRow, which is the frontend's boundary type and still
-// describes the pre-migration shape — that's the frontend session's file to update.
+// artwork_url/genre/release_date dropped, album_id added).
 interface ExistingReviewRow {
   id: string;
   band: string;
@@ -70,8 +44,8 @@ interface ReviewWriteRow {
   band: string;
   album: string;
   source: string;
-  score: string;
-  normalized_score: number;
+  score: string | null;
+  normalized_score: number | null;
   summary: string;
   url: string;
   published_at: string;
@@ -132,16 +106,32 @@ export function isAllowlistedFranchise(item: { categories?: string[] }, source: 
 // Logs a filtered-out (non-review) post for later manual review. Never throws —
 // a logging failure must not block real review ingestion (matches the existing
 // pattern of swallowing Supabase read/write failures elsewhere in this file).
-async function logSkippedPost(
+//
+// Dedups on `url` before inserting: every ingest run re-parses the full RSS feed
+// window, so the same skipped post (e.g. a roundup still within the feed's
+// retention window) would otherwise get a fresh row logged on every single run.
+// Confirmed via live data — 40 rows accumulated from just 12 runs across two
+// debugging sessions. This is a log for manual review, not a "last seen"
+// tracker, so an existing row is left untouched rather than updated.
+export async function logSkippedPost(
   source: string,
   item: { title?: string; link?: string; isoDate?: string; pubDate?: string },
   reason = 'non_review_category'
 ): Promise<void> {
+  const url = item.link ?? '';
   try {
+    const { data: existing, error: lookupError } = await supabase
+      .from('skipped_posts')
+      .select('id')
+      .eq('url', url)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existing) return;
+
     const { error } = await supabase.from('skipped_posts').insert({
       source,
       title: item.title ?? '',
-      url: item.link ?? '',
+      url,
       published_at: item.isoDate ?? item.pubDate ?? null,
       reason,
     });
@@ -705,10 +695,17 @@ export async function runIngestion() {
     if (needMbCall) albumsToUpsert.set(resolvedAlbum.id, resolvedAlbum);
     touchedAlbumIds.add(resolvedAlbum.id);
 
-    // A malformed score (see normalizeScore's sanity guard) is treated the same as
-    // "no score found" — the existing empty-string/0 sentinel, not a stored null —
-    // so downstream logic doesn't need a new state to handle it.
-    const normalized = normalizeScore(r.score);
+    // Two distinct "no usable score" cases, kept separate on purpose:
+    // - r.score is empty: nothing was ever fetched (e.g. a Metal Storm page.goto()
+    //   timeout never reached the rating text at all). Stored as a real null so it's
+    //   excluded from the frontend's average-score calculation
+    //   (src/dbMapping.ts) instead of silently averaging in as a 0/10. Falsy r.score also
+    //   means the retry skip-set (scoreByNormKeyForSource) will pick it up again next run.
+    // - r.score is non-empty but normalizeScore() rejects it (its sanity guard): a
+    //   malformed/corrupted score string got past extraction. Existing behavior, left
+    //   untouched — stored as the empty-string/0 sentinel, not null, since this isn't a
+    //   "nothing fetched yet" state that a retry will naturally resolve.
+    const normalized = r.score ? normalizeScore(r.score) : null;
     const publishedDate = new Date(r.publishedAt).toLocaleDateString('en-US', {
       day: '2-digit',
       month: 'short',
@@ -722,8 +719,8 @@ export async function runIngestion() {
       band,
       album,
       source: r.source,
-      score: normalized === null ? '' : r.score,
-      normalized_score: normalized === null ? 0 : normalized,
+      score: !r.score ? null : normalized === null ? '' : r.score,
+      normalized_score: !r.score ? null : normalized === null ? 0 : normalized,
       summary: r.summary,
       url: r.url,
       published_at: r.publishedAt as unknown as string,
@@ -757,8 +754,11 @@ export async function runIngestion() {
         band: rv.band,
         album: rv.album,
         source: rv.source,
-        score: rv.score ?? '',
-        normalized_score: rv.normalized_score ?? 0,
+        // Pass score/normalized_score through as stored — this loop only bumps
+        // mb_lookup_attempts, it must not resurrect a genuine null (no score fetched yet)
+        // back into the empty-string/0 sentinel.
+        score: rv.score,
+        normalized_score: rv.normalized_score,
         summary: rv.summary ?? '',
         url: rv.url ?? '',
         published_at: rv.published_at ?? new Date().toISOString(),

@@ -1,62 +1,9 @@
 // src/dbMapping.ts
 //
 // Shared boundary layer between Postgres (snake_case) and the app's MetalReview type (camelCase).
-// Used by: scripts/ingest.ts (reading existing rows from Supabase before merge)
-//          src/App.tsx (mapping query results before touching React state)
+// Used by: src/App.tsx (mapping query results before touching React state)
 //
 // Never import dotenv or server-only deps here — this file runs in both Node and browser.
-
-import type { MetalReview } from './types';
-
-// Mirrors the exact column names and types of the OLD, pre-album-identity-migration
-// `reviews` table shape (artwork_url/genre/release_date on reviews, no album_id).
-//
-// STALE as a description of the live `reviews` table (see album-identity-migration.md /
-// album-identity-ingest.md) — those three columns were dropped from `reviews` and moved to
-// `albums`. Kept here, untouched, purely because one call site still depends on this exact
-// shape and is out of scope to change:
-//   - scripts/ingest.ts's `toDbRow()`, kept alive only for scripts/seed-from-json.ts (already
-//     broken by the schema migration itself, not wired into the live pipeline)
-// `src/hooks/useFavoritesList.ts` was re-plumbed onto the live `albums`/`favorites` schema in
-// the frontend-favorites session (see album-identity-frontend-favorites.md) and no longer
-// depends on this type. Do not "fix" this type to match the live schema without updating the
-// remaining call site; that's exactly what src/__tests__/dbMapping.test.ts pins against below.
-export type DbRow = {
-  id: string;
-  band: string;
-  album: string;
-  source: string;
-  score: string | null;
-  normalized_score: number | null;
-  summary: string | null;
-  url: string | null;
-  published_at: string | null;
-  published_date: string | null;
-  artwork_url: string | null;
-  release_date: string | null;
-  genre: string[] | null;
-  // Ingest-only: counts how many times the backfill pass has retried MB for this row.
-  // Not mapped to MetalReview — the frontend never needs it.
-  mb_lookup_attempts: number | null;
-};
-
-export function fromDbRow(row: DbRow): MetalReview {
-  return {
-    id: row.id,
-    band: row.band,
-    album: row.album,
-    source: row.source,
-    score: row.score ?? '',
-    normalizedScore: row.normalized_score ?? 0,
-    summary: row.summary ?? '',
-    url: row.url ?? '',
-    publishedAt: row.published_at ?? new Date().toISOString(),
-    publishedDate: row.published_date ?? '',
-    artworkUrl: row.artwork_url,
-    releaseDate: row.release_date ?? null,
-    genre: row.genre ?? [],
-  };
-}
 
 // =============================================================================
 // Post-album-identity-migration mapping — the home page's real, live schema.

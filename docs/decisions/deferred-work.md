@@ -53,9 +53,42 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## B. Known code/data gaps (accepted, not fixed)
 
-- **Multi-artist-credit genre gap** (Sunn O))) & Boris — *Altar* case) — genre
-  lookup only uses `artist-credit[0]`, the first-billed artist, on split
-  releases. Deferred, not fixed. `genre-data.md` (cross-reference only).
+- **Multi-artist-credit genre gap (Sunn O))) & Boris style) — real but currently
+  dormant, 0/128 live catalog matches.** `resolveAlbumIdentity`/Step C's
+  artist-fallback only fetches genres for `artist-credit[0]`, ignoring
+  additional credited artists on split/collab releases. Live scan (2026-07-19)
+  of all 128 MB-matched releases found zero with `artist-credit.length > 1` —
+  the doc's own illustrative example (Sunn O))) & Boris — Altar) doesn't even
+  reach Step C in practice, since its release-level genres are already
+  non-empty (Step A/B resolves it before the fallback ever fires). Confirmed
+  via external MB check that genre overlap between co-credited artists is
+  typically high (both drone/doom-adjacent for the Sunn O)))/Boris example),
+  so a future fix would likely just be "merge genres across all credits."
+  Fix cost is cheap and bounded (+1 MB call per extra artist, only for
+  releases that both have multi-credit AND empty release-level genres) — but
+  no live data currently exercises this path. Re-scan periodically (e.g. next
+  time a split/collab review lands) rather than fixing speculatively.
+  `genre-data.md` (original gap description, line 60).
+- **Sunthema-style MB match-failure for concatenated multi-band splits — real,
+  currently live, distinct from the artist-credit gap above.** Found
+  2026-07-19 investigating "Deathspiral of Inherited Suffering, Elysian Blaze,
+  Panegyrist, & Maerund – Sunthema" (The Progressive Subway, published
+  2026-06-29): `mb_release_group_id: null`, `genre: []`, `artwork_url: null`,
+  `release_date: null`, `mb_lookup_attempts: 5`. Confirmed live: MusicBrainz
+  has no record of this release under any query shape tried — the full
+  concatenated band string, each of the 4 band names individually paired with
+  the release title, the release title alone, and a free-text search all
+  returned 0 results. This is not an artist-credit-array problem (no release
+  match means no `artist-credit` array ever gets inspected) — it's a
+  different failure mode: obscure/DIY multi-band splits whose "band" field is
+  a comma/ampersand-joined concatenation of N names may simply not be
+  cataloged in MB under any name combination the current search logic tries.
+  Practical cost: `mb_lookup_attempts` will likely keep incrementing
+  indefinitely on future ingest runs for this album, spending real MB API
+  calls (with rate-limit sleeps) against a query shape proven dead — worth
+  considering a cap or a "give up after N attempts" rule at some point, though
+  that's a separate design question from fixing the match itself. No fix
+  attempted; discovery only.
 - **`favorites.review_id` column — resolved, not open.** The original migration
   brief called for this to stay deferred pending Dan's go-ahead
   (`album-identity-migration.md`), but a later session confirmed via direct live
@@ -64,23 +97,40 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   `album-identity-frontend-homepage.md` explicitly logs the drop as "confirmed
   run." Listed here only so the now-superseded "not run yet" language in
   `album-identity-migration.md` isn't mistaken for current status.
-- **`manual_albums` legacy table** — fully dead in every live code path (client,
-  server, ingest); absorbed into `albums`. A drop script
-  (`supabase/manual_albums-drop.sql`) has been written but not run — explicitly
-  called out as "a separate decision, not made" in the session that confirmed it
-  dead. `manual-albums.md`, `album-identity-visibility-and-duplicate-fix.md`.
-- **`scripts/seed-from-json.ts`** — pre-Supabase-migration relic, already broken
-  by the album-identity schema migration (imports a `toDbRow()` shape `reviews`
-  no longer has). Kept only so the import itself doesn't fail; not wired into
-  real ingest, not fixed. `album-identity-ingest.md`, `architecture.md`.
-- **Security audit Finding #9** — `--no-sandbox` not passed to
-  `puppeteer.launch()`. Explicitly still open. `render-deployment.md`.
-- **Puppeteer `dependencies` fix (commit `a63fa62`) — verification status
-  unchanged, still open.** `render-deployment.md` states as of 2026-07-01: "Not
-  yet verified against a real Render deploy." No later doc or commit found
-  confirming this verification happened since. Treat as still unverified.
-- **Dropdown `<option>` white-background cosmetic gap** — logged in
-  `chakra-v3-migration-plan.md`. Small, unfixed.
+- **`manual_albums` legacy table — resolved, not open.** Drop script
+  (`supabase/manual_albums-drop.sql`) has been run against live Supabase; table
+  physically dropped. Confirmed by Dan 2026-07-19. `manual-albums.md`,
+  `album-identity-visibility-and-duplicate-fix.md`.
+- **`scripts/seed-from-json.ts` — resolved, deleted.** Along with the
+  `DbRow`/`fromDbRow()`/`toDbRow()` vestigial pre-migration mapping layer it
+  was the sole consumer of, and `src/__tests__/dbMapping.test.ts` (an
+  unanticipated second consumer, found via reference search before deletion,
+  removed alongside since it only tested the removed code). `tsc --noEmit`
+  clean, 164/164 tests passing post-deletion. `architecture.md`'s description
+  of this relic is now historical only.
+- **Security Finding #9 (`--no-sandbox` not passed to `puppeteer.launch()`)
+  — closed, no current evidence.** Diagnosed 2026-07-19 against real Render
+  production logs; no sandbox-crash signature found across runs checked.
+  See `ingest-trigger-and-security.md` for full resolution note. Revisit only
+  if a genuine sandbox-crash error signature appears in future logs.
+- **Puppeteer `dependencies` fix (commit `a63fa62`) — resolved, not open.**
+  Verified against a real Render deploy 2026-07-19: live ingest succeeded
+  across all three sources with real scores returned. `render-deployment.md`.
+- **Dropdown `<option>` white-background gap — resolved, not open.** Fixed and
+  verified in Step 5 of the Chakra v3 migration (`css: { '& option': {...} }`
+  on `controlFieldStyle`, all 4 dropdowns confirmed dark by Dan).
+  `chakra-v3-migration-plan.md`.
+- **Menu whiteAlpha-flash CSS override — verified correct under v3, closed
+  (2026-07-20).** Live-checked both `Menu` instances (`src/Header.tsx`)
+  running `npm run dev`: desktop account `Menu.Trigger` Button and mobile
+  hamburger `Menu.Trigger` IconButton both show `aria-expanded="true"` driving
+  the `css` override to `bg: surface.raised` (`rgb(63, 63, 70)`) /
+  `color: text.primary` (white), confirmed via computed styles — no bare
+  Chakra whiteAlpha flash underneath. `Menu.Item`s (`Log out` on desktop;
+  `Reviews`/`Favorites`/`Log out` on mobile) show the same `surface.raised`
+  bg on `data-highlighted` (hover), also via computed styles, not just
+  eyeballing. `header-redesign.md` line 71-74 and
+  `chakra-v3-migration-plan.md` Step 5 can be considered fully closed.
 - **Chakra v3 foundation audit** — eligible to start, explicitly left as Dan's
   call on timing. Not started. `chakra-v3-foundation-audit-brief.md`.
 - **Possible footnote-digit score-corruption risk in Angry Metal Guy / Metal
@@ -157,6 +207,47 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   it isn't automatically allowlisted; it would need the same individual-verification
   treatment Rodeö got before being added. `unknown-band-collision-audit.md` §4, §6;
   `stale-row-cleanup.md`.
+- **4 historical `reviews` rows with `score: ''` / `normalized_score: 0`,
+  non-review-post pollution — diagnosed and migrated, 2026-07-20.** Found while
+  diagnosing the Metal-Storm-timeout score-collapse bug (2026-07-19). All 4
+  were Angry Metal Guy, matching known non-review franchise patterns ("Yer
+  Metal is Olde: Warning" / *Watching from a Distance*, "The Willowtip Files:
+  Commit Suicide" / *Synthetics*, "Stuck in the Filter" / *April 2026's Angry
+  Misses*, "Record(s) o' the Month" / *March 2026*). Diagnosis confirmed all 4
+  `published_at` dates (2026-06-12 through 2026-07-02) predate the
+  non-review-post skip-fix's ship date (2026-07-17) — not a live gap in the
+  filter, simply outside the narrow scope of the prior two `stale-row-cleanup.md`
+  passes. None appeared in `skipped_posts` already, ruling out a
+  double-logging edge case. A third cleanup pass (same pattern as the prior
+  two) then migrated all 4 into `skipped_posts`
+  (`reason='backfilled_non_review_cleanup'`) and deleted the now-orphaned
+  `reviews`/`albums` rows — see the appended entry in `stale-row-cleanup.md`.
+  Final counts: albums 151→147, reviews 151→147. **Closed — no remaining
+  action.**
+  - Same investigation also found and fixed an adjacent, previously-unknown
+    bug: `logSkippedPost` had no dedup check, so every `npm run ingest` run
+    unconditionally re-logged every non-review post still in the RSS feed's
+    current window, even if already logged. 40 rows had accumulated in
+    `skipped_posts` from just 12 manual ingest runs across two debugging
+    sessions (2026-07-17, 2026-07-19) — confirmed via timestamp analysis to be
+    normal repeated manual runs, not a rogue/scheduled process. Fixed by
+    adding a `url`-based existence check before insert in
+    `scripts/ingest.ts`'s `logSkippedPost` (now exported, covered by
+    `scripts/__tests__/logSkippedPost.test.ts`); the 40 pre-existing
+    duplicates were then backfill-deduped (kept earliest row per URL) down to
+    4. `tsc --noEmit` clean, full test suite passing throughout. Not written
+    up as a standalone decision doc — tracked here only, per explicit
+    direction.
+- **Score-collapse fix (normalizeScore null-handling) — shipped, live
+  verification pending.** Root cause (Metal Storm navigation-timeout failures
+  writing `normalized_score: 0` instead of `null`, silently averaged into
+  frontend `averageScore`) diagnosed and fixed 2026-07-19. Fix is unit-verified
+  (tsc clean, 167/167 tests) but has not yet been exercised against a real
+  production Metal Storm timeout — no live ingest was run as part of the fix
+  session. Close this out once a future ingest run naturally hits a Metal
+  Storm navigation timeout and the resulting row is confirmed to have
+  `normalized_score: null` (not `0`). Check via Supabase directly after any
+  ingest run that logs a Metal Storm timeout error.
 
 ## C. Design/branding (open)
 

@@ -52,4 +52,6 @@ The cache path itself was already correct — `.puppeteerrc.cjs` (added in `366d
 
 ### Verification status
 
-Local-only: `npm install` resolves cleanly with `puppeteer` under `dependencies`; build script confirmed to contain the install step. **Not yet verified against a real Render deploy** — that requires deploying this change and running a manual refresh, which is a follow-up step outside this session.
+**Verified against a real Render deploy (2026-07-19).** Dan ran a live ingest on the deployed instance; all three sources (Angry Metal Guy, The Progressive Subway, Metal Storm) completed successfully with real scores returned — not just an absence-of-crash check. The `dependencies`/explicit-install-step fix is confirmed working in production.
+
+This verifies only the "Chrome binary missing at build time" fix. It says nothing about Security Finding #9 (`--no-sandbox`), which is a separate, still-open concern — see that section below.

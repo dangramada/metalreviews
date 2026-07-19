@@ -46,8 +46,7 @@ import { LuCheck, LuRepeat, LuTriangleAlert } from 'react-icons/lu';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
 // Supabase client and data mapping. Post-album-identity-migration, the home page reads
-// `albums` joined to `reviews` (see docs/decisions/album-identity-frontend-homepage.md) —
-// fromDbRow/DbRow (the old flat-reviews shape) are no longer used here.
+// `albums` joined to `reviews` (see docs/decisions/album-identity-frontend-homepage.md).
 import { supabase } from './supabaseClient';
 import { fromAlbumWithReviews } from './dbMapping';
 import type { AlbumWithReviewsRow, AlbumCard } from './dbMapping';

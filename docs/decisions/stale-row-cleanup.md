@@ -128,3 +128,60 @@ additive noise from the regression and is now fully reconciled back to the pre-r
 - The stale `tsx server.ts` process itself was not restarted or killed as part of this session —
   it was still running at the time of this cleanup. Restarting it is an operational step for Dan,
   not a data-cleanup action.
+
+## Third cleanup pass (2026-07-20)
+
+**Follows:** a diagnosis session (2026-07-19) that found 4 *different* stale non-review
+`reviews` rows while investigating an unrelated score-collapse bug — different album/month
+values from either prior pass, confirmed not previously handled. Diagnosis confirmed all 4
+`published_at` dates predate the skip-fix's 2026-07-17 ship date, so this is the same category
+of incomplete-backfill cleanup as the first two passes, not a live gap in the fix. None of the 4
+appeared in `skipped_posts` beforehand.
+
+### Rows migrated (third pass)
+
+| Row | `reviews.id` | `album_id` | `published_at` | Outcome |
+|---|---|---|---|---|
+| AMG "Yer Metal is Olde: Warning" – *Watching from a Distance* | `eWVybWV0YWxpc29sZGU6d2FybmluZ193YXRjaGluZ2Zyb21hZGlzdGFuY2U=` | `656d9f7f-0907-4ada-b474-7cecf53ad836` | 2026-06-12 | review + album deleted |
+| AMG "The Willowtip Files: Commit Suicide" – *Synthetics* | `dGhld2lsbG93dGlwZmlsZXM6Y29tbWl0c3VpY2lkZV9zeW50aGV0aWNz` | `7447ce84-2427-42a0-9382-eb3d7b68142f` | 2026-06-21 | review + album deleted |
+| AMG "Stuck in the Filter" – *April 2026's Angry Misses* | `c3R1Y2tpbnRoZWZpbHRlcl9hcHJpbDIwMjbigJlzYW5ncnltaXNzZXM=` | `cb1f7633-db18-4d46-aa6b-d8536d822452` | 2026-07-02 | review + album deleted |
+| AMG "Record(s) o' the Month" – *March 2026* | `cmVjb3JkKHMpb+KAmXRoZW1vbnRoX21hcmNoMjAyNg==` | `d6e43476-2a07-42cd-a672-1c610499aaac` | 2026-06-13 | review + album deleted |
+
+Same procedure as the prior two passes: dry run confirmed each row's existence and each parent
+album's reference count (exactly 1 review, 0 favorites, in all 4 cases) before writing, reported
+to Dan, and only proceeded on explicit confirmation. Each row inserted into `skipped_posts` with
+`reason='backfilled_non_review_cleanup'`, then its `reviews` and `albums` rows deleted; the
+`albums` reference count was re-checked immediately after each `reviews` delete (not assumed from
+the dry run) before the `albums` delete ran.
+
+### Row counts (third pass)
+
+| | Before | After |
+|---|---|---|
+| `albums` | 151 | 147 |
+| `reviews` | 151 | 147 |
+| `skipped_posts` | 4 (post-dedup, see below) | 8 |
+
+### What was NOT touched (third pass)
+
+- No other rows beyond these 4 — no broader sweep.
+- No changes to `extractBandAlbum`, `resolveAlbumIdentity`, or the skip-detection logic.
+
+## Separate: `skipped_posts` backfill dedup (2026-07-20)
+
+In the same investigation, `logSkippedPost` was found to have no dedup check before insert —
+every `npm run ingest` run unconditionally re-logged every non-review post still present in the
+RSS feed's current window, even if already logged on a prior run. This had produced 40 rows in
+`skipped_posts` from just 12 manual ingest runs across the 2026-07-17 and 2026-07-19 debugging
+sessions (4 distinct URLs, up to 12 duplicate rows each) — confirmed to be normal repeated manual
+`npm run ingest` invocations, not a rogue or scheduled process.
+
+The ingest-side fix (a `url`-based existence check in `logSkippedPost` before insert, covered by
+`scripts/__tests__/logSkippedPost.test.ts`) stops new duplicates going forward and is tracked in
+`docs/decisions/deferred-work.md` rather than a standalone doc, per explicit direction. Separately,
+the 40 pre-existing duplicate rows were backfill-deduped: for each of the 4 duplicated URLs, the
+earliest row (the original live-fix catch, `reason='non_review_category'`) was kept and all later
+duplicate rows — including the `reason='backfilled_non_review_cleanup'` rows written by the second
+cleanup pass above — were deleted. Confirmed via dry run and reported before any write.
+
+`skipped_posts`: 40 → 4 (one row per distinct URL, verified by a post-delete scan).

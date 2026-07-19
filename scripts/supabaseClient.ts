@@ -12,5 +12,4 @@ if (!url || !key) {
 }
 
 // Service key bypasses RLS — only use in server-side / ingest code, never in the frontend.
-// Row typing is handled explicitly by toDbRow/fromDbRow in ingest.ts.
 export const supabase = createClient(url, key);
