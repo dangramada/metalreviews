@@ -6,3 +6,7 @@ public/reviews.json
 *.local
 .claude/
 CLAUDE - Copy.md
+.DS_Store
+CLAUDEbk1.md
+CLAUDEbk2.md
+scratch_ingest_once.ts
