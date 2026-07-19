@@ -68,3 +68,63 @@ further issues.
   confirmed unrecoverable by the audit, unchanged here. The sentinel's `norm_key` is simply free
   again for a future parse failure to occupy; the underlying collision mechanism (one row per
   norm_key, silently overwritten) is not fixed by this cleanup.
+
+## Second cleanup pass (2026-07-17, later same day)
+
+**Follows:** `unknown-band-collision-audit.md` §7 (regression diagnosis — a stale, long-lived
+local `tsx server.ts` process, running since before the skip-fix commit, executed pre-fix ingest
+code via the local Refresh button at `2026-07-17T20:11:51 UTC`, recreating rows for posts the fix
+should have skipped). Root cause confirmed as a one-time operational fluke, not a code defect —
+the current code, run fresh, correctly skips all of these posts. No code change was made or
+needed; this is the same category of cleanup as the pass above, applied to a second, separate
+batch of rows with different IDs.
+
+**Scope grew from 3 to 4 mid-session.** The cleanup brief initially listed only the same 3 posts
+as the first pass (this time with new IDs from the regression run). It explicitly assumed "Lost
+in Time: Exotic Animal Petting Zoo – Tree of Tongues" was clean — reasoning that the *first*
+cleanup pass had found no row for it (caught live by the fix before it ever got one, see the "no
+row existed" entry above). The confirmation check for this second pass found that assumption no
+longer held: the regression run had *also* created a live `reviews` row for "Lost in Time"
+(`id=d86002a6-fb67-498b-ab1c-4c59e3334606`), with no accompanying `skipped_posts` log at the
+regression timestamp — same pattern as the other 3, and consistent with `unknown-band-collision-
+audit.md` §7 Finding 4, which had already identified this as a 4th affected row from the same
+batch. Flagged back to Dan per the brief's explicit instruction rather than assumed clean; Dan
+confirmed to include it. All 4 rows were migrated together.
+
+### Rows migrated (second pass)
+
+| Row | New `reviews.id` (2026-07-17T20:11:51 UTC batch) | `album_id` | Outcome |
+|---|---|---|---|
+| PS "Our June 2026 Albums of the Month!" (sentinel) | `01b52b74-1d47-490a-85e3-e61ecc7080e4` | `53faf84b-14d9-4ae5-88d1-dab239ef20a5` | review + album deleted |
+| AMG "Record(s) o' the Month – April 2026" | `fb3f1350-3666-4865-b213-50f7abe821bc` | `373c6393-7eb0-4d1b-950f-2f220aba60d1` | review + album deleted |
+| AMG "Yer Metal Is Olde: Stratovarius – Episode" | `fa559cc1-f700-4423-a650-bdc251043918` | `01e05c7b-6cc3-469f-a188-6535c2ffe88c` | review + album deleted |
+| PS "Lost in Time: Exotic Animal Petting Zoo – Tree of Tongues" | `d86002a6-fb67-498b-ab1c-4c59e3334606` | `83143e09-3a77-4e79-87ea-2f4a6b955ea5` | review + album deleted |
+
+Same procedure as the first pass: confirmed each row's existence/title/URL and each parent
+album's reference count (exactly 1 review, 0 favorites, in all 4 cases — no accidental favoriting
+occurred in the interim) before writing. All 4 inserted into `skipped_posts` with
+`reason='backfilled_non_review_cleanup'` (same reason value as the first pass — same category of
+action, a second occurrence), then their `reviews` and `albums` rows deleted.
+
+### Row counts (second pass)
+
+| | Before | After |
+|---|---|---|
+| `albums` | 150 | 146 |
+| `reviews` | 149 | 145 |
+| `skipped_posts` | 11 | 15 |
+
+Combined across both cleanup passes on 2026-07-17: `albums` and `reviews` are both back to 146 /
+145 — the same counts the first pass left them at — confirming this second batch was purely
+additive noise from the regression and is now fully reconciled back to the pre-regression state.
+
+### What was NOT touched (second pass)
+
+- No other rows beyond these 4 — no broader sweep beyond what
+  `unknown-band-collision-audit.md` §7's exhaustive sweep (every URL ever logged to
+  `skipped_posts`, cross-checked against `reviews`) had already confirmed was the complete set.
+- No code changes — root cause was the stale local process, not the skip-detection logic, which
+  was re-verified live and correct before this cleanup began.
+- The stale `tsx server.ts` process itself was not restarted or killed as part of this session —
+  it was still running at the time of this cleanup. Restarting it is an operational step for Dan,
+  not a data-cleanup action.

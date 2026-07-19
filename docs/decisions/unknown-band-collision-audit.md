@@ -299,6 +299,157 @@ parse failure will create a fresh `Unknown Band | Unknown Album` row rather than
 this one, though the underlying collision mechanism itself is still not fixed (see "What NOT to
 touch" below, unchanged).
 
+## §7 — Regression investigation: the same 3 posts came back (2026-07-17, later same day)
+
+**Diagnosis only — no fix proposed or applied in this session.**
+
+### Trigger
+
+After §6's cleanup, the same 3 posts (`Unknown Band | Unknown Album` / PS "Our June 2026 Albums
+of the Month!", AMG "Record(s) o' the Month – April 2026", AMG "Yer Metal Is Olde: Stratovarius –
+Episode") reappeared as live homepage cards. Dan confirmed this followed a genuine, fresh
+`npm run ingest` run, not stale frontend/browser cache.
+
+### Finding 1 — these are new rows, not resurrected old ones
+
+Queried `albums` and `reviews` directly for all 3 titles. All 3 now have **new UUIDs**, distinct
+from the ones deleted in §6/`stale-row-cleanup.md` (`ec4e4739-...`, `44712edc-...`,
+`0fcf7622-...`):
+
+| Title | New album `id` | `albums.created_at` |
+|---|---|---|
+| Unknown Band \| Unknown Album | `53faf84b-14d9-4ae5-88d1-dab239ef20a5` | 2026-07-17T20:11:51 UTC |
+| Record(s) o' the Month – April 2026 | `373c6393-7eb0-4d1b-950f-2f220aba60d1` | 2026-07-17T20:11:51 UTC |
+| Yer Metal Is Olde: Stratovarius – Episode | `01e05c7b-6cc3-469f-a188-6535c2ffe88c` | 2026-07-17T20:11:51 UTC |
+
+All 3 were created in the same batch, at 2026-07-17T20:11:51 UTC — a single ingest run recreated
+all 3 at once. This rules out a backup/restore or second write path resurrecting old data; some
+ingest run genuinely re-created them from scratch via the normal `resolveAlbumIdentity` →
+`randomUUID()` path (which only fires when no existing album matches, consistent with the old
+rows having been deleted).
+
+### Finding 2 — no `skipped_posts` entry for this run; but that alone is inconclusive
+
+Queried `skipped_posts` (40 most recent rows) — the only entries for these 3 titles are the
+verification-run entries at 16:36 and 18:34 UTC (`reason='non_review_category'`, both **before**
+the 19:48 UTC commit) and the cleanup-migration entries at 19:11 UTC
+(`reason='backfilled_non_review_cleanup'`, from §6). **Nothing after 19:11 UTC.**
+
+This is necessary but not sufficient evidence that the skip check didn't run — `logSkippedPost`
+only fires when a post *is* skipped. If `shouldSkipPost` had run and (incorrectly) returned
+`false`, there would also be no `skipped_posts` row, because the item would have proceeded as a
+normal review. So the absence of a log entry is consistent with either "the check never ran" or
+"the check ran and wrongly said not-a-skip" — it doesn't distinguish between them by itself.
+
+### Finding 3 — re-running the actual current code against the live feed, right now, correctly skips all 3
+
+To distinguish the two Finding-2 possibilities, `isGenuineReview` / `isAllowlistedFranchise` /
+`shouldSkipPost` were imported directly from the current `scripts/ingest.ts` (unchanged since the
+19:48 UTC commit — confirmed via `git log` on the file, no further commits) and run live against
+the current AMG and PS RSS feeds. All 3 target items are still present in-window (AMG: 10 items,
+PS: 10 items) and their live `<category>` data is unchanged from what the original audit (§1–§5)
+found — no `Reviews`/`Review` tag on the AMG items, no `Album Reviews` tag on the PS item:
+
+```
+Record(s) o' the Month – April 2026 → isGenuineReview: false, shouldSkipPost: true
+Yer Metal Is Olde: Stratovarius – Episode → isGenuineReview: false, shouldSkipPost: true
+Our June 2026 Albums of the Month! → isGenuineReview: false, shouldSkipPost: true
+```
+
+**The current code, run right now against the live feed, correctly skips all 3 items.** This
+rules out §4 of the brief (functions regressed/reverted) and §5 (site changed its own tagging) —
+neither happened. It also confirms there is only one ingest entry point that matters in practice:
+`scripts/ingest.ts`'s `runIngestion()`, imported by both `scripts/ingest-cli.ts` (`npm run
+ingest`) and `server.ts` (`POST /api/ingest`, the production refresh button) — both call the same
+function, and `git log` shows no second implementation or fork of the skip logic anywhere in the
+repo.
+
+### Root cause: confirmed — a stale local dev-server process, not a code defect
+
+Dan confirmed the offending run was the **local** Refresh button (`npm run dev`'s Express server
+on `localhost:3001`), not the deployed Render site — Dan had loaded the deployed site beforehand
+but did not click its refresh button, ruling out Render entirely.
+
+Direct process inspection confirms the mechanism:
+
+```
+PID  STARTED                    ELAPSED
+4188 Fri Jul 17 14:58:48 2026   08:27:23   node .../tsx server.ts
+```
+
+System timezone is `EEST` (+0300), matching git's commit timezone, so this `tsx server.ts`
+process has been running **continuously since 2026-07-17T11:58:48 UTC**, with no restart since
+(elapsed ~8.5 hours, uninterrupted). That is well before:
+
+- the 16:36 and 18:34 UTC live-verification `skipped_posts` entries (both from separate, one-shot
+  `npm run ingest` / `ingest-cli.ts` invocations — a fresh process each time, unrelated to this
+  long-lived one),
+- the 19:11 UTC cleanup migration,
+- the 19:48 UTC commit (`d943fa2`) of the skip-check fix, and
+- the 20:11:51 UTC offending run.
+
+`server.ts` imports `runIngestion` once, at process start, and holds that reference in memory for
+the process's lifetime — editing `scripts/ingest.ts` on disk, or even committing it, does nothing
+to a Node process that already imported the old version and never restarted. This local dev
+server was started (11:58 UTC) before the skip-check code (`isGenuineReview`,
+`isAllowlistedFranchise`, `shouldSkipPost`, `logSkippedPost`) was ever written, so its in-memory
+`runIngestion` has never had that logic at all. Clicking its Refresh button ran that pre-fix
+version: every RSS item, including these 3, got mapped straight into a review/album row with zero
+`skipped_posts` activity — because the entire skip mechanism was simply absent from what was
+running, not bypassed or broken. This fully explains every piece of evidence gathered above: the
+new UUIDs, the missing log entries, and why re-running today's actual on-disk code in a fresh
+process (Finding 3) correctly skips all 3 posts.
+
+### Finding 4 — exhaustive sweep found exactly one more: "Lost in Time" — no others
+
+Dan flagged a 4th title also visible live: PS "Lost in Time: Exotic Animal Petting Zoo – Tree of
+Tongues" (the same post `stale-row-cleanup.md` explicitly noted had *not* existed yet at cleanup
+time, because the live skip-fix caught it in real time — see that doc's dry-run table). To check
+for this and any others, two sweeps were run:
+
+1. **Feed-window sweep**: ran the current `shouldSkipPost` against every item currently in the
+   live AMG (10 items) and PS (10 items) feeds, then checked each item that should be skipped
+   against the `reviews` table by URL. Found 4 matches — the 3 already documented above, plus
+   "Lost in Time: Exotic Animal Petting Zoo – Tree of Tongues" (`reviews.id =
+   d86002a6-fb67-498b-ab1c-4c59e3334606`, `album_id = 83143e09-3a77-4e79-87ea-2f4a6b955ea5`).
+2. **Full historical sweep**: pulled every unique URL ever logged to `skipped_posts` since the
+   table existed (4 unique URLs total — the same 4) and checked each against `reviews` by URL,
+   independent of whether it's still in the current feed window. Same 4 matches, no others.
+
+Both sweeps agree and are consistent with each other, so this is not an artifact of the feed
+window happening to still contain the affected posts — **exactly 4 posts have ever been logged as
+skipped, and all 4 currently have a live `reviews`/`albums` row.** All 4 have identical
+`albums.created_at = 2026-07-17T20:11:51.349647 UTC` — the same single stale-process run
+identified above created all 4 at once, "Lost in Time" included. No 5th case exists.
+
+| Title | Source | `reviews.id` | `album_id` |
+|---|---|---|---|
+| Unknown Band \| Unknown Album (PS "Our June 2026 Albums of the Month!") | PS | `01b52b74-1d47-490a-85e3-e61ecc7080e4` | `53faf84b-14d9-4ae5-88d1-dab239ef20a5` |
+| Record(s) o' the Month – April 2026 | AMG | `fb3f1350-3666-4865-b213-50f7abe821bc` | `373c6393-7eb0-4d1b-950f-2f220aba60d1` |
+| Yer Metal Is Olde: Stratovarius – Episode | AMG | `fa559cc1-f700-4423-a650-bdc251043918` | `01e05c7b-6cc3-469f-a188-6535c2ffe88c` |
+| Lost in Time: Exotic Animal Petting Zoo – Tree of Tongues | PS | `d86002a6-fb67-498b-ab1c-4c59e3334606` | `83143e09-3a77-4e79-87ea-2f4a6b955ea5` |
+
+### Is this a one-time fluke or will it recur?
+
+**One-time, confirmed** — not a code gap. The currently-committed code, run in any fresh process
+(a new `npm run ingest`, a restarted local dev server, or Render after its next deploy), correctly
+skips these 3 posts (Finding 3). The failure mode was specifically: editing `scripts/ingest.ts`
+while a long-running `npm run dev` / `npm run server` process from before the edit was still
+alive, then triggering ingest through that same stale process's Refresh button rather than through
+a fresh process. This will recur only under the same conditions — a local dev server left running
+across an `ingest.ts` edit, then used to trigger ingest without a restart. No code fix is implied;
+this is an operational/workflow gotcha (restart `npm run dev` after editing server-side files
+whose changes need to take effect), not a bug in the skip-check logic itself.
+
+### What was NOT done in this session
+
+- No code changes, no fix.
+- No re-run of the cleanup migration — the 3 rows created at 20:11:51 UTC are left in place,
+  pending Dan's decision on how to proceed now that the cause is understood (or partially
+  understood).
+- Temporary diagnostic scripts (`.scratch_diag/`) used for the Supabase queries and the live
+  RSS/skip-check replay were deleted before this session ended — nothing left in the working tree.
+
 ## Method notes
 
 - Live-table reads: read-only `select` queries against Supabase via the project's existing
