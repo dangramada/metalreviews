@@ -1,0 +1,21 @@
+name: Scheduled ingest
+
+# Fires the ingest run on the Render web service via its token-protected
+# /api/ingest endpoint. Kept external to the web service itself — see
+# docs/decisions/ingest-trigger-and-security.md Section 5, Option C.
+on:
+  schedule:
+    - cron: '0 7,19 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  trigger-ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/ingest
+        run: |
+          curl -sS -X POST "https://metalreviews.onrender.com/api/ingest" \
+            -H "Authorization: Bearer ${INGEST_SECRET}" \
+            --fail
+        env:
+          INGEST_SECRET: ${{ secrets.INGEST_SECRET }}

@@ -55,3 +55,14 @@ The cache path itself was already correct — `.puppeteerrc.cjs` (added in `366d
 **Verified against a real Render deploy (2026-07-19).** Dan ran a live ingest on the deployed instance; all three sources (Angry Metal Guy, The Progressive Subway, Metal Storm) completed successfully with real scores returned — not just an absence-of-crash check. The `dependencies`/explicit-install-step fix is confirmed working in production.
 
 This verifies only the "Chrome binary missing at build time" fix. It says nothing about Security Finding #9 (`--no-sandbox`), which is a separate, still-open concern — see that section below.
+
+## Superseded (2026-07-21): ingest auth + Refresh button removed
+
+The "Ingest endpoint auth" bullet, the env var table, and the "Admin-gating of the
+Refresh button" section above describe the original `X-Ingest-Token` /
+`VITE_INGEST_SECRET_TOKEN` / Refresh-button design. That design is gone —
+`/api/ingest` now takes `Authorization: Bearer <token>`, called only by a GitHub
+Actions schedule/`workflow_dispatch`, and the Refresh button no longer exists. See
+`docs/decisions/ingest-trigger-and-security.md` Section 7 for the current design.
+`INGEST_SECRET_TOKEN` (server-only) is the only ingest secret that still exists;
+`VITE_INGEST_SECRET_TOKEN` is gone.

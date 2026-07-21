@@ -81,7 +81,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 ```bash
 npm run dev           # Start Vite dev server + Express API server together (via concurrently)
 npm run build         # Build frontend for production
-npm run ingest        # Run the scraper/ingestion pipeline (starts cron wiring in ingest-cli.ts, but no scheduled process runs in production — see docs/decisions/ingest-trigger-and-security.md)
+npm run ingest        # Run the scraper/ingestion pipeline locally (one-off). In production, ingest is triggered by a GitHub Actions schedule + workflow_dispatch calling POST /api/ingest — see docs/decisions/ingest-trigger-and-security.md
 npm run server        # Start Express API server alone (port 3001)
 npm run test          # Run all tests (Vitest, watch mode)
 npm run lint          # ESLint check

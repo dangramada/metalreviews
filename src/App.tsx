@@ -20,7 +20,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Badge,
-  Button,
   Heading,
   Text,
   VStack,
@@ -39,9 +38,6 @@ import {
   List,
 } from '@chakra-ui/react';
 
-// Icons for the Refresh button's different states
-import { LuCheck, LuRepeat, LuTriangleAlert } from 'react-icons/lu';
-
 // Heart icons for favoriting
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
@@ -53,7 +49,7 @@ import type { AlbumWithReviewsRow, AlbumCard } from './dbMapping';
 import { Header } from './Header';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { sourceBadge, scoreBadge, genreBadge, secondaryButton } from './theme';
+import { sourceBadge, scoreBadge, genreBadge } from './theme';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -380,15 +376,6 @@ function App() {
   // Controls whether we show the full-page spinner or the card grid.
   const [loading, setLoading] = useState(true);
 
-  // Tracks the Refresh button through its lifecycle:
-  //   'idle'    → default, shows the refresh icon
-  //   'loading' → ingest running, shows spinner, button disabled
-  //   'success' → new data arrived, shows checkmark for 3s then resets
-  //   'error'   → something went wrong, shows warning icon for 3s then resets
-  const [refreshState, setRefreshState] = useState<'idle' | 'loading' | 'success' | 'error'>(
-    'idle'
-  );
-
   // Auth state — user is null when logged out.
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -397,79 +384,6 @@ function App() {
   // Set of review IDs the current user has favorited. Hydrated on login,
   // cleared on logout. Stored as a Set for O(1) membership checks.
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
-
-  // =============================================================================
-  // REFRESH: trigger a new ingest run and poll for results
-  // =============================================================================
-
-  async function handleRefresh() {
-    setRefreshState('loading');
-    try {
-      // POST to /api/ingest via the Vite proxy → Express server on port 3001.
-      // VITE_INGEST_SECRET_TOKEN is the browser-exposed copy of the server's INGEST_SECRET_TOKEN.
-      // If the var is missing the fallback '' is sent, which isAuthorized correctly rejects.
-      const res = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: { 'X-Ingest-Token': import.meta.env.VITE_INGEST_SECRET_TOKEN ?? '' },
-      });
-
-      if (res.status === 409) {
-        // 409 Conflict: server returns this when an ingest is already running.
-        // Show a warning and return to idle without starting the poll loop.
-        showError('Ingest already running, please wait');
-        setRefreshState('idle');
-        return;
-      }
-      // 202 Accepted: the server started the ingest in the background.
-      // The response arrives immediately; scraping continues server-side.
-      if (res.status !== 202) throw new Error('Unexpected response');
-
-      // Poll /api/ingest/status every 2s. The server flips ingesting → false
-      // in its .finally(), so 'idle' is the definitive completion signal —
-      // regardless of whether any new reviews were actually added.
-      const MAX_POLL_MS = 5 * 60 * 1000; // 5-minute safety ceiling
-      const startedAt = Date.now();
-
-      const pollId = setInterval(async () => {
-        try {
-          // Safety timeout — if still running after 5 minutes, something went wrong server-side.
-          if (Date.now() - startedAt >= MAX_POLL_MS) {
-            clearInterval(pollId);
-            setRefreshState('error');
-            setTimeout(() => setRefreshState('idle'), 3000);
-            return;
-          }
-
-          const { status } = await fetch('/api/ingest/status').then((r) => r.json());
-          if (status === 'idle') {
-            clearInterval(pollId);
-            const { data, error } = await supabase
-              .from('albums')
-              .select(ALBUMS_WITH_REVIEWS_SELECT)
-              .order('created_at', { ascending: false });
-            if (!error && data) {
-              setReviews((data as unknown as AlbumWithReviewsRow[]).map(fromAlbumWithReviews));
-              setRefreshState('success');
-            } else {
-              // Ingest succeeded but the reload failed — show error so the user knows to refresh.
-              console.warn('Ingest complete but failed to reload reviews from Supabase', error);
-              setRefreshState('error');
-            }
-            setTimeout(() => setRefreshState('idle'), 3000);
-          }
-        } catch {
-          // Status fetch failed mid-poll — stop and show error.
-          clearInterval(pollId);
-          setRefreshState('error');
-          setTimeout(() => setRefreshState('idle'), 3000);
-        }
-      }, 2000);
-    } catch {
-      // Initial POST to /api/ingest failed (network error, server down, etc.)
-      setRefreshState('error');
-      setTimeout(() => setRefreshState('idle'), 3000);
-    }
-  }
 
   // =============================================================================
   // INITIAL DATA LOAD
@@ -621,9 +535,6 @@ function App() {
   // =============================================================================
 
   // Spread onto the Input and both Selects for visual consistency.
-  // The Refresh button does NOT use this — Chakra v2's `variant="outline"` conflicts
-  // with an explicit `bg` prop, causing the border to not contain its background.
-  // The button is styled explicitly with `border="1px solid"` instead.
   // v3: NativeSelect splits root-level props (size/variant/layout) from field-level
   // visual styles (bg/color/border), so we maintain two objects. Input accepts all combined.
   const controlRootStyle = { size: 'md', variant: 'outline' } as const;
@@ -719,29 +630,6 @@ function App() {
                 <option value="7">7+ / 10</option>
               </NativeSelect.Field>
             </NativeSelect.Root>
-            {/* Button does NOT spread controlStyle — see comment above. */}
-            <Button
-              {...secondaryButton}
-              variant="outline"
-              px={4}
-              flexShrink={0}
-              w={{ base: '100%', md: 'auto' }}
-              size="md"
-              _hover={{ borderColor: 'border.hover', color: 'text.primary', bg: 'whiteAlpha.200' }}
-              _active={{ bg: 'surface.raised' }}
-              onClick={handleRefresh}
-              disabled={refreshState === 'loading'}
-            >
-              {refreshState === 'loading' ? (
-                <><Spinner size="xs" /> Refreshing…</>
-              ) : refreshState === 'success' ? (
-                <><LuCheck /> Done</>
-              ) : refreshState === 'error' ? (
-                <><LuTriangleAlert /> Failed</>
-              ) : (
-                <><LuRepeat /> Refresh</>
-              )}
-            </Button>
           </Flex>
 
           {/* Counter row: review count left-aligned + favorites-only switch right-aligned (logged-in only).

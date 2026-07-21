@@ -169,3 +169,50 @@ trigger.
   require RLS bypass.
 - **Finding #10** — escape Lucene special characters and add a length cap before
   interpolating band/album name into the MusicBrainz query.
+
+---
+
+## Section 7 — Implementation (2026-07-21)
+
+Option C (Section 5) implemented as decided.
+
+- **`.github/workflows/ingest.yml`**: `schedule: '0 7,19 * * *'` + `workflow_dispatch:
+  {}`. Confirmed with Dan that the original 07:00/19:00 times were already intended
+  as UTC, so no conversion was needed — the cron expression carries over unchanged
+  from `ingest-cli.ts`'s `node-cron` wiring. The job step is a single `curl -X POST`
+  to `https://metalreviews.onrender.com/api/ingest` with `--fail` (so a non-2xx
+  response fails the Actions run visibly) and the secret passed via `env:` +
+  `${INGEST_SECRET}` shell expansion, never interpolated into the command string or
+  echoed in any step.
+- **Header rename**: `/api/ingest` now reads `Authorization: Bearer <token>` instead
+  of `X-Ingest-Token`. Decided without flagging back to Dan because
+  `/api/manual-album-lookup` in the same `server.ts` already uses
+  `Authorization: Bearer` for its (unrelated) Supabase-JWT check — reusing the header
+  name keeps one auth convention in the file instead of two. `isAuthorized()`'s
+  comparison logic is untouched; only the extraction changed.
+- **Browser exposure removed**: `VITE_INGEST_SECRET_TOKEN` deleted from `src/App.tsx`
+  (grepped first — its only other references were `server.ts`, which now no longer
+  reads it either, and doc mentions in this file and `render-deployment.md`, left
+  as historical record). Findings #2 and #8 (Section 2) are now closed — no browser
+  caller exists, so nothing compares the token in a browser-observable path.
+- **Refresh button removed**: `handleRefresh`, `refreshState`, the `/api/ingest/status`
+  poll loop, and the associated toasts/icons removed from `src/App.tsx` per
+  `docs/decisions/refresh-button.md`. No in-app manual trigger was built — decided
+  against in Section 5's open question; `workflow_dispatch` in the Actions UI is the
+  only manual-trigger path now.
+- **Verification**: `tsc --noEmit` clean, 166/166 tests passing. Additionally
+  live-verified the new auth mechanism itself end-to-end against a local
+  `tsx server.ts` pointed at real production Supabase + real scraper sources:
+  no-auth → 401, old `X-Ingest-Token` header → 401 (correctly rejected), correct
+  `Authorization: Bearer <INGEST_SECRET_TOKEN>` → 202, and the run completed with
+  "✅ Ingestion completed — upserted 23 album(s), 47 review(s)". This proves the
+  code path GitHub Actions will call is correct. **What's still pending**: an
+  actual GitHub Actions run (scheduled or `workflow_dispatch`) hitting the deployed
+  `https://metalreviews.onrender.com/api/ingest`, which requires Dan to set
+  `INGEST_SECRET` (GitHub) and `INGEST_SECRET_TOKEN` (Render) first — see
+  `deferred-work.md`, not marked done until that specific run is confirmed.
+  (Incidentally surfaced during this run, unrelated to auth: two pre-existing
+  `skipped_posts` logging failures with Postgrest error `PGRST116` — flagged
+  separately, not fixed here.)
+- **Not touched**: Findings #3/#4/#7 (CORS/helmet/rate-limiting) — still open, tracked
+  in Section 6. The Metal Storm timeout fix — untouched, separate work.

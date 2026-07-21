@@ -13,9 +13,9 @@ app.use(express.static(path.resolve(process.cwd(), 'dist')));
 let ingesting = false;
 
 // Pure helper — exported for unit testing only.
-// PHASE 5 NOTE: this token check is intentionally weak. Once auth ships,
-// replace this with a server-side session check so the secret never needs
-// to be sent from the browser (it can't be kept secret via VITE_ env vars).
+// Caller is GitHub Actions (see .github/workflows/ingest.yml), never a browser,
+// so the secret lives only in the GH Actions/Render env — see
+// docs/decisions/ingest-trigger-and-security.md Section 3/5 (Option C).
 export function isAuthorized(
   token: string | string[] | undefined,
   secret: string | undefined
@@ -26,13 +26,17 @@ export function isAuthorized(
 }
 
 // Warn once at startup so the operator notices immediately if the secret is missing.
-// Without it every POST /api/ingest call returns 401 and the refresh button never works.
+// Without it every POST /api/ingest call returns 401 and the scheduled GitHub Actions run fails.
 if (!process.env.INGEST_SECRET_TOKEN) {
   console.warn('INGEST_SECRET_TOKEN is not set — POST /api/ingest will always return 401');
 }
 
 app.post('/api/ingest', (req, res) => {
-  const token = req.headers['x-ingest-token'];
+  const authHeader = req.headers['authorization'];
+  const token =
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
   if (!isAuthorized(token, process.env.INGEST_SECRET_TOKEN)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
