@@ -185,3 +185,31 @@ duplicate rows — including the `reason='backfilled_non_review_cleanup'` rows w
 cleanup pass above — were deleted. Confirmed via dry run and reported before any write.
 
 `skipped_posts`: 40 → 4 (one row per distinct URL, verified by a post-delete scan).
+
+## Fourth cleanup pass + code fix (2026-07-21)
+
+**Cause:** the local test ingest run done during the GitHub Actions ingest-trigger
+implementation session (2026-07-21 ~08:10 UTC) re-inserted duplicate `skipped_posts`
+rows for 2 URLs, even though a dedup existence check had been added in the 2026-07-20
+fix. Root cause: the existence check used `.maybeSingle()`, which throws `PGRST116`
+when the query matches more than one row — and both URLs already had 2 rows from the
+pre-fix era, so the check threw rather than returning "exists". The `catch` block
+suppressed the throw and fell through to the insert, creating a third row for each URL.
+
+**Code fix (`scripts/ingest.ts`):** replaced `.maybeSingle()` in the dedup lookup
+with `.select('*', { count: 'exact', head: true }).eq(...)`, which returns a `count`
+integer and never throws on multiple matches. Early-return condition updated to
+`if (count && count > 0) return;`. Mock in `scripts/__tests__/logSkippedPost.test.ts`
+updated to match (returns `{ count, error }` from `.eq()` instead of `{ data, error }`
+from `.maybeSingle()`). `tsc --noEmit` clean, 166/166 tests passing.
+
+**Data fix:** 2 duplicate rows deleted (the 2026-07-21 re-inserts, keeping the
+2026-07-17 originals). Dry-run confirmed both IDs and their `skipped_at` timestamps
+before deletion; post-delete scan confirmed 0 duplicate URLs remaining.
+
+| Deleted ID | Title | `skipped_at` |
+|---|---|---|
+| `0198dd82-28f9-417c-ab7e-7a64ee1c9142` | Our June 2026 Albums of the Month! | 2026-07-21T08:10:09 |
+| `7400f86e-1ec1-41e5-9a63-35418d3898f9` | Lost in Time: Exotic Animal Petting Zoo – Tree of Tongues | 2026-07-21T08:10:09 |
+
+`skipped_posts`: 10 → 8 (0 duplicate URLs, verified by post-delete scan).

@@ -1,5 +1,13 @@
 # Ingest trigger decision + security audit record — June 2026
 
+> **Summary (2026-07-21):** Refresh button removed; ingest now runs via GitHub Actions
+> (`.github/workflows/ingest.yml`, schedule `0 7,19 * * *` UTC + `workflow_dispatch`) calling
+> `POST /api/ingest` with an `Authorization: Bearer` secret, never exposed to the browser.
+> Live-verified via a real `workflow_dispatch` run — job completed green, endpoint returned
+> `202`, `/api/ingest/status` confirmed completion. Sections 1–6 below are the pre-implementation
+> audit, decision, and parked options (historical context). **Section 7 has the full
+> implementation record — read that first if you just need current state.**
+
 ## Section 1 — Current state (verified)
 
 Ingest runs in two ways today:

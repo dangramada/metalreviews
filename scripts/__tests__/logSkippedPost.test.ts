@@ -10,13 +10,12 @@ import { supabase } from '../supabaseClient';
 import { logSkippedPost } from '../ingest';
 
 // Builds a supabase.from('skipped_posts') mock covering both call shapes
-// logSkippedPost uses: the dedup lookup (.select().eq('url', ...).maybeSingle())
-// and the insert itself.
-function makeSkippedPostsFromImpl(options: { existingRow?: { id: string } | null }) {
-  const { existingRow = null } = options;
+// logSkippedPost uses: the dedup lookup (.select('*', { count: 'exact', head: true }).eq('url', ...))
+// returning { count, error }, and the insert itself.
+function makeSkippedPostsFromImpl(options: { existingCount?: number }) {
+  const { existingCount = 0 } = options;
   const insert = vi.fn().mockResolvedValue({ error: null });
-  const maybeSingle = vi.fn().mockResolvedValue({ data: existingRow, error: null });
-  const eq = vi.fn().mockReturnValue({ maybeSingle });
+  const eq = vi.fn().mockResolvedValue({ count: existingCount, error: null });
   const select = vi.fn().mockReturnValue({ eq });
   return {
     impl: (table: string) => {
@@ -32,7 +31,7 @@ describe('logSkippedPost', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('logs a new post (no existing row for its URL)', async () => {
-    const { impl, insert, eq } = makeSkippedPostsFromImpl({ existingRow: null });
+    const { impl, insert, eq } = makeSkippedPostsFromImpl({ existingCount: 0 });
     vi.mocked(supabase.from).mockImplementation(impl);
 
     await logSkippedPost('Angry Metal Guy', {
@@ -48,7 +47,7 @@ describe('logSkippedPost', () => {
   });
 
   it('does not re-insert a post already logged for the same URL', async () => {
-    const { impl, insert } = makeSkippedPostsFromImpl({ existingRow: { id: 'existing-log-1' } });
+    const { impl, insert } = makeSkippedPostsFromImpl({ existingCount: 1 });
     vi.mocked(supabase.from).mockImplementation(impl);
 
     await logSkippedPost('Angry Metal Guy', {

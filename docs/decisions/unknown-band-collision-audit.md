@@ -14,6 +14,12 @@ album-identity migration. This session asks: does the collision still exist post
 does it currently hold, and what is the actual population of things that fail (or nearly fail) to
 parse — not just the roundup posts already known about.
 
+> **Summary:** This audit's findings shipped as `docs/decisions/roundup-skip-fix.md` (RSS
+> `<category>` tag filtering, live-verified 2026-07-17). The stale rows this audit found were
+> separately cleaned up in `docs/decisions/stale-row-cleanup.md`. This file remains the
+> read-only investigation of record — **read `roundup-skip-fix.md` first if you just need
+> to know what shipped**; come back here only for the full investigation trail.
+
 ---
 
 ## 1. Current `Unknown Band | Unknown Album` occupant — confirmed, still a live collision channel

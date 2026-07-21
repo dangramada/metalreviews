@@ -32,6 +32,13 @@ were separately cleaned up the same day — see `docs/decisions/stale-row-cleanu
 - Target deployment: Render (current). Vercel migration is a possible future move — avoid permanent server dependencies where reasonably easy
 - Comment all non-trivial code: explain WHY, not just what. Prioritise scraper logic, ingestion pipeline, React state, and any API or browser quirks.
 - When a session identifies new deferred or postponed work, add it to `docs/decisions/deferred-work.md` rather than only stating it inline in that session's own doc.
+- Docs that are read repeatedly across sessions and grow large after a decision ships get a
+  short summary block prepended once shipped-and-verified, so future sessions can skip the
+  full body (currently done for `ingest-trigger-and-security.md` and
+  `unknown-band-collision-audit.md`). Apply this only when a doc is both large and frequently
+  re-read — not as a default for every decision doc.
+- Periodically (roughly monthly) review `deferred-work.md` for shipped items older than
+  ~30 days whose full detail already lives in a decision doc, and compress them to one-liners.
 
 ## Active branches
 

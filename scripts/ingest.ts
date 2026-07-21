@@ -120,13 +120,14 @@ export async function logSkippedPost(
 ): Promise<void> {
   const url = item.link ?? '';
   try {
-    const { data: existing, error: lookupError } = await supabase
+    // count: 'exact' + head: true → a COUNT(*) query; returns null when 0 rows,
+    // and doesn't throw on multiple matches unlike .maybeSingle().
+    const { count, error: lookupError } = await supabase
       .from('skipped_posts')
-      .select('id')
-      .eq('url', url)
-      .maybeSingle();
+      .select('*', { count: 'exact', head: true })
+      .eq('url', url);
     if (lookupError) throw lookupError;
-    if (existing) return;
+    if (count && count > 0) return;
 
     const { error } = await supabase.from('skipped_posts').insert({
       source,
