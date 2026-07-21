@@ -35,11 +35,16 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 - **Bulk MusicBrainz ID backfill pass** — current backfill is opportunistic-only;
   already-enriched albums that never got an MB match can stay `mb_release_group_id
   = null` indefinitely under the current design. `album-identity-ingest.md`.
-- **GitHub Actions cron for scheduled ingest** — agreed direction over Render's
-  paid cron option. Caveat: GitHub disables scheduled workflows after 60 days of
-  repo inactivity. `node-cron` wiring in `scripts/ingest-cli.ts` is real,
-  functional code but currently dead in production pending this — no process
-  ever runs it. `ingest-trigger-and-security.md`.
+- ~~**GitHub Actions cron for scheduled ingest**~~ — **DONE (2026-07-21)**.
+  Implemented as `.github/workflows/ingest.yml` (`0 7,19 * * *` UTC +
+  `workflow_dispatch`), calling `POST /api/ingest` with a server-only
+  `Authorization: Bearer` secret. Live-verified via an actual `workflow_dispatch`
+  run against production (`metalreviews.onrender.com`) — job completed green, the
+  endpoint returned `202`, and `/api/ingest/status` confirmed the run finished.
+  `node-cron` wiring in `scripts/ingest-cli.ts` is now genuinely dead code
+  (superseded by the Actions workflow), not merely dormant. 60-day
+  GitHub-inactivity caveat: accepted risk, unrelated to this item's completion.
+  Full history: `ingest-trigger-and-security.md` Section 7.
 - **Google/Facebook OAuth** — credentials not yet configured. Placeholder comment
   in `LoginPage.tsx` marks where the `supabase.auth.signInWithOAuth()` buttons go.
   `auth-routing.md`.

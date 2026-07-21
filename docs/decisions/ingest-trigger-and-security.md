@@ -214,5 +214,21 @@ Option C (Section 5) implemented as decided.
   (Incidentally surfaced during this run, unrelated to auth: two pre-existing
   `skipped_posts` logging failures with Postgrest error `PGRST116` — flagged
   separately, not fixed here.)
+
+**Production live verification — DONE (2026-07-21).** After the secret rotation
+(Dan generated and set his own `INGEST_SECRET` / `INGEST_SECRET_TOKEN`, distinct
+from the value first proposed in this session), a `workflow_dispatch` run of
+`.github/workflows/ingest.yml` was triggered from the GitHub Actions UI. First
+attempt failed (`curl --fail` exit 22, i.e. a 401) — diagnosed as Render not yet
+having redeployed with the new env var; confirmed by curling the live endpoint
+directly and observing correct 401-on-no-auth behavior (proving the new code was
+already deployed, just not yet the matching secret). Second attempt succeeded: the
+job completed green, `POST /api/ingest` returned `202 {"status":"running"}`, and
+polling `GET /api/ingest/status` on `metalreviews.onrender.com` confirmed the run
+transitioned back to `idle`. No new `albums`/`reviews` rows appeared versus the
+prior day's manual test run — expected, since ingest is idempotent and no new
+posts had been published by the scraped sources in the interim; this is not a
+failure signal. `deferred-work.md`'s "GitHub Actions cron for scheduled ingest"
+item is now marked done.
 - **Not touched**: Findings #3/#4/#7 (CORS/helmet/rate-limiting) — still open, tracked
   in Section 6. The Metal Storm timeout fix — untouched, separate work.
