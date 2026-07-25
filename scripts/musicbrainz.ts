@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const MB_USER_AGENT = 'MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)';
+// App name updated to SlantTake in design-system pass 5 (was MetalReviewsDashboard).
+// MusicBrainz's API etiquette policy requires a descriptive User-Agent identifying the
+// calling application; this string is never user-facing, just what MB's logs see.
+const MB_USER_AGENT = 'SlantTake/1.0 (dan.gramada@gmail.com)';
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export interface MusicBrainzData {

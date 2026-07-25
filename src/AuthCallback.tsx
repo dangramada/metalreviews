@@ -7,11 +7,11 @@ import {
   Flex,
   Heading,
   Input,
-  Spinner,
   Text,
   VStack,
 } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
+import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { primaryButton } from './theme';
 
 type CallbackMode = 'loading' | 'recovery';
@@ -29,7 +29,8 @@ export function AuthCallback() {
     variant: 'outline',
     bg: 'surface.card',
     color: 'text.primary',
-    borderColor: 'border.default',
+    border: '2px solid',
+    borderColor: 'border.ruleStrong',
   } as const;
 
   useEffect(() => {
@@ -113,6 +114,8 @@ export function AuthCallback() {
                   type="submit"
                   w="100%"
                   loading={loading}
+                  spinner={<LoadingIndicatorBars />}
+                  aria-label={loading ? 'Loading' : undefined}
                 >
                   Update password
                 </Button>
@@ -127,7 +130,7 @@ export function AuthCallback() {
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary">
       <Flex justify="center" align="center" minH="100vh" direction="column" gap={4}>
-        <Spinner size="xl" color="accent.start" thickness="4px" speed="0.65s" />
+        <LoadingIndicator />
         <Text color="text.dim">Signing you in…</Text>
       </Flex>
     </Box>

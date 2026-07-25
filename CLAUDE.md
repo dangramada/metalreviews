@@ -42,7 +42,43 @@ were separately cleaned up the same day — see `docs/decisions/stale-row-cleanu
 
 ## Active branches
 
-None. `album-identity-migration` merged to `master` on 2026-07-15 (see closing note above) — branch retained per convention, not deleted.
+`design-system-slant-take` — **all nine passes complete and verified. No further passes
+planned — flagged for merge review.**
+Pass 1 colors + fonts, pass 2 radii, pass 3 badges + header wordmark + typography cleanup,
+pass 4 chrome polish (borders, grid gap, badge padding, header divider, active-nav color,
+album color, score-linked hover border), pass 5 rename ("Metal Reviews" → **"Slant Take"**,
+now the live app name in the header, `<title>`, and tests), pass 6 loading indicator
+(circular `Spinner` → mono "marching text" — **superseded by pass 7**, see below), pass 7
+unified loading indicator (marching text + default button spinners → one equalizer-bar
+component, `LoadingIndicator`/`LoadingIndicatorBars` in `src/LoadingIndicator.tsx`, used at
+section scale 48×64 and button scale 16×16, `aria-label="Loading"` on buttons while active),
+pass 8 footer (`src/Footer.tsx`, semantic `<footer>` on both `App.tsx` and
+`FavoritesPage.tsx`: relative "Last updated" sourced from the newest loaded review's
+`publishedAt` — no "last ingest run" timestamp is persisted anywhere, see pass 8's audit —
+plus `Reviews`/`Favorites` nav links reusing `Header.tsx`'s `RouterLink` pattern and a
+dynamically-computed copyright year), pass 9 consistency + hover redesign (2px
+`border.ruleStrong` applied to every remaining form `Input`/`NativeSelect` app-wide —
+`LoginPage.tsx`, `AuthCallback.tsx`, `FavoritesPage.tsx`'s `AddAlbumDrawer` — closing the
+gap pass 4 left outside the home page; the app's last two decimal `fontSize`s rounded to
+whole pixels; `/style-guide` brought up to date with radii, form elements, both loading-
+indicator scales, band/album typography, and live `Header`/`Footer` mounts, plus its stale
+pass-1 swatch labels fixed and the dead `badge.*` swatch group removed; card hover changed
+from whole-card scale to artwork-only zoom, clipped via `overflow: hidden` on
+`ArtworkBlock`'s square — the score-linked border-color hover mechanism is untouched; the
+favorites list row now matches the same border width and hover mechanism, but with a plain
+non-score-conditional hover color since favorites items carry no score data by design).
+Rollback tag `pre-slant-take-design-system` on `master`. See
+`docs/decisions/slant-take-design-system.md`. Reference mockup is
+`~/Downloads/03-graded-slab-void-accent_1.html` (NOT `04-graded-slab-row-gap.html`, which
+does not exist — see the correction note in `design-system-spec-slant-take.md`).
+
+**Naming note:** the rename shipped in pass 5 supersedes the formal naming gates (friend
+test, domain check, trademark search) rather than completing them — see
+`docs/decisions/naming-decisions.md`'s 2026-07-25 entry. Still outstanding: favicon (stale,
+predates every design pass), and the domain/GitHub-repo/Render-service name (still literally
+"metalreviews" — infra-level, not touched).
+
+`album-identity-migration` merged to `master` on 2026-07-15 (see closing note above) — branch retained per convention, not deleted.
 
 (Update this section, not individual decision docs, when branch status changes.)
 
@@ -78,6 +114,20 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `album-identity-frontend-homepage.md` — home-page session: multi-source display, `dbMapping.ts`
 - `album-identity-frontend-favorites.md` — `/favorites` session: `useFavoritesList` re-plumb, `findExistingAlbum`
 - `album-identity-visibility-and-duplicate-fix.md` — home-page visibility filter + duplicate-check fixes
+- `design-system-spec-slant-take.md` — reference spec for the full Slant Take visual
+  redesign (colors, fonts, radii, badge restructure, header wordmark), split across passes
+- `slant-take-design-system.md` — single consolidated decision doc for all three passes
+  (summary table on top); **all complete** — color ramps + semantic token repointing +
+  fonts + zeroed radii + badge/slab restructure + flat two-tone wordmark + typography
+  cleanup. Records three Chakra v3 gotchas: `theme.tokens` nesting for fonts/radii, custom
+  colorPalette needing semantic sub-tokens, and recipes resolving radii via a semantic
+  `l1/l2/l3 → xs/sm/md` layer rather than the numbered keys directly. Also records that
+  the flush-corner badge treatment REQUIRES `bottom/left/right = 0` positioning, and that
+  the score slab is driven by `averageScore`, never a review's raw `score` string
+- `naming-decisions.md` — product name (Slant Take), display face (Clash Display, scoped to
+  wordmark + score-slab number only), logo mark, and the dated accent-colour change to
+  ember. Recreated 2026-07-25 to replace `naming-decision-record-v2.docx`, which never
+  existed in the repo
 - `deferred-work.md` — consolidated tracker of all deferred/postponed work (product features, code/data gaps, design/branding, research findings) — check here first for what's still outstanding
 - `unknown-band-collision-audit.md` — read-only audit: full population of non-review posts (roundups, retrospective columns) confirmed across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — implementation: RSS category-tag filtering, `skipped_posts` table, allowlist for AMG's Unsigned Band Rodeo
