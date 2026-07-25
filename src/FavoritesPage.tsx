@@ -24,7 +24,6 @@ import {
   Input,
   InputGroup,
   NativeSelect,
-  Spinner,
   Text,
   VStack,
   Wrap,
@@ -38,6 +37,8 @@ import { Field } from './components/ui/field';
 import { FaTrash } from 'react-icons/fa';
 import { LuCalendar, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 import { Header } from './Header';
+import { Footer } from './Footer';
+import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { useFavoritesList } from './hooks/useFavoritesList';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
 import { formatReleaseDate, getReleaseYear, toThumbnailUrl } from './App';
@@ -67,8 +68,14 @@ export function FavoriteListItemRow({
       bg="surface.card"
       borderRadius="lg"
       p={3}
-      border="1px solid"
-      borderColor="border.default"
+      border="2px solid"
+      borderColor="border.ruleStrong"
+      // Same border-width/hover language as the reviews-grid card (pass 9), but this row
+      // has no score to link the hover colour to — see docs/decisions/slant-take-design-system.md's
+      // pass 9 entry: favorites items carry no score data by design (useFavoritesList.ts),
+      // so the hover here is a plain colour change, not the score-conditional bone/ember split.
+      _hover={{ borderColor: 'border.hover' }}
+      css={{ '&:hover img': { transform: 'scale(1.06)' } }}
     >
       <Box
         flexShrink={0}
@@ -85,6 +92,7 @@ export function FavoriteListItemRow({
             w="64px"
             h="64px"
             objectFit="cover"
+            transition="transform 0.3s"
             onError={() => setImgFailed(true)}
           />
         ) : (
@@ -118,12 +126,13 @@ export function FavoriteListItemRow({
 
       {onRemove && (
         <IconButton
-          aria-label="Remove from favorites"
+          aria-label={removing ? 'Loading' : 'Remove from favorites'}
           size="sm"
           variant="ghost"
           color="text.muted"
           _hover={{ color: 'red.400', bg: 'whiteAlpha.100' }}
           loading={removing}
+          spinner={<LoadingIndicatorBars />}
           onClick={onRemove}
           flexShrink={0}
         >
@@ -485,7 +494,8 @@ function AddAlbumDrawer({
                     onChange={(e) => setBand(e.target.value)}
                     placeholder="e.g. Opeth"
                     bg="surface.page"
-                    borderColor="border.default"
+                    border="2px solid"
+                    borderColor="border.ruleStrong"
                   />
                 </Field>
                 <Field required label="Album">
@@ -494,13 +504,16 @@ function AddAlbumDrawer({
                     onChange={(e) => setAlbum(e.target.value)}
                     placeholder="e.g. Blackwater Park"
                     bg="surface.page"
-                    borderColor="border.default"
+                    border="2px solid"
+                    borderColor="border.ruleStrong"
                   />
                 </Field>
                 <Button
                   {...primaryButton}
                   type="submit"
                   loading={lookupLoading}
+                  spinner={<LoadingIndicatorBars />}
+                  aria-label={lookupLoading ? 'Loading' : undefined}
                   disabled={!band.trim() || !album.trim()}
                 >
                   Look up
@@ -591,7 +604,8 @@ function AddAlbumDrawer({
                             onChange={(e) => setManualReleaseDate(e.target.value)}
                             placeholder="e.g. 2024, 2024-03, or 2024-03-15"
                             bg="surface.page"
-                            borderColor="border.default"
+                            border="2px solid"
+                            borderColor="border.ruleStrong"
                           />
                         </InputGroup>
                       </Field>
@@ -677,6 +691,8 @@ function AddAlbumDrawer({
               <Button
                 {...primaryButton}
                 loading={saving}
+                spinner={<LoadingIndicatorBars />}
+                aria-label={saving ? 'Loading' : undefined}
                 disabled={
                   !existingMatch && lookupResult?.releaseDate === null && !manualReleaseDate.trim()
                 }
@@ -790,7 +806,8 @@ export function FavoritesPage() {
               <NativeSelect.Root size="sm" w="auto" minW="120px">
                 <NativeSelect.Field
                   bg="surface.card"
-                  borderColor="border.default"
+                  border="2px solid"
+                  borderColor="border.ruleStrong"
                   css={{ '& option': { background: 'gray.800' } }}
                   value={selectedYear}
                   onChange={(e) => {
@@ -814,7 +831,7 @@ export function FavoritesPage() {
 
           {loading ? (
             <Flex justify="center" align="center" minH="200px">
-              <Spinner role="status" size="xl" color="accent.start" thickness="4px" speed="0.65s" />
+              <LoadingIndicator />
             </Flex>
           ) : error ? (
             <Text textAlign="center" color="red.400">
@@ -838,6 +855,8 @@ export function FavoritesPage() {
               ))}
             </VStack>
           )}
+
+          <Footer />
         </VStack>
       </Container>
 

@@ -6,13 +6,18 @@ import {
   Flex,
   Heading,
   HStack,
+  Input,
+  NativeSelect,
   SimpleGrid,
   Text,
   VStack,
   Badge,
   Separator,
 } from '@chakra-ui/react';
-import { BUTTON_VARIANTS, primaryButton, secondaryButton, sourceBadge, scoreBadge, genreBadge } from './theme';
+import { BUTTON_VARIANTS, primaryButton, secondaryButton, sourceBadge, scoreSlabBase, scoreSlabHigh, genreBadge } from './theme';
+import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
+import { Header } from './Header';
+import { Footer } from './Footer';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -69,52 +74,54 @@ function Swatch({ token, description, bg, textColor = 'white' }: SwatchProps) {
 // Color groups
 // ---------------------------------------------------------------------------
 
+// Descriptions name the real underlying ramp token (ember/ink/sand, pass 1) rather than
+// the pre-redesign gray/purple/white values these labels showed before pass 9's audit.
+// The old "Badge" group (badge.source/score/genre.* semantic tokens) is gone entirely —
+// those tokens are dead: no component reads them anymore. The real badges are documented
+// with their actual values in "Badges — Contextual" below.
 const COLOR_GROUPS = [
   {
     label: 'Surface',
     swatches: [
-      { token: 'surface.page', description: 'Page background (gray.900)', bg: 'surface.page' },
-      { token: 'surface.card', description: 'Card background (gray.800)', bg: 'surface.card' },
-      { token: 'surface.raised', description: 'Raised element (gray.700)', bg: 'surface.raised' },
-      { token: 'surface.darkest', description: 'Deepest surface (gray.900)', bg: 'surface.darkest' },
+      { token: 'surface.page', description: 'Page background (ink.950)', bg: 'surface.page' },
+      { token: 'surface.card', description: 'Card background (ink.900)', bg: 'surface.card' },
+      { token: 'surface.cardHover', description: 'Card hover background (#181818)', bg: 'surface.cardHover' },
+      { token: 'surface.raised', description: 'Raised element (ink.700)', bg: 'surface.raised' },
+      { token: 'surface.darkest', description: 'Deepest surface (ink.950)', bg: 'surface.darkest' },
     ],
   },
   {
     label: 'Border',
     swatches: [
-      { token: 'border.default', description: 'Default border (gray.600)', bg: 'border.default' },
-      { token: 'border.hover', description: 'Hover border (gray.400)', bg: 'border.hover' },
+      { token: 'border.default', description: 'Pre-redesign default border (gray.600) — still used by untouched decorative containers (dialogs, menus)', bg: 'border.default' },
+      { token: 'border.hover', description: 'Pre-redesign hover border (gray.400)', bg: 'border.hover' },
+      { token: 'border.rule', description: 'Flush-corner badge rule (ink.800)', bg: 'border.rule' },
+      { token: 'border.ruleStrong', description: 'Structural 2px rule — cards, form elements, header/footer dividers (ink.700)', bg: 'border.ruleStrong' },
     ],
   },
   {
     label: 'Text',
     swatches: [
-      { token: 'text.primary', description: 'Primary text (white)', bg: 'text.primary' },
-      { token: 'text.muted', description: 'Muted text (gray.500)', bg: 'text.muted' },
-      { token: 'text.dim', description: 'Dim text (gray.400)', bg: 'text.dim' },
+      { token: 'text.primary', description: 'Primary text (sand.200)', bg: 'text.primary' },
+      { token: 'text.muted', description: 'Muted text (sand.500)', bg: 'text.muted' },
+      { token: 'text.dim', description: 'Dim text (sand.300)', bg: 'text.dim' },
     ],
   },
   {
     label: 'Accent',
     swatches: [
-      { token: 'accent.start', description: 'Gradient start (purple.300)', bg: 'accent.start' },
-      { token: 'accent.end', description: 'Gradient end (purple.600)', bg: 'accent.end' },
-      { token: 'accent.border', description: 'Accent border (purple.500)', bg: 'accent.border' },
-      { token: 'accent.text', description: 'Accent text (purple.300)', bg: 'accent.text' },
-    ],
-  },
-  {
-    label: 'Badge',
-    swatches: [
-      { token: 'badge.source.bg',   description: 'Source badge bg (gray.800)',      bg: 'badge.source.bg' },
-      { token: 'badge.source.text', description: 'Source badge text (purple.100)',   bg: 'badge.source.text' },
-      { token: 'badge.score.bg',    description: 'Score badge bg (purple.300)',      bg: 'badge.score.bg' },
-      { token: 'badge.score.text',  description: 'Score badge text (#111111)',       bg: 'badge.score.text' },
-      { token: 'badge.genre.bg',    description: 'Genre badge bg (whiteAlpha.100)',  bg: 'badge.genre.bg' },
-      { token: 'badge.genre.text',  description: 'Genre badge text (purple.200)',    bg: 'badge.genre.text' },
+      { token: 'accent.start', description: 'Gradient start (ember.300)', bg: 'accent.start' },
+      { token: 'accent.end', description: 'Gradient end (ember.600)', bg: 'accent.end' },
+      { token: 'accent.border', description: 'Accent border / high-score fill (ember.500)', bg: 'accent.border' },
+      { token: 'accent.text', description: 'Accent text (ember.300)', bg: 'accent.text' },
+      { token: 'accent.ink', description: 'Dark text for accent-filled backgrounds (#140a03)', bg: 'accent.ink' },
     ],
   },
 ] as const;
+
+// Slant Take's radii are all zeroed (pass 2) — every corner is square. Shown against a
+// mid-tone swatch so the (lack of) corner rounding is actually visible.
+const RADIUS_TOKENS = ['none', 'xs', 'sm', 'base', 'md', 'lg', 'full'] as const;
 
 // ---------------------------------------------------------------------------
 // Typography specimens
@@ -199,16 +206,41 @@ export function StyleGuide() {
               <Box>
                 <Label>Mono / code</Label>
                 <Text fontFamily="mono" fontSize="sm" color="text.primary">
-                  surface.card → gray.800 → #1a202c
+                  surface.card → ink.900 → #131313
+                </Text>
+              </Box>
+
+              {/* Band/album card typography (App.tsx's card body) — fontFamily="body"
+                  deliberately, never the heading face: Clash Display is reserved for the
+                  wordmark and score-slab number only (see docs/decisions/naming-decisions.md). */}
+              <Box>
+                <Label>Band — fontFamily=body, 19px/700, uppercase</Label>
+                <Heading
+                  as="h3"
+                  fontFamily="body"
+                  fontSize="19px"
+                  fontWeight={700}
+                  lineHeight="1.1"
+                  letterSpacing="-0.01em"
+                  textTransform="uppercase"
+                  color="text.primary"
+                >
+                  Opeth
+                </Heading>
+              </Box>
+              <Box>
+                <Label>Album — fontFamily=body, 18px/500</Label>
+                <Text fontFamily="body" fontSize="18px" fontWeight={500} color="text.primary">
+                  Blackwater Park
                 </Text>
               </Box>
             </VStack>
           </Section>
 
           {/* ----------------------------------------------------------------
-              BUTTONS — PRIMARY (purple)
+              BUTTONS — PRIMARY (ember)
           ---------------------------------------------------------------- */}
-          <Section title="Buttons — Primary (purple)">
+          <Section title="Buttons — Primary (ember)">
             <VStack gap={6} align="stretch">
               {/* sizes */}
               <Box>
@@ -281,11 +313,33 @@ export function StyleGuide() {
                 </HStack>
               </Box>
               <Box>
-                <Label>scoreBadge — normalised score, bottom-right of card</Label>
+                <Label>
+                  score slab — normalised score, bottom-right of card. Bone by default;
+                  accent-filled only at 8.0+
+                </Label>
                 <HStack gap={2}>
-                  <Badge {...scoreBadge}>9.0/10</Badge>
-                  <Badge {...scoreBadge}>7.5/10</Badge>
-                  <Badge {...scoreBadge}>85/100</Badge>
+                  {[
+                    { score: '9.0', style: scoreSlabHigh },
+                    { score: '8.0', style: scoreSlabHigh },
+                    { score: '7.5', style: scoreSlabBase },
+                    { score: '6.2', style: scoreSlabBase },
+                  ].map(({ score, style }) => (
+                    <Box key={score} {...style} display="flex" alignItems="baseline" gap="3px">
+                      <Text
+                        as="span"
+                        fontFamily="heading"
+                        fontSize="22px"
+                        fontWeight="700"
+                        lineHeight="1"
+                        letterSpacing="-0.02em"
+                      >
+                        {score}
+                      </Text>
+                      <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="700" opacity={0.6}>
+                        /10
+                      </Text>
+                    </Box>
+                  ))}
                 </HStack>
               </Box>
               <Box>
@@ -316,6 +370,96 @@ export function StyleGuide() {
                 </Box>
               ))}
             </HStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              RADII — every corner square (pass 2)
+          ---------------------------------------------------------------- */}
+          <Section title="Radii">
+            <HStack gap={4} flexWrap="wrap">
+              {RADIUS_TOKENS.map((token) => (
+                <Box key={token}>
+                  <Label>{token}</Label>
+                  <Box bg="surface.raised" borderRadius={token} w="72px" h="72px" />
+                </Box>
+              ))}
+            </HStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              FORM ELEMENTS — 2px border.ruleStrong, app-wide as of pass 9
+          ---------------------------------------------------------------- */}
+          <Section title="Form Elements">
+            <VStack gap={4} align="stretch" maxW="sm">
+              <Box>
+                <Label>Input — border=2px solid, borderColor=border.ruleStrong</Label>
+                <Input
+                  placeholder="e.g. Opeth"
+                  bg="surface.card"
+                  color="text.primary"
+                  border="2px solid"
+                  borderColor="border.ruleStrong"
+                  _placeholder={{ color: 'text.dim' }}
+                />
+              </Box>
+              <Box>
+                <Label>NativeSelect — same border treatment</Label>
+                <NativeSelect.Root>
+                  <NativeSelect.Field
+                    bg="surface.card"
+                    color="text.primary"
+                    border="2px solid"
+                    borderColor="border.ruleStrong"
+                    css={{ '& option': { background: 'gray.800' } }}
+                    defaultValue="date"
+                  >
+                    <option value="date">Newest</option>
+                    <option value="score">Highest Score</option>
+                  </NativeSelect.Field>
+                </NativeSelect.Root>
+              </Box>
+            </VStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              LOADING INDICATOR — equalizer bars, both scales (pass 7)
+          ---------------------------------------------------------------- */}
+          <Section title="Loading Indicator">
+            <VStack gap={6} align="stretch">
+              <Box>
+                <Label>Section scale — 48×64px, text.primary</Label>
+                <LoadingIndicator />
+              </Box>
+              <Box>
+                <Label>Button scale — 16×16px, inherits the button's own label color</Label>
+                <HStack gap={3} flexWrap="wrap">
+                  <Button {...primaryButton} loading spinner={<LoadingIndicatorBars />} aria-label="Loading">
+                    Log in
+                  </Button>
+                  <Button {...secondaryButton} variant="outline" loading spinner={<LoadingIndicatorBars />} aria-label="Loading">
+                    Cancel
+                  </Button>
+                </HStack>
+              </Box>
+            </VStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              HEADER — flat two-tone wordmark (pass 5)
+          ---------------------------------------------------------------- */}
+          <Section title="Header">
+            <Box bg="surface.page" p={4}>
+              <Header />
+            </Box>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              FOOTER — relative "newest review" timestamp + nav links (pass 8)
+          ---------------------------------------------------------------- */}
+          <Section title="Footer">
+            <Box bg="surface.page" p={4}>
+              <Footer lastUpdated={new Date().toISOString()} />
+            </Box>
           </Section>
 
         </VStack>

@@ -41,16 +41,37 @@ export function Header() {
   const isFavoritesActive = location.pathname === '/favorites';
 
   return (
-    <Flex align="center" justify="space-between" mb={3}>
+    <Flex
+      align="center"
+      justify="space-between"
+      mb={3}
+      pb={4}
+      borderBottom="2px solid"
+      borderBottomColor="border.ruleStrong"
+    >
+      {/* Flat two-tone wordmark. The previous gradient (bgGradient + bgClip="text") is
+          retired: Slant Take's direction is explicitly zero-gradient. Note the old gradient
+          used hardcoded purple.400/gray.300 — NOT the accent.start/accent.end tokens, despite
+          what earlier docs claimed — so retiring it needed no token change.
+          The space between the two words is kept inside the first <span> so the heading's
+          textContent stays exactly "Slant Take" for getByText/textContent queries.
+          Renamed from "Metal Reviews" in design-system pass 5 — see
+          docs/decisions/naming-decisions.md for why now, and what's still outstanding. */}
       <Heading
         as="h1"
+        fontFamily="heading"
         fontSize="4xl"
         fontWeight={700}
-        bgGradient="to-r"
-        gradientFrom="purple.400"
-        gradientTo="gray.300"
-        bgClip="text">
-        Metal Reviews
+        letterSpacing="-0.02em"
+        lineHeight="1"
+        textTransform="uppercase"
+      >
+        <Box as="span" color="text.primary">
+          Slant{' '}
+        </Box>
+        <Box as="span" color="accent.border">
+          Take
+        </Box>
       </Heading>
 
       {!loading && (
@@ -68,16 +89,19 @@ export function Header() {
               '@media (max-width: 47.9375em)': { display: 'none' },
             }}
           >
+            {/* Active tab text is accent.ink, not text.primary: same rule as the score
+                slab's high state — dark text is required on any accent-filled background,
+                confirmed bug fixed in pass 4. Inactive/hover states are unaffected. */}
             <Link
               as={RouterLink}
               to="/"
               {...navPillBase}
               bg={isReviewsActive ? 'accent.border' : 'transparent'}
-              color={isReviewsActive ? 'text.primary' : 'text.dim'}
+              color={isReviewsActive ? 'accent.ink' : 'text.dim'}
               _hover={{
                 textDecoration: 'none',
                 bg: isReviewsActive ? 'accent.border' : 'surface.raised',
-                color: isReviewsActive ? 'text.primary' : 'accent.start',
+                color: isReviewsActive ? 'accent.ink' : 'accent.start',
               }}
             >
               Reviews
@@ -87,11 +111,11 @@ export function Header() {
               to="/favorites"
               {...navPillBase}
               bg={isFavoritesActive ? 'accent.border' : 'transparent'}
-              color={isFavoritesActive ? 'text.primary' : 'text.dim'}
+              color={isFavoritesActive ? 'accent.ink' : 'text.dim'}
               _hover={{
                 textDecoration: 'none',
                 bg: isFavoritesActive ? 'accent.border' : 'surface.raised',
-                color: isFavoritesActive ? 'text.primary' : 'accent.start',
+                color: isFavoritesActive ? 'accent.ink' : 'accent.start',
               }}
             >
               Favorites
@@ -106,6 +130,9 @@ export function Header() {
                   <Button
                     variant="ghost"
                     {...navPillBase}
+                    fontFamily="mono"
+                    fontSize="13px"
+                    fontWeight="normal"
                     color="text.dim"
                     _hover={{ color: 'text.primary', bg: 'surface.raised' }}
                     _active={{ bg: 'surface.raised', color: 'text.primary' }}

@@ -234,9 +234,14 @@ describe('App album cards — review-count branching', () => {
     // Summary excerpt and its single review-date line — not the per-source <li> list.
     expect(screen.getByText('A classic.')).toBeInTheDocument();
     expect(screen.getByText('1 Jan 2006')).toBeInTheDocument();
-    // Single source+score badge (not a wrapped multi-badge row, not an average).
+    // Single source badge (not a wrapped multi-badge row).
     expect(screen.getByText('Angry Metal Guy', { selector: 'span' })).toBeInTheDocument();
-    expect(screen.getByText('9/10', { selector: 'span' })).toBeInTheDocument();
+    // Score slab. Design-system pass 3 replaced the single-string score badge ("9/10", the
+    // raw source string) with a two-node slab driven by normalized_score: the number on the
+    // /10 scale plus a separate "/10" denominator. This album's normalized_score is 90, so
+    // it renders "9.0" — the same grade, just normalised and split across two elements.
+    expect(screen.getByText('9.0', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getByText('/10', { selector: 'span' })).toBeInTheDocument();
     // No per-source "[see review]" line — that's the 2+ review layout only.
     expect(screen.queryByText('[see review]')).not.toBeInTheDocument();
     // The whole card links out to the single review's url.

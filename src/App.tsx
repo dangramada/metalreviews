@@ -30,7 +30,6 @@ import {
   Wrap,
   WrapItem,
   Flex,
-  Spinner,
   Link,
   Image,
   Skeleton,
@@ -47,9 +46,11 @@ import { supabase } from './supabaseClient';
 import { fromAlbumWithReviews } from './dbMapping';
 import type { AlbumWithReviewsRow, AlbumCard } from './dbMapping';
 import { Header } from './Header';
+import { Footer } from './Footer';
+import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { sourceBadge, scoreBadge, genreBadge } from './theme';
+import { sourceBadge, scoreSlabBase, scoreSlabHigh, genreBadge } from './theme';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -112,6 +113,46 @@ export function formatAverageScore(score: number): string {
   return (score / 10).toFixed(1);
 }
 
+// Accent fill on the score slab is reserved for 8.0+ (80 on the stored 0–100 scale) so the
+// orange marks a genuinely high grade instead of decorating every card. See
+// docs/decisions/slant-take-design-system.md pass 3.
+export const SCORE_SLAB_HIGH_THRESHOLD = 80;
+
+// Score slab — flush bottom-right corner of the artwork. Always driven by `averageScore`
+// (0–100), never by a review's raw `score` string: raw strings arrive in whatever scale the
+// source used ("3.5/5.0", "8/10", "85/100"), which can't be compared against the 8.0
+// threshold without normalising first — which is exactly what normalized_score already did.
+// For a single-review album the average IS that review's normalized score, so both the
+// one-review and multi-review layouts render this identically.
+function ScoreSlab({ averageScore }: { averageScore: number }) {
+  const isHigh = averageScore >= SCORE_SLAB_HIGH_THRESHOLD;
+  return (
+    <Box
+      {...(isHigh ? scoreSlabHigh : scoreSlabBase)}
+      position="absolute"
+      bottom={0}
+      right={0}
+      display="flex"
+      alignItems="baseline"
+      gap="3px"
+    >
+      <Text
+        as="span"
+        fontFamily="heading"
+        fontSize="23px"
+        fontWeight="700"
+        lineHeight="1"
+        letterSpacing="-0.02em"
+      >
+        {formatAverageScore(averageScore)}
+      </Text>
+      <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="700" opacity={0.6}>
+        /10
+      </Text>
+    </Box>
+  );
+}
+
 export function formatReleaseDate(d: string | null): string {
   if (!d) return '—';
   const full = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -165,7 +206,10 @@ export function ArtworkBlock({
     // square aspect ratio. The percentage is relative to the element's *width*,
     // so setting padding-bottom equal to 100% of the width makes height = width.
     // All children are position="absolute" so they fill this square exactly.
-    <Box position="relative" paddingBottom="100%" bg="surface.darkest">
+    // overflow="hidden" clips the artwork's own hover-zoom (pass 9) to this square —
+    // the card's outer overflow="hidden" alone would let the scaled image bleed into
+    // the text area below before the card's own edge clipped it.
+    <Box position="relative" paddingBottom="100%" bg="surface.darkest" overflow="hidden">
       {rev.artworkUrl && !failed ? (
         <>
           <Image
@@ -177,6 +221,7 @@ export function ArtworkBlock({
             position="absolute"
             top={0}
             left={0}
+            transition="transform 0.3s"
             onLoad={() => setLoaded(true)}
             onError={() => setFailed(true)}
           />
@@ -286,12 +331,14 @@ export function ArtworkBlock({
           badges + computed average. */}
       {rev.reviews.length === 1 && (
         <>
-          {/* Source badge — bottom-left corner, single review's source. */}
+          {/* Source badge — flush into the bottom-left corner. bottom/left must stay 0:
+              the badge only carries top+right borders, so any inset would expose two
+              unruled edges floating over the artwork. */}
           <Badge
             {...sourceBadge}
             position="absolute"
-            bottom={2}
-            left={2}
+            bottom={0}
+            left={0}
             maxW="calc(100% - 70px)"
             overflow="hidden"
             textOverflow="ellipsis"
@@ -299,19 +346,9 @@ export function ArtworkBlock({
           >
             {rev.reviews[0].source}
           </Badge>
-          {/* Score badge — bottom-right corner; only when a score exists */}
-          {rev.reviews[0].score && rev.reviews[0].score !== '' && (
-            <Badge
-              {...scoreBadge}
-              position="absolute"
-              bottom={2}
-              right={2}
-              size="md"
-              fontWeight={600}
-            >
-              {rev.reviews[0].score}
-            </Badge>
-          )}
+          {/* Score slab — omitted entirely when the album has no normalised score, rather
+              than rendering an empty slab. */}
+          {rev.averageScore !== null && <ScoreSlab averageScore={rev.averageScore} />}
         </>
       )}
 
@@ -321,7 +358,7 @@ export function ArtworkBlock({
               (same pattern the genre-tag row below the artwork already uses) lets multiple
               badges stack onto additional lines on narrow cards instead of overflowing or
               clipping. */}
-          <Wrap position="absolute" bottom={2} left={2} maxW="calc(100% - 70px)" gap={1}>
+          <Wrap position="absolute" bottom={0} left={0} maxW="calc(100% - 70px)" gap={0}>
             {rev.reviews.map((r) => (
               <WrapItem key={r.source}>
                 <Badge {...sourceBadge} whiteSpace="nowrap">
@@ -331,20 +368,8 @@ export function ArtworkBlock({
             ))}
           </Wrap>
 
-          {/* Score badge — bottom-right corner; shows the average across all attached
-              reviews' scores. Only when at least one review has a score to average. */}
-          {rev.averageScore !== null && (
-            <Badge
-              {...scoreBadge}
-              position="absolute"
-              bottom={2}
-              right={2}
-              size="md"
-              fontWeight={600}
-            >
-              {formatAverageScore(rev.averageScore)}
-            </Badge>
-          )}
+          {/* Score slab — the average across all attached reviews' normalised scores. */}
+          {rev.averageScore !== null && <ScoreSlab averageScore={rev.averageScore} />}
         </>
       )}
     </Box>
@@ -505,6 +530,18 @@ function App() {
   // three attached reviews, so this flattens across all of them (previously one per album).
   const sources = Array.from(new Set(reviews.flatMap((r) => r.reviews.map((rv) => rv.source))));
 
+  // Footer's "Newest review" — newest publishedAt across all loaded albums. Not a
+  // "last ingest run" timestamp (none is persisted anywhere — see Footer.tsx comment);
+  // this is the newest content actually on screen. Undefined while still loading/empty
+  // so the footer doesn't show a misleading date before data arrives.
+  const latestPublishedAt =
+    reviews.length > 0
+      ? reviews.reduce(
+          (latest, r) => (new Date(r.publishedAt) > new Date(latest) ? r.publishedAt : latest),
+          reviews[0].publishedAt
+        )
+      : undefined;
+
   // `filtered` recomputes on every render automatically — React re-renders whenever
   // state changes, so this updates the moment the user types or changes a dropdown.
   // Pipeline order: source → score → search → sort
@@ -541,23 +578,36 @@ function App() {
   const controlFieldStyle = {
     bg: 'surface.card',
     color: 'text.primary',
-    borderColor: 'border.default',
+    border: '2px solid',
+    borderColor: 'border.ruleStrong',
     // Dark background on <option> elements (browser default is white, breaking dark theme).
     // gray.800 matches surface.card; CSS var isn't available on <option> in all browsers.
     css: { '& option': { background: 'gray.800' } },
   } as const;
   const controlStyle = { ...controlRootStyle, ...controlFieldStyle } as const;
 
+  // Card footprint/border never move on hover (pass 9) — only the artwork inside zooms.
+  // The zoom target is `& img`, scoped to ArtworkBlock's <Image>; the card's own `_hover`
+  // below only ever touches borderColor (the pre-existing score-linked mechanism).
   const cardStyle = {
     bg: 'surface.card',
     borderRadius: 'md',
     overflow: 'hidden',
     boxShadow: 'md',
-    border: '1px solid',
-    borderColor: 'border.default',
-    transition: 'transform 0.2s',
-    _hover: { transform: 'scale(1.02)' },
+    border: '2px solid',
+    borderColor: 'border.ruleStrong',
+    css: { '&:hover img': { transform: 'scale(0.98)' } },
   };
+
+  // Card hover border color is earned the same way the score slab's accent fill is: only
+  // albums at/above the 8.0 threshold get the ember border on hover, everything else gets
+  // the neutral bone tone. An album with no score at all (averageScore === null) is treated
+  // as below threshold — there's nothing to "earn" the accent with.
+  function cardHoverBorderColor(averageScore: number | null): string {
+    return averageScore !== null && averageScore >= SCORE_SLAB_HIGH_THRESHOLD
+      ? 'accent.border'
+      : 'slab.bg';
+  }
 
   // =============================================================================
   // RENDER
@@ -636,7 +686,14 @@ function App() {
               justify="space-between" pins the count to the left and the switch to the right. */}
           {!loading && (
             <Flex align="center" justify="space-between">
-              <Text fontSize="md" fontWeight="bold" color="text.dim" paddingLeft={1}>
+              <Text
+                fontFamily="mono"
+                fontSize="12px"
+                letterSpacing="0.08em"
+                textTransform="uppercase"
+                color="text.muted"
+                paddingLeft={1}
+              >
                 {filtered.length < reviews.length
                   ? `${filtered.length} of ${reviews.length} reviews`
                   : `${reviews.length} reviews`}
@@ -644,14 +701,14 @@ function App() {
             </Flex>
           )}
 
-          {/* Full-page spinner while reviews.json is loading; card grid once ready */}
+          {/* Marching-text loading indicator while reviews load; card grid once ready */}
           {loading ? (
             <Flex justify="center" align="center" minH="200px">
-              <Spinner size="xl" color="accent.start" thickness="4px" speed="0.65s" />
+              <LoadingIndicator />
             </Flex>
           ) : (
             // 1 column on mobile, 2 on tablet, 3 on desktop
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={6}>
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={2}>
               {filtered.map((rev) => {
                 // Card rendering branches on review count (see docs/decisions/
                 // album-identity-frontend-homepage.md's bugfix note):
@@ -665,17 +722,53 @@ function App() {
                 const singleReview = rev.reviews.length === 1 ? rev.reviews[0] : null;
 
                 const cardBody = (
-                  <Box {...cardStyle} h="100%">
+                  <Box
+                    {...cardStyle}
+                    _hover={{ borderColor: cardHoverBorderColor(rev.averageScore) }}
+                    h="100%"
+                  >
                     <ArtworkBlock
                       rev={rev}
                       isFavorited={favoritedIds.has(rev.albumId)}
                       onToggle={() => toggleFavorite(rev.albumId)}
                     />
                     <Box p={4}>
-                      <Heading size={{ base: "xl", md: "2xl"}}  mb={2}>
-                        {rev.band || 'Unknown Band'} – {rev.album || 'Untitled Album'}
+                      {/* Band and album are separate lines with distinct weights, and both
+                          use fontFamily="body" (Inter). They must NOT inherit the heading
+                          face: fonts.heading is Clash Display, which the design system
+                          reserves for the logo wordmark and the score-slab number only. */}
+                      <Heading
+                        as="h3"
+                        fontFamily="body"
+                        fontSize="19px"
+                        fontWeight={700}
+                        lineHeight="1.1"
+                        letterSpacing="-0.01em"
+                        textTransform="uppercase"
+                      >
+                        {rev.band || 'Unknown Band'}
                       </Heading>
-                      <Text fontSize="sm" color="text.dim" mb={1}>
+                      {/* Same color as the band heading (inherited text.primary) — weight
+                          and size are the only remaining distinction between the two lines,
+                          per pass 4. Set explicitly rather than left to inherit, since this
+                          Text has no other reason to match its parent's color. */}
+                      <Text
+                        fontFamily="body"
+                        fontSize="18px"
+                        fontWeight={500}
+                        color="text.primary"
+                        mb={2}
+                      >
+                        {rev.album || 'Untitled Album'}
+                      </Text>
+                      <Text
+                        fontFamily="mono"
+                        fontSize="11px"
+                        letterSpacing="0.08em"
+                        textTransform="uppercase"
+                        color="text.muted"
+                        mb={1}
+                      >
                         Release date: {formatReleaseDate(rev.releaseDate)}
                       </Text>
                       {/* Genre tags — only rendered when genre data is available */}
@@ -697,7 +790,13 @@ function App() {
                             {singleReview.summary || 'No summary available.'}
                           </Text>
                           {singleReview.publishedDate && (
-                            <Text fontSize="xs" color="text.muted" title="Review date">
+                            <Text
+                              fontFamily="mono"
+                              fontSize="11px"
+                              letterSpacing="0.06em"
+                              color="text.muted"
+                              title="Review date"
+                            >
                               {singleReview.publishedDate}
                             </Text>
                           )}
@@ -757,6 +856,8 @@ function App() {
               No reviews match your criteria.
             </Text>
           )}
+
+          <Footer lastUpdated={latestPublishedAt} />
         </VStack>
       </Container>
     </Box>

@@ -253,6 +253,18 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   Storm navigation timeout and the resulting row is confirmed to have
   `normalized_score: null` (not `0`). Check via Supabase directly after any
   ingest run that logs a Metal Storm timeout error.
+- **`docs/decisions/refresh-button.md` is stale and undated as such** — surfaced
+  2026-07-25 (design-system pass 8's audit). The manual refresh button and
+  `GET /api/ingest/status` it polled were both removed on 2026-07-21 when ingest
+  moved to GitHub Actions cron (`ingest-trigger-and-security.md` Section 7), but
+  `refresh-button.md` itself was never updated with a superseded-note, and its
+  `CLAUDE.md` "Past decisions" index line still describes it as if the feature
+  exists. A session that reads only the index line (not this tracker) could be
+  misled into thinking a refresh button is still live. Fix is small: either
+  prepend a dated superseded-note to `refresh-button.md` (same pattern used for
+  `ingest-trigger-and-security.md`'s own summary block) or change its `CLAUDE.md`
+  index line to say "historical, feature removed" — not done in this session,
+  intentionally out of scope per the brief that surfaced it.
 
 ## C. Design/branding (open)
 
@@ -268,6 +280,41 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   direction: a tagline under the logo, a "last ingest date" timestamp element.
 - **Grid-vs-vintage-chart structural layout toggle** — explicitly parked as a
   later-stage exploration, unrevisited since.
+- ~~**App still ships as "Metal Reviews", not "Slant Take"**~~ — **DONE (2026-07-25,
+  design-system pass 5).** Header wordmark, `<title>`, and the `Header.test.tsx`
+  assertions now all say "Slant Take". `package.json` needed no change — its `name`
+  field was already `"scraper"`, never "Metal Reviews" in the first place (a pass-5
+  audit finding; the original note above was wrong to list it as a target).
+  Ship-now decision superseded the formal naming gates (friend test, domain check,
+  trademark search) rather than waiting on them — gates were **not** completed, just
+  superseded by a live-feedback strategy. Full detail: `naming-decisions.md`,
+  `slant-take-design-system.md` pass 5.
+  **Still open, not part of pass 5:** favicon (still a stale teal bar-chart icon,
+  matches nothing in the current design system), and the domain/GitHub-repo/Render
+  service name (all still literally "metalreviews" — infra-level, out of reach of a
+  code change; listed for awareness in pass 5's report, not actioned).
+- ~~**Card footer / ingest-timestamp line never built**~~ — **DONE (2026-07-25,
+  design-system pass 8).** `src/Footer.tsx` built and wired into both `App.tsx` and
+  `FavoritesPage.tsx`. Full detail: `slant-take-design-system.md` pass 8, this
+  entry's original text preserved below for context.
+  <details>Mockup `03-graded-slab-void-accent_1.html` has a page footer (mono,
+  uppercase, `text.muted`) carrying "Last ingest &lt;date&gt;" on the left and a
+  source list on the right. The app had no footer element at all, so pass 3's
+  typography audit had nothing to fix. This overlapped the parked "last ingest date
+  timestamp element" idea listed above under Portable IA — same feature. Pass 8
+  found no "last ingest run" timestamp is persisted anywhere (the old
+  `/api/ingest/status` endpoint only ever exposed an in-memory running/idle flag,
+  removed along with the refresh button when ingest moved to GitHub Actions cron —
+  see `ingest-trigger-and-security.md`), so it used "Last updated" sourced from the
+  newest `publishedAt` across loaded albums/reviews instead, and replaced the
+  mockup's source-count text with `Reviews`/`Favorites` nav links per Dan's brief.</details>
+- **Favourite-heart button doesn't match the mockup** — surfaced 2026-07-25.
+  Mockup has a flush 34×34 square at `top:0 right:0` with `bg-page` and 2px
+  left+bottom rules, i.e. the same flush-corner treatment as the source badge and
+  score slab. The app has an inset translucent circle (`blackAlpha.400`, inset at
+  `top={2} right={2}`; the radius is already 0 after pass 2, but nothing else
+  matches). Not a badge, so it was out of pass 3's scope — flagged, not touched.
+  Small, self-contained follow-up that would complete the corner treatment.
 
 > Note: none of the above design/branding items have a corresponding file in
 > `docs/decisions/` or elsewhere in the repo — they exist only as prior chat

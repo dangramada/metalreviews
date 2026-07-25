@@ -29,11 +29,29 @@ function makeWrapper(initialPath = '/') {
 }
 
 describe('Header — title', () => {
-  it('renders "Metal Reviews" (not "Metal Reviews Dashboard")', () => {
+  // The wordmark is split across two <span>s for the flat two-tone treatment (design-system
+  // pass 3), so getByText — which only reads an element's *direct* text-node children —
+  // can no longer match the whole string on the <h1>. Assert on the heading's textContent
+  // instead; this still pins the exact rendered title, it just spans child elements.
+  // Renamed from "Metal Reviews" to "Slant Take" in design-system pass 5
+  // (docs/decisions/naming-decisions.md). The old-name guard now checks for the old
+  // name itself, not "... Dashboard" — the pre-header-redesign title this test originally
+  // guarded against no longer exists to accidentally regress to.
+  it('renders "Slant Take" (not the old "Metal Reviews" name)', () => {
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false });
     render(<Header />, { wrapper: makeWrapper() });
-    expect(screen.getByText('Metal Reviews')).toBeInTheDocument();
-    expect(screen.queryByText('Metal Reviews Dashboard')).not.toBeInTheDocument();
+    const title = screen.getByRole('heading', { level: 1 });
+    expect(title).toHaveTextContent(/^Slant Take$/);
+    expect(screen.queryByText('Metal Reviews')).not.toBeInTheDocument();
+  });
+
+  it('renders the wordmark as flat two-tone, not a gradient', () => {
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false });
+    render(<Header />, { wrapper: makeWrapper() });
+    const title = screen.getByRole('heading', { level: 1 });
+    // Two separately-coloured spans, and no background-clip gradient on the heading.
+    expect(title.querySelectorAll('span')).toHaveLength(2);
+    expect(title).not.toHaveStyle({ backgroundClip: 'text' });
   });
 });
 

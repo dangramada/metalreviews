@@ -13,31 +13,156 @@ const system = createSystem(defaultConfig, {
     'h1, h2, h3, h4, h5, h6': {
       color: 'inherit',
     },
+    // Equalizer-bar loading indicator (LoadingIndicator.tsx, pass 7). Defined globally
+    // rather than inline in the component's `css` prop: nesting an `@keyframes` object
+    // inside the same `css` object as a `_motionReduce` condition crashes Chakra's prop
+    // merge (`Cannot create property '@keyframes ...' on string`) — found via live
+    // verification, not assumed. Keeping the keyframes here, referenced by name from the
+    // component, avoids the collision entirely.
+    // Bar thickness is 16% (was 20% at ship time) — width values only. The height values
+    // in each step (50%/20%/100%) are unrelated to thickness; they drive the wave motion
+    // and are untouched.
+    '@keyframes slant-take-eqbars': {
+      '0%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+      '20%': { backgroundSize: '16% 20%, 16% 50%, 16% 50%' },
+      '40%': { backgroundSize: '16% 100%, 16% 20%, 16% 50%' },
+      '60%': { backgroundSize: '16% 50%, 16% 100%, 16% 20%' },
+      '80%': { backgroundSize: '16% 50%, 16% 50%, 16% 100%' },
+      '100%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+    },
   },
   theme: {
+    tokens: {
+      colors: {
+        // Custom Slant Take palettes (pass 1 of design system migration).
+        // Values anchored to real mockup hexes where available; ramp steps
+        // without a mockup anchor are interpolated/extrapolated.
+        ember: {
+          50: { value: '#fef5f1' },
+          100: { value: '#fde8dd' },
+          200: { value: '#fdceb4' },
+          300: { value: '#ffa97a' },
+          400: { value: '#ff8847' },
+          500: { value: '#ff6a1a' },
+          600: { value: '#e65000' },
+          700: { value: '#b84305' },
+          800: { value: '#913808' },
+          900: { value: '#712e09' },
+          950: { value: '#451d08' },
+        },
+        ink: {
+          50: { value: '#f7f7f7' },
+          100: { value: '#ededed' },
+          200: { value: '#d9d9d9' },
+          300: { value: '#bdbdbd' },
+          400: { value: '#999999' },
+          500: { value: '#757575' },
+          600: { value: '#595959' },
+          700: { value: '#3a3a3a' },
+          800: { value: '#262626' },
+          900: { value: '#131313' },
+          950: { value: '#0c0c0c' },
+        },
+        sand: {
+          50: { value: '#f4f3f0' },
+          100: { value: '#eae8e1' },
+          200: { value: '#cac6bb' },
+          300: { value: '#9d998c' },
+          400: { value: '#7b7870' },
+          500: { value: '#666460' },
+          600: { value: '#4d4d4c' },
+          700: { value: '#383838' },
+          800: { value: '#292929' },
+          900: { value: '#1a1a1a' },
+          950: { value: '#0f0f0f' },
+        },
+      },
+      fonts: {
+        heading: { value: "'Clash Display', sans-serif" },
+        body: { value: "'Inter', sans-serif" },
+        mono: { value: "'JetBrains Mono', monospace" },
+      },
+      // Slant Take is a zero-radius system — every corner is square (spec §4).
+      //
+      // Raw '0px' strings only. Referencing another scale key by name (e.g. md: 'none')
+      // silently produces NO radius rule at all rather than a zero one.
+      //
+      // `xs`/`sm` matter as much as the rest despite nothing referencing them directly:
+      // Chakra v3's component recipes don't read these keys, they read a semantic layer
+      // (l1 -> xs, l2 -> sm, l3 -> md, see @chakra-ui/react semantic-tokens/radii.js).
+      // Button, Input, NativeSelect, Toast and the Badge base recipe all resolve through
+      // l2 -> sm; Dialog and Drawer content through l3 -> md. Omitting xs/sm would leave
+      // every button, input, select, toast and score badge visibly rounded.
+      //
+      // `base` is not a real v3 token — it's a stale v2-era key still referenced by
+      // sourceBadge/genreBadge and the favorites thumbnail. Before this pass it resolved
+      // to nothing: the two badges stayed rounded anyway via the Badge recipe's own l2
+      // fallback, while the thumbnail (a plain Box, no recipe) rendered square. Defining
+      // it here makes all three resolve consistently to zero for the first time.
+      //
+      // `full` is zeroed deliberately: the mockups have no circular elements anywhere.
+      // Its single consumer is the heart-favourite toggle over card artwork (App.tsx),
+      // which becomes square. This does remove Chakra's standard "make this a circle"
+      // escape hatch app-wide — reinstate a dedicated token if a future component needs one.
+      //
+      // 2xs/xl/2xl/3xl/4xl are left at Chakra defaults: nothing in the app, and no recipe
+      // reachable from it, consumes them.
+      radii: {
+        none: { value: '0px' },
+        xs: { value: '0px' },
+        sm: { value: '0px' },
+        base: { value: '0px' },
+        md: { value: '0px' },
+        lg: { value: '0px' },
+        full: { value: '0px' },
+      },
+    },
     semanticTokens: {
       colors: {
         // v3 requires nested objects (not dot-notation string keys) and {token.path} references
         surface: {
-          page: { value: { base: '{colors.gray.900}' } },
-          card: { value: { base: '{colors.gray.800}' } },
-          raised: { value: { base: '{colors.gray.700}' } },
-          darkest: { value: { base: '{colors.gray.900}' } },
+          page: { value: { base: '{colors.ink.950}' } },
+          card: { value: { base: '{colors.ink.900}' } },
+          cardHover: { value: { base: '#181818' } },
+          raised: { value: { base: '{colors.ink.700}' } },
+          darkest: { value: { base: '{colors.ink.950}' } },
         },
         border: {
           default: { value: { base: '{colors.gray.600}' } },
           hover: { value: { base: '{colors.gray.400}' } },
+          rule: { value: { base: '{colors.ink.800}' } },
+          ruleStrong: { value: { base: '{colors.ink.700}' } },
         },
         text: {
-          primary: { value: { base: '{colors.white}' } },
-          muted: { value: { base: '{colors.gray.500}' } },
-          dim: { value: { base: '{colors.gray.400}' } },
+          primary: { value: { base: '{colors.sand.200}' } },
+          muted: { value: { base: '{colors.sand.500}' } },
+          dim: { value: { base: '{colors.sand.300}' } },
         },
         accent: {
-          start: { value: { base: '{colors.purple.300}' } },
-          end: { value: { base: '{colors.purple.600}' } },
-          border: { value: { base: '{colors.purple.500}' } },
-          text: { value: { base: '{colors.purple.300}' } },
+          start: { value: { base: '{colors.ember.300}' } },
+          end: { value: { base: '{colors.ember.600}' } },
+          border: { value: { base: '{colors.ember.500}' } },
+          text: { value: { base: '{colors.ember.300}' } },
+          ink: { value: { base: '#140a03' } },
+        },
+        slab: {
+          bg: { value: { base: '#f2f2f0' } },
+          text: { value: { base: '{colors.ink.950}' } },
+        },
+        // Registers `ember` as a full colorPalette (contrast/fg/subtle/muted/emphasized/
+        // solid/focusRing/border) so `colorPalette: 'ember'` resolves in component
+        // recipes (button hover/active/disabled etc.) the same way built-in palettes do.
+        // Without this, the raw 50-950 ramp above isn't enough — Chakra's recipes read
+        // `colorPalette.solid` etc., not the numbered steps directly.
+        ember: {
+          contrast: { value: { base: '{colors.accent.ink}' } },
+          fg: { value: { base: '{colors.ember.300}' } },
+          subtle: { value: { base: '{colors.ember.900}' } },
+          muted: { value: { base: '{colors.ember.800}' } },
+          emphasized: { value: { base: '{colors.ember.700}' } },
+          solid: { value: { base: '{colors.ember.500}' } },
+          focusRing: { value: { base: '{colors.ember.500}' } },
+          border: { value: { base: '{colors.ember.500}' } },
         },
         // Contextual badge tokens — source, score, genre.
         // Use the exported badge config objects below rather than referencing these directly.
@@ -124,9 +249,9 @@ export default system;
 export const BUTTON_VARIANTS = ['solid', 'outline', 'surface', 'subtle', 'ghost', 'plain'] as const;
 export type ButtonVariant = (typeof BUTTON_VARIANTS)[number];
 
-// Primary: purple palette. Works with all variants out of the box.
+// Primary: ember palette. Works with all variants out of the box.
 export const primaryButton = {
-  colorPalette: 'purple',
+  colorPalette: 'ember',
 } as const;
 
 // Secondary: gray palette. Hover states are defined in the theme recipe above
@@ -137,29 +262,78 @@ export const secondaryButton = {
 
 // ---------------------------------------------------------------------------
 // Contextual badge configs — spread onto <Badge> for consistent app-wide style.
-// Tokens live in semanticTokens.colors.badge.* above.
+//
+// Slant Take treatment (pass 3): source badge and score slab are *flush corner*
+// elements. Each carries borders only on the two edges facing into the artwork —
+// the other two sit on the card edge and need no rule. This only reads correctly
+// when the element is positioned hard into the corner (bottom/left/right = 0);
+// inset by even a few px and the partial borders look like an authoring mistake.
+// Callers must keep them flush.
+//
+// The legacy badge.* semantic tokens are no longer referenced here.
 // ---------------------------------------------------------------------------
 
-// Source badge — bottom-left of card artwork, shows the review site name.
+// Source badge — flush bottom-left of card artwork, shows the review site name.
 export const sourceBadge = {
-  bg: 'badge.source.bg',
-  color: 'badge.source.text',
-  borderRadius: 'base',
-  size: 'sm',
-  variant: 'solid',
+  bg: 'surface.page',
+  color: 'text.dim',
+  borderTop: '2px solid',
+  borderTopColor: 'border.rule',
+  borderRight: '2px solid',
+  borderRightColor: 'border.rule',
+  borderRadius: '0',
+  fontFamily: 'mono',
+  fontSize: '11px',
+  fontWeight: '500',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  // Pass 4: padding brought onto the 4px grid alongside genreBadge/scoreSlab.
+  px: '8px',
+  py: '4px',
 } as const;
 
-// Score badge — bottom-right of card artwork, shows the normalised score string.
-export const scoreBadge = {
-  bg: 'badge.score.bg',
-  color: 'badge.score.text',
-  variant: 'solid',
+// Score slab — flush bottom-right of card artwork. Rendered as explicit markup
+// with two children (see App.tsx), not as a single-string <Badge>: a large
+// display-face number plus a small dimmed mono denominator.
+export const scoreSlabBase = {
+  bg: 'slab.bg',
+  color: 'slab.text',
+  borderTop: '2px solid',
+  borderTopColor: 'border.rule',
+  borderLeft: '2px solid',
+  borderLeftColor: 'border.rule',
+  borderRadius: '0',
+  // Pass 4: padding brought onto the 4px grid alongside sourceBadge/genreBadge.
+  px: '12px',
+  pt: '8px',
+  pb: '4px',
 } as const;
 
-// Genre badge — inline tag inside the card body, one per genre.
+// High-score variant. The accent fill is *earned*, not decoration: reserved for
+// albums scoring 8.0+ so the orange means something rather than sitting on every
+// card. Threshold lives at the call site (SCORE_SLAB_HIGH_THRESHOLD in App.tsx).
+export const scoreSlabHigh = {
+  ...scoreSlabBase,
+  bg: 'accent.border',
+  color: 'accent.ink',
+} as const;
+
+// Genre tag — inline chip inside the card body, one per genre.
+// The 1px border is intentional and deliberately thinner than the 2px structural
+// borders used by the flush-corner elements above: inline chips should read
+// lighter than structural rules. Do not "fix" this to 2px for consistency.
 export const genreBadge = {
-  bg: 'badge.genre.bg',
-  color: 'badge.genre.text',
-  borderRadius: 'base',
-  size: 'sm',
+  bg: 'transparent',
+  color: 'text.dim',
+  border: '1px solid',
+  borderColor: 'border.ruleStrong',
+  borderRadius: '0',
+  fontFamily: 'mono',
+  fontSize: '11px',
+  fontWeight: '500',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  // Pass 4: padding brought onto the 4px grid alongside sourceBadge/scoreSlab.
+  px: '8px',
+  py: '4px',
 } as const;

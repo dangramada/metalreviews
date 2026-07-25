@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from '@chakra-ui/react';
 import { supabase } from './supabaseClient';
+import { LoadingIndicatorBars } from './LoadingIndicator';
 import { primaryButton } from './theme';
 
 type Mode = 'login' | 'signup' | 'forgot-password';
@@ -22,7 +23,8 @@ export function LoginPage() {
     variant: 'outline',
     bg: 'surface.card',
     color: 'text.primary',
-    borderColor: 'border.default',
+    border: '2px solid',
+    borderColor: 'border.ruleStrong',
   } as const;
 
   function switchMode(next: Mode) {
@@ -165,6 +167,8 @@ export function LoginPage() {
                 type="submit"
                 w="100%"
                 loading={loading}
+                spinner={<LoadingIndicatorBars />}
+                aria-label={loading ? 'Loading' : undefined}
               >
                 {mode === 'login' ? 'Log in' : mode === 'signup' ? 'Sign up' : 'Send reset link'}
               </Button>
