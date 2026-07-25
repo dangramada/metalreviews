@@ -119,6 +119,18 @@ The heading was originally `<Heading size="lg">` with no explicit `as` prop (def
 
 Artwork thumbnail also increased from 48px to 64px for better visual weight in the list.
 
+## Artwork bumped to 96px, heading bumped to xl (manual edit, 2026-07-25)
+
+Artwork thumbnail increased again, 64px → 96px (`Box` and `Image` in `FavoriteListItemRow`).
+Made manually, directly in the working tree — not via a Claude Code session. The CAA source
+size (`toThumbnailUrl(url, 250)`, set in the June 2026 follow-up above) was left unchanged:
+250px is still comfortably above the 96px display size (192px @2x), so no upstream resize was
+needed.
+
+The "My Favorites" heading was also bumped from `size="md"` (1.125rem / 18px, set in the June
+2026 fix above) to `size="xl"` (1.875rem / 30px) in the same manual edit, to better balance
+against the larger artwork.
+
 ## Route registration
 
 In `src/main.tsx`: `/favorites` is wrapped in `<RequireAuth>`. The stale `/list/:shareId` comment was renamed to `/aoty/:shareId` to reflect the planned AOTY list feature.
