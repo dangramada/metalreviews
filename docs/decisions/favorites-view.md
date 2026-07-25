@@ -7,7 +7,7 @@
 
 ## What was built
 
-A protected `/favorites` route that shows the user's favorited and manually-added albums as a dense list, year-bounded by a dropdown. Each row shows: 48px artwork thumbnail (♪ placeholder when none), band–album name, release date, and genre tags. No score, no source, no summary, no published date.
+A protected `/favorites` route that shows the user's favorited and manually-added albums as a dense list, year-bounded by a dropdown. Each row shows: artwork thumbnail (♪ placeholder when none), band–album name, release date, and genre tags. No score, no source, no summary, no published date.
 
 ## RequireAuth
 
