@@ -596,7 +596,7 @@ function App() {
     boxShadow: 'md',
     border: '2px solid',
     borderColor: 'border.ruleStrong',
-    css: { '&:hover img': { transform: 'scale(0.98)' } },
+    css: { '&:hover img': { transform: 'scale(0.97)' } },
   };
 
   // Card hover border color is earned the same way the score slab's accent fill is: only

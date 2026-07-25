@@ -79,8 +79,8 @@ export function FavoriteListItemRow({
     >
       <Box
         flexShrink={0}
-        w="64px"
-        h="64px"
+        w="96px"
+        h="96px"
         borderRadius="base"
         overflow="hidden"
         bg="surface.darkest"
@@ -89,8 +89,8 @@ export function FavoriteListItemRow({
           <Image
             src={toThumbnailUrl(item.artworkUrl, 250)}
             alt={`${item.band} – ${item.album}`}
-            w="64px"
-            h="64px"
+            w="96px"
+            h="96px"
             objectFit="cover"
             transition="transform 0.3s"
             onError={() => setImgFailed(true)}
@@ -800,7 +800,7 @@ export function FavoritesPage() {
           {/* Controls row: heading + year dropdown (left) | Add album button (right) */}
           <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
             <Flex align="center" gap={3}>
-              <Heading as="h2" size="md">
+              <Heading as="h2" size="xl">
                 My Favorites
               </Heading>
               <NativeSelect.Root size="sm" w="auto" minW="120px">
