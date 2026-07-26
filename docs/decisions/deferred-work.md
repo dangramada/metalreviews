@@ -309,9 +309,12 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 - **Logo** — T-ligature concept explored across five typefaces (Bebas Neue,
   Archivo Black, Playfair Display, Space Mono, Monoton); never approved. Known
   issue: the fused double-T reads as the Greek letter π.
-- **"Graded Slab" visual direction** — Dan's strong preference, based on
-  portfolio affinity. Explored in amber and other accent variants. Never
-  formally approved.
+- ~~**"Graded Slab" visual direction**~~ — **DONE.** Implemented as the
+  Slant Take design system across 9 sequential passes (colors/fonts, radii,
+  badge restructure, chrome polish, rename, footer, loading indicator,
+  consistency/hover pass) — all ✅ Complete, verified. "Graded Slab" was the
+  internal working name during exploration only; the shipped system is the
+  Slant Take design system. Full detail: `slant-take-design-system.md`.
 - **AOTY tab label** — still unnamed; blocked on the AOTY feature itself being
   built (section A).
 - **Portable IA ideas** parked from the "Dossier/Photocopier Mono" exploration
