@@ -48,11 +48,49 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 - **Google/Facebook OAuth** — credentials not yet configured. Placeholder comment
   in `LoginPage.tsx` marks where the `supabase.auth.signInWithOAuth()` buttons go.
   `auth-routing.md`.
-- **Resend SMTP config in Supabase** — a ~10-minute pre-launch config task (no
-  code changes), needed before public launch because Supabase's default email
-  sending has a low free-tier cap. **Status unknown** — no mention of this
-  anywhere in `docs/decisions/` or `CLAUDE.md` to confirm it was ever done.
-  Treat as not-yet-done until confirmed otherwise.
+- **Resend SMTP (auth/email) — NOT YET UNBLOCKING PUBLIC LAUNCH.**
+  Status: blocked on domain purchase. Currently in Resend sandbox mode
+  (validation only).
+
+  **The real constraint (corrected understanding, 2026-07-26):** Supabase
+  Auth's default mailer does NOT just rate-limit at 2 emails/hour — it
+  outright REJECTS delivery to any email address that is not a member of the
+  Supabase project's organization team (`"Email address not authorized"`).
+  This means anyone outside Dan's Supabase team — including a single friend
+  invited to test the app — cannot currently receive a signup confirmation,
+  password reset, or magic link email at all. This is a hard gate, not a
+  throttle.
+
+  **Why Resend sandbox mode doesn't fix this:** configuring any custom SMTP
+  provider in Supabase (including Resend, even while Resend itself is in
+  unverified/sandbox mode) satisfies Supabase's "custom SMTP configured"
+  check and lifts Supabase's own team-only restriction. However, Resend's own
+  sandbox restriction then applies: unverified Resend accounts can only send
+  from `onboarding@resend.dev`, and only to the single email address used to
+  sign up to Resend. Real users still can't receive email — the blocker just
+  moves from Supabase's gate to Resend's gate.
+
+  **What actually unblocks this:**
+  1. Buy a domain (~$10-15/yr — Namecheap, Porkbun, Cloudflare, etc.)
+  2. Verify the domain with Resend (SPF/DKIM DNS records, ~30-60 min
+     propagation)
+  3. Point Supabase custom SMTP config at the verified domain's Resend
+     credentials
+
+  Recommendation: use a subdomain for sending (e.g. `updates.slanttake.com`)
+  rather than the root domain, per Resend's own guidance.
+
+  **Current decision (as of 2026-07-26):** staying in Resend sandbox mode for
+  now — no domain purchase yet. This lets Dan test the SMTP config and email
+  templates end-to-end using his own Resend-registered email address.
+  Sandbox mode does NOT allow sharing the app with even one friend for
+  feedback — that requires either the full domain setup above, or (stopgap,
+  not recommended) manually adding a tester's email to the Supabase org's
+  Team settings, which grants dashboard access and isn't a real solution.
+
+  **Revisit trigger:** before any public launch, and before sharing the app
+  with anyone outside Dan himself for testing/feedback. Full corrected-finding
+  writeup: `auth-email-smtp.md`.
 - **Shareable AOTY page** (`/aoty/:shareId`) — route reserved (renamed from
   `/list/:shareId`), nothing built. `auth-routing.md`.
 
