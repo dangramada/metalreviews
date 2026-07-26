@@ -89,6 +89,16 @@ const ALLOWLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
   'Angry Metal Guy': ["Angry Metal Guy's Unsigned Band Rodeo"],
 };
 
+// Franchises that are never genuine (scored) reviews by editorial convention,
+// even when a post is also mistagged with the source's review category tag.
+// AMG's "Into the Obscure" retrospective column never carries a numeric score,
+// but one post got mistagged with both "Into the Obscure" and "Review"/"Reviews",
+// which would otherwise pass isGenuineReview. Deliberately a short,
+// audit-confirmed list — do not add speculative entries here.
+const DENYLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
+  'Angry Metal Guy': ['Into the Obscure'],
+};
+
 export function isGenuineReview(item: { categories?: string[] }, source: string): boolean {
   const tags = REVIEW_CATEGORY_TAGS[source];
   if (!tags) return true; // no tag check configured for this source (e.g. Metal Storm)
@@ -98,6 +108,13 @@ export function isGenuineReview(item: { categories?: string[] }, source: string)
 
 export function isAllowlistedFranchise(item: { categories?: string[] }, source: string): boolean {
   const franchises = ALLOWLISTED_FRANCHISE_CATEGORIES[source];
+  if (!franchises) return false;
+  const categories = item.categories ?? [];
+  return franchises.some((name) => categories.includes(name));
+}
+
+export function isDenylistedFranchise(item: { categories?: string[] }, source: string): boolean {
+  const franchises = DENYLISTED_FRANCHISE_CATEGORIES[source];
   if (!franchises) return false;
   const categories = item.categories ?? [];
   return franchises.some((name) => categories.includes(name));
@@ -142,11 +159,15 @@ export async function logSkippedPost(
   }
 }
 
-// Combined skip decision: allowlisted franchises always proceed as reviews;
-// otherwise a post must carry its source's review category tag to proceed.
-// Metal Storm has no entry in either map above, so this always returns true
-// for it (confirmed structurally review-only, see roundup-skip-fix.md).
+// Combined skip decision: denylisted franchises are always skipped, regardless
+// of any other category present (so a stray Review/Reviews tag can't override
+// it — see the Into the Obscure case in DENYLISTED_FRANCHISE_CATEGORIES above).
+// Otherwise, allowlisted franchises always proceed as reviews; failing that, a
+// post must carry its source's review category tag to proceed. Metal Storm has
+// no entry in any map above, so this always returns true for it (confirmed
+// structurally review-only, see roundup-skip-fix.md).
 export function shouldSkipPost(item: { categories?: string[] }, source: string): boolean {
+  if (isDenylistedFranchise(item, source)) return true;
   if (isAllowlistedFranchise(item, source)) return false;
   return !isGenuineReview(item, source);
 }

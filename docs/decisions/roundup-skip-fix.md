@@ -91,3 +91,51 @@ Run `npm run ingest` and confirm:
 - A known allowlisted Rodeo post still ingests normally (franchise-prefix pollution expected,
   not a regression).
 - Normal reviews from all three sources continue to ingest unaffected.
+
+## Addendum: AMG "Into the Obscure" denylist (2026-07-26)
+
+### Problem
+
+A retrospective-column post ("Into to the Obscure: Cianide – Death, Doom and Destruction") was
+ingested as a normal scored review (blank artwork, no release date) instead of being skipped like
+other retrospective columns. AMG's "Into the Obscure" column never carries a numeric score by
+editorial convention, but this post was mistagged with **both** `Into the Obscure` and
+`Review`/`Reviews` categories, so `isGenuineReview` passed it through — the original logic here is
+allow-by-tag only and has no way to say "skip regardless of what else is tagged."
+
+Checked 8 prior "Into the Obscure" posts via the WordPress REST API
+(`wp-json/wp/v2/posts?slug=...&_embed`): none carried `Review`/`Reviews`, so all 8 were correctly
+skipped historically. The Cianide post is the first known instance of AMG tagging this column with
+the review tag — a mistagging, not a pattern change, but one that broke the allow-by-tag
+assumption.
+
+### Decision
+
+Added a denylist check that runs before (and overrides) `isGenuineReview`/`isAllowlistedFranchise`:
+
+- `DENYLISTED_FRANCHISE_CATEGORIES` (`scripts/ingest.ts`) — `Angry Metal Guy: ['Into the Obscure']`.
+- `isDenylistedFranchise(item, source)` — same shape as `isGenuineReview`/`isAllowlistedFranchise`.
+- `shouldSkipPost` now checks `isDenylistedFranchise` first and skips unconditionally on a match,
+  before the allowlist/review-tag checks run. A stray `Review`/`Reviews` tag can no longer override
+  a denylist match.
+
+Deliberately a short, single-entry list, same convention as the allowlist — do not add speculative
+entries; add a new one only when a similar mistagging is confirmed for another franchise.
+
+**Scope:** Angry Metal Guy only. `isGenuineReview`, `isAllowlistedFranchise`, and the existing
+Rodeo allowlist entry were not touched.
+
+Tests added to `scripts/__tests__/ingest.test.ts`: the mistagged Into the Obscure case is skipped;
+the Rodeo allowlist case still is not (confirms the denylist doesn't affect allowlist behavior).
+
+### Manual data correction (same day)
+
+The live Cianide row had already been ingested before the fix shipped. Corrected manually in
+Supabase, following the same pattern as `stale-row-cleanup.md`:
+- Logged to `skipped_posts` (reason `non_review_category`).
+- Deleted the `reviews` row (`a0ee59d1-a7dd-4888-b691-848d24a446bc`).
+- Deleted its `albums` row (`8ab3a8a1-c3a0-423d-b3c8-fd6f70b8abe3`) — confirmed no other review
+  referenced that `album_id` before deleting, so nothing was orphaned.
+
+No `skipped_posts` schema change. This was a one-off manual cleanup, not an automated backfill —
+future mistagged posts of this kind will be caught at ingest time by the code fix above.

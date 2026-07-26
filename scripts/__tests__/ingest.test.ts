@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isGenuineReview, isAllowlistedFranchise, shouldSkipPost } from '../ingest';
+import {
+  isGenuineReview,
+  isAllowlistedFranchise,
+  isDenylistedFranchise,
+  shouldSkipPost,
+} from '../ingest';
 
 describe('shouldSkipPost — non-review post filtering', () => {
   it('skips an Angry Metal Guy roundup post (no Reviews/Review category)', () => {
@@ -48,5 +53,29 @@ describe('shouldSkipPost — non-review post filtering', () => {
   it('never skips Metal Storm items (no tag check configured for that source)', () => {
     const item = { categories: [] };
     expect(shouldSkipPost(item, 'Metal Storm')).toBe(false);
+  });
+
+  it('skips an AMG "Into the Obscure" post even when mistagged with Review/Reviews', () => {
+    const item = {
+      categories: ['Into the Obscure', '1997', 'Death Metal', 'Review', 'Reviews'],
+    };
+    expect(isGenuineReview(item, 'Angry Metal Guy')).toBe(true);
+    expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(true);
+    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(true);
+  });
+
+  it('still does NOT skip an allowlisted AMG Unsigned Band Rodeo post (denylist unaffected)', () => {
+    const item = {
+      categories: [
+        "Angry Metal Guy's Unsigned Band Rodeo",
+        '2025',
+        'Death Metal',
+        'Review',
+        'Reviews',
+      ],
+    };
+    expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(false);
+    expect(isAllowlistedFranchise(item, 'Angry Metal Guy')).toBe(true);
+    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(false);
   });
 });
