@@ -18,6 +18,11 @@ interface OptionCardProps {
 // Selected state reuses the existing accent.border/accent.ink convention
 // directly (same as the active nav tab and the score-slab threshold) — no new
 // color treatment invented here.
+//
+// Hover: footprint never moves (matches the existing album-card convention in
+// App.tsx — only borderColor/bg shift, nothing shifts layout). Suppressed once
+// a card is selected or a transition is in flight, so hovering never fights
+// the accent highlight or invites a click that's currently blocked.
 export function OptionCard({ criteria, selected, disabled, onSelect }: OptionCardProps) {
   return (
     <Box
@@ -31,6 +36,12 @@ export function OptionCard({ criteria, selected, disabled, onSelect }: OptionCar
       borderColor={selected ? 'accent.border' : 'border.default'}
       borderRadius="0"
       bg={selected ? 'accent.border' : 'surface.card'}
+      transition="border-color 0.15s linear, background-color 0.15s linear"
+      _hover={
+        !selected && !disabled
+          ? { borderColor: 'border.hover', bg: 'surface.cardHover' }
+          : undefined
+      }
     >
       <CriterionLevelList criteria={criteria} selected={selected} />
       <SelectAction onClick={onSelect} disabled={disabled} />
