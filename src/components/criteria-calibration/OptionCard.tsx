@@ -19,10 +19,13 @@ interface OptionCardProps {
 // directly (same as the active nav tab and the score-slab threshold) — no new
 // color treatment invented here.
 //
-// Hover: footprint never moves (matches the existing album-card convention in
-// App.tsx — only borderColor/bg shift, nothing shifts layout). Suppressed once
-// a card is selected or a transition is in flight, so hovering never fights
-// the accent highlight or invites a click that's currently blocked.
+// Hover: same 2px border + plain borderColor-swap-to-border.hover language as
+// the reviews-grid card and the favorites row (FavoritesPage.tsx) — no
+// transition property, no background shift. That's deliberate: this app's
+// brutalist visual language treats hover as an abrupt state snap, not an
+// animated one. Suppressed once a card is selected or a transition is in
+// flight, so hovering never fights the accent highlight or invites a click
+// that's currently blocked.
 export function OptionCard({ criteria, selected, disabled, onSelect }: OptionCardProps) {
   return (
     <Box
@@ -32,16 +35,11 @@ export function OptionCard({ criteria, selected, disabled, onSelect }: OptionCar
       flexDirection="column"
       gap={4}
       p={6}
-      border="1px solid"
-      borderColor={selected ? 'accent.border' : 'border.default'}
+      border="2px solid"
+      borderColor={selected ? 'accent.border' : 'border.ruleStrong'}
       borderRadius="0"
       bg={selected ? 'accent.border' : 'surface.card'}
-      transition="border-color 0.15s linear, background-color 0.15s linear"
-      _hover={
-        !selected && !disabled
-          ? { borderColor: 'border.hover', bg: 'surface.cardHover' }
-          : undefined
-      }
+      _hover={!selected && !disabled ? { borderColor: 'border.hover' } : undefined}
     >
       <CriterionLevelList criteria={criteria} selected={selected} />
       <SelectAction onClick={onSelect} disabled={disabled} />
