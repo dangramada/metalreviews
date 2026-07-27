@@ -306,6 +306,11 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## C. Design/branding (open)
 
+- **Criteria Calibration header layout** — needs a dedicated reorganization pass.
+  Surfaced 2026-07-28 while building the Criteria Calibration screen UI (Phase 7);
+  current `ProgressHeader` layout (Progress ring + Accuracy status centered,
+  "Stop here" right, empty flex spacer left) works but wasn't given a real design
+  pass — out of scope for that UI-only brief. `docs/decisions/criteria-calibration-ui.md`.
 - **Logo** — T-ligature concept explored across five typefaces (Bebas Neue,
   Archivo Black, Playfair Display, Space Mono, Monoton); never approved. Known
   issue: the fused double-T reads as the Greek letter π.

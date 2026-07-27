@@ -1,25 +1,26 @@
 import { Flex, Button } from '@chakra-ui/react';
 import { RoundGaugeGroup } from './RoundGaugeGroup';
-import { UndoAction } from './UndoAction';
 import type { AccuracyLevel } from './AccuracyStatus';
 
 interface ProgressHeaderProps {
   round: number;
+  progressPercent: number;
+  accuracyPercent: number;
   accuracyLevel: AccuracyLevel;
-  accuracyPercentPlaceholder: number;
-  onUndo: () => void;
-  undoDisabled: boolean;
   onExit: () => void;
 }
 
-// Top zone of the screen: undo on the left, the round/accuracy gauge centered,
-// exit action on the right. Exit copy must never reference ranking (DoD).
+// Top zone of the screen. Deliberately a plain sibling of the fading
+// ComparisonRow, not wrapped by it — it must stay visually static during the
+// card-transition fade; only its own numeric/text values update, instantly,
+// via prop changes (see CriteriaCalibrationPage's commitAdvance). Undo/Redo
+// live in HistoryActions further down the page, not here — exit copy must
+// never reference ranking (DoD).
 export function ProgressHeader({
   round,
+  progressPercent,
+  accuracyPercent,
   accuracyLevel,
-  accuracyPercentPlaceholder,
-  onUndo,
-  undoDisabled,
   onExit,
 }: ProgressHeaderProps) {
   return (
@@ -30,15 +31,18 @@ export function ProgressHeader({
       borderBottomColor="border.rule"
       pb={6}
     >
-      <UndoAction onUndo={onUndo} disabled={undoDisabled} />
+      <Flex flex="1" />
       <RoundGaugeGroup
         round={round}
+        progressPercent={progressPercent}
+        accuracyPercent={accuracyPercent}
         accuracyLevel={accuracyLevel}
-        accuracyPercentPlaceholder={accuracyPercentPlaceholder}
       />
-      <Button variant="outline" colorPalette="gray" size="sm" onClick={onExit}>
-        Stop here
-      </Button>
+      <Flex flex="1" justify="flex-end">
+        <Button variant="outline" colorPalette="gray" size="sm" onClick={onExit}>
+          Stop here
+        </Button>
+      </Flex>
     </Flex>
   );
 }

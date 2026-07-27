@@ -9,26 +9,31 @@ import { AccuracyStatus, type AccuracyLevel } from './AccuracyStatus';
 
 interface RoundGaugeGroupProps {
   round: number;
+  // Progress: how far through the session (drives the ring + its center value).
+  progressPercent: number;
+  // Accuracy: a separate, cumulative metric — never resets per round, never
+  // collapsed into the Progress ring. Rendered via AccuracyStatus below it.
+  accuracyPercent: number;
   accuracyLevel: AccuracyLevel;
-  // Placeholder gauge fill only — not derived from any real accuracy computation yet.
-  accuracyPercentPlaceholder: number;
 }
 
-// Visually clusters RoundCounter + ProgressCircle + AccuracyStatus as one unit
-// so the header reads as a single "where am I" gauge rather than three loose labels.
+// Visually clusters RoundCounter + ProgressCircle (Progress) + AccuracyStatus
+// (Accuracy) as one unit so the header reads as a single "where am I" gauge,
+// while keeping the two metrics visibly distinct within it.
 export function RoundGaugeGroup({
   round,
+  progressPercent,
+  accuracyPercent,
   accuracyLevel,
-  accuracyPercentPlaceholder,
 }: RoundGaugeGroupProps) {
   return (
     <VStack gap={2} align="center">
       <RoundCounter round={round} />
-      <ProgressCircleRoot value={accuracyPercentPlaceholder} size="lg">
+      <ProgressCircleRoot value={progressPercent} size="lg">
         <ProgressCircleRing color="accent.border" trackColor="border.rule" cap="butt" />
         <ProgressCircleValueText color="text.primary" fontFamily="mono" />
       </ProgressCircleRoot>
-      <AccuracyStatus level={accuracyLevel} />
+      <AccuracyStatus percent={accuracyPercent} level={accuracyLevel} />
     </VStack>
   );
 }
