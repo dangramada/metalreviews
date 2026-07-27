@@ -8,6 +8,7 @@ import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
 import { StyleGuide } from './StyleGuide';
+import { CriteriaCalibrationPage } from './CriteriaCalibrationPage';
 // Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
 const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
 import system from './theme';
@@ -28,6 +29,9 @@ const router = createBrowserRouter([
     ),
   },
   { path: '/style-guide', element: <StyleGuide /> },
+  // UI-only Phase 7 preview — unauthenticated, unlinked from the app. Not wired
+  // to the scoring engine yet (separate brief); see CriteriaCalibrationPage.tsx.
+  { path: '/criteria-calibration', element: <CriteriaCalibrationPage /> },
   // { path: '/aoty/:shareId', element: <SharedList /> }  — reserved for shareable favorites
 ]);
 
