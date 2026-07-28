@@ -225,6 +225,31 @@ export class PreferenceGraph {
   }
 
   /**
+   * Shared contradiction check used by both the throwing `insertAnswer` and the
+   * non-throwing `wouldContradict`. Assumes both keys are already registered in `state`
+   * (callers must `ensure()` first, or otherwise confirm `state.has(key)`).
+   */
+  private detectContradiction(
+    state: DegreeState,
+    keyA: string,
+    keyB: string,
+    result: ComparisonResult
+  ): boolean {
+    const repA = state.find(keyA);
+    const repB = state.find(keyB);
+
+    if (result === 'equal') {
+      if (repA === repB) return false; // already equal, not a contradiction
+      return state.reaches(repA, repB) || state.reaches(repB, repA);
+    }
+
+    const repW = result === 'A' ? repA : repB;
+    const repL = result === 'A' ? repB : repA;
+    if (repW === repL) return true; // can't prefer a profile over one already known equal to it
+    return state.reaches(repL, repW); // cycle: loser already strictly precedes winner
+  }
+
+  /**
    * Records a new answer and folds it into that degree's transitive closure. Throws if
    * the two profiles are not the same degree (a single comparison round is always within
    * one degree), or if the answer contradicts what's already implied — the graph never
@@ -248,34 +273,45 @@ export class PreferenceGraph {
     state.ensure(keyA);
     state.ensure(keyB);
 
+    if (this.detectContradiction(state, keyA, keyB, result)) {
+      throw new Error(
+        `Contradiction at degree ${degreeA}: this answer conflicts with a relationship already implied by prior answers at this degree.`
+      );
+    }
+
     if (result === 'equal') {
       const repA = state.find(keyA);
       const repB = state.find(keyB);
-      if (repA === repB) return; // already equal, no-op
-      if (state.reaches(repA, repB) || state.reaches(repB, repA)) {
-        throw new Error(
-          `Contradiction at degree ${degreeA}: cannot mark profiles equal — a strict preference already exists between them.`
-        );
-      }
-      state.union(repA, repB);
+      if (repA !== repB) state.union(repA, repB);
       return;
     }
 
     const winnerKey = result === 'A' ? keyA : keyB;
     const loserKey = result === 'A' ? keyB : keyA;
-    const repW = state.find(winnerKey);
-    const repL = state.find(loserKey);
-    if (repW === repL) {
-      throw new Error(
-        `Contradiction at degree ${degreeA}: cannot prefer a profile over one already known to be equal to it.`
-      );
-    }
-    if (state.reaches(repL, repW)) {
-      throw new Error(
-        `Contradiction at degree ${degreeA}: cycle detected — the losing profile already strictly precedes the winner.`
-      );
-    }
-    state.addEdge(repW, repL);
+    state.addEdge(state.find(winnerKey), state.find(loserKey));
+  }
+
+  /**
+   * Non-throwing counterpart to `insertAnswer`'s contradiction check. Real users give
+   * mildly inconsistent answers sometimes — that's normal, not corrupted data — so
+   * callers that need to route around a contradiction (rather than treat it as fatal)
+   * should check this first instead of using exceptions as control flow. Returns false
+   * (not a contradiction) for cross-degree pairs or profiles never seen at this degree,
+   * since there is nothing yet to conflict with.
+   */
+  wouldContradict(profileA: Profile, profileB: Profile, result: ComparisonResult): boolean {
+    const degreeA = profileDegree(profileA);
+    const degreeB = profileDegree(profileB);
+    if (degreeA !== degreeB) return false;
+
+    const state = this.degrees.get(degreeA);
+    if (!state) return false;
+
+    const keyA = profileKey(profileA);
+    const keyB = profileKey(profileB);
+    if (!state.has(keyA) || !state.has(keyB)) return false;
+
+    return this.detectContradiction(state, keyA, keyB, result);
   }
 
   /**
