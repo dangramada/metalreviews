@@ -1,4 +1,4 @@
-# Criteria Calibration engine — parts 1 & 2 (preference graph, closure, solver)
+# Criteria Calibration engine — parts 1–4 (preference graph, closure, solver, elicitation driver)
 
 Branch: `criteria-calibration-engine`. Scope: pure algorithm/logic only — no React, no
 Supabase, no UI wiring. Separate from and independent of `criteria-calibration-ui` (the
@@ -103,6 +103,61 @@ calibration session (on the current 6-criteria/5-level production model, not the
 historical export) before these are treated as settled** — right now they're calibrated to
 a single anecdote on a different criteria count.
 
+## Part 4 finding — `computeSolverAccuracy` is blind to real ranking improvement from degree-3+ answers
+
+Part 4 added the elicitation driver (`elicitationDriver.ts`) that actually runs a session:
+covers all C(N,2) degree-2 criteria pairs via a cold-start rule, then asks whatever's most
+ambiguous at increasing degree, never auto-escalating. Validating it against the oracle
+simulation (the real 5-criterion value table used as ground truth, same as part 2) surfaced
+a problem with the accuracy metric itself, not with the driver.
+
+**The gap.** Across the simulation's three natural milestones — Q10 (degree-2 coverage just
+completed), Q43 (end of the degree-3 phase), Q49 (end of the degree-4 phase) —
+`computeSolverAccuracy` barely moves: 0.680102 → 0.680445 → 0.693412. Taken at face value,
+that reads as "degree-3 questions accomplish almost nothing." But checking the thing this
+engine actually exists to produce — the derived values' effect on the real 19-album ranking
+— tells a different story: total rank displacement against the real order drops **44 → 40 →
+26** over the same three milestones, and the top-10 set only becomes fully correct at Q49.
+Degree-3 answers all insert with **zero slack** (fully consistent, not noise being absorbed),
+so they're doing genuine, non-redundant work on the model — work the metric doesn't register.
+
+**Why, structurally.** `computeSolverAccuracy` averages independent per-(criterion, level)
+feasible-range widths (each solved via its own separate min/max LP). A degree-3 comparison's
+LP constraint ties together three free variables in one inequality — it constrains a
+*combination* of those values, not necessarily any single one of them tightly. That
+information is real and it's exactly what narrows the ranking, but independently
+re-optimizing each axis in isolation doesn't reliably reveal it. This is a structural property
+of an axis-based range metric, not a bug: it was verified directly, not inferred — per-value
+range widths were compared individually (all 20 values) between Q10 and Q43, and every one
+narrowed by a uniformly tiny amount (0.0001–0.0007 out of 0.2–0.5-wide ranges), ruling out
+"a few values are converging sharply and the average is hiding it." The flatness is real and
+metric-wide, while the ranking-displacement improvement is also real and metric-invisible.
+
+**Ruled out, not just assumed.** Both plausible driver-side explanations were checked and
+rejected before concluding this is a metric problem:
+- Degree-3 answers being wasted as slack/noise — no: `perAnswerSlack` is exactly 0 for all 16
+  degree-3 answers in the simulation.
+- `questionOrdering.ts`'s ambiguity ranking or the degree≥3 candidate generation choosing
+  uninformative comparisons — no: the ranking measurably improves (44→40→26 displacement),
+  which is the opposite of what "uninformative candidates" would produce.
+
+**What this means for brief 5.** Gating any UI state on `HIGH_ACCURACY_THRESHOLD` /
+`VERY_HIGH_ACCURACY_THRESHOLD` as currently defined would understate real progress to a
+user, specifically past initial degree-2 coverage — a user who's meaningfully improved their
+ranking accuracy via degree-3/4 answers would see the accuracy number barely budge. **This is
+a blocker for brief 5's High/Very High gate specifically.** It does NOT affect the Medium
+tier: `isMediumTierReached` is purely graph-based (every degree-2 pair resolved via direct
+answer or closure), doesn't touch the solver or this metric at all, and is exactly as solid
+as it was in part 2.
+
+**Not resolved here.** No replacement metric is proposed in this document — that's flagged as
+its own open decision, needing a dedicated design pass rather than being settled inside this
+investigation. The displacement measure used above (comparing derived-value rankings against
+a known order) is one plausible direction — it's what actually caught this problem — but
+whether it, or something else rank-sensitive, is the right permanent replacement deserves its
+own scrutiny. No code changed this session; this was investigation only, run via ad hoc
+scripts against the existing `elicitationDriver.ts` and `solveValues`, not new test files.
+
 ## Not built / not touched
 
 - No cross-degree closure (part 1 scope boundary, still holds).
@@ -119,6 +174,7 @@ a single anecdote on a different criteria count.
 
 `src/lib/criteria-calibration/`: `preferenceGraph.ts`, `fixtures.ts` (synthetic part-1
 fixture + the real 31-answer/19-album part-2 acceptance fixture), `calibrationSession.ts`,
-`questionOrdering.ts`, `solver.ts`, `simplex.ts`, `accuracyTiers.ts`. Tests in
-`src/__tests__/`: `preferenceGraph.test.ts`, `calibrationSession.test.ts`, `solver.test.ts`,
-`questionOrdering.test.ts`, `accuracyTiers.test.ts`. Debug script: `scripts/debug-preference-graph.ts`.
+`questionOrdering.ts`, `solver.ts`, `simplex.ts`, `accuracyTiers.ts`, `elicitationDriver.ts`
+(part 4). Tests in `src/__tests__/`: `preferenceGraph.test.ts`, `calibrationSession.test.ts`,
+`solver.test.ts`, `questionOrdering.test.ts`, `accuracyTiers.test.ts`,
+`elicitationDriver.test.ts`. Debug script: `scripts/debug-preference-graph.ts`.
