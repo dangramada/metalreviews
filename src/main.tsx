@@ -29,9 +29,16 @@ const router = createBrowserRouter([
     ),
   },
   { path: '/style-guide', element: <StyleGuide /> },
-  // UI-only Phase 7 preview — unauthenticated, unlinked from the app. Not wired
-  // to the scoring engine yet (separate brief); see CriteriaCalibrationPage.tsx.
-  { path: '/criteria-calibration', element: <CriteriaCalibrationPage /> },
+  // Wired to the real engine + Supabase persistence (parts 5a/5b) — still unlinked from
+  // the app's nav (separate IA decision). Auth-gated since progress is saved per-user.
+  {
+    path: '/criteria-calibration',
+    element: (
+      <RequireAuth>
+        <CriteriaCalibrationPage />
+      </RequireAuth>
+    ),
+  },
   // { path: '/aoty/:shareId', element: <SharedList /> }  — reserved for shareable favorites
 ]);
 
