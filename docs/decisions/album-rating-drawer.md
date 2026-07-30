@@ -73,11 +73,19 @@ exactly 1." Verified live against a real account's persisted `user_criterion_wei
 Root cause: each `LevelValue.point` is the midpoint of an *independently* solved min/max
 range for that one (criterion, level) — normalization is enforced *within* each individual
 LP solve, but nothing re-enforces it *jointly* across the resulting midpoints, so their sum
-isn't guaranteed to equal 1. This is the same under-determination phenomenon already
-documented in `criteria-calibration-engine.md` ("two tie-break rules landed >5% apart"),
-just not previously checked against the sum-to-1 claim specifically — and it is worse the
-more under-determined the session is, making Medium-tier-only (the feature's actual minimum
-gate) close to the worst case.
+isn't guaranteed to equal 1. It is worse the more under-determined the session is, making
+Medium-tier-only (the feature's actual minimum gate) close to the worst case.
+
+**Related to, but distinct from, `criteria-calibration-engine.md`'s "Part 4 finding"**: both
+trace to the same root methodology — solving each free (criterion, level) variable via its
+own separate LP rather than jointly — but they hit different downstream consumers. Part 4's
+finding is about `computeSolverAccuracy` averaging independent *feasible-range widths*,
+which feeds the accuracy-tier display (Low/Medium/High) and was found to be blind to real
+degree-3+ ranking improvement. This finding is about the independent range *midpoints*
+(`LevelValue.point`) themselves, which feed the score shown here — a different symptom of
+the same "solve-each-axis-separately" under-determination, not a re-discovery of Part 4's
+exact issue. Flagging the cross-reference so a future session doesn't re-investigate the same
+under-determination a third time as if it were new.
 
 **Decision (confirmed with Dan)**: clamp the *displayed* percentage to 100
 (`Math.min(100, ...)`) rather than showing a number that can exceed 100%, and leave a
@@ -86,6 +94,18 @@ within a year, so relative order is still consistent even though the absolute sc
 inflated. A real fix (jointly re-normalizing the point estimates, or reporting the phase-1
 solution instead of independent per-value midpoints) is out of scope for this session —
 `solver.ts` is a locked engine file — and is added to `deferred-work.md`.
+
+**New display caveat introduced by the clamp itself**: the clamp trades one distortion for
+another at the top end specifically. Before clamping, an inflated raw score at least
+preserved *relative* differences (a 95%-raw and a 122%-raw album showed as visibly
+different numbers). After clamping, any two albums whose raw scores both exceed 100% will
+display identically as "100%", even though a properly-normalized solver might have shown
+them as, say, 95% and 100% — a real quality difference the clamp now hides at exactly the
+high-scoring end where a user is most likely to be comparing top albums. Rank order still
+reflects the real (unclamped) difference between them — only the displayed percentage
+compresses it. Not fixed here (same locked-file constraint as above), but worth knowing this
+is a second, clamp-introduced caveat on top of the original inflation, not just a rounding
+quirk.
 
 ### Related finding: Medium tier can't distinguish middle levels, so exact score ties are common
 
