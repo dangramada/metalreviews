@@ -7,6 +7,9 @@ import { EqualButton } from './components/criteria-calibration/EqualButton';
 import { HistoryActions } from './components/criteria-calibration/HistoryActions';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
+import { useCalibrationResume } from './hooks/useCalibrationResume';
+import { useFeedbackToast } from './hooks/useFeedbackToast';
+import { useAuth } from './AuthContext';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CalibrationSession } from './lib/criteria-calibration/calibrationSession';
 import {
@@ -16,15 +19,21 @@ import {
 import { isMediumTierReached } from './lib/criteria-calibration/accuracyTiers';
 import { degree2CoveragePercent } from './lib/criteria-calibration/sessionProgress';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
+import {
+  insertAnswer,
+  deleteAnswer,
+  upsertWeightsAndStatus,
+} from './lib/criteria-calibration/persistence';
 import type { ComparisonResult, Profile } from './lib/criteria-calibration/preferenceGraph';
 
 // ---------------------------------------------------------------------------
-// Part 5a — wired to the real engine (in-memory only, no Supabase writes; that's
-// part 5b). Everything below drives an actual CalibrationSession via
-// elicitationDriver's nextAction. Explicit, acceptable limitation: a page refresh
-// loses all progress (not a defect in this pass). No High/Very High accuracy is
-// ever shown — that's blocked on a separate, documented solver-metric issue (see
-// docs/decisions/criteria-calibration-engine.md, "Part 4 finding").
+// Part 5a wired the UI to the real engine, in-memory only. Part 5b (this pass) adds
+// Supabase persistence: every real answer is saved as it happens, and reopening the page
+// resumes exactly where the user left off, via the same replay-by-rebuilding-the-session
+// approach 5a already uses for undo — not a second implementation. No High/Very High
+// accuracy is ever shown in the UI — still blocked on the documented solver-metric issue
+// (docs/decisions/criteria-calibration-engine.md, "Part 4 finding") — even though this pass
+// now computes and stores those values (harmless stored, would not be harmless displayed).
 // ---------------------------------------------------------------------------
 
 // Hold duration after a selection, before the fade starts — a deliberate
@@ -38,17 +47,27 @@ const FADE_MS = 180;
 type Phase = 'idle' | 'holding' | 'fading-out' | 'fading-in';
 
 interface AnswerEntry {
+  // Stable, client-generated id assigned at creation time (before any DB round-trip) — used
+  // to correlate an in-flight insert with the entry currently in local state. `dbId` is only
+  // set once the insert resolves; a fresh AnswerEntry (new answer, or a redo) always gets a
+  // brand-new localId, never reuses one from a previously-undone entry.
+  localId: string;
+  dbId?: string;
   profileA: Profile;
   profileB: Profile;
   result: ComparisonResult;
 }
 
-// Degree always starts at 2 (Medium tier's prerequisite — see elicitationDriver.ts).
+// Degree always starts at 2 (Medium tier's prerequisite — see elicitationDriver.ts) when
+// there's no persisted session to resume; useCalibrationResume infers it otherwise.
 const STARTING_DEGREE = 2;
 
 export function CriteriaCalibrationPage() {
   const reducedMotion = useReducedMotion();
   const { catalog, loading, error } = useCriteriaCatalog();
+  const { user } = useAuth();
+  const resume = useCalibrationResume(user?.id);
+  const { showError } = useFeedbackToast();
 
   const [answers, setAnswers] = useState<AnswerEntry[]>([]);
   const [redoBuffer, setRedoBuffer] = useState<AnswerEntry[]>([]);
@@ -56,6 +75,43 @@ export function CriteriaCalibrationPage() {
   const [stopped, setStopped] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
+
+  // Seed local state from the resumed session exactly once, when the resume fetch
+  // completes. `seeded` guards this so it can't re-run and clobber in-progress answers if
+  // useCalibrationResume's effect ever re-fires for the same user.
+  const [seeded, setSeeded] = useState(false);
+  useEffect(() => {
+    // Wrapped in an async function (matching useFavoritesList.ts's load() convention) even
+    // though there's no further await here — this is a one-time hydration from an already-
+    // resolved async source (the resume fetch), not a per-render synchronization.
+    async function seedFromResume() {
+      if (resume.loading || seeded) return;
+      setSeeded(true);
+      setAnswers(
+        resume.answers.map((a) => ({
+          localId: a.localId,
+          dbId: a.dbId,
+          profileA: a.profileA,
+          profileB: a.profileB,
+          result: a.result,
+        }))
+      );
+      setDegree(resume.degree);
+      if (resume.error) {
+        showError("Couldn't load your saved progress — starting a new session");
+      }
+    }
+    seedFromResume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resume.loading]);
+
+  // Mirrors `answers` after every commit so async persistence callbacks (which resolve well
+  // after the triggering render) can read the truly-current state instead of a stale
+  // closure — see persistNewAnswer's race check below.
+  const answersRef = useRef<AnswerEntry[]>([]);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
   // Tracks in-flight setTimeouts so an unmount mid-transition doesn't try to
   // set state on an unmounted component.
@@ -72,10 +128,8 @@ export function CriteriaCalibrationPage() {
   }
 
   // Single source of truth is the `answers` list; the session is always rebuilt fresh from
-  // it by replaying every recorded answer in order. This is the brief's recommended undo
-  // approach (the engine isn't designed for in-place removal), applied uniformly to every
-  // answers-array change, not just undo, so there's one code path instead of two. Cheap at
-  // the session sizes this feature operates at.
+  // it by replaying every recorded answer in order (5a's undo approach, reused as-is for
+  // resume too — not a second implementation of the same idea).
   const session = useMemo(() => {
     const s = new CalibrationSession();
     for (const a of answers) s.recordAnswer(a.profileA, a.profileB, a.result);
@@ -94,14 +148,76 @@ export function CriteriaCalibrationPage() {
   const interactionDisabled = phase !== 'idle' || stopped;
   const round = answers.length + 1;
 
+  // Shared failure indicator across every persistence call (answer insert/delete, weights/
+  // status upsert) — surfaces only on the transition INTO a failing streak, not per-call, so
+  // a run of failures during an outage doesn't spam toasts. Clears silently on the next
+  // success. A failure here never blocks or rolls back the in-memory flow.
+  const persistFailingRef = useRef(false);
+  function notifyPersistFailure() {
+    if (persistFailingRef.current) return;
+    persistFailingRef.current = true;
+    showError(
+      'Having trouble saving your progress — your answers still count, but check your connection'
+    );
+  }
+  function notifyPersistRecovered() {
+    persistFailingRef.current = false;
+  }
+
+  async function persistNewAnswer(entry: AnswerEntry) {
+    if (!user) return;
+    try {
+      const dbId = await insertAnswer(user.id, entry.profileA, entry.profileB, entry.result);
+      notifyPersistRecovered();
+      const stillPresent = answersRef.current.some((a) => a.localId === entry.localId);
+      if (!stillPresent) {
+        // Undone while the insert was in flight — never leave the DB holding a row for an
+        // answer the user already retracted, regardless of network timing.
+        deleteAnswer(dbId).catch((e) => console.warn('Failed to clean up orphaned answer', e));
+        return;
+      }
+      setAnswers((prev) => prev.map((a) => (a.localId === entry.localId ? { ...a, dbId } : a)));
+    } catch (e) {
+      console.warn('Failed to save calibration answer', e);
+      notifyPersistFailure();
+    }
+  }
+
+  // Cheap staleness guard: if a newer recompute has started by the time this one resolves,
+  // skip its success/failure notification — the newer call's own write already reflects a
+  // more current answers snapshot. This doesn't stop an in-flight older call's write from
+  // landing after a newer one (both requests are already sent); that's self-correcting on
+  // the next answer, per the brief, so not solved here.
+  const weightsGenRef = useRef(0);
+  function recomputeWeightsAndStatus(nextAnswers: AnswerEntry[]) {
+    if (!user || !catalog) return;
+    const myGen = ++weightsGenRef.current;
+    upsertWeightsAndStatus(user.id, catalog, nextAnswers)
+      .then(() => {
+        if (myGen !== weightsGenRef.current) return;
+        notifyPersistRecovered();
+      })
+      .catch((e) => {
+        if (myGen !== weightsGenRef.current) return;
+        console.warn('Failed to update calibration weights/status', e);
+        notifyPersistFailure();
+      });
+  }
+
   function commitAdvance(result: ComparisonResult) {
     if (!action || action.type !== 'ask') return;
-    setAnswers((prev) => [
-      ...prev,
-      { profileA: action.profileA, profileB: action.profileB, result },
-    ]);
+    const entry: AnswerEntry = {
+      localId: crypto.randomUUID(),
+      profileA: action.profileA,
+      profileB: action.profileB,
+      result,
+    };
+    const nextAnswers = [...answers, entry];
+    setAnswers(nextAnswers);
     setRedoBuffer([]);
     setSelectedSide(null);
+    persistNewAnswer(entry);
+    recomputeWeightsAndStatus(nextAnswers);
   }
 
   // Selection -> Hold -> Transition sequence, unchanged from the mock pass. "Equal" runs the
@@ -133,17 +249,42 @@ export function CriteriaCalibrationPage() {
   function handleUndo() {
     if (interactionDisabled || answers.length === 0) return;
     const last = answers[answers.length - 1];
-    setAnswers((prev) => prev.slice(0, -1));
+    const nextAnswers = answers.slice(0, -1);
+    setAnswers(nextAnswers);
     setRedoBuffer((prev) => [...prev, last]);
     setSelectedSide(null);
+
+    if (last.dbId) {
+      deleteAnswer(last.dbId)
+        .then(notifyPersistRecovered)
+        .catch((e) => {
+          console.warn('Failed to delete undone calibration answer', e);
+          notifyPersistFailure();
+        });
+    }
+    // If last.dbId isn't set yet, its insert is still in flight (or already failed) —
+    // persistNewAnswer's own race check will notice the localId is gone and delete the
+    // row itself once that insert resolves.
+    recomputeWeightsAndStatus(nextAnswers);
   }
 
   function handleRedo() {
     if (interactionDisabled || redoBuffer.length === 0) return;
-    const next = redoBuffer[redoBuffer.length - 1];
+    const restored = redoBuffer[redoBuffer.length - 1];
+    // A fresh localId (and no dbId) — redo is a brand-new insert, consistent with the
+    // answers table's append/insert-only convention, never a resurrection of the old row.
+    const entry: AnswerEntry = {
+      localId: crypto.randomUUID(),
+      profileA: restored.profileA,
+      profileB: restored.profileB,
+      result: restored.result,
+    };
+    const nextAnswers = [...answers, entry];
     setRedoBuffer((prev) => prev.slice(0, -1));
-    setAnswers((prev) => [...prev, next]);
+    setAnswers(nextAnswers);
     setSelectedSide(null);
+    persistNewAnswer(entry);
+    recomputeWeightsAndStatus(nextAnswers);
   }
 
   function handleEscalate() {
@@ -159,9 +300,8 @@ export function CriteriaCalibrationPage() {
   }
 
   function handleExit() {
-    // Wired to real state, but still no persistence this session (5b's scope). Stopping
-    // just halts interaction locally — refreshing loses this progress, which is an
-    // explicitly acceptable limitation for this pass, not a defect.
+    // No "stopped" state is persisted (per the brief) — resuming just picks up wherever the
+    // real answer log left off. Stopping only halts interaction locally.
     setStopped(true);
   }
 
@@ -185,6 +325,19 @@ export function CriteriaCalibrationPage() {
     );
   }
 
+  if (resume.loading || !seeded) {
+    return (
+      <Container maxW="4xl" py={10}>
+        <Flex direction="column" gap={4} justify="center" align="center" minH="300px">
+          <LoadingIndicator />
+          <Text color="text.dim" fontFamily="body">
+            Loading your progress...
+          </Text>
+        </Flex>
+      </Container>
+    );
+  }
+
   return (
     <Container maxW="4xl" py={10}>
       <VStack gap={10} align="stretch">
@@ -202,7 +355,7 @@ export function CriteriaCalibrationPage() {
 
         {stopped ? (
           <Text textAlign="center" color="text.dim">
-            Calibration paused. Refresh the page to start a new session — progress isn't saved yet.
+            Calibration paused. Your progress is saved — come back any time to continue.
           </Text>
         ) : action?.type === 'ask' ? (
           <>
