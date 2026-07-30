@@ -9,6 +9,10 @@
 -- updated_at + trigger included even though the brief didn't explicitly ask for it here --
 -- a judgment call: a future rating-edit flow will need to know when a rating last changed,
 -- and it costs nothing to add now rather than as a later migration.
+--
+-- (criterion_id, level) has a composite FK to criteria_levels, mirroring
+-- user_criterion_weights.sql exactly -- without it, `level` was unvalidated (any smallint,
+-- including out-of-range values like 9 or -1, would have been accepted).
 
 create or replace function set_updated_at()
 returns trigger as $$
@@ -21,10 +25,11 @@ $$ language plpgsql;
 create table album_criteria_ratings (
   user_id uuid references auth.users(id) not null,
   album_id uuid references albums(id) not null,
-  criterion_id smallint references criteria(id) not null,
+  criterion_id smallint not null,
   level smallint not null,
   updated_at timestamptz not null default now(),
-  primary key (user_id, album_id, criterion_id)
+  primary key (user_id, album_id, criterion_id),
+  foreign key (criterion_id, level) references criteria_levels(criterion_id, level)
 );
 
 alter table album_criteria_ratings enable row level security;
