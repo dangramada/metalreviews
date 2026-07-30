@@ -53,12 +53,22 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
 
     // Step B: fetch release detail (genres + date) and Cover Art Archive in parallel.
     // Only release detail hits MB; CAA is a separate host with no shared rate-limit.
+    // CAA is queried at the release-group level first (when we have a release-group id):
+    // MB's release search has no relevance sort, so releases[0] above can be an arbitrary
+    // pressing with no CAA-uploaded art even when a sibling release in the same group has
+    // art. The release-group endpoint surfaces art from whichever release in the group
+    // actually has it, and its image URLs are release-level CAA URLs (same shape as before —
+    // confirmed live), so downstream storage/rendering of artworkUrl is unaffected.
+    const caaUrl = releaseGroupId
+      ? `https://coverartarchive.org/release-group/${releaseGroupId}`
+      : `https://coverartarchive.org/release/${mbid}`;
+
     const [releaseRes, caaRes] = await Promise.allSettled([
       axios.get(`https://musicbrainz.org/ws/2/release/${mbid}`, {
         params: { inc: 'genres', fmt: 'json' },
         headers: { 'User-Agent': MB_USER_AGENT },
       }),
-      axios.get(`https://coverartarchive.org/release/${mbid}`, {
+      axios.get(caaUrl, {
         headers: { 'User-Agent': MB_USER_AGENT },
       }),
     ]);
@@ -68,6 +78,23 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
       const images: any[] = caaRes.value.data?.images ?? [];
       const front = images.find((img: any) => img.front === true);
       artworkUrl = front?.image ?? null;
+    }
+
+    // Fallback: CAA docs don't guarantee the release-group lookup succeeds whenever the
+    // release-level one would (it 404s if the community hasn't picked a front image for the
+    // group), so if the group lookup found nothing, retry at the release level before giving
+    // up. CAA is unrelated to MB's rate limit, so this costs no extra MB request/sleep.
+    if (!artworkUrl && releaseGroupId) {
+      try {
+        const releaseCaaRes = await axios.get(`https://coverartarchive.org/release/${mbid}`, {
+          headers: { 'User-Agent': MB_USER_AGENT },
+        });
+        const images: any[] = releaseCaaRes.data?.images ?? [];
+        const front = images.find((img: any) => img.front === true);
+        artworkUrl = front?.image ?? null;
+      } catch {
+        // No art available at either the release-group or release level.
+      }
     }
 
     // Date and genres both come from the release detail (more reliable than search result)

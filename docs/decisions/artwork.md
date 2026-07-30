@@ -31,3 +31,27 @@
 ## MusicBrainz rate limiting
 
 `fetchArtworkUrl` calls are **sequential** in `runIngestion` with a `sleep(1000)` between each one. MusicBrainz requires a max of 1 req/sec from a single client. The existing parallel RSS + rating fetches are unaffected. Required `User-Agent` header on every MB and CAA request: `MetalReviewsDashboard/1.0 (dan.gramada@gmail.com)`.
+
+## CAA lookup: release-group first, release-level fallback (2026-07-30)
+
+**Root cause found:** `scripts/musicbrainz.ts` took `releases[0].id` from the MB release
+search (no relevance sort) and queried CAA at that single release's URL. MB often ties
+multiple releases at score 100 in arbitrary order; if `releases[0]` happened to be a
+pressing with no CAA-uploaded art (e.g. a vinyl/CD release with a sibling Digital Media
+release that *does* have art), `artwork_url` was stored `null` even though art existed
+for the album. Confirmed live on Immolation — *Descent*.
+
+**Fix:** query CAA at the **release-group** level first (`GET
+coverartarchive.org/release-group/{rg-id}`, using `release-group.id` already present on
+the MB search response — no extra MB request or rate-limit cost), which surfaces art from
+whichever release in the group has it. **Fall back to the release-level call**
+(`/release/{mbid}`) only if the group lookup 404s/fails — CAA's own docs don't guarantee
+group lookup succeeds whenever release-level would (it 404s if "the community have not
+chosen an image to represent the release group"), so the fallback preserves prior
+correctness for any edge case the group endpoint misses. Both endpoints return the same
+response shape and the same release-level image URL format (`.../release/<mbid>/<file>.jpg`)
+— confirmed live across 3 albums (Immolation, Opeth, Metallica), so no downstream
+storage/rendering change was needed.
+
+No backfill script: existing `artwork_url: null` rows are already retried on every ingest
+run (see `genre-artwork-bugfixes.md`), so this self-heals on the next ingest pass.
