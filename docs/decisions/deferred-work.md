@@ -304,6 +304,42 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   index line to say "historical, feature removed" — not done in this session,
   intentionally out of scope per the brief that surfaced it.
 
+- **Solver point-estimate normalization doesn't jointly hold — confirmed live,
+  2026-07-30, display-clamped as a stopgap.** `solver.ts`'s header comment claims
+  "the best-level values across all criteria sum to exactly 1," but each
+  `LevelValue.point` is the midpoint of an independently-solved min/max range —
+  normalization is enforced within each individual LP solve, not jointly across
+  the resulting midpoints. Verified against a real account's Medium-tier
+  `user_criterion_weights`: level-5 values summed to 1.308, not 1, producing a raw
+  album score of 122%. The album rating drawer (part 6) clamps the *displayed*
+  percentage to 100 as a stopgap; ranking is unaffected (relative order still
+  holds within a year), but the clamp itself introduces a second, narrower
+  distortion — two albums whose raw scores both exceed 100% now display
+  identically as "100%", compressing a real quality difference at exactly the
+  high-scoring end. **Same root methodology as `criteria-calibration-engine.md`'s
+  "Part 4 finding"** (solving each free (criterion, level) variable via its own
+  separate LP rather than jointly) but a different downstream consumer — Part 4 is
+  about `computeSolverAccuracy`'s independent feasible-*range widths* (feeding the
+  accuracy-tier display), this is about the independent range *midpoints*
+  (`LevelValue.point`, feeding the score). Cross-referenced so a future session
+  doesn't re-investigate the same under-determination a third time. A real fix —
+  jointly re-normalizing the point estimates, or reporting the phase-1 solution
+  instead of independent per-value midpoints — needs its own session; `solver.ts`
+  is a locked engine file, out of scope for the session that found this.
+  `album-rating-drawer.md`.
+- **Medium tier can't distinguish middle levels — real ties, not a rare edge
+  case.** Also found live 2026-07-30: Medium tier's degree-2 questions only ever
+  compare each criterion's *extreme* levels (1 vs 5), so levels 2–4 are never
+  directly probed and land on identical solved values under monotonicity alone.
+  Two differently-rated albums (4/4/3/4/3/3 vs 2/2/2/2/2/2) produced the exact
+  same raw score. `rankAlbum`'s deterministic `albumId` tie-break — written
+  defensively for an assumed-rare case — is therefore doing real, load-bearing
+  work at Medium tier: rank ordering among Medium-tier-only users will often
+  reduce to something close to insertion order, not a real preference signal,
+  until a user answers degree-3+ questions. Not a bug (consistent with the
+  engine's already-documented under-determination scope), but worth knowing
+  before any UI presents rank as a meaningful signal on its own. `album-rating-drawer.md`.
+
 ## C. Design/branding (open)
 
 - **Criteria Calibration header layout** — needs a dedicated reorganization pass.

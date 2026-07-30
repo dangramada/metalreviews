@@ -64,13 +64,42 @@ function wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Criteria Calibration part 6 (useCalibrationGate, useAlbumRatingsSummary) queries these
+// tables on every FavoritesPage mount, unrelated to whatever a given test is actually
+// exercising — stub them to benign empty responses so every test's supabase.from mock can
+// stay focused on its own flow. Module-scoped so both the plain-render tests (which never
+// touch supabase directly) and the AddAlbumDrawer tests (which set their own richer mocks)
+// can use it.
+function stubCalibrationTable(table: string): unknown | undefined {
+  if (table === 'user_calibration_status') {
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi
+          .fn()
+          .mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }),
+      }),
+    };
+  }
+  if (table === 'album_criteria_ratings' || table === 'user_criterion_weights') {
+    return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
+  }
+  return undefined;
+}
+
 // Convenience: build a mock return value that includes refetch
 function mockHookReturn(overrides: Partial<ReturnType<typeof useFavoritesList>>) {
   return { items: [], loading: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
 describe('FavoritesPage', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
+      const calibrationStub = stubCalibrationTable(table);
+      if (calibrationStub) return calibrationStub;
+      throw new Error(`unexpected table ${table}`);
+    });
+  });
 
   it('shows a spinner while loading', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ loading: true }));
@@ -180,6 +209,8 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
     favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null })
   ) {
     return (table: string) => {
+      const calibrationStub = stubCalibrationTable(table);
+      if (calibrationStub) return calibrationStub;
       if (table === 'albums') {
         return {
           select: vi.fn().mockReturnValue({
@@ -238,6 +269,8 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
       maybeSingle: vi.fn().mockResolvedValue({ data: existingAlbumRow, error: null }),
     });
     vi.mocked(supabase.from).mockImplementation((table: string) => {
+      const calibrationStub = stubCalibrationTable(table);
+      if (calibrationStub) return calibrationStub;
       if (table === 'albums') return { select: vi.fn().mockReturnValue({ eq: eqSpy }) };
       if (table === 'favorites')
         return { insert: vi.fn().mockResolvedValue({ data: null, error: null }) };
@@ -255,6 +288,8 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
     const albumsInsert = vi.fn();
     const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
     vi.mocked(supabase.from).mockImplementation((table: string) => {
+      const calibrationStub = stubCalibrationTable(table);
+      if (calibrationStub) return calibrationStub;
       if (table === 'albums') {
         return {
           select: vi.fn().mockReturnValue({
