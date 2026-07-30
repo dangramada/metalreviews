@@ -51,14 +51,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`criteria-calibration-update` — in progress, not merged. Pure layout fix: `CriteriaCalibrationPage`
-now wraps its content (all four return paths — loading, error, resume-loading, main) with the
-same `Header`/`Footer` chrome as `App.tsx`/`FavoritesPage.tsx`, via a local `PageChrome` wrapper.
-Previously the only page in the app with no nav. No changes to session/progress/persistence
-logic, routing, the calibration gate, or any calibration UI sub-component. Verified live
-(temporarily bypassing `RequireAuth` locally, then reverting before commit): Header/Footer render
-correctly, nav links work mid-session (round 2, after Undo/Redo are active), `tsc --noEmit` and
-`vitest run` (217/217) clean.
+`criteria-calibration-update` merged to `master` on 2026-07-30 — branch retained per convention,
+not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shell chrome and
+`container.xl` margins as `App.tsx`/`FavoritesPage.tsx` (previously the only page without it); no
+session/persistence/gate/engine logic touched. Page-shell pattern itself now documented in
+`docs/decisions/architecture.md`.
 
 `album-rating-drawer` — in progress, not merged. Criteria Calibration part 6: a calibration-status gate (blocks rating until Medium+ tier), a rating drawer (`AlbumRatingDrawer`, direct 1-5 level picker per criterion, progressive save to `album_criteria_ratings`), and a score/rank display (rank badge only on Favorites cards, full breakdown in the drawer's confirmation state). Live verification against a real account surfaced and fixed a real bug: `solver.ts`'s "best-level values sum to 1" normalization claim doesn't hold jointly across independently-solved point estimates (confirmed: summed to 1.308 on real data) — displayed score is now clamped to 100%, real fix deferred (`deferred-work.md`). Also found: Medium tier can't distinguish middle levels (2-4), so exact score ties are common and the `albumId` tie-break is load-bearing, not a rare edge case. No engine/schema/Calibration UI files touched. Full detail: `docs/decisions/album-rating-drawer.md`.
 
