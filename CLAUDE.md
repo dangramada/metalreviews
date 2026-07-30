@@ -121,3 +121,4 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
+- `criteria-calibration-engine.md` — preference graph + closure, contradiction handling, LP solver, ordering heuristic; under-determination finding, ranking-stability result, unvalidated accuracy thresholds
