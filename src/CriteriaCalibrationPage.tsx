@@ -64,18 +64,21 @@ interface AnswerEntry {
 // there's no persisted session to resume; useCalibrationResume infers it otherwise.
 const STARTING_DEGREE = 2;
 
-// Same outer chrome (Box/VStack + Header/Footer) as App.tsx and FavoritesPage.tsx, so every
-// return path below (loading, error, resume-loading, main) gets consistent nav — not just the
-// happy path. The inner maxW="4xl" Container is the calibration flow's own content width,
-// unchanged from before this pass.
+// Same outer chrome (Box/Container/VStack + Header/Footer) as App.tsx and FavoritesPage.tsx, so
+// every return path below (loading, error, resume-loading, main) gets the home page's margins
+// and nav — not just the happy path. The inner maxW="4xl" Container is the calibration flow's
+// own content width, nested inside the wider container.xl page container, unchanged from before
+// this pass.
 function PageChrome({ children }: { children: React.ReactNode }) {
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
-      <VStack gap={6} align="stretch">
-        <Header />
-        {children}
-        <Footer />
-      </VStack>
+      <Container maxW="container.xl">
+        <VStack gap={6} align="stretch">
+          <Header />
+          {children}
+          <Footer />
+        </VStack>
+      </Container>
     </Box>
   );
 }
