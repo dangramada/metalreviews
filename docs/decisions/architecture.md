@@ -47,6 +47,24 @@ See `docs/decisions/auth-routing.md` for full detail:
 
 Auth state is managed by `AuthContext` (wraps `supabase.auth` events) and exposed via `useAuth()`. The `Header` component renders the app title, primary nav links (Reviews `/` and Favorites `/favorites` — active state via `useLocation()`), and an account control. Collapses into a hamburger menu below `md`. See `docs/decisions/header-redesign.md`.
 
+### Page shell (`Header`/`Footer` wrapping)
+
+Every page that should look like part of the app (as opposed to a bare/standalone screen) uses the same outer structure, established by `App.tsx` and `FavoritesPage.tsx` and reused as-is by `CriteriaCalibrationPage.tsx`:
+
+```
+<Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
+  <Container maxW="container.xl">
+    <VStack gap={6} align="stretch">
+      <Header />
+      {/* page content */}
+      <Footer />
+    </VStack>
+  </Container>
+</Box>
+```
+
+`Container maxW="container.xl"` is what gives every page the same side margins — a page-specific inner `Container` with a narrower `maxW` (e.g. `CriteriaCalibrationPage`'s `4xl`) can nest inside it to constrain content width further without affecting the shared margins. `CriteriaCalibrationPage` wraps this pattern in a local `PageChrome` helper so all of its return branches (loading/error/resume-loading/main) get it consistently, not just the happy path — a pattern worth reusing if a future page also has multiple early-return states. Not yet extracted into a shared component; each consumer currently copies the structure.
+
 ## 3. Shared types and mapping (`src/types.ts`, `src/dbMapping.ts`)
 
 `MetalReview` in `src/types.ts` is the canonical shape shared by the scraper output and the frontend.
