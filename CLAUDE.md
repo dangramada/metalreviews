@@ -51,6 +51,8 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`criteria-calibration-ui` — in progress, not merged. UI-only Phase 7 screen (mock data, no scoring-engine/Supabase wiring). Two passes so far: initial build, then a revision pass adding the selection/hold/fade state machine, Progress-vs-Accuracy split, `OptionCard` (replacing the `RadioCard`-based `TradeoffCard`), and Undo/Redo. Reachable only via the dev-only `/criteria-calibration` route — no navigation entry point yet (separate IA decision). Full detail: `docs/decisions/criteria-calibration-ui.md`.
+
 `design-system-slant-take` merged to `master` on 2026-07-25 (see the historical section below) — branch retained per convention, not deleted. Naming note: the rename shipped in that effort supersedes the formal naming gates (friend test, domain check, trademark search) rather than completing them — see `docs/decisions/naming-decisions.md`'s 2026-07-25 entry. Still outstanding: favicon (stale, predates the design system), and the domain/GitHub-repo/Render-service name (still literally "metalreviews" — infra-level, not touched).
 
 `album-identity-migration` merged to `master` on 2026-07-15 (see `docs/decisions/album-identity-migration.md` in the Past-decisions index) — branch retained per convention, not deleted.
