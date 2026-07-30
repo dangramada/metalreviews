@@ -51,7 +51,9 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`criteria-calibration-ui` — in progress, not merged. UI-only Phase 7 screen (mock data, no scoring-engine/Supabase wiring). Two passes so far: initial build, then a revision pass adding the selection/hold/fade state machine, Progress-vs-Accuracy split, `OptionCard` (replacing the `RadioCard`-based `TradeoffCard`), and Undo/Redo. Reachable only via the dev-only `/criteria-calibration` route — no navigation entry point yet (separate IA decision). Full detail: `docs/decisions/criteria-calibration-ui.md`.
+`criteria-calibration-wiring` — in progress, not merged. Part 5a: wires the merged `criteria-calibration-ui` screen to the merged `criteria-calibration-engine`'s real `CalibrationSession`/`elicitationDriver`, entirely in React state — no Supabase writes yet (per-user persistence is part 5b, separate future brief; the rating drawer/gate/`album_criteria_ratings` is part 6, depends on 5b not this branch). Criterion/level text is fetched live from the public `criteria`/`criteria_levels` tables. Progress/accuracy display simplified to a real, binary Medium-tier state — no High/Very High shown anywhere (blocked on the engine's Part 4 finding). Reachable only via the dev-only `/criteria-calibration` route — no navigation entry point yet (separate IA decision). Full detail: `docs/decisions/criteria-calibration-wiring.md`.
+
+`criteria-calibration-ui` and `criteria-calibration-engine` merged to `master` on 2026-07-30 — branches retained per convention, not deleted. Full detail: `docs/decisions/criteria-calibration-ui.md`, `docs/decisions/criteria-calibration-engine.md`.
 
 `design-system-slant-take` merged to `master` on 2026-07-25 (see the historical section below) — branch retained per convention, not deleted. Naming note: the rename shipped in that effort supersedes the formal naming gates (friend test, domain check, trademark search) rather than completing them — see `docs/decisions/naming-decisions.md`'s 2026-07-25 entry. Still outstanding: favicon (stale, predates the design system), and the domain/GitHub-repo/Render-service name (still literally "metalreviews" — infra-level, not touched).
 
@@ -121,4 +123,5 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
-- `criteria-calibration-engine.md` — preference graph + closure, contradiction handling, LP solver, ordering heuristic; under-determination finding, ranking-stability result, unvalidated accuracy thresholds
+- `criteria-calibration-ui.md` — Phase 7 UI-only screen: selection/hold/fade state machine, Progress-vs-Accuracy split, `OptionCard`, Undo/Redo; branch merged to `master` 2026-07-30
+- `criteria-calibration-engine.md` — preference graph + closure, contradiction handling, LP solver, ordering heuristic; under-determination finding, ranking-stability result, unvalidated accuracy thresholds; branch merged to `master` 2026-07-30
