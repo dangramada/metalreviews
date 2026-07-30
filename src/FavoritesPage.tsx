@@ -31,22 +31,41 @@ import {
   parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
-import { DrawerRoot, DrawerContent, DrawerHeader, DrawerTitle, DrawerBody, DrawerFooter } from './components/ui/drawer';
-import { DialogRoot, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle } from './components/ui/dialog';
+import {
+  DrawerRoot,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+} from './components/ui/drawer';
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogFooter,
+  DialogTitle,
+} from './components/ui/dialog';
 import { Field } from './components/ui/field';
-import { FaTrash } from 'react-icons/fa';
+import { FaSlidersH, FaTrash } from 'react-icons/fa';
 import { LuCalendar, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { useFavoritesList } from './hooks/useFavoritesList';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
+import { useCalibrationGate } from './hooks/useCalibrationGate';
+import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
+import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
+import { AlbumRatingDrawer } from './components/album-rating/AlbumRatingDrawer';
 import { formatReleaseDate, getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { genreBadge, primaryButton, secondaryButton } from './theme';
+import { genreBadge, primaryButton, rankBadge, secondaryButton } from './theme';
 import { computeNormKey } from '../scripts/normalizeKey';
+import { useNavigate } from 'react-router-dom';
 
 // ─── Shared list-item row ─────────────────────────────────────────────────────
 // Used in both the favorites list and the AddAlbumDrawer preview.
@@ -55,10 +74,18 @@ export function FavoriteListItemRow({
   item,
   onRemove,
   removing = false,
+  ratingSummary,
+  onRate,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
   removing?: boolean;
+  // Present only when this album is fully rated (all 6 criteria) — see
+  // useAlbumRatingsSummary. Undefined for previews (AddAlbumDrawer) and unrated albums.
+  ratingSummary?: AlbumRatingSummary;
+  // Opens the rating drawer (behind the calibration gate) for this item. Omitted in the
+  // AddAlbumDrawer preview context, where rating doesn't apply yet.
+  onRate?: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   return (
@@ -111,18 +138,35 @@ export function FavoriteListItemRow({
         <Text fontSize="sm" color="text.dim">
           {formatReleaseDate(item.releaseDate)}
         </Text>
-        {item.genre.length > 0 && (
+        {(item.genre.length > 0 || ratingSummary) && (
           <Wrap gap={1} mt={1}>
+            {ratingSummary && (
+              <WrapItem>
+                <Badge {...rankBadge}>#{ratingSummary.rank}</Badge>
+              </WrapItem>
+            )}
             {item.genre.map((g) => (
               <WrapItem key={g}>
-                <Badge {...genreBadge}>
-                  {g}
-                </Badge>
+                <Badge {...genreBadge}>{g}</Badge>
               </WrapItem>
             ))}
           </Wrap>
         )}
       </Box>
+
+      {onRate && (
+        <IconButton
+          aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
+          size="sm"
+          variant="ghost"
+          color="text.muted"
+          _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+          onClick={onRate}
+          flexShrink={0}
+        >
+          <Icon as={FaSlidersH} />
+        </IconButton>
+      )}
 
       {onRemove && (
         <IconButton
@@ -311,7 +355,8 @@ function AddAlbumDrawer({
     setLookedUpAlbum('');
     setLookupResult(null);
     setExistingMatch(null);
-    setManualReleaseDate(''); setPickerOpen(false);
+    setManualReleaseDate('');
+    setPickerOpen(false);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [isOpen, user]);
 
@@ -345,7 +390,8 @@ function AddAlbumDrawer({
     setLookupLoading(true);
     setLookupResult(null);
     setExistingMatch(null);
-    setManualReleaseDate(''); setPickerOpen(false);
+    setManualReleaseDate('');
+    setPickerOpen(false);
     try {
       const {
         data: { session },
@@ -475,12 +521,25 @@ function AddAlbumDrawer({
 
   return (
     <>
-      <DrawerRoot open={isOpen} onOpenChange={({ open }) => { if (!open) onClose(); }} placement="end" size="md">
+      <DrawerRoot
+        open={isOpen}
+        onOpenChange={({ open }) => {
+          if (!open) onClose();
+        }}
+        placement="end"
+        size="md"
+      >
         <DrawerContent>
           {/* Custom close button so we can gate it with the discard-confirm dialog.
             Overlay click and Esc use the Drawer's built-in onClose (no prompt needed
             — they don't discard the draft). */}
-          <CloseButton position="absolute" right={2} top={2} color="text.primary" onClick={handleRequestClose} />
+          <CloseButton
+            position="absolute"
+            right={2}
+            top={2}
+            color="text.primary"
+            onClick={handleRequestClose}
+          />
           <DrawerHeader>
             <DrawerTitle>Add album to favorites</DrawerTitle>
           </DrawerHeader>
@@ -577,10 +636,17 @@ function AddAlbumDrawer({
                       open={pickerOpen}
                       onOpenChange={({ open }) => setPickerOpen(open)}
                       // Only seed the picker when the text field holds a valid full date
-                      value={/^\d{4}-\d{2}-\d{2}$/.test(manualReleaseDate) ? [parseDate(manualReleaseDate)] : []}
+                      value={
+                        /^\d{4}-\d{2}-\d{2}$/.test(manualReleaseDate)
+                          ? [parseDate(manualReleaseDate)]
+                          : []
+                      }
                       onValueChange={(details) => {
                         const iso = details.value[0]?.toString();
-                        if (iso) { setManualReleaseDate(iso); setPickerOpen(false); }
+                        if (iso) {
+                          setManualReleaseDate(iso);
+                          setPickerOpen(false);
+                        }
                       }}
                     >
                       <Field
@@ -593,7 +659,15 @@ function AddAlbumDrawer({
                           endElement={
                             <DatePickerTrigger
                               aria-label="Pick a date"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'inherit', display: 'flex', alignItems: 'center' }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                color: 'inherit',
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
                             >
                               <LuCalendar />
                             </DatePickerTrigger>
@@ -681,11 +755,7 @@ function AddAlbumDrawer({
 
           {previewItem && (
             <DrawerFooter borderTopWidth="1px" borderColor="border.default" gap={3}>
-              <Button
-                {...secondaryButton}
-                variant="outline"
-                onClick={handleRequestClose}
-              >
+              <Button {...secondaryButton} variant="outline" onClick={handleRequestClose}>
                 Cancel
               </Button>
               <Button
@@ -707,7 +777,9 @@ function AddAlbumDrawer({
 
       <DialogRoot
         open={showDiscardConfirm}
-        onOpenChange={({ open }) => { if (!open) handleCancelDiscard(); }}
+        onOpenChange={({ open }) => {
+          if (!open) handleCancelDiscard();
+        }}
         role="alertdialog"
         initialFocusEl={() => keepEditingRef.current}
       >
@@ -717,7 +789,12 @@ function AddAlbumDrawer({
           </DialogHeader>
           <DialogBody>Your band and album name will be lost.</DialogBody>
           <DialogFooter gap={3}>
-            <Button {...secondaryButton} variant="solid" ref={keepEditingRef} onClick={handleCancelDiscard}>
+            <Button
+              {...secondaryButton}
+              variant="solid"
+              ref={keepEditingRef}
+              onClick={handleCancelDiscard}
+            >
               Keep editing
             </Button>
             <Button colorPalette="red" onClick={handleConfirmDiscard}>
@@ -736,9 +813,25 @@ export function FavoritesPage() {
   const { items, loading, error, refetch } = useFavoritesList();
   const { user } = useAuth();
   const { showSuccess, showError } = useFeedbackToast();
+  const navigate = useNavigate();
   const [selectedYear, setSelectedYear] = useState<number | 'all'>(new Date().getFullYear());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Criteria Calibration part 6: gate + rating drawer + score/rank display.
+  const { passed: gatePassed, loading: gateLoading } = useCalibrationGate();
+  const { summary: ratingSummary, refetch: refetchRatingSummary } = useAlbumRatingsSummary();
+  const [ratingItem, setRatingItem] = useState<FavoriteListItem | null>(null);
+  const [gateBlockedOpen, setGateBlockedOpen] = useState(false);
+
+  function handleRate(item: FavoriteListItem) {
+    if (gateLoading) return;
+    if (!gatePassed) {
+      setGateBlockedOpen(true);
+      return;
+    }
+    setRatingItem(item);
+  }
 
   async function handleRemove(item: FavoriteListItem) {
     if (removingId || !user) return;
@@ -824,7 +917,12 @@ export function FavoritesPage() {
                 </NativeSelect.Field>
               </NativeSelect.Root>
             </Flex>
-            <Button {...secondaryButton} variant="outline" size="sm" onClick={() => setDrawerOpen(true)}>
+            <Button
+              {...secondaryButton}
+              variant="outline"
+              size="sm"
+              onClick={() => setDrawerOpen(true)}
+            >
               + Add album
             </Button>
           </Flex>
@@ -851,6 +949,8 @@ export function FavoritesPage() {
                   item={item}
                   onRemove={() => handleRemove(item)}
                   removing={removingId === item.albumId}
+                  ratingSummary={ratingSummary.get(item.albumId)}
+                  onRate={() => handleRate(item)}
                 />
               ))}
             </VStack>
@@ -871,6 +971,44 @@ export function FavoritesPage() {
         }}
         favoritedAlbumIds={favoritedAlbumIds}
       />
+
+      {ratingItem && (
+        <AlbumRatingDrawer
+          isOpen={!!ratingItem}
+          onClose={() => setRatingItem(null)}
+          albumId={ratingItem.albumId}
+          band={ratingItem.band}
+          album={ratingItem.album}
+          ratingSummary={ratingSummary.get(ratingItem.albumId)}
+          onRatingChange={refetchRatingSummary}
+        />
+      )}
+
+      <DialogRoot open={gateBlockedOpen} onOpenChange={({ open }) => setGateBlockedOpen(open)}>
+        <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
+          <DialogHeader>
+            <DialogTitle fontWeight="semibold">Calibrate your criteria first</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            Rating albums uses your personal criteria weights, which aren&apos;t set up yet. Answer
+            a few comparison questions to get started.
+          </DialogBody>
+          <DialogFooter gap={3}>
+            <Button {...secondaryButton} variant="solid" onClick={() => setGateBlockedOpen(false)}>
+              Not now
+            </Button>
+            <Button
+              {...primaryButton}
+              onClick={() => {
+                setGateBlockedOpen(false);
+                navigate('/criteria-calibration');
+              }}
+            >
+              Go to calibration
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
     </Box>
   );
 }

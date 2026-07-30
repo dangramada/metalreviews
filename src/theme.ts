@@ -337,3 +337,20 @@ export const genreBadge = {
   px: '8px',
   py: '4px',
 } as const;
+
+// Rank badge — Criteria Calibration part 6, Favorites card. Same inline-chip shape as
+// genreBadge (1px border, mono/uppercase) but on the accent palette so it reads as a
+// distinct, earned indicator rather than another genre tag.
+export const rankBadge = {
+  bg: 'transparent',
+  color: 'accent.text',
+  border: '1px solid',
+  borderColor: 'accent.border',
+  borderRadius: '0',
+  fontFamily: 'mono',
+  fontSize: '11px',
+  fontWeight: '600',
+  letterSpacing: '0.06em',
+  px: '8px',
+  py: '4px',
+} as const;
