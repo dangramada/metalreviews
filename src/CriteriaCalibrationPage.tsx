@@ -5,6 +5,8 @@ import { QuestionPrompt } from './components/criteria-calibration/QuestionPrompt
 import { ComparisonRow } from './components/criteria-calibration/ComparisonRow';
 import { EqualButton } from './components/criteria-calibration/EqualButton';
 import { HistoryActions } from './components/criteria-calibration/HistoryActions';
+import { Header } from './Header';
+import { Footer } from './Footer';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
 import { useCalibrationResume } from './hooks/useCalibrationResume';
@@ -61,6 +63,22 @@ interface AnswerEntry {
 // Degree always starts at 2 (Medium tier's prerequisite — see elicitationDriver.ts) when
 // there's no persisted session to resume; useCalibrationResume infers it otherwise.
 const STARTING_DEGREE = 2;
+
+// Same outer chrome (Box/VStack + Header/Footer) as App.tsx and FavoritesPage.tsx, so every
+// return path below (loading, error, resume-loading, main) gets consistent nav — not just the
+// happy path. The inner maxW="4xl" Container is the calibration flow's own content width,
+// unchanged from before this pass.
+function PageChrome({ children }: { children: React.ReactNode }) {
+  return (
+    <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
+      <VStack gap={6} align="stretch">
+        <Header />
+        {children}
+        <Footer />
+      </VStack>
+    </Box>
+  );
+}
 
 export function CriteriaCalibrationPage() {
   const reducedMotion = useReducedMotion();
@@ -307,103 +325,111 @@ export function CriteriaCalibrationPage() {
 
   if (loading) {
     return (
-      <Container maxW="4xl" py={10}>
-        <Flex justify="center" align="center" minH="300px">
-          <LoadingIndicator />
-        </Flex>
-      </Container>
+      <PageChrome>
+        <Container maxW="4xl" py={10}>
+          <Flex justify="center" align="center" minH="300px">
+            <LoadingIndicator />
+          </Flex>
+        </Container>
+      </PageChrome>
     );
   }
 
   if (error || !catalog) {
     return (
-      <Container maxW="4xl" py={10}>
-        <Text textAlign="center" color="red.400">
-          Failed to load calibration criteria. Please try again later.
-        </Text>
-      </Container>
+      <PageChrome>
+        <Container maxW="4xl" py={10}>
+          <Text textAlign="center" color="red.400">
+            Failed to load calibration criteria. Please try again later.
+          </Text>
+        </Container>
+      </PageChrome>
     );
   }
 
   if (resume.loading || !seeded) {
     return (
-      <Container maxW="4xl" py={10}>
-        <Flex direction="column" gap={4} justify="center" align="center" minH="300px">
-          <LoadingIndicator />
-          <Text color="text.dim" fontFamily="body">
-            Loading your progress...
-          </Text>
-        </Flex>
-      </Container>
+      <PageChrome>
+        <Container maxW="4xl" py={10}>
+          <Flex direction="column" gap={4} justify="center" align="center" minH="300px">
+            <LoadingIndicator />
+            <Text color="text.dim" fontFamily="body">
+              Loading your progress...
+            </Text>
+          </Flex>
+        </Container>
+      </PageChrome>
     );
   }
 
   return (
-    <Container maxW="4xl" py={10}>
-      <VStack gap={10} align="stretch">
-        {/* Static sibling of the fading region below — never fades itself; only its own
+    <PageChrome>
+      <Container maxW="4xl" py={10}>
+        <VStack gap={10} align="stretch">
+          {/* Static sibling of the fading region below — never fades itself; only its own
             numeric/text values update, instantly, via prop changes. Progress and Accuracy
             both drive off the same real degree-2 coverage number for this pass — Accuracy's
             level is never anything beyond 'Low'/'Medium' (no High/Very High claim). */}
-        <ProgressHeader
-          round={round}
-          progressPercent={progressPercent}
-          accuracyPercent={progressPercent}
-          accuracyLevel={mediumReached ? 'Medium' : 'Low'}
-          onExit={handleExit}
-        />
+          <ProgressHeader
+            round={round}
+            progressPercent={progressPercent}
+            accuracyPercent={progressPercent}
+            accuracyLevel={mediumReached ? 'Medium' : 'Low'}
+            onExit={handleExit}
+          />
 
-        {stopped ? (
-          <Text textAlign="center" color="text.dim">
-            Calibration paused. Your progress is saved — come back any time to continue.
-          </Text>
-        ) : action?.type === 'ask' ? (
-          <>
-            <Box aria-live="polite">
-              <VStack gap={6} align="stretch">
-                <QuestionPrompt />
-                <ComparisonRow
-                  leftCriteria={profileToCriterionData(action.profileA, catalog)}
-                  rightCriteria={profileToCriterionData(action.profileB, catalog)}
-                  selectedSide={selectedSide}
-                  interactionDisabled={interactionDisabled}
-                  onSelectLeft={() => handleChoice('left')}
-                  onSelectRight={() => handleChoice('right')}
-                  visible={phase !== 'fading-out'}
-                  reducedMotion={reducedMotion}
-                  fadeMs={FADE_MS}
-                />
-              </VStack>
-            </Box>
-
-            <Box display="flex" justifyContent="center">
-              <EqualButton onClick={() => handleChoice('equal')} disabled={interactionDisabled} />
-            </Box>
-          </>
-        ) : (
-          // degree-exhausted: never auto-escalates — continuing to the next degree is
-          // always an explicit user action, per the driver's own contract.
-          <VStack gap={4} aria-live="polite">
-            <Text textAlign="center" color="text.primary" fontFamily="body">
-              {action?.canEscalate
-                ? "You've resolved everything at this level of detail."
-                : "No more comparisons left to make — you've resolved everything this model can distinguish."}
+          {stopped ? (
+            <Text textAlign="center" color="text.dim">
+              Calibration paused. Your progress is saved — come back any time to continue.
             </Text>
-            {action?.canEscalate && (
-              <Button colorPalette="orange" onClick={handleEscalate}>
-                Add more detail
-              </Button>
-            )}
-          </VStack>
-        )}
+          ) : action?.type === 'ask' ? (
+            <>
+              <Box aria-live="polite">
+                <VStack gap={6} align="stretch">
+                  <QuestionPrompt />
+                  <ComparisonRow
+                    leftCriteria={profileToCriterionData(action.profileA, catalog)}
+                    rightCriteria={profileToCriterionData(action.profileB, catalog)}
+                    selectedSide={selectedSide}
+                    interactionDisabled={interactionDisabled}
+                    onSelectLeft={() => handleChoice('left')}
+                    onSelectRight={() => handleChoice('right')}
+                    visible={phase !== 'fading-out'}
+                    reducedMotion={reducedMotion}
+                    fadeMs={FADE_MS}
+                  />
+                </VStack>
+              </Box>
 
-        <HistoryActions
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          undoDisabled={interactionDisabled || answers.length === 0}
-          redoDisabled={interactionDisabled || redoBuffer.length === 0}
-        />
-      </VStack>
-    </Container>
+              <Box display="flex" justifyContent="center">
+                <EqualButton onClick={() => handleChoice('equal')} disabled={interactionDisabled} />
+              </Box>
+            </>
+          ) : (
+            // degree-exhausted: never auto-escalates — continuing to the next degree is
+            // always an explicit user action, per the driver's own contract.
+            <VStack gap={4} aria-live="polite">
+              <Text textAlign="center" color="text.primary" fontFamily="body">
+                {action?.canEscalate
+                  ? "You've resolved everything at this level of detail."
+                  : "No more comparisons left to make — you've resolved everything this model can distinguish."}
+              </Text>
+              {action?.canEscalate && (
+                <Button colorPalette="orange" onClick={handleEscalate}>
+                  Add more detail
+                </Button>
+              )}
+            </VStack>
+          )}
+
+          <HistoryActions
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            undoDisabled={interactionDisabled || answers.length === 0}
+            redoDisabled={interactionDisabled || redoBuffer.length === 0}
+          />
+        </VStack>
+      </Container>
+    </PageChrome>
   );
 }
