@@ -14,6 +14,7 @@
 create table criteria (
   id smallint primary key,
   name text not null,
+  description text not null,
   display_order smallint not null
 );
 
@@ -38,14 +39,17 @@ create policy "Anyone can read criteria_levels"
   using (true);
 
 -- Seed data: exact criteria/level text from the Criteria Calibration domain model.
+-- `name` is the short display label (not the full descriptive name from discovery docs,
+-- e.g. "Innovation" not "Musical innovation / Originality") -- the full name only ever
+-- existed as a heading in the domain model, not as product-facing copy.
 
-insert into criteria (id, name, display_order) values
-  (0, 'Musical innovation / Originality', 0),
-  (1, 'Emotional impact / atmosphere', 1),
-  (2, 'Instrumental + Vocal performance', 2),
-  (3, 'Album coherence', 3),
-  (4, 'Production & sound design', 4),
-  (5, 'Songwriting', 5);
+insert into criteria (id, name, description, display_order) values
+  (0, 'Innovation', 'How much the album breaks from genre norms', 0),
+  (1, 'Emotional impact', 'How deeply the album makes you feel something', 1),
+  (2, 'Performance', 'The strength of the instrumental and vocal execution', 2),
+  (3, 'Coherence', 'How well the tracks hold together as a whole', 3),
+  (4, 'Production', 'How well the sound itself serves the music', 4),
+  (5, 'Songwriting', 'The quality of the individual tracks themselves', 5);
 
 insert into criteria_levels (criterion_id, level, label, description) values
   -- 0: Musical innovation / Originality
