@@ -68,8 +68,13 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
         params: { inc: 'genres', fmt: 'json' },
         headers: { 'User-Agent': MB_USER_AGENT },
       }),
+      // CAA responses redirect through archive.org, which has been observed to hang
+      // indefinitely during an outage rather than erroring quickly (confirmed live —
+      // docs/decisions/artwork.md). MB calls don't go through archive.org and haven't
+      // shown this failure mode, so only the CAA leg gets an explicit timeout.
       axios.get(caaUrl, {
         headers: { 'User-Agent': MB_USER_AGENT },
+        timeout: 8000,
       }),
     ]);
 
@@ -88,6 +93,7 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
       try {
         const releaseCaaRes = await axios.get(`https://coverartarchive.org/release/${mbid}`, {
           headers: { 'User-Agent': MB_USER_AGENT },
+          timeout: 8000,
         });
         const images: any[] = releaseCaaRes.data?.images ?? [];
         const front = images.find((img: any) => img.front === true);

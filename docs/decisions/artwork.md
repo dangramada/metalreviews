@@ -55,3 +55,32 @@ storage/rendering change was needed.
 
 No backfill script: existing `artwork_url: null` rows are already retried on every ingest
 run (see `genre-artwork-bugfixes.md`), so this self-heals on the next ingest pass.
+
+## CAA request timeout (2026-08-01)
+
+**Diagnostic finding:** after the release-group fix above, one album (Immolation —
+*Descent*) still showed `artwork_url: null` after a backfill pass that correctly
+populated its `genre`/`release_date` in the same run. Live-traced the cause: CAA's
+`/release-group/{id}` and `/release/{mbid}` endpoints both **307-redirect through
+`archive.org/download/mbid-.../index.json`** — not served directly by CAA's own host —
+and archive.org's backing store was in a degraded state at the time (one request hung
+indefinitely until killed manually; a second, unrelated release-group returned a `500`
+from `nginx` after ~7s). Since `axios.get` had no `timeout` configured on either CAA
+call, a hung/degraded response could block far longer than intended instead of failing
+fast into the existing null/retry path. Confirmed this wasn't specific to one album —
+the outage was on archive.org's side, affecting any CAA lookup at the time.
+
+**Fix:** added `timeout: 8000` to both CAA calls (release-group primary + release-level
+fallback). 8s chosen as long enough to tolerate normal network variance but short enough
+not to meaningfully stall a full ingest run if several albums hit it in the same pass.
+Verified the config actually fails fast: pointed the same axios options at a
+simulated-hang endpoint (`httpbin.org/delay/30`) and confirmed it aborted at ~8.03s with
+`ECONNABORTED`, rather than hanging.
+
+MB calls (a different host, unaffected by this failure mode) were left untouched — no
+shared axios instance exists in this file, each `axios.get` call configures its own
+options independently, so this was a two-line, CAA-only change.
+
+**Scope note:** this only makes failure detection faster — it does not change what
+happens after a failure. `artwork_url` still ends up `null` and gets retried on the next
+scheduled ingest run via the existing backfill logic; no retry-on-timeout loop was added.
