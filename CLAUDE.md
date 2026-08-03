@@ -57,7 +57,45 @@ not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shel
 session/persistence/gate/engine logic touched. Page-shell pattern itself now documented in
 `docs/decisions/architecture.md`.
 
-`album-rating-drawer` — in progress, not merged. Criteria Calibration part 6: a calibration-status gate (blocks rating until Medium+ tier), a rating drawer (`AlbumRatingDrawer`, direct 1-5 level picker per criterion, progressive save to `album_criteria_ratings`), and a score/rank display (rank badge only on Favorites cards, full breakdown in the drawer's confirmation state). Live verification against a real account surfaced and fixed a real bug: `solver.ts`'s "best-level values sum to 1" normalization claim doesn't hold jointly across independently-solved point estimates (confirmed: summed to 1.308 on real data) — displayed score is now clamped to 100%, real fix deferred (`deferred-work.md`). Also found: Medium tier can't distinguish middle levels (2-4), so exact score ties are common and the `albumId` tie-break is load-bearing, not a rare edge case. No engine/schema/Calibration UI files touched. Full detail: `docs/decisions/album-rating-drawer.md`.
+`album-rating-page` — in progress, not merged. Third UI attempt at rating (see the two
+entries below): a dedicated route `/rate/:albumId?from=favorites|aoty` replacing both
+`AlbumRatingDrawer` (deleted outright, confirmed unreferenced elsewhere) and the rejected
+`album-rating-modal` branch (left untouched, not built on, not referenced). Genuinely
+different desktop (3 simultaneous fluid columns: artwork+radar chart, criterion-name list,
+selected criterion's `RadioCard` levels) and mobile (2 sequential screens: Overview list with
+checkmarks, Detail with full levels, auto-return + highlight after a pick) layouts, not one
+layout scaled. New dependency `@chakra-ui/charts` (+ `recharts` transitively) for the radar
+chart — first charting library in this project; the brief assumed a turnkey `RadarChart`
+component but the package only exports composition primitives (`useChart`/`Chart.Root`/
+`Chart.Tooltip`) wrapping Recharts' own chart components. Two real runtime-only bugs found and
+fixed during the pre-build spike (Recharts requires an explicit `ResponsiveContainer` or it
+silently renders 0×0; `Chart.Tooltip`'s `render` prop takes the raw data point, not a payload
+wrapper) plus one found via live verification against real Supabase data (weight-tooltip
+lookup used mismatched snake_case/camelCase keys, always showing "—" instead of the real
+weight). Gate, progressive save, and score/rank computation are unchanged — reused as-is. Full
+detail: `docs/decisions/album-rating-page.md`.
+
+`album-rating-modal` — rejected, not merged, retained per convention (do not build on it or
+reference its component structure). Wizard-style modal replacement for `AlbumRatingDrawer`,
+one criterion per step. Rejected after review: level descriptions hidden behind a compact
+numeric picker until interaction, no persistent summary while rating, and a modal's limited
+footprint felt cramped. Superseded by `album-rating-page` above.
+
+`album-rating-drawer` merged to `master` on 2026-07-30 (commit `aeb3f3f`) — branch retained per
+convention, not deleted. Criteria Calibration part 6: a calibration-status gate (blocks rating
+until Medium+ tier), a rating drawer (`AlbumRatingDrawer`, direct 1-5 level picker per
+criterion, progressive save to `album_criteria_ratings`), and a score/rank display (rank badge
+only on Favorites cards, full breakdown in the drawer's confirmation state). Live verification
+against a real account surfaced and fixed a real bug: `solver.ts`'s "best-level values sum to
+1" normalization claim doesn't hold jointly across independently-solved point estimates
+(confirmed: summed to 1.308 on real data) — displayed score is now clamped to 100%, real fix
+deferred (`deferred-work.md`). Also found: Medium tier can't distinguish middle levels (2-4),
+so exact score ties are common and the `albumId` tie-break is load-bearing, not a rare edge
+case. No engine/schema/Calibration UI files touched. The drawer component itself
+(`AlbumRatingDrawer`) was subsequently replaced by `album-rating-page`'s dedicated page above
+(an intermediate wizard-modal attempt, `album-rating-modal`, was built and rejected in
+between) — the gate/score/rank logic from this pass is unchanged and still current. Full
+detail: `docs/decisions/album-rating-drawer.md`.
 
 `criteria-calibration-wiring` merged to `master` on 2026-07-30 (as part of this session's setup, before branching `album-rating-drawer`) — branch retained per convention, not deleted. Parts 5a+5b: wired the Calibration UI to the real engine and added Supabase persistence for calibration answers/weights/status. Full detail: `docs/decisions/criteria-calibration-wiring.md`.
 

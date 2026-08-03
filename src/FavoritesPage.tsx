@@ -58,7 +58,6 @@ import type { FavoriteListItem } from './hooks/useFavoritesList';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
-import { AlbumRatingDrawer } from './components/album-rating/AlbumRatingDrawer';
 import { formatReleaseDate, getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
@@ -818,10 +817,10 @@ export function FavoritesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  // Criteria Calibration part 6: gate + rating drawer + score/rank display.
+  // Criteria Calibration part 6: gate + score/rank display. The rating UI itself is the
+  // dedicated /rate/:albumId page (album-rating-page) — see docs/decisions/album-rating-page.md.
   const { passed: gatePassed, loading: gateLoading } = useCalibrationGate();
-  const { summary: ratingSummary, refetch: refetchRatingSummary } = useAlbumRatingsSummary();
-  const [ratingItem, setRatingItem] = useState<FavoriteListItem | null>(null);
+  const { summary: ratingSummary } = useAlbumRatingsSummary();
   const [gateBlockedOpen, setGateBlockedOpen] = useState(false);
 
   function handleRate(item: FavoriteListItem) {
@@ -830,7 +829,7 @@ export function FavoritesPage() {
       setGateBlockedOpen(true);
       return;
     }
-    setRatingItem(item);
+    navigate(`/rate/${item.albumId}?from=favorites`);
   }
 
   async function handleRemove(item: FavoriteListItem) {
@@ -971,18 +970,6 @@ export function FavoritesPage() {
         }}
         favoritedAlbumIds={favoritedAlbumIds}
       />
-
-      {ratingItem && (
-        <AlbumRatingDrawer
-          isOpen={!!ratingItem}
-          onClose={() => setRatingItem(null)}
-          albumId={ratingItem.albumId}
-          band={ratingItem.band}
-          album={ratingItem.album}
-          ratingSummary={ratingSummary.get(ratingItem.albumId)}
-          onRatingChange={refetchRatingSummary}
-        />
-      )}
 
       <DialogRoot open={gateBlockedOpen} onOpenChange={({ open }) => setGateBlockedOpen(open)}>
         <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">

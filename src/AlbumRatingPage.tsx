@@ -1,0 +1,259 @@
+import { useEffect, useState } from 'react';
+import { Link as RouterLink, useParams, useSearchParams } from 'react-router-dom';
+import { Box, Button, Container, Flex, Heading, Link as ChakraLink, Text, VStack } from '@chakra-ui/react';
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from './components/ui/dialog';
+import { CloseButton } from './components/ui/close-button';
+import { Header } from './Header';
+import { Footer } from './Footer';
+import { LoadingIndicator } from './LoadingIndicator';
+import { useAuth } from './AuthContext';
+import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
+import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
+import { supabase } from './supabaseClient';
+import { useFeedbackToast } from './hooks/useFeedbackToast';
+import { secondaryButton } from './theme';
+import { FIXED_CRITERION_ORDER } from './lib/album-rating/criterionOrder';
+import { DesktopRatingLayout } from './components/album-rating/DesktopRatingLayout';
+import { MobileRatingLayout } from './components/album-rating/MobileRatingLayout';
+import { RatingSummaryView } from './components/album-rating/RatingSummaryView';
+import type { CriterionLevelWeight } from './components/album-rating/RatingRadarChart';
+
+const CRITERIA_COUNT = 6;
+
+type RatingRow = { criterion_id: number; level: number };
+type WeightRow = { criterion_id: number; level: number; value: number };
+type AlbumRow = { id: string; band: string; album: string; artwork_url: string | null };
+
+// Reached from FavoritesPage's rate control today (?from=favorites); the future Ranked
+// Albums/AOTY hub will link here too (?from=aoty). That route doesn't exist yet, so the
+// `aoty` case falls back to /favorites for now — flagged here rather than guessed at, per
+// the brief. Update this map once the real AOTY route lands.
+function resolveBackDestination(from: string | null): { href: string; label: string } {
+  if (from === 'aoty') {
+    // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
+    return { href: '/favorites', label: '← Back to AOTY' };
+  }
+  return { href: '/favorites', label: '← Back to Favorites' };
+}
+
+export function AlbumRatingPage() {
+  const { albumId } = useParams<{ albumId: string }>();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { catalog, loading: catalogLoading } = useCriteriaCatalog();
+  const { summary: ratingSummary, refetch: refetchRatingSummary } = useAlbumRatingsSummary();
+  const { showError } = useFeedbackToast();
+
+  const [albumInfo, setAlbumInfo] = useState<AlbumRow | null>(null);
+  const [albumLoading, setAlbumLoading] = useState(true);
+  const [ratings, setRatings] = useState<Map<number, number>>(new Map());
+  const [ratingsLoading, setRatingsLoading] = useState(true);
+  const [weights, setWeights] = useState<CriterionLevelWeight[]>([]);
+  const [selectedCriterionId, setSelectedCriterionId] = useState<number | null>(null);
+  const [savingCriterionId, setSavingCriterionId] = useState<number | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+
+  const { href: backHref, label: backLabel } = resolveBackDestination(searchParams.get('from'));
+
+  useEffect(() => {
+    if (!albumId) return;
+    let cancelled = false;
+
+    async function loadAlbum() {
+      setAlbumLoading(true);
+      const { data } = await supabase
+        .from('albums')
+        .select('id, band, album, artwork_url')
+        .eq('id', albumId)
+        .maybeSingle();
+      if (cancelled) return;
+      setAlbumInfo((data as AlbumRow | null) ?? null);
+      setAlbumLoading(false);
+    }
+
+    loadAlbum();
+    return () => {
+      cancelled = true;
+    };
+  }, [albumId]);
+
+  useEffect(() => {
+    if (!albumId || !user) return;
+    let cancelled = false;
+
+    async function loadRatingsAndWeights() {
+      setRatingsLoading(true);
+      const [{ data: ratingRows }, { data: weightRows }] = await Promise.all([
+        supabase.from('album_criteria_ratings').select('criterion_id, level').eq('album_id', albumId),
+        supabase.from('user_criterion_weights').select('criterion_id, level, value'),
+      ]);
+      if (cancelled) return;
+      const next = new Map<number, number>();
+      for (const row of (ratingRows ?? []) as RatingRow[]) next.set(row.criterion_id, row.level);
+      setRatings(next);
+      // RatingRadarChart/CriterionLevelWeight use camelCase (criterionId) — the row itself is
+      // snake_case straight off Supabase. Found via live verification: without this mapping,
+      // the desktop tooltip's weight lookup key (`${criterionId}:${level}`) never matches and
+      // silently shows "—" for every point, no thrown error.
+      setWeights(
+        ((weightRows ?? []) as WeightRow[]).map((w) => ({
+          criterionId: w.criterion_id,
+          level: w.level,
+          value: w.value,
+        }))
+      );
+      setRatingsLoading(false);
+    }
+
+    loadRatingsAndWeights();
+    return () => {
+      cancelled = true;
+    };
+  }, [albumId, user]);
+
+  async function handlePick(criterionId: number, level: number) {
+    if (!user || !albumId) return;
+    setSavingCriterionId(criterionId);
+    const { error } = await supabase
+      .from('album_criteria_ratings')
+      .upsert(
+        { user_id: user.id, album_id: albumId, criterion_id: criterionId, level },
+        { onConflict: 'user_id,album_id,criterion_id' }
+      );
+    setSavingCriterionId(null);
+    if (error) {
+      showError('Could not save rating — try again');
+      return;
+    }
+    setRatings((prev) => new Map(prev).set(criterionId, level));
+    refetchRatingSummary();
+  }
+
+  const isComplete = ratings.size === CRITERIA_COUNT;
+  const loading = catalogLoading || albumLoading || ratingsLoading;
+
+  return (
+    <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
+      <Container maxW="container.xl">
+        <VStack gap={6} align="stretch">
+          <Header />
+
+          {loading ? (
+            <Flex justify="center" align="center" minH="300px">
+              <LoadingIndicator />
+            </Flex>
+          ) : !albumInfo ? (
+            <Text textAlign="center" color="text.muted">
+              Album not found.
+            </Text>
+          ) : (
+            <>
+              <Box>
+                <ChakraLink
+                  as={RouterLink}
+                  to={backHref}
+                  color="text.dim"
+                  fontSize="sm"
+                  _hover={{ color: 'accent.text' }}
+                >
+                  {backLabel}
+                </ChakraLink>
+                {/* fontFamily="body", never "heading" — Clash Display (the heading face) is
+                    reserved for the wordmark and score-slab number only. See
+                    StyleGuide.tsx's "Band/album card typography" specimen. */}
+                <Heading
+                  as="h2"
+                  fontFamily="body"
+                  fontSize="19px"
+                  fontWeight={700}
+                  textTransform="uppercase"
+                  mt={2}
+                >
+                  {albumInfo.band} –{' '}
+                  <Text as="span" fontWeight={500} textTransform="none">
+                    {albumInfo.album}
+                  </Text>
+                </Heading>
+              </Box>
+
+              {/* Desktop (>= md): 3 simultaneous columns. Hidden via CSS class, not Chakra's
+                  responsive `display` prop — the latter renders display:none in jsdom too and
+                  breaks role-based test queries (same gotcha documented in Header.tsx). */}
+              <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
+                <DesktopRatingLayout
+                  artworkUrl={albumInfo.artwork_url}
+                  band={albumInfo.band}
+                  album={albumInfo.album}
+                  catalog={catalog}
+                  order={FIXED_CRITERION_ORDER}
+                  ratings={ratings}
+                  weights={weights}
+                  selectedCriterionId={selectedCriterionId}
+                  onSelectCriterion={setSelectedCriterionId}
+                  onPick={handlePick}
+                  savingCriterionId={savingCriterionId}
+                  isComplete={isComplete}
+                  onOpenSummary={() => setSummaryOpen(true)}
+                />
+              </Box>
+
+              {/* Mobile (< md): 2 sequential screens. */}
+              <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
+                <MobileRatingLayout
+                  artworkUrl={albumInfo.artwork_url}
+                  band={albumInfo.band}
+                  album={albumInfo.album}
+                  catalog={catalog}
+                  order={FIXED_CRITERION_ORDER}
+                  ratings={ratings}
+                  onPick={handlePick}
+                  savingCriterionId={savingCriterionId}
+                  isComplete={isComplete}
+                  onOpenSummary={() => setSummaryOpen(true)}
+                  backHref={backHref}
+                  backLabel={backLabel}
+                />
+              </Box>
+            </>
+          )}
+
+          <Footer />
+        </VStack>
+      </Container>
+
+      {albumInfo && (
+        <DialogRoot open={summaryOpen} onOpenChange={({ open }) => setSummaryOpen(open)}>
+          <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
+            <CloseButton
+              position="absolute"
+              right={2}
+              top={2}
+              color="text.primary"
+              onClick={() => setSummaryOpen(false)}
+            />
+            <DialogHeader>
+              <DialogTitle fontWeight="semibold">
+                {albumInfo.band} – {albumInfo.album}
+              </DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <RatingSummaryView catalog={catalog} ratings={ratings} ratingSummary={ratingSummary.get(albumInfo.id)} />
+            </DialogBody>
+            <DialogFooter>
+              <Button {...secondaryButton} variant="outline" onClick={() => setSummaryOpen(false)}>
+                Done
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogRoot>
+      )}
+    </Box>
+  );
+}

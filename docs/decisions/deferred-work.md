@@ -15,7 +15,10 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 - **AOTY ranking session (Phase 7)** — the actual public-launch differentiator.
   Design discovery was paused mid-question in a design-discovery chat; not yet
-  resumed. Route already reserved (`/aoty/:shareId`, see `auth-routing.md`).
+  resumed. Route already reserved (`/aoty/:shareId`, see `auth-routing.md`). The Album
+  Rating Page's `?from=aoty` back-destination currently falls back to `/favorites` with
+  a `TODO` in `AlbumRatingPage.tsx`'s `resolveBackDestination()` — update that mapping
+  once this route exists. `album-rating-page.md`.
 - **Admin merge tooling for manual album dedup** — select two `albums` rows,
   reassign `reviews`/`favorites` foreign keys, delete the loser. Named only, not
   scheduled. `album-identity-decisions.md` §5 Layer 2.
