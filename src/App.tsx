@@ -50,7 +50,8 @@ import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { sourceBadge, scoreSlabBase, scoreSlabHigh, genreBadge } from './theme';
+import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
+import { AlbumMeta } from './components/album-rating/AlbumMeta';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -761,28 +762,7 @@ function App() {
                       >
                         {rev.album || 'Untitled Album'}
                       </Text>
-                      <Text
-                        fontFamily="mono"
-                        fontSize="11px"
-                        letterSpacing="0.08em"
-                        textTransform="uppercase"
-                        color="text.muted"
-                        mb={1}
-                      >
-                        Release date: {formatReleaseDate(rev.releaseDate)}
-                      </Text>
-                      {/* Genre tags — only rendered when genre data is available */}
-                      {(rev.genre ?? []).length > 0 && (
-                        <Wrap gap={1} mb={2}>
-                          {(rev.genre ?? []).map((g) => (
-                            <WrapItem key={g}>
-                              <Badge {...genreBadge}>
-                                {g}
-                              </Badge>
-                            </WrapItem>
-                          ))}
-                        </Wrap>
-                      )}
+                      <AlbumMeta releaseDate={rev.releaseDate} genre={rev.genre ?? []} />
                       {singleReview && (
                         <>
                           {/* lineClamp={3} truncates long summaries with an ellipsis (v3 prop) */}

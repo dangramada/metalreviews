@@ -243,3 +243,87 @@ further changes go on a fresh branch, merged only when done; (2) the `album-rati
 ref itself now stops at the merge commit and doesn't include the polish pass or this undo, so it
 no longer accurately represents "this feature's retained history" per convention — fast-forwarding
 it to match `master`'s current tip is proposed but not yet done, pending confirmation.
+
+## Desktop layout redesign — 3-column layout replaced with 3-section card (2026-08-05)
+
+Branch: `album-rating-page-desktop-redesign`. Reworked `DesktopRatingLayout` against a new
+reference screenshot; mobile untouched. Step 0 diagnostic (mandatory per the brief) surfaced
+four real discrepancies from the brief's assumptions, built around rather than silently
+corrected:
+
+1. **RadioCard was already the real `RadioCardRoot`/`RadioCardItem`** (`components/ui/radio-card.tsx`)
+   — no replacement needed. But its visual defaults were wrong for this page: the indicator
+   rendered **square**, because Slant Take deliberately zeroes `radii.full` app-wide (see
+   `theme.ts`'s own comment anticipating this exact case — "reinstate a dedicated token if a
+   future component needs one"), and it sat **bottom-left** instead of end-of-row, because
+   `CriterionLevelPicker.tsx` passed `orientation="vertical"` to `RadioCardRoot`, putting
+   Chakra's `radio-card` recipe into a column `flexDirection` with default `align="start"`.
+   Fixed with two independent, narrowly-scoped changes: a new `radii.circle: '9999px'` token
+   (not reinstating `radii.full`, which the card-artwork heart-favorite toggle relies on
+   staying zeroed) applied only via `indicator={<RadioCardItemIndicator borderRadius="circle" />}`
+   on this one usage; and `orientation="horizontal" justify="space-between" align="center"` on
+   `RadioCardRoot` so the label/description sit left, the indicator sits right, vertically
+   centered.
+2. **`sand.600` does not match the review card's actual wrapper token.** The review card's own
+   wrapper (`cardStyle` in `App.tsx`) uses `surface.card`, which resolves to `ink.900` (`#131313`)
+   — much darker than `sand.600` (`#4d4d4c`). Went with `sand.600` anyway, since the brief's
+   hex table states these are exact matches (not approximations) and the reference screenshot
+   clearly shows a lighter gray card. This is a deliberate divergence from review-card styling,
+   not an oversight — documented here per the brief's own flagged ambiguity.
+3. **Release date + genre badges were inline JSX in `App.tsx`**, not a reusable component.
+   Extracted into `components/album-rating/AlbumMeta.tsx` (reused by both the review card and
+   this page now) — pure refactor, no visual change at the original call site.
+4. **A generic Chakra-generated Breadcrumb primitive already existed** at
+   `components/ui/breadcrumb.tsx` (`BreadcrumbRoot`/`BreadcrumbLink`/`BreadcrumbCurrentLink`,
+   same auto-generated-snippet pattern as `radio-card.tsx`/`dialog.tsx`) but was wired into zero
+   pages and wasn't the `{label, to?}[]` API the brief described. Added `PageBreadcrumb` in the
+   same file, wrapping those primitives with that array API — this project's intended shape for
+   every page needing back-navigation going forward. Wired up on `AlbumRatingPage` only this
+   session (see `deferred-work.md` for the retrofit-elsewhere follow-up). Note: a sibling file
+   named `Breadcrumb.tsx` was attempted first and rejected by the Write tool as a duplicate —
+   macOS's default case-insensitive filesystem treats it as the same path as the existing
+   lowercase `breadcrumb.tsx`. Extending the existing file was the correct fix, not a workaround.
+
+**New structure**: one `Box bg="surface.ratingCard"` (semantic alias for `sand.600`, following
+the existing `border.rule`/`border.ruleStrong`-style alias pattern rather than scattering raw
+`sand.*` references through the component) wrapping 3 sections in a single `Flex` row — artwork
+(fixed 300×300) + `AlbumMeta` on the left; a horizontal split (criteria rows | active picker)
+inside one bordered container in the middle; `RatingSlab`×2 (Rank/Score) + the relocated radar
+chart on the right. The page title (`[Band] – [Album]`) stays where it already was, above this
+card and shared with the mobile layout — not moved inside the card — since the brief itself
+flagged "above/within the card" as an open question and moving it risked touching mobile's
+shared header markup, which is out of scope this session.
+
+**Inline status badges** (`NOT EVALUATED` / `{level} – {LABEL}` per criterion row) are an
+intentional reversal of this doc's earlier "Column 2 shows no rating values inline" decision —
+the new reference design calls for them directly.
+
+**Rank/Score**: new `RatingSlab` component (`components/album-rating/RatingSlab.tsx`) wraps the
+existing `scoreSlabBase`/`scoreSlabHigh` style configs from `theme.ts` rather than reusing
+`App.tsx`'s `ScoreSlab` component directly — that component isn't exported and hardcodes a bare
+number + dimmed `/10`, whereas this needed a small label plus an arbitrary value string. Rank is
+always `scoreSlabHigh` (ember-filled), Score is always `scoreSlabBase` (light) — fixed
+assignment, not the review card's `score >= 8.0` threshold logic. Value is `—` until
+`useAlbumRatingsSummary` has an entry for the album (i.e. all 6 criteria rated); no new scoring
+logic added, same hook/`scoreAndRank.ts` reused as-is.
+
+**Selection vs. rating, verified live**: `selectedCriterionId` now defaults to
+`FIXED_CRITERION_ORDER[0]` instead of `null`, so Section 2 never opens on an empty placeholder.
+Confirmed live on a zero-ratings album (Draconian – In Somnolent Ruin) that this is purely
+display state: the first criterion shows as active with all 5 of its radio options unselected,
+and Rank/Score both showed `—`. Also verified a partially-rated state (2 of 6 criteria rated on
+the same album, via live picks) shows the correct mix of `NOT EVALUATED` and real-value badges
+per row with Rank/Score still `—`, and a fully-rated album (Urzah – A Tranquil Void) showed real
+`#4` rank / `79%` score slabs and a fully-plotted radar chart.
+
+**Removed**: the desktop "View Your Evaluation" button and its `DesktopRatingLayout`-side wiring.
+The confirmation dialog (`RatingSummaryView` in a `DialogRoot`) itself is untouched and still
+used by `MobileRatingLayout`, which keeps its own "View Your Evaluation" button — mobile is
+unchanged.
+
+**Verified**: `tsc --noEmit` clean, `npx vitest run` 217/217, live-verified against real
+Supabase data as described above at a 1600px desktop viewport (at the Browser pane's narrower
+default ~1037px width the criteria-row text wrapped uncomfortably — the fixed 300px artwork +
+~220px Rank/Score columns leave too little room for Section 2 below roughly 1300px; acceptable
+for now since real desktop monitors are comfortably wider, but worth keeping in mind as a
+lower-bound constraint if a narrower "desktop" breakpoint is ever targeted).

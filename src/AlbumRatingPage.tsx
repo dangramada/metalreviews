@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link as RouterLink, useParams, useSearchParams } from 'react-router-dom';
-import { Box, Button, Container, Flex, Heading, Link as ChakraLink, Text, VStack } from '@chakra-ui/react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { Box, Button, Container, Flex, Heading, Text, VStack } from '@chakra-ui/react';
 import {
   DialogRoot,
   DialogContent,
@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from './components/ui/dialog';
 import { CloseButton } from './components/ui/close-button';
+import { PageBreadcrumb } from './components/ui/breadcrumb';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
@@ -29,18 +30,27 @@ const CRITERIA_COUNT = 6;
 
 type RatingRow = { criterion_id: number; level: number };
 type WeightRow = { criterion_id: number; level: number; value: number };
-type AlbumRow = { id: string; band: string; album: string; artwork_url: string | null };
+type AlbumRow = {
+  id: string;
+  band: string;
+  album: string;
+  artwork_url: string | null;
+  release_date: string | null;
+  genre: string[] | null;
+};
 
 // Reached from FavoritesPage's rate control today (?from=favorites); the future Ranked
 // Albums/AOTY hub will link here too (?from=aoty). That route doesn't exist yet, so the
 // `aoty` case falls back to /favorites for now — flagged here rather than guessed at, per
-// the brief. Update this map once the real AOTY route lands.
-function resolveBackDestination(from: string | null): { href: string; label: string } {
+// the brief. Update this map once the real AOTY route lands. `label` is MobileRatingLayout's
+// own "← Back to X" link text (unchanged, mobile out of scope); `sourceLabel` is the same
+// source name in the new desktop Breadcrumb's shorter, arrow-free form.
+function resolveBackDestination(from: string | null): { href: string; label: string; sourceLabel: string } {
   if (from === 'aoty') {
     // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
-    return { href: '/favorites', label: '← Back to AOTY' };
+    return { href: '/favorites', label: '← Back to AOTY', sourceLabel: 'AOTY' };
   }
-  return { href: '/favorites', label: '← Back to Favorites' };
+  return { href: '/favorites', label: '← Back to Favorites', sourceLabel: 'Favorites' };
 }
 
 export function AlbumRatingPage() {
@@ -56,11 +66,15 @@ export function AlbumRatingPage() {
   const [ratings, setRatings] = useState<Map<number, number>>(new Map());
   const [ratingsLoading, setRatingsLoading] = useState(true);
   const [weights, setWeights] = useState<CriterionLevelWeight[]>([]);
-  const [selectedCriterionId, setSelectedCriterionId] = useState<number | null>(null);
+  // Desktop-only display selection (MobileRatingLayout tracks its own detail-screen state).
+  // Defaults to the first criterion in fixed order so Section 2 never opens on an empty
+  // placeholder — this is purely which criterion's levels are *shown*, not a saved rating; see
+  // docs/decisions/album-rating-page.md's dated entry on the desktop redesign.
+  const [selectedCriterionId, setSelectedCriterionId] = useState<number>(FIXED_CRITERION_ORDER[0]);
   const [savingCriterionId, setSavingCriterionId] = useState<number | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  const { href: backHref, label: backLabel } = resolveBackDestination(searchParams.get('from'));
+  const { href: backHref, label: backLabel, sourceLabel } = resolveBackDestination(searchParams.get('from'));
 
   useEffect(() => {
     if (!albumId) return;
@@ -70,7 +84,7 @@ export function AlbumRatingPage() {
       setAlbumLoading(true);
       const { data } = await supabase
         .from('albums')
-        .select('id, band, album, artwork_url')
+        .select('id, band, album, artwork_url, release_date, genre')
         .eq('id', albumId)
         .maybeSingle();
       if (cancelled) return;
@@ -156,15 +170,7 @@ export function AlbumRatingPage() {
           ) : (
             <>
               <Box>
-                <ChakraLink
-                  as={RouterLink}
-                  to={backHref}
-                  color="text.dim"
-                  fontSize="sm"
-                  _hover={{ color: 'accent.text' }}
-                >
-                  {backLabel}
-                </ChakraLink>
+                <PageBreadcrumb items={[{ label: sourceLabel, to: backHref }, { label: 'Album Evaluation' }]} />
                 {/* fontFamily="body", never "heading" — Clash Display (the heading face) is
                     reserved for the wordmark and score-slab number only. See
                     StyleGuide.tsx's "Band/album card typography" specimen. */}
@@ -191,6 +197,8 @@ export function AlbumRatingPage() {
                   artworkUrl={albumInfo.artwork_url}
                   band={albumInfo.band}
                   album={albumInfo.album}
+                  releaseDate={albumInfo.release_date}
+                  genre={albumInfo.genre ?? []}
                   catalog={catalog}
                   order={FIXED_CRITERION_ORDER}
                   ratings={ratings}
@@ -199,8 +207,7 @@ export function AlbumRatingPage() {
                   onSelectCriterion={setSelectedCriterionId}
                   onPick={handlePick}
                   savingCriterionId={savingCriterionId}
-                  isComplete={isComplete}
-                  onOpenSummary={() => setSummaryOpen(true)}
+                  ratingSummary={ratingSummary.get(albumInfo.id)}
                 />
               </Box>
 

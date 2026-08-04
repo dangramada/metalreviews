@@ -13,6 +13,11 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## A. Product features (named, not built)
 
+- **Retrofit the new `PageBreadcrumb` component onto other pages** — built reusable
+  (`{label, to?}[]` API, `components/ui/breadcrumb.tsx`) during the AlbumRatingPage desktop
+  redesign (2026-08-05) but only wired up there this session, per the brief's explicit scope
+  limit. Favorites and Criteria Calibration are the next candidates, replacing their own
+  back-link patterns. `album-rating-page.md`'s 2026-08-05 entry.
 - **AOTY ranking session (Phase 7)** — the actual public-launch differentiator.
   Design discovery was paused mid-question in a design-discovery chat; not yet
   resumed. Route already reserved (`/aoty/:shareId`, see `auth-routing.md`). The Album

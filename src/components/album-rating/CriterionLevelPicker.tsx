@@ -4,7 +4,7 @@
 // in a flat scrollable list. Shared by DesktopRatingLayout's Column 3 and MobileRatingLayout's
 // Detail screen so both layouts render levels identically.
 import { Heading, VStack } from '@chakra-ui/react';
-import { RadioCardItem, RadioCardRoot } from '../ui/radio-card';
+import { RadioCardItem, RadioCardItemIndicator, RadioCardRoot } from '../ui/radio-card';
 import type { CriterionCatalogEntry } from '../../lib/criteria-calibration/criteriaCatalog';
 
 export function CriterionLevelPicker({
@@ -28,7 +28,9 @@ export function CriterionLevelPicker({
         onValueChange={(details) => {
           if (details.value) onPick(parseInt(details.value, 10));
         }}
-        orientation="vertical"
+        orientation="horizontal"
+        justify="space-between"
+        align="center"
       >
         <VStack gap={2} align="stretch">
           {Object.entries(entry.levels)
@@ -40,6 +42,7 @@ export function CriterionLevelPicker({
                 label={`${level} — ${info.label}`}
                 description={info.description}
                 disabled={disabled}
+                indicator={<RadioCardItemIndicator borderRadius="circle" />}
               />
             ))}
         </VStack>

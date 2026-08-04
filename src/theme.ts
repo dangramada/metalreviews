@@ -115,6 +115,11 @@ const system = createSystem(defaultConfig, {
         md: { value: '0px' },
         lg: { value: '0px' },
         full: { value: '0px' },
+        // Reinstates a real circle, scoped to a single token rather than un-zeroing `full`
+        // app-wide — see the `full` comment above. Only consumer: the AlbumRatingPage level
+        // picker's radio indicator (CriterionLevelPicker.tsx), which needs a genuine circle to
+        // match its reference design; nothing else should opt into this.
+        circle: { value: '9999px' },
       },
     },
     semanticTokens: {
@@ -126,6 +131,13 @@ const system = createSystem(defaultConfig, {
           cardHover: { value: { base: '#181818' } },
           raised: { value: { base: '{colors.ink.700}' } },
           darkest: { value: { base: '{colors.ink.950}' } },
+          // AlbumRatingPage desktop redesign (see docs/decisions/album-rating-page.md). Anchored
+          // to the `sand` ramp, not `ink` like the rest of this group — the reference design's
+          // card is a distinctly lighter gray than the `surface.card` review cards use
+          // elsewhere, an intentional divergence for this page, not an oversight.
+          ratingCard: { value: { base: '{colors.sand.600}' } },
+          criterionHover: { value: { base: '{colors.sand.800}' } },
+          criterionActive: { value: { base: '{colors.sand.950}' } },
         },
         border: {
           default: { value: { base: '{colors.gray.600}' } },
