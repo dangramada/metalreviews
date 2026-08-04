@@ -27,13 +27,20 @@ export interface CriterionLevelWeight {
 
 interface RadarPoint {
   criterion: string;
-  level: number;
+  // Plotted value is the real weight (0 when unrated), not the picked level's ordinal
+  // position — level 1 is fixed at weight 0 for every criterion by construction of the
+  // solver (see solver.ts:83, "fixed at 0, contributes nothing to the sum"), so plotting by
+  // level made a real, contributing pick look identical to "no data" everywhere except
+  // exactly at level 1, and made a weight-0 level-1 pick visually indistinguishable from a
+  // meaningfully-contributing one. Plotting weight directly means radial position always
+  // matches real score contribution — a weight-0 pick sits at the center, full stop.
+  weight: number;
   criterionId: number;
   levelLabel: string;
-  // Weight shown as % of this criterion's own max achievable weight, not the raw fraction —
-  // raw weights aren't comparable across criteria (each criterion's LP is solved
-  // independently, see docs/decisions/album-rating-drawer.md's normalization finding), so a
-  // bare number like "0.18" gave no sense of whether that's a strong or weak pick.
+  // Weight also shown as % of this criterion's own max achievable weight — raw weights
+  // aren't comparable across criteria (each criterion's LP is solved independently, see
+  // docs/decisions/album-rating-drawer.md's normalization finding), so this gives a sense of
+  // "how good is this pick for this specific criterion" alongside the absolute radial size.
   weightPercentLabel: string;
 }
 
@@ -43,8 +50,9 @@ interface RatingRadarChartProps {
   // Fixed display order (criterion ids) — see FIXED_CRITERION_ORDER in AlbumRatingPage.tsx.
   order: number[];
   // Real per-(criterion, level) weight values from user_criterion_weights, same source
-  // scoreAndRank.ts's computeScore reads. Only needed for the desktop tooltip; omitted
-  // entirely on the small mobile chart (no interaction there).
+  // scoreAndRank.ts's computeScore reads. Now required on both layouts — the chart plots
+  // weight directly, not just level, so the small mobile chart needs it too, not only the
+  // desktop tooltip.
   weights?: CriterionLevelWeight[];
   size?: 'full' | 'small';
 }
@@ -58,11 +66,18 @@ export function RatingRadarChart({
 }: RatingRadarChartProps) {
   const weightMap = new Map<string, number>();
   const maxWeightByCriterion = new Map<number, number>();
+  let maxWeightOverall = 0;
   for (const w of weights ?? []) {
     weightMap.set(`${w.criterionId}:${w.level}`, w.value);
     const currentMax = maxWeightByCriterion.get(w.criterionId) ?? 0;
     if (w.value > currentMax) maxWeightByCriterion.set(w.criterionId, w.value);
+    if (w.value > maxWeightOverall) maxWeightOverall = w.value;
   }
+  // Shared domain across every axis, anchored to this user's single highest-weight
+  // (criterion, level) combination — mirrors the earlier level-based fix (ticks ending
+  // exactly at the domain max, so the best possible pick reaches the true outer edge).
+  // Falls back to 1 only to avoid a degenerate zero-width domain before weights load.
+  const domainMax = maxWeightOverall > 0 ? maxWeightOverall : 1;
 
   const data: RadarPoint[] = order.map((id) => {
     const entry = catalog?.entries[id];
@@ -74,7 +89,7 @@ export function RatingRadarChart({
       weight !== undefined && maxWeight ? `${Math.round((weight / maxWeight) * 100)}% of criterion max` : '—';
     return {
       criterion: entry?.name ?? '',
-      level,
+      weight: weight ?? 0,
       criterionId: id,
       levelLabel: levelInfo?.label ?? 'Not rated',
       weightPercentLabel,
@@ -83,7 +98,7 @@ export function RatingRadarChart({
 
   const chart = useChart<RadarPoint>({
     data,
-    series: [{ name: 'level', color: 'accent.border' }],
+    series: [{ name: 'weight', color: 'accent.border' }],
   });
 
   const isSmall = size === 'small';
@@ -101,13 +116,18 @@ export function RatingRadarChart({
               angular positioning (required for the categorical dataKey to lay out points
               around the circle), it just hides the criterion-name text. */}
           <PolarAngleAxis dataKey={chart.key('criterion')} tick={false} />
-          {/* Explicit `ticks` — without it, Recharts' default "nice number" tick algorithm
-              picks an uneven set for domain [0,5] (confirmed live: only 0/2/4/5, no ring at
-              1 or 3), so grid rings don't land one-per-level. Forcing 1-5 gives one ring per
-              level and fixes the "3rd level ring missing" report. */}
-          <PolarRadiusAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} tick={false} axisLine={false} />
+          {/* Explicit `ticks`, 5 evenly spaced up to domainMax — Recharts' default "nice
+              number" tick algorithm produced an uneven, gapped set for the old fixed [0,5]
+              domain (confirmed live: only 0/2/4/5, no ring at 1 or 3), so grid rings didn't
+              land evenly. Keeping the same "outer ring = domain max" anchor from that fix. */}
+          <PolarRadiusAxis
+            domain={[0, domainMax]}
+            ticks={[domainMax / 5, (domainMax * 2) / 5, (domainMax * 3) / 5, (domainMax * 4) / 5, domainMax]}
+            tick={false}
+            axisLine={false}
+          />
           <Radar
-            dataKey={chart.key('level')}
+            dataKey={chart.key('weight')}
             stroke={chart.color('accent.border')}
             fill={chart.color('accent.border')}
             fillOpacity={0.4}

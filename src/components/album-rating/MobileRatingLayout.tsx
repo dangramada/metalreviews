@@ -9,7 +9,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { LuArrowLeft, LuCheck, LuCircle } from 'react-icons/lu';
 import { AlbumArtwork } from './AlbumArtwork';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
-import { RatingRadarChart } from './RatingRadarChart';
+import { RatingRadarChart, type CriterionLevelWeight } from './RatingRadarChart';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import { primaryButton } from '../../theme';
 
@@ -26,6 +26,9 @@ interface MobileRatingLayoutProps {
   catalog: CriteriaCatalog | null;
   order: number[];
   ratings: Map<number, number>;
+  // Now required by RatingRadarChart even in its small size — the chart plots weight
+  // directly, not just level, so the ambient header chart needs real weight data too.
+  weights: CriterionLevelWeight[];
   onPick: (criterionId: number, level: number) => Promise<void>;
   savingCriterionId: number | null;
   isComplete: boolean;
@@ -41,6 +44,7 @@ export function MobileRatingLayout({
   catalog,
   order,
   ratings,
+  weights,
   onPick,
   savingCriterionId,
   isComplete,
@@ -87,7 +91,7 @@ export function MobileRatingLayout({
             </ChakraLink>
           )}
         </Box>
-        <RatingRadarChart catalog={catalog} ratings={ratings} order={order} size="small" />
+        <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="small" />
       </Flex>
 
       {screen === 'overview' ? (

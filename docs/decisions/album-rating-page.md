@@ -180,15 +180,14 @@ Four small tweaks to `RatingRadarChart.tsx`, requested after reviewing the merge
    via normal CSS cascade rules (inline style beats presentation attributes), so every ring
    ends up filled — producing the nested, cumulatively-shaded band look, not a flat single
    fill. Confirmed live, not assumed.
-4. **Weight/level "alignment" confusion resolved without changing the plotted metric** — talked
-   through with Dan: the radial position still reflects the picked *level* (1–5, a simple,
-   always-comparable scale), but the desktop tooltip's weight is now shown as **% of that
-   criterion's own max achievable weight** (`Math.round((weight / maxWeightForCriterion) * 100)`)
-   instead of a bare fraction. Rejected plotting the raw weight directly: per-criterion max
-   weights aren't comparable to each other (each criterion's LP is solved independently — same
-   root cause as the normalization/tie findings in `album-rating-drawer.md`), so a
-   criterion with a naturally low max weight would always look small on the chart even at its
-   best pick, reading as a bug rather than real signal.
+4. **Weight/level "alignment" confusion — first pass, later reversed (see next section)**: talked
+   through with Dan; initial fix kept the radial position on the picked *level* (1–5, a simple,
+   always-comparable scale) and showed the tooltip's weight as **% of that criterion's own max
+   achievable weight** instead of a bare fraction. Rejected plotting the raw weight directly at
+   the time: per-criterion max weights aren't comparable to each other (each criterion's LP is
+   solved independently — same root cause as the normalization/tie findings in
+   `album-rating-drawer.md`), so a criterion with a naturally low max weight would always look
+   small on the chart even at its best pick, reading as a bug rather than real signal.
 
 **Also found and fixed while implementing #3**: `PolarRadiusAxis`'s default "nice number" tick
 algorithm did not produce one ring per level for `domain={[0, 5]}` — confirmed live by dumping
@@ -200,3 +199,50 @@ rings (20/40/60/80/100px radius steps) on both chart sizes.
 All four changes verified live via the same `/radar-spike` temporary-route pattern used for the
 original build (added, checked, removed each time — never left in the router). `tsc --noEmit`
 and `npx vitest run` (217/217) clean throughout.
+
+## Second follow-up: switched the radial position from level to weight (reverses #4 above)
+
+Live testing surfaced a concrete bug in the level-based approach: a level-1 pick for "Emotional
+impact" showed "0% of criterion max" in the tooltip yet still plotted a full ring out from
+center (level 1 sits at 1/5 of the radius). Investigated whether this was a per-user LP quirk or
+structural — confirmed structural, not coincidental: `solver.ts:83` explicitly fixes level 1 at
+weight 0 for **every** criterion, for **every** user (`// fixed at 0, contributes nothing to the
+sum`). So a level-1 pick will always show 0% weight while visibly occupying real chart area,
+making a contributes-nothing pick look like it's contributing something.
+
+Decision (confirmed with Dan): switch `RatingRadarChart`'s plotted value from `level` to the
+real `weight`, reversing the "keep level, clarify tooltip" call from the prior pass now that a
+concrete case showed the mismatch isn't just a scale difference but an actual visual lie for
+level-1 picks.
+
+- `RadarPoint.weight` replaces `RadarPoint.level` as the `Radar`'s `dataKey`. A weight-0 pick
+  (any criterion's level 1) now sits exactly at the center, full stop — verified live with a
+  level-1/weight-0 "Emotional impact" pick.
+- Domain is no longer the fixed `[0, 5]` — it's `[0, domainMax]` where `domainMax` is this
+  user's single highest weight value across all 30 (criterion, level) combinations (falls back
+  to `1` only to avoid a degenerate zero-width domain before weights load). Mirrors the earlier
+  ticks fix's own principle (outer boundary = the actual max value): `ticks` are 5 evenly-spaced
+  values ending exactly at `domainMax`.
+- Tooltip keeps the same criterion name / level label / "% of criterion max" content as the
+  prior pass — that context is still useful precisely because raw weight isn't comparable
+  across criteria, even though it's now also the plotted value.
+- **Cost paid**: `weights` was previously optional and desktop-tooltip-only (mobile's small
+  ambient chart never received it, since position depended only on level). Since position now
+  depends on weight everywhere, `weights` is threaded into `MobileRatingLayout` too — new
+  required prop, passed through from `AlbumRatingPage`'s already-fetched `weights` state (no new
+  fetch, just wiring).
+- **Known tradeoff, unchanged from the original 3-way framing**: different criteria have
+  different max weights (again, independent per-criterion LP solves), so a maxed-out pick on a
+  naturally low-weight criterion won't reach the outer edge the way a maxed-out pick on a
+  high-weight criterion does. Real signal (that criterion structurally swings this user's score
+  less), not a bug — flagged going in, not discovered after the fact.
+- One cosmetic Recharts quirk noted, not fixed: hovering the exact center pixel (radius 0)
+  returns no tooltip, since angle is mathematically undefined at the origin. Hovering even
+  slightly off-center (still visually "at" the point) resolves correctly. Not realistically
+  hit by a real hover gesture; not worth working around.
+
+Verified live via the same disposable `/radar-spike` pattern: an "Emotional impact" pick at
+level 1 (weight 0, confirmed via a synthetic fixture with `criterionId:1, level:1, value:0`)
+renders with its vertex exactly at the chart center on both desktop and mobile sizes, and the
+tooltip (hovering just off dead-center) correctly shows "Emotional impact / Flat / 0% of
+criterion max." `tsc --noEmit` and `npx vitest run` (217/217) clean.

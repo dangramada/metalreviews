@@ -213,6 +213,7 @@ export function AlbumRatingPage() {
                   catalog={catalog}
                   order={FIXED_CRITERION_ORDER}
                   ratings={ratings}
+                  weights={weights}
                   onPick={handlePick}
                   savingCriterionId={savingCriterionId}
                   isComplete={isComplete}
