@@ -110,7 +110,12 @@ export function RatingRadarChart({
           0x0 SVG, no console error. Confirmed by the radar-chart spike: Chart.Root's Box alone
           does not supply pixel dimensions to the chart. */}
       <ResponsiveContainer width="100%" height="100%">
-        <RechartsRadarChart data={chart.data}>
+        {/* outerRadius defaults to '80%' at the PolarChart level (recharts/lib/chart/PolarChart.js),
+            leaving a 20% ring of unused space between the grid boundary and the plot's true
+            edge — the hover cursor guide line still extends to that true edge, so it visibly
+            overshot the grid, and the chart read as smaller than its container. 100% makes the
+            grid/data fill the whole box and matches where the cursor line actually ends. */}
+        <RechartsRadarChart data={chart.data} outerRadius="100%">
           <PolarGrid stroke="none" style={{ fill: chart.color('ember.solid'), fillOpacity: 0.1 }} />
           {/* Axis labels removed per feedback — tick={false} still keeps PolarAngleAxis's
               angular positioning (required for the categorical dataKey to lay out points

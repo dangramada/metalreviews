@@ -246,3 +246,20 @@ level 1 (weight 0, confirmed via a synthetic fixture with `criterionId:1, level:
 renders with its vertex exactly at the chart center on both desktop and mobile sizes, and the
 tooltip (hovering just off dead-center) correctly shows "Emotional impact / Flat / 0% of
 criterion max." `tsc --noEmit` and `npx vitest run` (217/217) clean.
+
+## Third follow-up: chart read as too small, hover cursor line overshot the grid
+
+Dan flagged a screenshot showing the axis's hover cursor line extending well past the top of the
+grid, with the overall chart reading as smaller/more cramped than its container. Root cause:
+Recharts' `RadarChart` (a `PolarChart`) defaults `outerRadius` to `'80%'`
+(`recharts/lib/chart/PolarChart.js`), so the grid and data polygon only ever fill 80% of the
+plotting area, leaving a 20% ring of dead space between the grid boundary and the SVG's true
+edge — but the per-axis hover cursor line is drawn out to that true 100% edge regardless, so it
+visibly overshot the grid. This also explains the "smaller" perception: 20% of the box's radius
+was always empty margin.
+
+Fix: `outerRadius="100%"` on `RechartsRadarChart` (a `PolarChart`-level prop, not something set
+on `PolarGrid`/`PolarAngleAxis` individually). Confirmed live by dumping the outermost grid
+ring's SVG path against the six per-axis line elements' endpoints — both now terminate at
+identical coordinates (radius 125px on the 260px box), so the grid, data, and cursor line all
+share the same 100% boundary. `tsc --noEmit` and `npx vitest run` (217/217) clean.
