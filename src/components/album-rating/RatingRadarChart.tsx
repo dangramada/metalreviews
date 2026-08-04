@@ -104,7 +104,12 @@ export function RatingRadarChart({
   const isSmall = size === 'small';
 
   return (
-    <Chart.Root chart={chart} boxSize={isSmall ? '40px' : '260px'}>
+    // Fluid, not a fixed pixel box, for the full size — Column 1 on desktop is itself fluid
+    // (flex="1 1 0" among 3 columns), so a hardcoded small size left the chart reading as
+    // small regardless of how much room its column actually had. w="100%" + aspectRatio="1"
+    // lets it grow with its container, capped at maxW so it doesn't dwarf the artwork/button
+    // above and below it in the same column.
+    <Chart.Root chart={chart} w={isSmall ? '40px' : '100%'} maxW={isSmall ? '40px' : '360px'} aspectRatio="1">
       {/* RadarChart has `responsive: false` and no default width/height (checked recharts'
           own PolarChart.js defaults directly) — without this wrapper it silently renders a
           0x0 SVG, no console error. Confirmed by the radar-chart spike: Chart.Root's Box alone
@@ -116,7 +121,18 @@ export function RatingRadarChart({
             overshot the grid, and the chart read as smaller than its container. 100% makes the
             grid/data fill the whole box and matches where the cursor line actually ends. */}
         <RechartsRadarChart data={chart.data} outerRadius="100%">
-          <PolarGrid stroke="none" style={{ fill: chart.color('ember.solid'), fillOpacity: 0.1 }} />
+          {/* stroke="none" was wrong: PolarGrid's `stroke` prop controls BOTH the concentric
+              ring outlines AND the 6 radial per-criterion spoke lines (confirmed by tracing
+              the DOM: both are children of `.recharts-polar-grid`, both inherit the same
+              `stroke` prop) — there's no separate prop to silence only the rings. Removing it
+              also silently removed the spokes marking each criterion's axis. Keeping a real,
+              subtle stroke restores those while the `style`-based fill trick (still needed —
+              Recharts hardcodes `fill="none"` as a prop on every ring; only inline `style.fill`
+              overrides that per-ring, see the fill comment's history) keeps the banded look. */}
+          <PolarGrid
+            stroke={chart.color('border.default')}
+            style={{ fill: chart.color('ember.solid'), fillOpacity: 0.1 }}
+          />
           {/* Axis labels removed per feedback — tick={false} still keeps PolarAngleAxis's
               angular positioning (required for the categorical dataKey to lay out points
               around the circle), it just hides the criterion-name text. */}

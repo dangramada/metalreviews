@@ -286,3 +286,34 @@ criterion max"), and the only `<line>` elements present afterward are the six fi
 per-axis spokes (center to each vertex, all terminating within the 260px box) plus their tiny
 tick-line stubs — no line tracking the mouse position. `tsc --noEmit` and `npx vitest run`
 (217/217) clean.
+
+## Fifth follow-up: chart read as small, and the per-criterion spoke lines had gone invisible
+
+Dan flagged both problems from a single real screenshot. Investigated precisely this time by
+dumping every `line`/`polygon`/`path` element inside the chart's `<svg>` along with each one's
+actual `stroke` attribute and DOM ancestry, rather than eyeballing a screenshot — the earlier
+"the spokes are still visible" read (Fourth follow-up section) was wrong: it checked line
+*coordinates* only, never their *stroke* value.
+
+**Root cause of the missing spokes**: `PolarGrid`'s `stroke` prop controls both its concentric
+ring outlines (`.recharts-polar-grid-concentric-polygon`) *and* its six radial per-criterion
+lines (`.recharts-polar-grid-angle line`) — there's no separate prop for one without the other.
+Setting `stroke="none"` for the Third follow-up's "Filled Grid" request silently killed the
+spokes along with the ring outlines, even though the request was really only about the rings'
+fill. Fix: give `PolarGrid` a real `stroke={chart.color('border.default')}` again, while keeping
+the `style`-based fill trick (still required — Recharts hardcodes `fill="none"` as a *prop* on
+each individual ring; only inline `style.fill` overrides that per-ring, per the Third
+follow-up's finding). Confirmed live: `.recharts-polar-grid-angle line` elements now report
+`stroke: var(--chakra-colors-border-default)` instead of `"none"`.
+
+**Root cause of the "small" chart**: `Chart.Root` used a fixed `boxSize="260px"`, regardless of
+how much room its actual container had. Desktop Column 1 is itself fluid
+(`flex="1 1 0"` among 3 columns, per the brief's fluid-column requirement), so a hardcoded small
+pixel chart never grew to use the space available to it, especially on wider viewports. Fix:
+`w="100%"` with `maxW="360px"` and `aspectRatio="1"` (fluid, capped so it doesn't dwarf the
+artwork/button sharing its column) for the full size; the small ambient size keeps its unchanged
+fixed `40px`. Verified live in a spike rebuilt to replicate `DesktopRatingLayout`'s actual
+3-column flex structure (a bare wrapper with no defined width gave a misleading "still small"
+result the first time, since `w="100%"` had nothing real to resolve against) — the chart now
+renders at ~339×339px inside a realistic Column 1 width at a 1280px viewport, versus the
+previous fixed 260×260px. `tsc --noEmit` and `npx vitest run` (217/217) clean.
