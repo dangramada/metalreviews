@@ -57,8 +57,11 @@ not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shel
 session/persistence/gate/engine logic touched. Page-shell pattern itself now documented in
 `docs/decisions/architecture.md`.
 
-`album-rating-page` — in progress, not merged. Third UI attempt at rating (see the two
-entries below): a dedicated route `/rate/:albumId?from=favorites|aoty` replacing both
+`album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
+retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**
+(missing the post-merge polish pass `5e6f8af` and the docs commit `4b92722` recording a
+concurrent-session collision/undo — fast-forward not yet done). Third UI attempt at rating
+(see the two entries below): a dedicated route `/rate/:albumId?from=favorites|aoty` replacing both
 `AlbumRatingDrawer` (deleted outright, confirmed unreferenced elsewhere) and the rejected
 `album-rating-modal` branch (left untouched, not built on, not referenced). Genuinely
 different desktop (3 simultaneous fluid columns: artwork+radar chart, criterion-name list,
