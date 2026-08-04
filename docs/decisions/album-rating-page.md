@@ -159,3 +159,44 @@ The `from=aoty` back-destination falls back to `/favorites` with a `TODO` commen
 `src/AlbumRatingPage.tsx`'s `resolveBackDestination()`, since the Ranked Albums/AOTY hub route
 doesn't exist yet (already tracked under `deferred-work.md`'s AOTY entry — cross-referenced,
 not duplicated).
+
+## Follow-up polish pass (same session, post-merge)
+
+Four small tweaks to `RatingRadarChart.tsx`, requested after reviewing the merged chart live:
+
+1. **Axis labels removed** — `PolarAngleAxis`'s `tick` prop set to `false`. Angular positioning
+   (required for the categorical `criterion` dataKey to lay points around the circle) is
+   unaffected; only the criterion-name text is hidden.
+2. **Tooltip kept as-is**, functionally — confirmed still fires correctly after the label
+   removal.
+3. **"Filled Grid" style**, exact snippet supplied: `<PolarGrid stroke="none" style={{ fill:
+   chart.color('ember.solid'), fillOpacity: 0.1 }} />`. Confirmed `ember.solid` is a real,
+   already-defined semantic token (`src/theme.ts`'s `colorPalette.ember` registration), not
+   guessed. Using `style` instead of the `fill`/`fillOpacity` props is deliberate, not
+   equivalent: Recharts' `PolarGrid` internally hardcodes `fill="none"` as a prop on every
+   individual concentric ring (confirmed by reading `ConcentricGridPath` in
+   `recharts/lib/polar/PolarGrid.js` — only a single outer-boundary polygon gets the real
+   `fill` prop by default). Inline `style.fill` overrides that per-ring `fill="none"` **prop**
+   via normal CSS cascade rules (inline style beats presentation attributes), so every ring
+   ends up filled — producing the nested, cumulatively-shaded band look, not a flat single
+   fill. Confirmed live, not assumed.
+4. **Weight/level "alignment" confusion resolved without changing the plotted metric** — talked
+   through with Dan: the radial position still reflects the picked *level* (1–5, a simple,
+   always-comparable scale), but the desktop tooltip's weight is now shown as **% of that
+   criterion's own max achievable weight** (`Math.round((weight / maxWeightForCriterion) * 100)`)
+   instead of a bare fraction. Rejected plotting the raw weight directly: per-criterion max
+   weights aren't comparable to each other (each criterion's LP is solved independently — same
+   root cause as the normalization/tie findings in `album-rating-drawer.md`), so a
+   criterion with a naturally low max weight would always look small on the chart even at its
+   best pick, reading as a bug rather than real signal.
+
+**Also found and fixed while implementing #3**: `PolarRadiusAxis`'s default "nice number" tick
+algorithm did not produce one ring per level for `domain={[0, 5]}` — confirmed live by dumping
+each grid ring's SVG path: only 4 rings rendered, at values 0/2/4/5, with no ring at 1 or 3. This
+is what surfaced as "the 3rd level isn't displayed." Fixed with an explicit
+`ticks={[1, 2, 3, 4, 5]}` on `PolarRadiusAxis`, confirmed live afterward: exactly 5 evenly-spaced
+rings (20/40/60/80/100px radius steps) on both chart sizes.
+
+All four changes verified live via the same `/radar-spike` temporary-route pattern used for the
+original build (added, checked, removed each time — never left in the router). `tsc --noEmit`
+and `npx vitest run` (217/217) clean throughout.

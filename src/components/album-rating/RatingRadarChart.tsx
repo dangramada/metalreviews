@@ -30,7 +30,11 @@ interface RadarPoint {
   level: number;
   criterionId: number;
   levelLabel: string;
-  weightLabel: string;
+  // Weight shown as % of this criterion's own max achievable weight, not the raw fraction —
+  // raw weights aren't comparable across criteria (each criterion's LP is solved
+  // independently, see docs/decisions/album-rating-drawer.md's normalization finding), so a
+  // bare number like "0.18" gave no sense of whether that's a strong or weak pick.
+  weightPercentLabel: string;
 }
 
 interface RatingRadarChartProps {
@@ -53,19 +57,27 @@ export function RatingRadarChart({
   size = 'full',
 }: RatingRadarChartProps) {
   const weightMap = new Map<string, number>();
-  for (const w of weights ?? []) weightMap.set(`${w.criterionId}:${w.level}`, w.value);
+  const maxWeightByCriterion = new Map<number, number>();
+  for (const w of weights ?? []) {
+    weightMap.set(`${w.criterionId}:${w.level}`, w.value);
+    const currentMax = maxWeightByCriterion.get(w.criterionId) ?? 0;
+    if (w.value > currentMax) maxWeightByCriterion.set(w.criterionId, w.value);
+  }
 
   const data: RadarPoint[] = order.map((id) => {
     const entry = catalog?.entries[id];
     const level = ratings.get(id) ?? 0;
     const levelInfo = level > 0 ? entry?.levels[level] : undefined;
     const weight = weightMap.get(`${id}:${level}`);
+    const maxWeight = maxWeightByCriterion.get(id);
+    const weightPercentLabel =
+      weight !== undefined && maxWeight ? `${Math.round((weight / maxWeight) * 100)}% of criterion max` : '—';
     return {
       criterion: entry?.name ?? '',
       level,
       criterionId: id,
       levelLabel: levelInfo?.label ?? 'Not rated',
-      weightLabel: weight !== undefined ? weight.toFixed(3) : '—',
+      weightPercentLabel,
     };
   });
 
@@ -84,12 +96,16 @@ export function RatingRadarChart({
           does not supply pixel dimensions to the chart. */}
       <ResponsiveContainer width="100%" height="100%">
         <RechartsRadarChart data={chart.data}>
-          <PolarGrid stroke={chart.color('border.default')} />
-          <PolarAngleAxis
-            dataKey={chart.key('criterion')}
-            tick={isSmall ? false : { fill: chart.color('text.dim'), fontSize: 11 }}
-          />
-          <PolarRadiusAxis domain={[0, 5]} tick={false} axisLine={false} />
+          <PolarGrid stroke="none" style={{ fill: chart.color('ember.solid'), fillOpacity: 0.1 }} />
+          {/* Axis labels removed per feedback — tick={false} still keeps PolarAngleAxis's
+              angular positioning (required for the categorical dataKey to lay out points
+              around the circle), it just hides the criterion-name text. */}
+          <PolarAngleAxis dataKey={chart.key('criterion')} tick={false} />
+          {/* Explicit `ticks` — without it, Recharts' default "nice number" tick algorithm
+              picks an uneven set for domain [0,5] (confirmed live: only 0/2/4/5, no ring at
+              1 or 3), so grid rings don't land one-per-level. Forcing 1-5 gives one ring per
+              level and fixes the "3rd level ring missing" report. */}
+          <PolarRadiusAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} tick={false} axisLine={false} />
           <Radar
             dataKey={chart.key('level')}
             stroke={chart.color('accent.border')}
@@ -114,7 +130,7 @@ export function RatingRadarChart({
                         <Text fontWeight="semibold">{p.criterion}</Text>
                         <Text color="text.dim">{p.levelLabel}</Text>
                         <Text color="accent.text" fontFamily="mono" fontSize="xs">
-                          weight: {p.weightLabel}
+                          {p.weightPercentLabel}
                         </Text>
                       </Box>
                     );
