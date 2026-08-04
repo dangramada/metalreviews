@@ -327,3 +327,60 @@ default ~1037px width the criteria-row text wrapped uncomfortably — the fixed 
 ~220px Rank/Score columns leave too little room for Section 2 below roughly 1300px; acceptable
 for now since real desktop monitors are comfortably wider, but worth keeping in mind as a
 lower-bound constraint if a narrower "desktop" breakpoint is ever targeted).
+
+## Retouch pass — four fixes after live review (2026-08-05, same day)
+
+Four corrections against the reference screenshot, diagnosed from source before any change per
+the project's standing convention:
+
+1. **Card fill was the wrong shade.** `surface.ratingCard` (`sand.600`) turned out to be shared
+   between the card's own background *and* Section 2's border — confirmed by grep before
+   touching anything. Rather than repoint the shared token (which would've also changed the
+   border), added a new `surface.ratingCardFill` token (`sand.900`, exact match to `#1A1A1A`)
+   used only for the card `Box`'s `bg`; `surface.ratingCard` keeps its original value and its
+   original job (Section 2's border).
+2. **Band/album title moved inside the card**, at the top, above the 3-section row — it
+   previously lived in a shared `Box` above/outside the card in `AlbumRatingPage.tsx`, rendered
+   unconditionally on both desktop and mobile even though `MobileRatingLayout` already shows its
+   own separate compact title. Moving it into `DesktopRatingLayout` (desktop-only) also removed
+   that pre-existing duplicate title on mobile as a side effect — `MobileRatingLayout.tsx`
+   itself was not touched.
+3. **RadioCard text — three related fixes, one shared helper.** Root cause of the centered text:
+   last session's `align="center"` on `RadioCardRoot` (added for the indicator's vertical
+   centering) also sets Chakra's `radio-card` recipe `itemControl.textAlign: 'center'` — the two
+   are coupled in the built-in recipe and can't be split via the variant prop. Fixed by keeping
+   `align="center"` (still needed for the indicator) and passing `label`/`description` as JSX
+   (`<Text textAlign="left">…</Text>`) instead of plain strings — both props accept
+   `React.ReactNode`, so this stayed scoped to `CriterionLevelPicker.tsx` without touching the
+   shared `radio-card.tsx` wrapper. Separately, confirmed against `supabase/criteria.sql` that
+   raw `criteria_levels` text is Title Case labels + lowercase, unpunctuated descriptions — and
+   confirmed via grep that both fields render in four *other* places beyond this page
+   (`CriterionRow.tsx`/`OptionCard.tsx` in Criteria Calibration, `RatingSummaryView.tsx`,
+   `MobileRatingLayout.tsx`, and this page's own status badges in `DesktopRatingLayout.tsx`,
+   which already had `textTransform="uppercase"` on the whole badge and needed no change).
+   Rather than fixing only `CriterionLevelPicker.tsx` and leaving the other four on stale
+   casing/punctuation (confirmed with Dan as the wrong call — same defect, not five separate
+   ones), added `formatLevelDescription()` next to `buildCriteriaCatalog` in
+   `criteriaCatalog.ts` (capitalize first letter, ensure a trailing `.`/`!`/`?`) and applied it
+   everywhere a description renders (`CriterionLevelPicker.tsx`, `CriterionRow.tsx`); the label's
+   uppercase treatment needed no shared helper since it's non-destructive CSS
+   (`textTransform="uppercase"`) applied individually at all five sites. This pass therefore
+   touches two files outside the original rating-page scope (`CriterionRow.tsx` — Criteria
+   Calibration's comparison cards) for text-formatting consistency only; no logic changed there.
+4. **Rank/Score slabs now sit flush**, no gap. `RatingSlab.tsx` had no `flex`/width of its own,
+   so the two slabs in `DesktopRatingLayout`'s Section 3 just floated at their intrinsic content
+   width with the parent `Flex`'s `gap={2}` (8px) showing the card background through the
+   middle. Fixed with `gap={0}` on the parent and `flex="1 1 0"` added directly inside
+   `RatingSlab.tsx` — hardcoded rather than passed as a prop, since this component only ever
+   renders in this fixed adjacent pair.
+
+**Verified**: `tsc --noEmit` clean, `npx vitest run` 217/217 (no test asserted on raw
+label/description casing or punctuation, so the wider text-formatting footprint didn't break
+anything). Live-verified at a 1600px desktop viewport: card fill visibly darker and distinct
+from the review-card `ink.900` bg, title inside the card, RadioCard text left-aligned/uppercase
+label/punctuated description, Rank/Score forming one continuous two-tone strip. Also
+live-verified the other four text consumers directly: Criteria Calibration's comparison cards
+(`/criteria-calibration`) show e.g. "BOLD" / "Risk-taking defines the album, not just a few
+moments.", and the mobile confirmation dialog (`RatingSummaryView`) shows e.g.
+"3 — SOME FRESH IDEAS" with the level-number prefix left untransformed and only the label
+uppercased.

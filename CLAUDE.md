@@ -57,18 +57,25 @@ not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shel
 session/persistence/gate/engine logic touched. Page-shell pattern itself now documented in
 `docs/decisions/architecture.md`.
 
-`album-rating-page-desktop-redesign` merged to `master` on 2026-08-05 — branch retained per
-convention, not deleted. Reworked `DesktopRatingLayout` into a 3-section bordered-card layout
+`album-rating-page-desktop-redesign` — **not yet merged to `master`**, pushed to `origin` on
+2026-08-05 (correcting this entry's earlier claim of "merged," written prematurely before the
+merge actually happened). Reworked `DesktopRatingLayout` into a 3-section bordered-card layout
 (artwork+meta | criteria-list+levels horizontal split | Rank/Score slabs+radar chart) against a
 new reference screenshot; mobile untouched. New reusable `PageBreadcrumb` component
 (`components/ui/breadcrumb.tsx`), new `AlbumMeta`/`RatingSlab` components, new `radii.circle`
-and `surface.ratingCard`/`criterionHover`/`criterionActive` theme tokens. Fixed two real
-RadioCard rendering bugs found via screenshot diagnostic: the level-picker indicator rendered
-square (Slant Take's app-wide `radii.full: 0px`) and bottom-left instead of end-of-row
-(`orientation="vertical"` on `RadioCardRoot`). Removed the desktop "View Your Evaluation"
-button (mobile keeps its own). Full detail, including the confirmed `sand.600`-vs-review-card
-divergence and live verification across zero/partial/fully-rated albums: the 2026-08-05 entry
-in `docs/decisions/album-rating-page.md`.
+and `surface.ratingCard`/`criterionHover`/`criterionActive`/`ratingCardFill` theme tokens. Fixed
+two real RadioCard rendering bugs found via screenshot diagnostic: the level-picker indicator
+rendered square (Slant Take's app-wide `radii.full: 0px`) and bottom-left instead of end-of-row
+(`orientation="vertical"` on `RadioCardRoot`). Removed the desktop "View Your Evaluation" button
+(mobile keeps its own). Same-day retouch pass fixed four more issues found on live review: card
+fill corrected to `sand.900` (`surface.ratingCard` turned out to be shared with Section 2's
+border, not repointed), title moved inside the card, RadioCard text left-aligned/uppercase
+label/sentence-case-plus-period description (via a new shared `formatLevelDescription()` helper
+applied to all five real consumers of that text, not just this page — also touches
+`CriterionRow.tsx` in Criteria Calibration for text-formatting consistency only), and Rank/Score
+slabs now sit flush with no gap. Full detail, including the confirmed `sand.600`-vs-review-card
+divergence and live verification across zero/partial/fully-rated albums plus all five text
+consumers: the two 2026-08-05 entries in `docs/decisions/album-rating-page.md`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**

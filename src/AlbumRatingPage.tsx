@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Box, Button, Container, Flex, Heading, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Text, VStack } from '@chakra-ui/react';
 import {
   DialogRoot,
   DialogContent,
@@ -171,23 +171,12 @@ export function AlbumRatingPage() {
             <>
               <Box>
                 <PageBreadcrumb items={[{ label: sourceLabel, to: backHref }, { label: 'Album Evaluation' }]} />
-                {/* fontFamily="body", never "heading" — Clash Display (the heading face) is
-                    reserved for the wordmark and score-slab number only. See
-                    StyleGuide.tsx's "Band/album card typography" specimen. */}
-                <Heading
-                  as="h2"
-                  fontFamily="body"
-                  fontSize="19px"
-                  fontWeight={700}
-                  textTransform="uppercase"
-                  mt={2}
-                >
-                  {albumInfo.band} –{' '}
-                  <Text as="span" fontWeight={500} textTransform="none">
-                    {albumInfo.album}
-                  </Text>
-                </Heading>
               </Box>
+              {/* Band/album title used to render here as a shared heading above both layouts —
+                  moved into DesktopRatingLayout's card per the retouch pass (2026-08-05 dated
+                  entry, docs/decisions/album-rating-page.md). MobileRatingLayout renders its
+                  own separate compact title internally, unaffected by this move — it also
+                  removes what was a pre-existing duplicate title on mobile. */}
 
               {/* Desktop (>= md): 3 simultaneous columns. Hidden via CSS class, not Chakra's
                   responsive `display` prop — the latter renders display:none in jsdom too and

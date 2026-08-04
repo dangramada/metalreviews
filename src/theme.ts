@@ -135,7 +135,13 @@ const system = createSystem(defaultConfig, {
           // to the `sand` ramp, not `ink` like the rest of this group — the reference design's
           // card is a distinctly lighter gray than the `surface.card` review cards use
           // elsewhere, an intentional divergence for this page, not an oversight.
+          // `ratingCard` (sand.600) is shared by Section 2's border — kept as-is, not repointed,
+          // per the retouch pass's explicit instruction not to blindly repoint a shared token.
+          // `ratingCardFill` (sand.900) is the card's own background only, corrected in that
+          // same retouch pass after the initial sand.600 fill turned out not to match the
+          // reference design.
           ratingCard: { value: { base: '{colors.sand.600}' } },
+          ratingCardFill: { value: { base: '{colors.sand.900}' } },
           criterionHover: { value: { base: '{colors.sand.800}' } },
           criterionActive: { value: { base: '{colors.sand.950}' } },
         },

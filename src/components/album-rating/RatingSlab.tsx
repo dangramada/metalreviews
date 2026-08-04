@@ -3,6 +3,9 @@
 // App.tsx's own ScoreSlab component: that component isn't exported and hardcodes a bare
 // number + dimmed "/10" as its content, whereas this needs a small label plus an arbitrary
 // value string (a rank "#N", a percentage, or an em dash pre-completion).
+// flex="1 1 0" hardcodes an even 50/50 split against a sibling RatingSlab — safe because this
+// component only ever renders in the fixed Rank/Score pair in DesktopRatingLayout's Section 3,
+// not as a general-purpose slab.
 import { Box, Text } from '@chakra-ui/react';
 import { scoreSlabBase, scoreSlabHigh } from '../../theme';
 
@@ -16,7 +19,13 @@ export function RatingSlab({
   variant: 'base' | 'high';
 }) {
   return (
-    <Box {...(variant === 'high' ? scoreSlabHigh : scoreSlabBase)} display="flex" flexDirection="column" gap="2px">
+    <Box
+      {...(variant === 'high' ? scoreSlabHigh : scoreSlabBase)}
+      flex="1 1 0"
+      display="flex"
+      flexDirection="column"
+      gap="2px"
+    >
       <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="700" textTransform="uppercase" opacity={0.7}>
         {label}
       </Text>

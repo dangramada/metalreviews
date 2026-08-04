@@ -120,7 +120,7 @@ export function MobileRatingLayout({
                   {entry?.name}
                 </Text>
                 {rated && entry && (
-                  <Text fontSize="sm" color={highlighted ? 'accent.ink' : 'text.dim'}>
+                  <Text fontSize="sm" textTransform="uppercase" color={highlighted ? 'accent.ink' : 'text.dim'}>
                     {entry.levels[level]?.label}
                   </Text>
                 )}

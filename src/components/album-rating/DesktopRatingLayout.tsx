@@ -2,7 +2,7 @@
 // (artwork+meta, criteria+levels, rank/score+chart) per the reference design — see
 // docs/decisions/album-rating-page.md's dated entry for the redesign from the original
 // 3-simultaneous-columns layout this replaces.
-import { Box, Flex, Text, VStack } from '@chakra-ui/react';
+import { Box, Flex, Heading, Text, VStack } from '@chakra-ui/react';
 import { AlbumArtwork } from './AlbumArtwork';
 import { AlbumMeta } from './AlbumMeta';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
@@ -50,7 +50,24 @@ export function DesktopRatingLayout({
   const scoreValue = ratingSummary ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%` : '—';
 
   return (
-    <Box bg="surface.ratingCard" p={6}>
+    <Box bg="surface.ratingCardFill" p={6}>
+      {/* fontFamily="body", never "heading" — same rule as the shared page-level heading this
+          replaced (see StyleGuide.tsx's "Band/album card typography" specimen). Moved inside
+          the card, at the top, per the retouch pass — was previously a separate page heading
+          above/outside the card. */}
+      <Heading
+        as="h2"
+        fontFamily="body"
+        fontSize="19px"
+        fontWeight={700}
+        textTransform="uppercase"
+        mb={4}
+      >
+        {band} –{' '}
+        <Text as="span" fontWeight={500} textTransform="none">
+          {album}
+        </Text>
+      </Heading>
       <Flex gap={6} align="flex-start">
         {/* Section 1: artwork + release date/genre */}
         <VStack flex="0 0 300px" align="stretch" gap={3}>
@@ -117,7 +134,7 @@ export function DesktopRatingLayout({
 
         {/* Section 3: rank/score slabs + radar chart */}
         <VStack flex="0 0 220px" align="stretch" gap={4}>
-          <Flex gap={2}>
+          <Flex gap={0}>
             <RatingSlab label="Rank" value={rankValue} variant="high" />
             <RatingSlab label="Score" value={scoreValue} variant="base" />
           </Flex>

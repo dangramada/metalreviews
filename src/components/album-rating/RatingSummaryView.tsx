@@ -54,7 +54,15 @@ export function RatingSummaryView({
           return (
             <Flex key={entry.index} justify="space-between" fontSize="sm">
               <Text color="text.dim">{entry.name}</Text>
-              <Text>{info ? `${level} — ${info.label}` : '—'}</Text>
+              <Text>
+                {info ? (
+                  <>
+                    {level} — <Text as="span" textTransform="uppercase">{info.label}</Text>
+                  </>
+                ) : (
+                  '—'
+                )}
+              </Text>
             </Flex>
           );
         })}

@@ -3,9 +3,9 @@
 // used per criterion, just scoped to one criterion at a time instead of looping over all six
 // in a flat scrollable list. Shared by DesktopRatingLayout's Column 3 and MobileRatingLayout's
 // Detail screen so both layouts render levels identically.
-import { Heading, VStack } from '@chakra-ui/react';
+import { Heading, Text, VStack } from '@chakra-ui/react';
 import { RadioCardItem, RadioCardItemIndicator, RadioCardRoot } from '../ui/radio-card';
-import type { CriterionCatalogEntry } from '../../lib/criteria-calibration/criteriaCatalog';
+import { formatLevelDescription, type CriterionCatalogEntry } from '../../lib/criteria-calibration/criteriaCatalog';
 
 export function CriterionLevelPicker({
   entry,
@@ -39,8 +39,18 @@ export function CriterionLevelPicker({
               <RadioCardItem
                 key={level}
                 value={level}
-                label={`${level} — ${info.label}`}
-                description={info.description}
+                // Chakra's radio-card recipe couples the `align="center"` variant (needed below
+                // for vertical centering) to itemControl's textAlign, forcing center-aligned
+                // text — overridden here via explicit textAlign on the content itself rather
+                // than by changing `align`, which would also break the indicator's centering.
+                label={
+                  <Text textAlign="left" textTransform="uppercase">
+                    {level} — {info.label}
+                  </Text>
+                }
+                description={
+                  <Text textAlign="left">{formatLevelDescription(info.description)}</Text>
+                }
                 disabled={disabled}
                 indicator={<RadioCardItemIndicator borderRadius="circle" />}
               />
