@@ -263,3 +263,26 @@ on `PolarGrid`/`PolarAngleAxis` individually). Confirmed live by dumping the out
 ring's SVG path against the six per-axis line elements' endpoints — both now terminate at
 identical coordinates (radius 125px on the 260px box), so the grid, data, and cursor line all
 share the same 100% boundary. `tsc --noEmit` and `npx vitest run` (217/217) clean.
+
+## Fourth follow-up: a second, distinct overshoot — hover cursor followed the raw mouse position
+
+After the `outerRadius` fix above, Dan flagged another screenshot: hovering a data point still
+showed a long stray line running from the hovered vertex off toward the bottom-right, well past
+the chart's box — a different line from the one the `outerRadius` fix addressed (that one was a
+fixed per-axis spoke; this one visibly changed direction depending on where the mouse was).
+
+Root cause: Recharts' `<Tooltip>` component defaults its `cursor` prop to `true`, which draws a
+guide line from the chart's center toward the actual mouse position — unclamped to the chart's
+radius (confirmed via `recharts/types/component/Tooltip.d.ts`: `cursor?: CursorDefinition`,
+default `true`, "if set false, no cursor will be drawn"). Combined with `Chart.Root`'s own
+`baseCss` (`chart.cjs`) setting `overflow: visible` on `& svg`, that line rendered fully outside
+the chart's box instead of being clipped at its edge.
+
+Fix: `cursor={false}` on the `<Tooltip>` element. The hovered point's own `activeDot` marker
+(Radar's built-in behavior, already visible in earlier screenshots as the white-ringed dot)
+already shows what's selected, so no separate cursor guide line is needed. Confirmed live via a
+real synthetic hover: the tooltip still renders correctly ("Performance / Masterful / 100% of
+criterion max"), and the only `<line>` elements present afterward are the six fixed structural
+per-axis spokes (center to each vertex, all terminating within the 260px box) plus their tiny
+tick-line stubs — no line tracking the mouse position. `tsc --noEmit` and `npx vitest run`
+(217/217) clean.

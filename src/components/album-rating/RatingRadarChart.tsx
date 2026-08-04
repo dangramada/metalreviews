@@ -140,6 +140,13 @@ export function RatingRadarChart({
           />
           {!isSmall && (
             <Tooltip
+              // Recharts' default cursor (true) draws a guide line from center toward the raw
+              // mouse position, unclamped to the chart's radius — combined with Chart.Root's
+              // `overflow: visible` on its <svg> (chart.cjs's baseCss), that line rendered well
+              // past the chart's box instead of being clipped. The hovered point's own dot
+              // marker (Radar's built-in activeDot) already shows what's selected; no separate
+              // cursor line is needed.
+              cursor={false}
               content={
                 <Chart.Tooltip
                   hideLabel
