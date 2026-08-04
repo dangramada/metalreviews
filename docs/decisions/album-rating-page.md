@@ -200,3 +200,46 @@ rings (20/40/60/80/100px radius steps) on both chart sizes.
 All four changes verified live via the same `/radar-spike` temporary-route pattern used for the
 original build (added, checked, removed each time — never left in the router). `tsc --noEmit`
 and `npx vitest run` (217/217) clean throughout.
+
+## Concurrent-session collision, discovered and undone (same session)
+
+After the polish pass above (commit `5e6f8af`), a Claude Code hook warned "another chat's dev
+server is running in this folder." `git log`/`git reflog` then showed 4 commits on `master` on
+top of `5e6f8af` that this session did not make:
+
+```
+9a7a458 fix: restore per-criterion spoke strokes, make radar chart fluid
+f16bfba fix: radar chart hover cursor line followed raw mouse position
+58af68a fix: radar chart outerRadius defaults to 80%, leaving grid undersized
+9ddcc6a fix: plot radar chart by weight, not level
+```
+
+A separate, concurrent Claude Code session — same repo, same `master` branch, same git identity
+(`Dan Gramada` + `Co-Authored-By: Claude Sonnet 5` trailers, same commit-message conventions) —
+had been committing directly to `master` in parallel. All 4 were legitimate, well-reasoned fixes,
+not garbage: 3 were independent real bugs (Recharts' `outerRadius` defaulting to 80% and
+undersizing the grid; the hover cursor guide-line rendering unclamped past the chart's `overflow:
+visible` SVG; `stroke="none"` from this session's own "Filled Grid" pass silently killing the
+spoke lines too, since `PolarGrid`'s `stroke` prop controls both concentric rings and radial
+spokes together). The 4th, `9ddcc6a`, directly reversed the level-vs-weight plotting decision
+made earlier in this doc's Follow-up polish pass §4 — with its own real justification (a level-1
+pick is fixed at weight 0 by construction, `solver.ts:83`, so plotting by level made a
+zero-contribution pick look like it occupied real chart area instead of sitting at center).
+
+**Decision (confirmed with Dan)**: undo all 4, back to `5e6f8af`, discarding the 3 legitimate
+fixes along with the plot-by-weight reversal, rather than cherry-picking just the 3 unrelated
+fixes and reverting only `9ddcc6a`. Done safely: tagged the pre-undo state first
+(`pre-undo-radar-weight-plotting` → `9a7a458`, so the 3 discarded bug fixes are recoverable via
+`git log pre-undo-radar-weight-plotting` / cherry-pick if wanted later), then `git reset --hard
+5e6f8af`. `tsc --noEmit` and `npx vitest run` (217/217) confirmed clean at the reset point.
+
+**Process finding, not yet fully resolved**: this collision was only possible because both
+sessions were committing straight to `master` instead of isolating work on a branch — including
+this session's own polish pass (`5e6f8af`), which should have been a branch per the project's own
+stated convention (every prior feature in `CLAUDE.md`'s Active branches section gets its own
+branch, `--no-ff` merged when done) rather than a direct commit, even though it felt like a small
+same-session follow-up at the time. Two open items from this: (1) going forward in this session,
+further changes go on a fresh branch, merged only when done; (2) the `album-rating-page` branch
+ref itself now stops at the merge commit and doesn't include the polish pass or this undo, so it
+no longer accurately represents "this feature's retained history" per convention — fast-forwarding
+it to match `master`'s current tip is proposed but not yet done, pending confirmation.
