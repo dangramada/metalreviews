@@ -73,9 +73,20 @@ border, not repointed), title moved inside the card, RadioCard text left-aligned
 label/sentence-case-plus-period description (via a new shared `formatLevelDescription()` helper
 applied to all five real consumers of that text, not just this page — also touches
 `CriterionRow.tsx` in Criteria Calibration for text-formatting consistency only), and Rank/Score
-slabs now sit flush with no gap. Full detail, including the confirmed `sand.600`-vs-review-card
-divergence and live verification across zero/partial/fully-rated albums plus all five text
-consumers: the two 2026-08-05 entries in `docs/decisions/album-rating-page.md`.
+slabs now sit flush with no gap. A second same-day retouch pass fixed four more: added the
+missing outer card border (`border.ruleStrong`, static only — no score-conditional hover, no
+hover at all), fixed Section 2 badge contrast (measured via computed sRGB, not eyeballed —
+`text.dim` was ~4.1:1 against `sand.700`, below WCAG AA; `text.primary` brings it to ~6.9:1),
+found and fixed the *actual* cause of the RadioCard left-align bug (the previous pass's
+`textAlign="left"` fix was genuinely applied but had no visible effect — `ItemContent`'s
+`alignItems: center`, coupled to the same `align="center"` needed for indicator centering, was
+shrink-centering the whole text block as a flex item one level up; fixed via a new optional
+`contentAlignItems` prop on the shared `radio-card.tsx` wrapper, verified via
+`getBoundingClientRect()` rather than trusting the style alone), and swapped an em dash for an
+en dash between level number and label. Full detail, including the confirmed
+`sand.600`-vs-review-card divergence and live verification across zero/partial/fully-rated
+albums plus all five text consumers: the three 2026-08-05 entries in
+`docs/decisions/album-rating-page.md`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**
