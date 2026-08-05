@@ -52,11 +52,13 @@ export function CriterionLevelPicker({
                 // `contentAlignItems="flex-start"`, which targets only ItemContent, not
                 // ItemControl — the indicator's centering is untouched.
                 label={
-                  <Text textTransform="uppercase">
+                  <Text textAlign="left" textTransform="uppercase">
                     {level} – {info.label}
                   </Text>
                 }
-                description={<Text>{formatLevelDescription(info.description)}</Text>}
+                description={
+                  <Text textAlign="left">{formatLevelDescription(info.description)}</Text>
+                }
                 disabled={disabled}
                 indicator={<RadioCardItemIndicator borderRadius="circle" />}
                 contentAlignItems="flex-start"

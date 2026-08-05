@@ -90,7 +90,7 @@ export function DesktopRatingLayout({
               const level = ratings.get(id);
               const isSelected = selectedCriterionId === id;
               const isRated = level !== undefined;
-              const statusLabel = isRated && entry ? `${level} – ${entry.levels[level]?.label}` : 'NOT EVALUATED';
+              const statusLabel = isRated && entry ? `${level}–${entry.levels[level]?.label}` : 'NOT EVALUATED';
               return (
                 <Flex
                   key={id}
@@ -110,7 +110,7 @@ export function DesktopRatingLayout({
                   <Text
                     as="span"
                     fontFamily="mono"
-                    fontSize="10px"
+                    fontSize="11px"
                     fontWeight="600"
                     textTransform="uppercase"
                     letterSpacing="0.06em"
