@@ -21,6 +21,10 @@ export function RatingSlab({
   return (
     <Box
       {...(variant === 'high' ? scoreSlabHigh : scoreSlabBase)}
+      // scoreSlabBase/scoreSlabHigh carry a 2px borderTop/borderLeft (the review card's own
+      // flush-corner treatment) — overridden off here per the fourth pass; the shared style
+      // objects in theme.ts are untouched since the review card's own ScoreSlab still uses them.
+      border="none"
       flex="1 1 0"
       display="flex"
       flexDirection="column"

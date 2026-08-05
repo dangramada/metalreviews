@@ -12,17 +12,25 @@ export function CriterionLevelPicker({
   selectedLevel,
   onPick,
   disabled,
+  // Desktop's row already shows the criterion name to the left of the picker, so this
+  // component's own title is redundant there — but MobileRatingLayout's Detail screen has no
+  // such row (it's a full-screen view keyed only on the selected criterion), so it still needs
+  // this heading. Defaults to shown, so mobile is unaffected.
+  showTitle = true,
 }: {
   entry: CriterionCatalogEntry;
   selectedLevel: number | undefined;
   onPick: (level: number) => void;
   disabled: boolean;
+  showTitle?: boolean;
 }) {
   return (
     <VStack align="stretch" gap={4}>
-      <Heading as="h3" size="md">
-        {entry.name}
-      </Heading>
+      {showTitle && (
+        <Heading as="h3" size="md">
+          {entry.name}
+        </Heading>
+      )}
       <RadioCardRoot
         value={selectedLevel?.toString() ?? null}
         onValueChange={(details) => {
@@ -60,7 +68,26 @@ export function CriterionLevelPicker({
                   <Text textAlign="left">{formatLevelDescription(info.description)}</Text>
                 }
                 disabled={disabled}
-                indicator={<RadioCardItemIndicator borderRadius="circle" />}
+                // `sand.200` checked highlight, overridden explicitly rather than via
+                // `colorPalette` — `sand` isn't registered as a full color palette (only
+                // `ember` is, see theme.ts's semantic-token block), so `colorPalette.solid`
+                // wouldn't resolve correctly for a raw ramp with no semantic sub-keys. Item's
+                // own `_checked` covers the outline/box-shadow ring; the indicator's `_checked`
+                // covers its fill dot — both driven by `colorPalette.solid`/`.contrast` in the
+                // recipe otherwise.
+                _checked={{ borderColor: 'sand.200', boxShadowColor: 'sand.200' }}
+                indicator={
+                  <RadioCardItemIndicator
+                    borderRadius="circle"
+                    // Default (unchecked) state — this project never set its own value here
+                    // before, so it was falling back to Chakra's built-in `border.emphasized` at
+                    // 1px. Explicit sand.600/2px now; `_checked` below still overrides both for
+                    // the selected state.
+                    borderColor="sand.600"
+                    borderWidth="2px"
+                    _checked={{ bg: 'sand.200', borderColor: 'sand.200', color: 'ink.900' }}
+                  />
+                }
                 contentAlignItems="flex-start"
               />
             ))}

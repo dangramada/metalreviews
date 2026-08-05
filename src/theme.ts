@@ -142,8 +142,18 @@ const system = createSystem(defaultConfig, {
           // reference design.
           ratingCard: { value: { base: '{colors.sand.600}' } },
           ratingCardFill: { value: { base: '{colors.sand.900}' } },
-          criterionHover: { value: { base: '{colors.sand.800}' } },
-          criterionActive: { value: { base: '{colors.sand.950}' } },
+          // Fifth pass (same day) correction: `criterionRow` is the resting fill for non-active
+          // criteria rows and the criteria-list container — repointed from ink.800 to sand.950,
+          // one step darker than the reintroduced `criterionActive` (ink.800) below, so the
+          // active row + its level picker read as a lighter highlighted block against the
+          // darker resting rows. `criterionHover` (ink.900) unchanged.
+          criterionRow: { value: { base: '{colors.sand.950}' } },
+          criterionHover: { value: { base: '{colors.ink.900}' } },
+          // Reintroduced (fifth pass) at a new value — the fourth pass deleted this token when
+          // "active" briefly had no distinct background at all; it's back because active now
+          // needs one again, this time ink.800 (not the original sand.900) shared by both the
+          // active criteria row and the level picker area next to it.
+          criterionActive: { value: { base: '{colors.sand.900}' } },
         },
         border: {
           default: { value: { base: '{colors.gray.600}' } },

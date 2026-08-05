@@ -438,3 +438,104 @@ viewport: card `border-width: 2px`/`border-color: rgb(58, 58, 58)` on `rgb(26, 2
 "NOT EVALUATED" badge `rgb(56, 56, 56)` bg / `rgb(202, 198, 187)` text; level-picker
 `ItemContent` `align-items: flex-start` with the label span's `left` pixel value exactly equal
 to its container's; level-text codepoint `U+2013` (en dash) confirmed via `codePointAt`.
+
+Same-day follow-up fix (reported directly, not part of a formal pass): the multi-line
+description case still centered after the above. Root cause: `contentAlignItems="flex-start"`
+positions the label/description *block* at the row's left edge, but doesn't affect text-align
+*within* a wrapped block — a shrink-to-fit box that wraps takes the available width rather than
+its longest line's width, and inside that wider box the text still inherited `text-align:
+center` from `ItemControl` (still needed for the indicator's centering). The previous pass had
+removed `textAlign="left"` from the label/description `Text`s as apparently-redundant once
+`contentAlignItems` was added — restored it, since it's only redundant for single-line text.
+Also tweaked by hand in the same window: Section 2 badge font size 10px → 11px, and the
+`{level}–{LABEL}` dash spacing tightened (no surrounding spaces).
+
+## Third pass — spacing/padding sweep, title relocation, background layering (2026-08-05, same day)
+
+Scoped explicitly to precede the (separate, not-yet-started) responsive-breakpoints session.
+
+**Zero-padding sweep.** Removed the outer card `Box`'s `p={6}` and the 3-section `Flex`'s
+`gap={6}` entirely — all 3 sections now sit flush against the card's 2px border and against
+each other, with only the pre-existing 1px `surface.ratingCard` border (on Section 2's own box)
+as the visual divider on both sides, per the brief's confirmation that no new dividers were
+needed. Changed the 3-section `Flex`'s `align` from `flex-start` to `stretch` — not explicitly
+requested, but necessary for the new per-section background fills (below) to cover each
+section's full height rather than stopping at its shortest child. Two interpretive calls, not
+covered by the brief's explicit bullet list, made narrowly rather than guessed broadly: (1) no
+gap was added between the artwork and the text block below it — the brief's only stated
+exception was "16px horizontal padding and 12px gap between its 3 rows," not a gap *before* row
+1, so left at zero; (2) Section 3's existing `gap={4}` between the Rank/Score row and the radar
+chart was left untouched — the sweep's bullets are all about section/card-boundary spacing, not
+every internal component gap, and this one was never flagged as needing a value. Both are easy
+to adjust if wrong on manual review.
+
+**Title moved into Section 1.** Previously rendered as a full-width `Heading` at the top of the
+card (added in the first retouch pass), now removed from there and rebuilt as row 1 of Section
+1's stacked text block, directly under the artwork. Matched the review card's own band/album
+typography exactly (`App.tsx` ~line 741: `Heading` 19px/700/uppercase for band, `Text` 18px/500
+for album, tightly stacked with zero gap between them) rather than inventing new styles.
+Inlined rather than reusing `AlbumMeta.tsx` for the release-date/genre rows too: `AlbumMeta`'s
+own internal margins (`mb=1`/`mb=2`) would double up with this section's `gap="12px"`, and
+extraction wasn't required this pass — a few duplicated lines were the lower-risk choice over
+touching a component also used by the review card.
+
+**Background layering — one correction, one addition.**
+- `surface.criterionActive` repointed from `sand.950` to `sand.900` (now matches
+  `ratingCardFill` exactly) — confirmed via grep it has exactly two consumers, both in this
+  file, so repointing the token directly (not adding a new one) was safe.
+- Each section now has its own `bg="surface.card"` (`ink.900`) fill, reusing the token already
+  registered for review cards rather than adding a redundant new one at the same value.
+  Layering, outermost to innermost: card frame `sand.900` → section fill `ink.900` (darkest) →
+  active row/picker `sand.900` (back up to the frame's value) → row hover `sand.800`
+  (untouched this pass).
+- The outer 2px `border.ruleStrong` card border and the inner 1px `surface.ratingCard` (`sand.600`)
+  Section 2 border are unchanged and confirmed distinct — the padding removal didn't collapse
+  or remove either.
+
+**Flagged, not changed**: the brief describes the Rank/Score slabs as already having "no border
+between them," but `RatingSlab.tsx` spreads `scoreSlabBase`/`scoreSlabHigh` unmodified, and
+`scoreSlabBase` includes a 2px `borderLeft` (`border.rule`) — meaning the Score slab (right
+side) should show a thin vertical rule against Rank, not a seamless join. Nothing in this pass
+touched `RatingSlab.tsx`, so this predates it either way; left as-is rather than guessing
+whether to strip the border, pending a look at how it actually renders.
+
+**Not verified live this pass** — Dan is testing manually. `tsc --noEmit` is clean;
+`npx vitest run` not re-run since no test-covered logic changed (pure layout/token edits).
+
+## Fourth pass — Section 2 bg/border/padding, title removed from level picker, RadioCard highlight (2026-08-05, same day)
+
+Also not live-verified (`tsc` clean only) — Dan testing manually throughout this stretch.
+
+- `surface.criterionRow` (new, `ink.800`) as the uniform resting fill for both criteria rows and
+  the level picker; `surface.criterionHover` repointed `sand.800`→`ink.900`; `surface.criterionActive`
+  deleted (its 2 consumers both confirmed via grep) — "active" briefly had no distinct
+  background at all, only a text-color change (superseded by the fifth pass below).
+- Section 2's border reduced to left/right only (top/bottom removed — the outer 2px card border
+  already frames those since the third pass's zero-padding sweep).
+- Active criteria row text → `ink.500` (superseded by the fifth pass below).
+- `CriterionLevelPicker.tsx` gained a `showTitle` prop (default `true`) so its redundant-on-desktop
+  criterion-name heading could be hidden there without breaking `MobileRatingLayout`'s Detail
+  screen, which has no other place to show the name.
+- Criteria row `py`: 12px → 16px.
+- RadioCard checked-state highlight (item outline ring + indicator fill) → `sand.200`, via
+  explicit `_checked` overrides rather than `colorPalette` — `sand` isn't registered as a full
+  color palette in this theme (only `ember` is), so `colorPalette.solid` wouldn't have resolved.
+- `RatingSlab.tsx`: `border="none"` added after spreading `scoreSlabBase`/`scoreSlabHigh`,
+  stripping their inherited 2px border for this component's own usage only — the shared style
+  objects in `theme.ts` are untouched, still used by the review card's own `ScoreSlab`.
+
+## Fifth pass — active-state background restored, indicator default state (2026-08-05, same day)
+
+Correction to the fourth pass's "active has no background" simplification, after live review.
+
+- `surface.criterionRow` repointed again, `ink.800`→`sand.950` — now the *darker* resting fill.
+- `surface.criterionActive` reintroduced at a new value (`ink.800`, not its original `sand.900`/
+  `sand.950`) — shared by the active criteria row and the level picker panel next to it, so they
+  read as one lighter highlighted block against the darker `sand.950` resting rows.
+- Active row text: `ink.500` → `ember.500`.
+- RadioCard indicator default (unchecked) state: explicit `borderColor="sand.600"`,
+  `borderWidth="2px"` — previously unset, silently falling back to Chakra's built-in
+  `border.emphasized`/1px. The checked-state `sand.200` override from the fourth pass is
+  unchanged.
+
+Not live-verified — Dan testing manually.
