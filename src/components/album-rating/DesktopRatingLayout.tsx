@@ -61,11 +61,41 @@ export function DesktopRatingLayout({
     // No padding here (third pass, spacing sweep) — all 3 sections sit flush against this
     // border; each section supplies its own internal spacing where needed (the artwork/meta
     // column's text block being the one explicit exception, see below).
-    <Box bg="surface.ratingCardFill" border="2px solid" borderColor="border.ruleStrong">
-      {/* align="stretch" (not the previous flex-start) so all 3 sections share the same
-          height — needed for each section's own ink.900 fill (surface.card, added this pass)
-          to cover its full content area rather than just its shortest child's height. */}
-      <Flex gap={0} align="stretch">
+    <Box
+      bg="surface.ratingCardFill"
+      border="2px solid"
+      borderColor="border.ruleStrong"
+      // Two internal tiers within this >=768px component (the 768px Tier 3/mobile split itself
+      // lives one level up, in AlbumRatingPage.tsx — MobileRatingLayout is untouched). Raw
+      // `@media` at 64em/1024px, not Chakra's `lg` token (992px in this theme, no custom
+      // breakpoints defined) — the brief calls out 1024px specifically, so the token would
+      // silently shift the boundary.
+      //   - Tier 2 (768-1023px): 2-row grid, Section 1 + Section 3 sharing row 1, Section 2
+      //     full width on row 2 below.
+      //   - Tier 1 (>=1024px): single row, all 3 sections side by side, rebalanced so Section 2
+      //     (criteria+levels — the most content-sensitive section) keeps priority over Section 3
+      //     as the viewport narrows.
+      // Column tracks chosen by live testing at 768/900/1023 and 1024/1150/1300/1600+:
+      //   - Section 1 stays a fixed 300px at the wide tier (least to gain from flexing, and the
+      //     300x300 artwork requirement is explicit) but must go fluid at Tier 2, where it
+      //     shares a row with Section 3 instead of spanning full width.
+      //   - Section 2 gets minmax(420px, 1.6fr) — 420px is the narrowest width at which the
+      //     level-picker's longest level descriptions still wrap to no more than 2 lines at
+      //     1024px; the 1.6fr share means it gives up space to Section 3 more slowly as the
+      //     viewport narrows.
+      //   - Section 3 gets minmax(220px, 0.9fr) — 220px matches RatingSlab's already-fixed
+      //     width from the pre-responsive layout (below that, "Score" + a 3-digit percentage
+      //     starts crowding); the radar chart's own ResponsiveContainer absorbs the rest.
+      css={{
+        display: 'grid',
+        gridTemplateAreas: '"art score" "crit crit"',
+        gridTemplateColumns: '1fr 1fr',
+        '@media (min-width: 64em)': {
+          gridTemplateAreas: '"art crit score"',
+          gridTemplateColumns: '300px minmax(420px, 1.6fr) minmax(220px, 0.9fr)',
+        },
+      }}
+    >
         {/* Section 1: artwork (flush) + band/album/date/genre text block. Band/album typography
             matches the review card's exactly (App.tsx ~line 741) rather than inventing new
             styles — 19px/700/uppercase band, 18px/500 album, tightly stacked with no gap
@@ -74,8 +104,14 @@ export function DesktopRatingLayout({
             margins (mb=1/mb=2) would stack with this section's 12px row gap and produce
             inconsistent spacing — not required to extract this pass, so duplicated instead of
             risking a shared-component change that could also affect the review card's spacing. */}
-        <VStack flex="0 0 300px" align="stretch" gap={0} bg="surface.card">
-          <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="300px" />
+        <VStack gridArea="art" align="stretch" gap={0} bg="surface.card">
+          {/* size="auto" fills this section's own grid-track width at a 1:1 ratio — at Tier 1
+              (>=1024px) that track is a fixed 300px, so this renders identically to the
+              previous hardcoded 300px square; at Tier 2 (768-1023px) the track is fluid
+              (shared 1fr column with Section 3), so the artwork shrinks with it. Verified live
+              at 768/900/1023px that a hardcoded 300px would either overflow the shared column
+              or starve Section 3. */}
+          <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="auto" />
           <VStack align="stretch" gap="12px" px="16px" py="20px">
             <Box>
               <Heading
@@ -121,7 +157,7 @@ export function DesktopRatingLayout({
             active row + its level picker (below) get the lighter surface.criterionActive
             (ink.800) instead, forming one highlighted block against the darker resting rows. */}
         <Flex
-          flex="1 1 0"
+          gridArea="crit"
           minW={0}
           borderLeft="1px solid"
           borderRight="1px solid"
@@ -231,14 +267,13 @@ export function DesktopRatingLayout({
 
         {/* Section 3: rank/score slabs + radar chart. bg="surface.card" — same third-pass fill
             as the other two sections. */}
-        <VStack flex="0 0 220px" align="stretch" gap={4} bg="surface.card">
+        <VStack gridArea="score" align="stretch" gap={4} bg="surface.card" minW={0}>
           <Flex gap={0}>
             <RatingSlab label="Rank" value={rankValue} variant="high" />
             <RatingSlab label="Score" value={scoreValue} variant="base" />
           </Flex>
           <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
         </VStack>
-      </Flex>
     </Box>
   );
 }

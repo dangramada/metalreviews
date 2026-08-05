@@ -83,10 +83,16 @@ found and fixed the *actual* cause of the RadioCard left-align bug (the previous
 shrink-centering the whole text block as a flex item one level up; fixed via a new optional
 `contentAlignItems` prop on the shared `radio-card.tsx` wrapper, verified via
 `getBoundingClientRect()` rather than trusting the style alone), and swapped an em dash for an
-en dash between level number and label. Full detail, including the confirmed
-`sand.600`-vs-review-card divergence and live verification across zero/partial/fully-rated
-albums plus all five text consumers: the three 2026-08-05 entries in
-`docs/decisions/album-rating-page.md`.
+en dash between level number and label. A separate same-day session then made
+`DesktopRatingLayout` responsive across 3 tiers: >=1024px single-row grid rebalanced so Section 2
+(criteria+levels) keeps priority over Section 3 as the viewport narrows (`minmax(420px, 1.6fr)`
+vs `minmax(220px, 0.9fr)`, Section 1 fixed 300px), 768-1023px reorganizes into Section 1+3 on one
+row with Section 2 full-width below (`AlbumArtwork` gained a `size="auto"` fluid 1:1 mode for
+this tier), <768px (`MobileRatingLayout`) untouched. Verified live at 768/900/1023/1024/1150/
+1300/1600px via a temporary unauthenticated dev route, removed before commit. Full detail,
+including the confirmed `sand.600`-vs-review-card divergence, live verification across
+zero/partial/fully-rated albums plus all five text consumers, and the responsive-layout pass's
+chosen values and rationale: the four 2026-08-05 entries in `docs/decisions/album-rating-page.md`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**

@@ -586,3 +586,82 @@ top+bottom), shifting every row below it on each click. Fixed by always renderin
 - `RatingSlab.tsx`: label text `10px`→`14px` and `opacity: 0.7`→`1`; value text `23px`→`28px`;
   container `pt`/`pb` `8px`/`4px`→`16px`/`12px` — all overridden locally, not touching the
   shared `scoreSlabBase`/`scoreSlabHigh` objects the review card's own `ScoreSlab` still uses.
+
+## 2026-08-05: Responsive layout for DesktopRatingLayout (3 tiers)
+
+Separate session from the retouch passes above — a genuine responsive strategy for
+`DesktopRatingLayout`, not another visual fix. The real mobile/desktop split stays at `md`
+(768px, `AlbumRatingPage.tsx`'s existing raw `@media` show/hide — `MobileRatingLayout` untouched
+throughout this session). What changed is entirely inside the `>=768px` component itself, which
+previously rendered one fixed layout (Section 1 and Section 3 fixed-width, Section 2 absorbing
+100% of the squeeze) at every width above that.
+
+**Why the single-fluid-column approach was wrong.** Section 2 (criteria list + level picker) has
+the most content and the most sensitivity to width — criterion names, level descriptions that
+wrap across lines — so it should be the *last* section to give up space, not the *only* one
+compressing. Confirmed via live testing before writing any layout code: at ~900-1000px the old
+layout squeezed Section 2 uncomfortably while Section 1's fixed 300px artwork column and
+Section 3's fixed 220px slabs sat untouched.
+
+**Structure: one grid, not two render trees.** Rather than branching the component's JSX per
+tier, `DesktopRatingLayout`'s outer `Box` became a CSS Grid with `gridTemplateAreas`/
+`gridTemplateColumns` switched by a single internal `@media (min-width: 64em)` (1024px) — each
+section keeps a stable `gridArea` (`art`/`crit`/`score`) and DOM position; only the grid's own
+column/row definition changes. This is why Tier 2's row-1-then-row-2 reorder (Section 2 sits
+between 1 and 3 in the DOM) didn't need a `order` hack or a duplicate branch — grid areas handle
+the visual reorder for free.
+
+Raw `@media (min-width: 64em)`, not Chakra's `lg` breakpoint token — this theme defines no
+custom breakpoints, so Chakra's `lg` resolves to 992px, not the 1024px the brief calls for
+specifically. Same reasoning as the existing 47.9375em/48em split one level up in
+`AlbumRatingPage.tsx`: precision over convenience where an exact px boundary matters.
+
+**Tier 1 (>=1024px) — chosen values, found by live testing at 1024/1150/1300/1600px:**
+```
+gridTemplateColumns: 300px minmax(420px, 1.6fr) minmax(220px, 0.9fr)
+```
+- Section 1: unchanged fixed `300px` — least to gain from flexing, and the 300x300 artwork
+  requirement is explicit and repeated elsewhere in this project's history.
+- Section 2: `minmax(420px, 1.6fr)`. 420px is the narrowest width at which the level picker's
+  longest level descriptions still wrap to no more than 2 lines at the 1024px boundary itself
+  (checked directly, not assumed); the `1.6fr` share means it gives up space to Section 3 more
+  slowly as the viewport narrows, per the brief's priority ordering.
+- Section 3: `minmax(220px, 0.9fr)`. 220px matches `RatingSlab`'s own pre-responsive fixed width
+  — below that, "SCORE" plus a value like "100%" starts crowding the slab (checked live with a
+  3-digit `100%`/2-digit `#12` value at the narrow 1024px end, not just the default `72%`/`#3`
+  mock). The radar chart's own internal `ResponsiveContainer` (already required by Recharts, see
+  the engine-integration entry above) absorbs the rest of the narrowing without any extra work
+  here.
+
+At no tested width (1024/1150/1300/1600) did Section 2's text overflow, the radar chart clip, or
+either `RatingSlab`'s value wrap.
+
+**Tier 2 (768-1023px) — 2-row reorg, verified live at 768/900/1023px:**
+```
+gridTemplateAreas: '"art score" "crit crit"'
+gridTemplateColumns: 1fr 1fr
+```
+Row 1: Section 1 (artwork+meta) and Section 3 (Rank/Score+chart) side by side, evenly split —
+both are comparatively compact and content-light, and pair naturally per the brief. Row 2:
+Section 2 full width below, where it actually has room.
+
+**Artwork sizing at Tier 2.** `AlbumArtwork.tsx`'s `size` prop gained an `"auto"` mode (`w:
+'100%', h: 'auto', aspectRatio: '1'`) instead of a fixed px string — `DesktopRatingLayout` now
+always passes `size="auto"`. At Tier 1 this renders identically to the old hardcoded `300px`
+(the grid track itself is a fixed 300px there, so 100% width = 300px). At Tier 2, Section 1's
+own column is fluid (shared 1fr track with Section 3), so a hardcoded 300px would either
+overflow the shared row at the 768px end or leave Section 3 starved at the 1023px end — verified
+live at both ends that neither happens with `auto` (measured via `getBoundingClientRect()` at
+1023px: a 485.5px square, exactly half the 1023px card width minus its 2px border, matching
+Section 3's own column width).
+
+**What did not change:** `MobileRatingLayout` (confirmed via the still-intact 47.9375em/48em
+gate in `AlbumRatingPage.tsx`, one level above this component); the border/badge/alignment/dash
+fixes from the earlier retouch passes; `RatingSlab`'s inherited `borderLeft` (still open, still
+out of scope, not touched here).
+
+**Verification:** live-checked at 768, 900, 1023, 1024, 1150, 1300, and 1600px via a temporary
+unauthenticated dev route (`/dev-rating-preview`, mock catalog + mock rating summary, removed
+before this pass's commit — not part of the shipped diff) since `/rate/:albumId` is
+auth-gated and no test credentials were available in this session. `tsc --noEmit` clean,
+`npx vitest run` 217/217.
