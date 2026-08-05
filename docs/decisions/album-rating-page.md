@@ -539,3 +539,50 @@ Correction to the fourth pass's "active has no background" simplification, after
   unchanged.
 
 Not live-verified — Dan testing manually.
+
+## Sixth pass — criteria/level-picker border continuity, flicker fix, hover/typography polish (2026-08-05, same day)
+
+Also not live-verified — Dan testing manually throughout. All in `DesktopRatingLayout.tsx`,
+`CriterionLevelPicker.tsx`, `RatingSlab.tsx`.
+
+**Border continuity between the criteria list and level picker.** The level picker panel
+carries no border of its own — a divider is instead drawn as `borderRight` on each *non-active*
+criteria row, `sand.600`. This achieves the same vertical rule a border on the panel itself
+would, but for free gets a gap exactly at the active row's height (which needs no divider there
+— the active row and the panel beside it share the same `surface.criterionActive` fill and
+should read as one continuous block), without needing to compute pixel offsets against a
+dynamically-sized panel.
+
+Two real bugs found via live review against this approach, both fixed:
+- **Small-screen gap**: the criteria list's 6 rows are often shorter than the level picker's
+  content (which can wrap to more lines), so the row-based border stopped partway down instead
+  of reaching the section's true bottom edge. Fixed by giving the *last* row `flex="1"`, so it
+  grows to fill any leftover column height — its own `border-right` then always reaches the
+  bottom regardless of viewport size, no runtime measurement needed.
+- **First/last-row border doubling**: when the active row is the first or last criterion, its
+  `borderTop`/`borderBottom` sits directly against the outer 2px card border (Section 2 itself
+  has no top/bottom border of its own, see the third pass), reading as a doubled line. Both are
+  now suppressed via `isFirst`/`isLast` index checks — top only for the first row, bottom only
+  for the last, left as separate, narrowly-scoped conditions rather than one broader rule.
+
+**Selection flicker, root cause found live, not guessed.** Clicking a different criterion
+visibly reflowed the rows below it. Cause: `borderTop`/`borderBottom`/`borderRight` were toggled
+between `undefined` and `'1px solid'` depending on state — since rows have no fixed height,
+adding/removing a border changes the row's own rendered box size (2px height swing for
+top+bottom), shifting every row below it on each click. Fixed by always rendering all 3 sides at
+`1px solid` and toggling only their *color* (`sand.600`/`transparent`) via
+`borderTopColor`/`borderBottomColor`/`borderRightColor` — box size never changes now.
+
+**Smaller fixes, same pass:**
+- Criteria row: `gap` between name and status badge, 4px→8px; `cursor="pointer"` on hover for
+  inactive rows only (clicking the already-active row is a no-op).
+- Criteria row + status badge text: explicit `textAlign="left"` added to both — same defensive
+  fix as the RadioCard centering bug from an earlier pass (likely cause: `as="button"`'s
+  browser-default centered text-align cascading to children with no explicit override; not
+  chased further since the fix is safe regardless of the exact source).
+- RadioCard level items: `_hover={{ borderColor: 'sand.500' }}` with
+  `transition="border-color 0.15s ease"`; `cursor="pointer"` by default, `"default"` when
+  checked (via the existing `_checked` override).
+- `RatingSlab.tsx`: label text `10px`→`14px` and `opacity: 0.7`→`1`; value text `23px`→`28px`;
+  container `pt`/`pb` `8px`/`4px`→`16px`/`12px` — all overridden locally, not touching the
+  shared `scoreSlabBase`/`scoreSlabHigh` objects the review card's own `ScoreSlab` still uses.

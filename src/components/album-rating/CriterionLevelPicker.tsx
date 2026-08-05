@@ -68,6 +68,12 @@ export function CriterionLevelPicker({
                   <Text textAlign="left">{formatLevelDescription(info.description)}</Text>
                 }
                 disabled={disabled}
+                // Hover: border eases to sand.500 (smooth via the transition below); pointer
+                // cursor only while unchecked (`_checked` overrides both back to the checked
+                // look/default cursor — clicking an already-selected level is a no-op).
+                transition="border-color 0.15s ease"
+                cursor="pointer"
+                _hover={{ borderColor: 'sand.500' }}
                 // `sand.200` checked highlight, overridden explicitly rather than via
                 // `colorPalette` — `sand` isn't registered as a full color palette (only
                 // `ember` is, see theme.ts's semantic-token block), so `colorPalette.solid`
@@ -75,7 +81,7 @@ export function CriterionLevelPicker({
                 // own `_checked` covers the outline/box-shadow ring; the indicator's `_checked`
                 // covers its fill dot — both driven by `colorPalette.solid`/`.contrast` in the
                 // recipe otherwise.
-                _checked={{ borderColor: 'sand.200', boxShadowColor: 'sand.200' }}
+                _checked={{ borderColor: 'sand.200', boxShadowColor: 'sand.200', cursor: 'default' }}
                 indicator={
                   <RadioCardItemIndicator
                     borderRadius="circle"

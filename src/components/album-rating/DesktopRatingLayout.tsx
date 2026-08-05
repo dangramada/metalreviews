@@ -76,7 +76,7 @@ export function DesktopRatingLayout({
             risking a shared-component change that could also affect the review card's spacing. */}
         <VStack flex="0 0 300px" align="stretch" gap={0} bg="surface.card">
           <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="300px" />
-          <VStack align="stretch" gap="12px" px="16px" py="12px">
+          <VStack align="stretch" gap="12px" px="16px" py="20px">
             <Box>
               <Heading
                 as="h3"
@@ -129,11 +129,13 @@ export function DesktopRatingLayout({
           bg="surface.criterionRow"
         >
           <VStack flex="1 1 0" minW={0} align="stretch" gap={0}>
-            {order.map((id) => {
+            {order.map((id, index) => {
               const entry = catalog?.entries[id];
               const level = ratings.get(id);
               const isSelected = selectedCriterionId === id;
               const isRated = level !== undefined;
+              const isFirst = index === 0;
+              const isLast = index === order.length - 1;
               const statusLabel = isRated && entry ? `${level}–${entry.levels[level]?.label}` : 'NOT EVALUATED';
               return (
                 <Flex
@@ -142,17 +144,48 @@ export function DesktopRatingLayout({
                   onClick={() => onSelectCriterion(id)}
                   direction="column"
                   align="flex-start"
-                  gap={1}
+                  gap={2}
                   px={4}
                   py={4}
+                  cursor={isSelected ? undefined : 'pointer'}
+                  // Last row grows to fill any leftover column height (e.g. on shorter/narrower
+                  // viewports where the 6 rows' natural height is less than the level picker's
+                  // content height) — otherwise its own border-right stops at its natural
+                  // bottom instead of continuing down to the section's true bottom edge.
+                  flex={isLast ? '1' : undefined}
                   bg={isSelected ? 'surface.criterionActive' : undefined}
                   _hover={{ bg: isSelected ? 'surface.criterionActive' : 'surface.criterionHover' }}
+                  // Active row: top/bottom rule framing it, no right border — the level picker
+                  // panel sits directly beside it with the same surface.criterionActive fill,
+                  // so leaving this edge open reads as one continuous highlighted block. Every
+                  // other row: a right border instead, doubling as the divider against the
+                  // picker panel (which carries no border of its own — see below) — this
+                  // achieves the same vertical rule as a border on the panel itself, but lets it
+                  // fall away exactly at the active row's height for free, since each row's own
+                  // right edge lines up with the panel's left edge. Top border suppressed when
+                  // the active row is the very first one — it always sits flush against the
+                  // section's real top edge (no top border of its own), so drawing one here
+                  // would double up against the outer card border right above it. Same
+                  // suppression for the bottom border when the active row is last.
+                  //
+                  // All 3 borders are always rendered at 1px — only their color toggles between
+                  // sand.600 and transparent, never their presence. Toggling `undefined` vs
+                  // '1px solid' changed each row's box height by the border's own width (rows
+                  // have no fixed height), causing neighboring rows to visibly reflow/flicker on
+                  // every selection change — this keeps every row's box size constant.
+                  borderTop="1px solid"
+                  borderBottom="1px solid"
+                  borderRight="1px solid"
+                  borderTopColor={isSelected && !isFirst ? 'sand.600' : 'transparent'}
+                  borderBottomColor={isSelected && !isLast ? 'sand.600' : 'transparent'}
+                  borderRightColor={isSelected ? 'transparent' : 'sand.600'}
                 >
                   <Text
                     fontWeight="semibold"
                     color={isSelected ? 'ember.500' : 'text.primary'}
                     fontSize="sm"
                     textTransform="uppercase"
+                    textAlign="left"
                   >
                     {entry?.name}
                   </Text>
@@ -163,6 +196,7 @@ export function DesktopRatingLayout({
                     fontWeight="600"
                     textTransform="uppercase"
                     letterSpacing="0.06em"
+                    textAlign="left"
                     px="8px"
                     py="4px"
                     // Rated: accent.border/accent.ink — same pairing as scoreSlabHigh, ~6.8:1

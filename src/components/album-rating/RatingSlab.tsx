@@ -25,15 +25,19 @@ export function RatingSlab({
       // flush-corner treatment) — overridden off here per the fourth pass; the shared style
       // objects in theme.ts are untouched since the review card's own ScoreSlab still uses them.
       border="none"
+      // Overrides scoreSlabBase's pt/pb (8px/4px) for this component's own usage only — same
+      // reasoning as the border override above.
+      pt="16px"
+      pb="12px"
       flex="1 1 0"
       display="flex"
       flexDirection="column"
       gap="2px"
     >
-      <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="700" textTransform="uppercase" opacity={0.7}>
+      <Text as="span" fontFamily="mono" fontSize="14px" fontWeight="700" textTransform="uppercase" opacity={1}>
         {label}
       </Text>
-      <Text as="span" fontFamily="heading" fontSize="23px" fontWeight="700" lineHeight="1" letterSpacing="-0.02em">
+      <Text as="span" fontFamily="heading" fontSize="28px" fontWeight="700" lineHeight="1" letterSpacing="-0.02em">
         {value}
       </Text>
     </Box>
