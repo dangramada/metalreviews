@@ -28,8 +28,12 @@ export function CriterionLevelPicker({
         onValueChange={(details) => {
           if (details.value) onPick(parseInt(details.value, 10));
         }}
+        // `justify="space-between"` was here before but is not a valid value for this recipe's
+        // `justify` variant (only start/end/center are defined) — confirmed live via computed
+        // style that it silently did nothing (`--radio-card-justify` was empty). Removed rather
+        // than kept as inert/misleading; the indicator still lands at the row's end because
+        // ItemContent's own `flex: 1` already fills the remaining space.
         orientation="horizontal"
-        justify="space-between"
         align="center"
       >
         <VStack gap={2} align="stretch">
@@ -39,20 +43,23 @@ export function CriterionLevelPicker({
               <RadioCardItem
                 key={level}
                 value={level}
-                // Chakra's radio-card recipe couples the `align="center"` variant (needed below
-                // for vertical centering) to itemControl's textAlign, forcing center-aligned
-                // text — overridden here via explicit textAlign on the content itself rather
-                // than by changing `align`, which would also break the indicator's centering.
+                // Chakra's radio-card recipe couples `align="center"` (needed below for the
+                // indicator's vertical centering) to ItemContent's own `alignItems`, which
+                // centers the whole label/description block as a flex item — the block shrinks
+                // to its content width, so text-align inside it has no visible effect (verified
+                // live via computed style: the inner text WAS text-align:left, but still
+                // rendered centered because the block containing it was). Fixed via
+                // `contentAlignItems="flex-start"`, which targets only ItemContent, not
+                // ItemControl — the indicator's centering is untouched.
                 label={
-                  <Text textAlign="left" textTransform="uppercase">
-                    {level} — {info.label}
+                  <Text textTransform="uppercase">
+                    {level} – {info.label}
                   </Text>
                 }
-                description={
-                  <Text textAlign="left">{formatLevelDescription(info.description)}</Text>
-                }
+                description={<Text>{formatLevelDescription(info.description)}</Text>}
                 disabled={disabled}
                 indicator={<RadioCardItemIndicator borderRadius="circle" />}
+                contentAlignItems="flex-start"
               />
             ))}
         </VStack>

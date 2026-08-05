@@ -50,7 +50,13 @@ export function DesktopRatingLayout({
   const scoreValue = ratingSummary ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%` : '—';
 
   return (
-    <Box bg="surface.ratingCardFill" p={6}>
+    // Static border only, matching the review card's border.ruleStrong — but not its
+    // score-conditional hover mechanism (cardHoverBorderColor in App.tsx), since this page has
+    // no score to link a hover state to. No hover treatment at all: unlike the review card and
+    // the Favorites-row precedent (FavoritesPage.tsx's plain border.hover-on-hover fallback for
+    // exactly this "no score" case, from slant-take-design-system.md pass 9), this card isn't a
+    // link/button — nothing happens on hover, so there's no interaction to give feedback for.
+    <Box bg="surface.ratingCardFill" border="2px solid" borderColor="border.ruleStrong" p={6}>
       {/* fontFamily="body", never "heading" — same rule as the shared page-level heading this
           replaced (see StyleGuide.tsx's "Band/album card typography" specimen). Moved inside
           the card, at the top, per the retouch pass — was previously a separate page heading
@@ -110,8 +116,13 @@ export function DesktopRatingLayout({
                     letterSpacing="0.06em"
                     px="8px"
                     py="4px"
+                    // Rated: accent.border/accent.ink — same pairing as scoreSlabHigh, ~6.8:1
+                    // contrast. Not-evaluated: sand.700/text.dim measured live at only ~4.1:1
+                    // (fails WCAG AA's 4.5:1 for this 10px text) — text.primary (sand.200)
+                    // brings the same sand.700 bg to ~6.9:1, both verified via computed
+                    // sRGB values, not eyeballed.
                     bg={isRated ? 'accent.border' : 'sand.700'}
-                    color={isRated ? 'accent.ink' : 'text.dim'}
+                    color={isRated ? 'accent.ink' : 'text.primary'}
                   >
                     {statusLabel}
                   </Text>

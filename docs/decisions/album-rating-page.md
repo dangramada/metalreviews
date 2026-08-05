@@ -384,3 +384,57 @@ live-verified the other four text consumers directly: Criteria Calibration's com
 moments.", and the mobile confirmation dialog (`RatingSummaryView`) shows e.g.
 "3 — SOME FRESH IDEAS" with the level-number prefix left untransformed and only the label
 uppercased.
+
+## Second retouch pass — four more fixes after live review (2026-08-05, same day)
+
+All four diagnosed from source/live computed style before changing, per the standing
+convention — two (badge contrast, left-alignment) required live `getComputedStyle` checks, not
+just re-reading the code, since the previous pass's left-align fix had visibly not worked.
+
+1. **Missing outer card border.** The card `Box` had no `border`/`borderColor` at all —
+   confirmed by reading the file, not assumed. Added the review card's static treatment
+   (`border="2px solid" borderColor="border.ruleStrong"`) but deliberately not its
+   score-conditional hover (`cardHoverBorderColor` in `App.tsx`) — this page has no score to
+   link a hover color to. Also skipped the Favorites-row precedent's plain `border.hover`
+   fallback (`FavoritesPage.tsx`, documented at `slant-take-design-system.md` pass 9, confirmed
+   as the intended reference for exactly this "no score" situation): unlike a review card or a
+   Favorites row, this card isn't a link/button, so there's no interaction for a hover state to
+   give feedback about. No hover treatment at all.
+2. **Section 2 badge contrast — measured, not eyeballed.** Computed styles confirmed current
+   pairings before touching anything: rated badges were already `accent.border`/`accent.ink`
+   (same as `scoreSlabHigh`, ~6.8:1 contrast by sRGB calculation) — no change needed, contrary
+   to the brief's assumption that both badge variants needed fixing. "NOT EVALUATED" was
+   `sand.700`/`text.dim` (sand.300), computed at ~4.1:1 — fails WCAG AA's 4.5:1 for the 10px
+   text, which matches how it read live. Fixed by keeping the same `sand.700` background and
+   switching text to `text.primary` (sand.200), computed at ~6.9:1.
+3. **Left-alignment still weren't showing — real root cause found via live computed style, not
+   re-applied.** The previous pass's fix (wrapping `label`/`description` in
+   `<Text textAlign="left">`) was confirmed present in the shipped code and its `text-align` WAS
+   computing to `left` on the actual DOM node — but the visible centering came from a different,
+   coupled property one level up: `align="center"` on `RadioCardRoot` (still needed for the
+   indicator's vertical centering) also sets `ItemContent`'s own `alignItems: center` in
+   Chakra's built-in recipe, not just `ItemControl`'s `textAlign`. `ItemContent` is a column
+   flexbox wrapping the label+description block; with `alignItems: center`, that block shrinks
+   to its content width and centers *as a flex item* within the row — at that point, `text-align:
+   left` on text that already exactly fills its own box has no visible effect. Confirmed via
+   `getBoundingClientRect()`: the label span's left edge exactly matched its container's left
+   edge only after the real fix. Since `ItemControl` and `ItemContent` read the same CSS var
+   from the same `align` prop, they can't be decoupled via variant props alone — added an
+   optional `contentAlignItems` prop to the shared `radio-card.tsx` wrapper (forwarded to
+   `RadioCard.ItemContent` only, default unset so the wrapper's only other potential future
+   consumers are unaffected) and passed `contentAlignItems="flex-start"` from
+   `CriterionLevelPicker.tsx`. The now-redundant `textAlign="left"` on the inner `Text`s was
+   removed. Also found and removed in the same file: `justify="space-between"` on
+   `RadioCardRoot` was silently invalid (the recipe's `justify` variant only defines
+   start/end/center; confirmed live that `--radio-card-justify` computed as empty) — harmless
+   only because `ItemContent`'s own `flex: 1` already pushes the indicator to the row's end
+   regardless. Removed as dead/misleading rather than left in place.
+4. **Em dash → en dash** between level number and label (`1 — FLAT` → `1 – FLAT`) in
+   `CriterionLevelPicker.tsx`'s template string.
+
+**Verified**: `tsc --noEmit` clean, `npx vitest run` 217/217. Live-verified via computed style
+(not visual inspection alone) on a zero-rated album (Draconian – In Somnolent Ruin) at a 1600px
+viewport: card `border-width: 2px`/`border-color: rgb(58, 58, 58)` on `rgb(26, 26, 26)` bg;
+"NOT EVALUATED" badge `rgb(56, 56, 56)` bg / `rgb(202, 198, 187)` text; level-picker
+`ItemContent` `align-items: flex-start` with the label span's `left` pixel value exactly equal
+to its container's; level-text codepoint `U+2013` (en dash) confirmed via `codePointAt`.
