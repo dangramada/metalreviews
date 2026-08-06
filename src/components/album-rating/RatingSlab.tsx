@@ -9,6 +9,15 @@
 import { Box, Text } from '@chakra-ui/react';
 import { scoreSlabBase, scoreSlabHigh } from '../../theme';
 
+// Neutral in-progress state — same sand.700 fill on both slots while rating is incomplete
+// (see DesktopRatingLayout), replacing what used to be two static em-dashes. Not a theme.ts
+// style object like scoreSlabBase/High since it's only ever used here, not shared with the
+// review card.
+const scoreSlabPending = {
+  bg: 'sand.700',
+  color: 'text.primary',
+} as const;
+
 export function RatingSlab({
   label,
   value,
@@ -16,11 +25,13 @@ export function RatingSlab({
 }: {
   label: string;
   value: string;
-  variant: 'base' | 'high';
+  variant: 'base' | 'high' | 'pending';
 }) {
+  const styles =
+    variant === 'pending' ? scoreSlabPending : variant === 'high' ? scoreSlabHigh : scoreSlabBase;
   return (
     <Box
-      {...(variant === 'high' ? scoreSlabHigh : scoreSlabBase)}
+      {...styles}
       // scoreSlabBase/scoreSlabHigh carry a 2px borderTop/borderLeft (the review card's own
       // flush-corner treatment) — overridden off here per the fourth pass; the shared style
       // objects in theme.ts are untouched since the review card's own ScoreSlab still uses them.
@@ -33,6 +44,10 @@ export function RatingSlab({
       display="flex"
       flexDirection="column"
       gap="2px"
+      // Drives the pending -> real-variant background swap at rating completion (see
+      // DesktopRatingLayout) — content (label/value) swaps instantly alongside this, only the
+      // color itself eases.
+      transition="background-color 350ms ease-out"
     >
       <Text as="span" fontFamily="mono" fontSize="14px" fontWeight="700" textTransform="uppercase" opacity={1}>
         {label}

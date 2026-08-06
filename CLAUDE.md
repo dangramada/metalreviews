@@ -61,9 +61,12 @@ session/persistence/gate/engine logic touched. Page-shell pattern itself now doc
 2026-08-06. Reworked `DesktopRatingLayout` into a 3-section bordered-card layout (artwork+meta |
 criteria-list+levels | Rank/Score slabs+radar chart), since made responsive across 3 tiers
 (>=1024px / 768-1023px / <768px mobile untouched), plus a run of same-day/next-day retouch and
-radar-chart polish passes (borders, contrast, label abbreviation). Full detail, including all
-chosen values, rejected approaches, and bugs found along the way: the dated 2026-08-05/06
-entries in `docs/decisions/album-rating-page.md`.
+radar-chart polish passes (borders, contrast, label abbreviation), then a motion pass (radar
+animation, Rank/Score pending-state + completion color reveal, criterion-switch fade). Full
+detail, including all chosen values, rejected approaches, and bugs found along the way: the
+dated 2026-08-05/06 entries in `docs/decisions/album-rating-page.md`. A temporary dev-only
+harness, `src/DevRatingPreview.tsx` (route `/dev-rating-preview`), was added during the motion
+pass to live-verify animations without a real Supabase account — remove before merging.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**

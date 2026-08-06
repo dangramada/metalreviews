@@ -3,6 +3,7 @@
 // docs/decisions/album-rating-page.md's dated entry for the redesign from the original
 // 3-simultaneous-columns layout this replaces.
 import { Badge, Box, Flex, Heading, Text, VStack, Wrap, WrapItem } from '@chakra-ui/react';
+import { motion } from 'framer-motion';
 import { AlbumArtwork } from './AlbumArtwork';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
 import { RatingSlab } from './RatingSlab';
@@ -47,6 +48,10 @@ export function DesktopRatingLayout({
 }: DesktopRatingLayoutProps) {
   const selectedEntry = catalog?.entries[selectedCriterionId];
 
+  // Pending on ratings.size alone, not on ratingSummary's presence — ratingSummary refetches
+  // asynchronously after the 6th save (see AlbumRatingPage.tsx's handlePick), so gating on it
+  // instead would leave a stale "—" flash between the 6th pick and the refetch resolving.
+  const isPending = ratings.size < order.length;
   const rankValue = ratingSummary ? `#${ratingSummary.rank}` : '—';
   const scoreValue = ratingSummary ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%` : '—';
 
@@ -282,13 +287,23 @@ export function DesktopRatingLayout({
               active criterion's levels, so it stays visually joined to that row. */}
           <Box flex="1.4 1 0" minW={0} bg="surface.criterionActive" p={4}>
             {selectedEntry && (
-              <CriterionLevelPicker
-                entry={selectedEntry}
-                selectedLevel={ratings.get(selectedEntry.index)}
-                onPick={(level) => onPick(selectedEntry.index, level)}
-                disabled={savingCriterionId !== null}
-                showTitle={false}
-              />
+              // `key` on the criterion id remounts this on every row click, so `initial` fires
+              // fresh each time instead of only on first mount — that's what makes each switch
+              // "settle in" instead of only animating the very first criterion shown.
+              <motion.div
+                key={selectedEntry.index}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+              >
+                <CriterionLevelPicker
+                  entry={selectedEntry}
+                  selectedLevel={ratings.get(selectedEntry.index)}
+                  onPick={(level) => onPick(selectedEntry.index, level)}
+                  disabled={savingCriterionId !== null}
+                  showTitle={false}
+                />
+              </motion.div>
             )}
           </Box>
         </Flex>
@@ -297,8 +312,17 @@ export function DesktopRatingLayout({
             as the other two sections. */}
         <VStack gridArea="score" align="stretch" gap={4} bg="surface.card" minW={0}>
           <Flex gap={0}>
-            <RatingSlab label="Rank" value={rankValue} variant="high" />
-            <RatingSlab label="Score" value={scoreValue} variant="base" />
+            {isPending ? (
+              <>
+                <RatingSlab label="Rated" value={String(ratings.size)} variant="pending" />
+                <RatingSlab label="Total" value={String(order.length)} variant="pending" />
+              </>
+            ) : (
+              <>
+                <RatingSlab label="Rank" value={rankValue} variant="high" />
+                <RatingSlab label="Score" value={scoreValue} variant="base" />
+              </>
+            )}
           </Flex>
           <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
         </VStack>

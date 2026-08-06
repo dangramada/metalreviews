@@ -108,7 +108,7 @@ export function RatingRadarChart({
 
   const isSmall = size === 'small';
   // Resolved once here (useChart's color() needs the hook's own context).
-  const criterionTickColor = chart.color('sand.200');
+  const criterionTickColor = chart.color('sand.300');
 
   // Labels abbreviate only inside a fixed 1024-1250px *viewport* window — the range where
   // Tier 1's Section 3 is narrow enough that full criterion names clip past the card's edge.
@@ -156,10 +156,17 @@ export function RatingRadarChart({
               abbreviates it (see abbreviateCriterionLabel above) only inside the 1024-1250px
               viewport band where it would otherwise clip — full names outside that band.
               Skipped entirely on the small mobile preview (isSmall): the 40px icon has no room
-              for labels and this brief doesn't touch mobile. */}
+              for labels and this brief doesn't touch mobile.
+
+              Color set via `style`, not the `fill` prop: @chakra-ui/charts' own baseCss injects
+              `.recharts-polar-angle-axis-tick-value { fill: var(--chakra-colors-fg-muted) }` as
+              a real scoped stylesheet rule (confirmed by inspecting `document.styleSheets`
+              directly) — that beats a plain SVG `fill` presentation attribute regardless of
+              what color is passed there, which is why `fill: criterionTickColor` alone silently
+              never took effect. Inline `style` outranks the external rule. */}
           <PolarAngleAxis
             dataKey={chart.key('criterion')}
-            tick={isSmall ? false : { fontSize: 10, fill: criterionTickColor }}
+            tick={isSmall ? false : { fontSize: 10, style: { fill: criterionTickColor } }}
             tickFormatter={isNarrow ? abbreviateCriterionLabel : undefined}
           />
           {/* Explicit `ticks` — without it, Recharts' default "nice number" tick algorithm
@@ -173,6 +180,10 @@ export function RatingRadarChart({
             fill={chart.color('accent.border')}
             fillOpacity={0.2}
             isAnimationActive={true}
+            // Duration only, no `animationEasing` override — confirmed live that Recharts'
+            // default easing looks right here despite the site's usual ease-out convention
+            // elsewhere; ease-out looked wrong in practice on this specific animation.
+            animationDuration={250}
           />
           {!isSmall && (
             <Tooltip

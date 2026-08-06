@@ -14,6 +14,7 @@ const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ de
 // Lazy-loaded for the same reason, plus this page pulls in @chakra-ui/charts/recharts —
 // no need to add that to every route's initial bundle.
 const AlbumRatingPage = React.lazy(() => import('./AlbumRatingPage').then(m => ({ default: m.AlbumRatingPage })));
+const DevRatingPreview = React.lazy(() => import('./DevRatingPreview').then(m => ({ default: m.DevRatingPreview })));
 import system from './theme';
 import { Toaster } from './components/ui/toaster';
 
@@ -32,6 +33,8 @@ const router = createBrowserRouter([
     ),
   },
   { path: '/style-guide', element: <StyleGuide /> },
+  // TEMPORARY dev-only harness — remove before merging.
+  { path: '/dev-rating-preview', element: <React.Suspense fallback={null}><DevRatingPreview /></React.Suspense> },
   {
     path: '/rate/:albumId',
     element: (

@@ -814,3 +814,60 @@ partway through automated re-verification at the user's request ("stop testing")
 dev-server artifacts above had already cost significant time — the fixes that followed (the
 `Emotional impact` casing correction and the `sand.200` color change) were applied and
 type-/test-checked but not re-screenshotted individually.
+
+### 2026-08-06 — Motion pass: radar animation, completion reveal, criterion-switch transition
+
+Four small, additive motion/interaction improvements, no layout changes. Site-wide convention
+followed: no bounce, short durations (150–350ms), nothing "playful" — matching the page's
+sharp-cornered, zero-border-radius aesthetic.
+
+**1. Radar chart animates on pick.** `RatingRadarChart.tsx`'s `<Radar>` already had
+`isAnimationActive`; added `animationDuration={250}` with no `animationEasing` override.
+Deliberately *not* using the house `ease-out` convention here — confirmed live that Recharts'
+default easing looks right on this specific animation and `ease-out` looked wrong in practice,
+despite matching the site's usual preference on paper. This is a tested exception, not an
+oversight — don't "fix" it back to `ease-out` later without re-testing live.
+
+**2+4. Rank/Score pending state + completion reveal.** `RatingSlab` gained a third `pending`
+variant (`sand.700` bg, `text.primary` fg for both slots — a local style object, not added to
+`scoreSlabBase`/`High` in `theme.ts` since it's only ever used here). `DesktopRatingLayout`
+computes `isPending = ratings.size < order.length` and, while pending, renders `RATED {n}` /
+`TOTAL {order.length}` on both slabs instead of the old two static em-dashes. Deliberately gated
+on `ratings.size` directly rather than on `ratingSummary`'s presence: `ratingSummary` refetches
+asynchronously after the 6th save (`AlbumRatingPage.tsx`'s `handlePick` calls
+`refetchRatingSummary()` post-save), so gating on it would leave a stale "—" flash between the
+6th pick and the refetch resolving. The completion reveal itself is a single
+`transition="background-color 350ms ease-out"` on `RatingSlab`'s root `Box` — since both the
+pending and real-variant renders are the same JSX position (same component, different props),
+React reuses the same DOM node across the swap, so the transition fires on the existing element
+rather than needing a keyed remount. Content (label/value) swaps instantly, only the color eases
+— matching the brief's framing that the color reveal itself is the celebration, not a separate
+effect layered on top. A scale pulse was considered but not added: the color transition alone
+read as sufficient live, so no pulse was implemented per the brief's "check both, don't assume
+the pulse is necessary."
+
+**5. Criterion-switch transition.** The active criterion's `CriterionLevelPicker` (inside
+`DesktopRatingLayout`'s Section 2 picker panel) is now wrapped in a `framer-motion` `motion.div`
+keyed on `selectedEntry.index`, with `initial={{ opacity: 0, y: 4 }}` →
+`animate={{ opacity: 1, y: 0 }}` over 180ms `easeOut`. The `key` forces a fresh mount (and thus a
+fresh `initial`→`animate` run) on every row click, not just the first render. `framer-motion` was
+already a transitive dependency (via Chakra) but not previously imported directly anywhere in
+`src/` — this is the first direct usage. No `AnimatePresence`/exit animation: the old content is
+removed instantly on remount rather than cross-fading out, which avoids the layout-shift risk of
+two stacked panels rendering simultaneously during a crossfade, at the cost of the brief's
+literal "old content fades out" phrasing — the visible, load-bearing part (new content settling
+in via fade + translateY) is unchanged.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 217/217. Live-verified via the
+`/dev-rating-preview` dev-only harness (`src/DevRatingPreview.tsx`, temporary — remove before
+merging): rated a 4th and 5th criterion and confirmed `RATED n`/`TOTAL 6` on neutral `sand.700`
+while incomplete; rated the 6th and confirmed both slabs swapped to real `RANK #n`/`SCORE n%`
+with `scoreSlabHigh`/`scoreSlabBase` colors, background-color transition visibly firing
+(caught mid-transition in a screenshot). Radar re-animation on a level change was also caught
+mid-animation (polygon interpolating between shapes) in a screenshot. Criterion-switch fade was
+caught mid-fade (incoming level list at partial opacity) confirming the transition fires rather
+than jump-cutting.
+
+**What did not change:** any layout/spacing/border/color token outside what's listed above,
+the radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
+`scoreSlabBase`/`scoreSlabHigh` themselves (only a new third variant added).
