@@ -736,3 +736,81 @@ and the radar chart's hover-tooltip content.
 measurements, not visual assumption alone) at 768, 900, 1023, 1024, 1150, 1300, and 1600px via
 the same temporary unauthenticated dev route used for the previous pass (`/dev-rating-preview`,
 removed before this pass's commit). `tsc --noEmit` clean, `npx vitest run` 217/217.
+
+## 2026-08-06: Radar chart label abbreviation, replacing the size-aware-radius approach
+
+Follow-up correction to the 2026-08-05 radar-chart entry above. Live review after that pass
+shipped surfaced a real reintroduction of the label-clipping bug via manual edits to
+`outerRadius`/`margin` (60% / uniform 20px, up from 50% / 40px-left-right — a deliberate visual
+preference for a bigger, fuller-looking chart), and prompted a proper fix for the tradeoff this
+recreated at Tier 1's narrow end.
+
+**Approaches considered, in the order tried:**
+1. **Widen Section 3's grid min-width** (tested: 220px → 250px → 260px). Rejected — doesn't
+   work structurally. `outerRadius` is a *percentage* of the container, so a wider column grows
+   the plotted radius right along with it; the label's fixed pixel overhang past that radius
+   barely shrinks. Pushing further (260px) actively overconstrained the Tier 1 grid
+   (300+420+260 = 980px needed vs. 976px available at 1024px), making the whole chart spill past
+   the card edge — worse than the 220px baseline. Confirmed via `getBoundingClientRect()`
+   measurements at each step, not assumed.
+2. **Size-aware radius/margin via `ResizeObserver`** — proposed as the "correct" fix (shrink the
+   plotted shape only when the chart's own measured box is actually too narrow, full 60%/20px
+   look everywhere else). Rejected by design preference before implementation: any radius
+   reduction, even a conditional one, visibly shrinks the chart at the narrow end — not
+   acceptable regardless of how precisely it's targeted.
+3. **Label abbreviation in a fixed viewport band (shipped).** Keeps `outerRadius`/`margin`
+   constant everywhere (60% / 20px uniform, unchanged from the manual edit) — the plotted shape
+   never shrinks. Only the axis-label *text* degrades, and only inside a fixed 1024–1250px
+   window (given directly, not derived): full criterion names clip past the card at Tier 1's
+   narrow end, so labels shorten there; outside that band (Tier 2, and Tier 1 beyond ~1250px)
+   full names render.
+
+**Implementation.** `RatingRadarChart.tsx` gained a `CRITERION_ABBREVIATIONS` lookup (fixed
+per-name table, not generic truncation — reads as deliberate abbreviations rather than mid-word
+cutoffs) wired through `PolarAngleAxis`'s `tickFormatter`. Sizing detection is a plain
+`window.innerWidth` check with a `resize` listener (`isNarrow = innerWidth >= 1024 && innerWidth
+<= 1250`), not `matchMedia` (avoids string-parsing indirection) and not `em` units (avoids a
+repeat of the em-vs-px boundary confusion already documented in the layout entries above) — an
+exact, easy-to-verify match against the two numbers as given. A `ResizeObserver`-based variant
+(measuring the chart's own rendered box rather than the viewport) was built first per option 2
+above, then removed entirely once viewport-width was confirmed as the actual desired trigger —
+not layered on top of the simpler fix.
+
+**Real bug found and fixed independent of the above: label text keys must match seeded data
+exactly.** The abbreviation table's initial key was `'Emotional Impact'` (title case); the real
+row in `supabase/criteria.sql` is `'Emotional impact'` (sentence case, only the first word
+capitalized). A title-case key would have silently never matched — that criterion's label would
+never abbreviate, failing quietly with no error, only found by cross-checking the lookup keys
+against the actual seed file rather than trusting the brief's casing at face value. Also
+corrected: the dev-only test harness's mock catalog, which had used an entirely different,
+made-up set of six criterion names (leftover from the original responsive-layout pass) — swapped
+to the real six (`Innovation`/`Emotional impact`/`Performance`/`Coherence`/`Production`/
+`Songwriting`) and `FIXED_CRITERION_ORDER`'s real id mapping, so the abbreviation table was
+actually being exercised rather than silently falling through to its no-match fallback the whole
+time.
+
+**Two dev-server artifacts hit and fixed during iteration, neither a real code bug:** a stray
+plain `// comment` that landed directly inside JSX children (invalid — JSX comments need `{/*
+*/}`) after a mid-edit restructure, which rendered as literal on-page text and broke Vite HMR for
+the rest of that session; and a stale Vite module cache that kept serving a since-removed
+`useRef` import after the `ResizeObserver` approach was torn out, throwing `ReferenceError:
+useRef is not defined` until the dev server was restarted. Both are artifacts of iterating
+against a live server, not issues in the committed code — `tsc --noEmit`, which compiles from
+disk, was clean throughout even while the running server was serving stale/broken bundles.
+
+**Also this pass:** axis-label color changed from the semantic `text.muted` token to the raw
+`sand.200` palette value directly (a deliberate manual choice, not measured/justified by contrast
+tooling the way earlier badge-contrast fixes in this doc were — noted here for consistency with
+this doc's practice of recording token choices, not as an implied audit).
+
+**What did not change:** Tier 1/Tier 2 grid structure and borders (both from the prior entry,
+untouched by this pass), the chart's hover-tooltip content, `MobileRatingLayout`.
+
+**Verification:** `tsc --noEmit` clean and `npx vitest run` 217/217 confirmed after every
+substantive change in this pass. Live visual verification across the 1024–1250px band and its
+boundaries was run interactively during the session (confirmed working per direct user review)
+rather than captured here step-by-step, since the session's live-testing loop was cut short
+partway through automated re-verification at the user's request ("stop testing") after the
+dev-server artifacts above had already cost significant time — the fixes that followed (the
+`Emotional impact` casing correction and the `sand.200` color change) were applied and
+type-/test-checked but not re-screenshotted individually.

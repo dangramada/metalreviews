@@ -97,10 +97,22 @@ surrounding layout being responsive — replaced with a fluid `w="100%" aspectRa
 clipping at Tier 1's 1024px end (`outerRadius` 80%→50%, wider margins, confirmed via
 `getBoundingClientRect()` not eyeballing); and added Tier-2-only borders (Section 1 right border,
 Section 2 left/right→top) since Section 2 moved from flanked-between to a standalone full-width
-row at that tier. Full detail, including the confirmed `sand.600`-vs-review-card divergence, live
-verification across zero/partial/fully-rated albums plus all five text consumers, the
-responsive-layout pass's chosen values, and the radar-chart/border follow-up's diagnostic and
-fix: the five 2026-08-05 entries in `docs/decisions/album-rating-page.md`.
+row at that tier. A next-day follow-up replaced that pass's `outerRadius`/`margin` tightening
+with label abbreviation instead, after manual edits (60% radius, uniform 20px margin — a
+deliberate bigger-chart preference) reintroduced clipping at Tier 1's 1024px end: widening
+Section 3's grid min-width was tried and doesn't work (radius is a % of the container, so it
+grows with any extra width given), and a size-aware `ResizeObserver` fix was rejected outright
+since any radius reduction visibly shrinks the chart. Shipped instead: `PolarAngleAxis`
+`tickFormatter` abbreviates axis labels only inside a fixed 1024-1250px viewport window (plain
+`window.innerWidth` + `resize` listener, not `matchMedia`/em units), via a fixed per-name lookup
+table matched to `supabase/criteria.sql`'s real six criteria — catching a real casing bug in the
+process (`'Emotional impact'` is sentence case in the seed data, a title-case key would have
+silently never matched). Axis-label color also changed `text.muted`→`sand.200` (manual choice).
+Full detail, including the confirmed `sand.600`-vs-review-card divergence, live verification
+across zero/partial/fully-rated albums plus all five text consumers, the responsive-layout
+pass's chosen values, the radar-chart/border follow-up's diagnostic and fix, and the label-
+abbreviation pass's rejected approaches and casing-bug fix: the six 2026-08-05/06 entries in
+`docs/decisions/album-rating-page.md`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**

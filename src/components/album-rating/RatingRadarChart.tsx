@@ -6,6 +6,7 @@
 // and you compose Recharts' own RadarChart/PolarGrid/Radar inside `Chart.Root`. The brief's
 // "RadarChart (@chakra-ui/charts)" phrasing assumed a turnkey component; this is the corrected
 // composition that achieves the same result.
+import { useEffect, useState } from 'react';
 import { Box, Text } from '@chakra-ui/react';
 import { Chart, useChart } from '@chakra-ui/charts';
 import {
@@ -35,6 +36,25 @@ interface RadarPoint {
   // independently, see docs/decisions/album-rating-drawer.md's normalization finding), so a
   // bare number like "0.18" gave no sense of whether that's a strong or weak pick.
   weightPercentLabel: string;
+}
+
+// Radar chart axis labels only — full names stay everywhere else in the UI (Section 2's
+// criteria list, tooltips, etc). Grammatically-truncated per-name lookup rather than generic
+// slicing, so the shortened forms read as deliberate abbreviations, not mid-word cutoffs.
+// Keys match `criteria.name` exactly as seeded in supabase/criteria.sql — note "Emotional
+// impact" is sentence case there (only the first word capitalized), not "Emotional Impact";
+// a title-case key would silently never match and this criterion would never abbreviate.
+const CRITERION_ABBREVIATIONS: Record<string, string> = {
+  'Emotional impact': 'Emotion',
+  Performance: 'Perform.',
+  Production: 'Prod.',
+  Songwriting: 'Writing',
+  Innovation: 'Innov.',
+  Coherence: 'Coher.',
+};
+
+function abbreviateCriterionLabel(name: string): string {
+  return CRITERION_ABBREVIATIONS[name] ?? name;
 }
 
 interface RatingRadarChartProps {
@@ -87,9 +107,24 @@ export function RatingRadarChart({
   });
 
   const isSmall = size === 'small';
-  // Resolved once here (useChart's color() needs the hook's own context) so both the tick
-  // color and the radar stroke/fill below read from the same theme token.
-  const criterionTickColor = chart.color('text.muted');
+  // Resolved once here (useChart's color() needs the hook's own context).
+  const criterionTickColor = chart.color('sand.200');
+
+  // Labels abbreviate only inside a fixed 1024-1250px *viewport* window — the range where
+  // Tier 1's Section 3 is narrow enough that full criterion names clip past the card's edge.
+  // window.innerWidth directly (not matchMedia's string parsing, not em units) for an exact,
+  // easy-to-verify match against the 1024/1250 boundary.
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 1024 && window.innerWidth <= 1250
+  );
+
+  useEffect(() => {
+    if (isSmall) return;
+    const checkWidth = () => setIsNarrow(window.innerWidth >= 1024 && window.innerWidth <= 1250);
+    checkWidth();
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
+  }, [isSmall]);
 
   return (
     // Fixed 260px square replaced with a fluid 100%-width box holding aspectRatio 1 (full size
@@ -108,28 +143,24 @@ export function RatingRadarChart({
       <ResponsiveContainer width="100%" height="100%">
         <RechartsRadarChart
           data={chart.data}
-          // outerRadius trimmed from Recharts' 80% default to 50% to leave room for the
-          // persistent criterion labels re-enabled below. 62% still clipped live at Tier 1's
-          // 1024px end — measured via getBoundingClientRect(): "Consistency"'s label (the
-          // rightmost point, text-anchor="start" so its text runs further right than the point
-          // itself) extended to x=1006 against the outer card's own right edge at x=1000, ~6px
-          // of real clipping past the card border, not just visually tight. 50% plus the wider
-          // left/right margin below was the first value with zero overflow at 1024px, re-checked
-          // at every tested width up to 1600px.
+          // outerRadius/margin are a fixed, deliberately generous look (60%/20px uniform) —
+          // shrinking these to make room for full labels was tried and rejected: it made the
+          // chart visibly smaller everywhere, not just where clipping actually happens. Label
+          // abbreviation (tickFormatter below) is what handles the narrow band instead.
           outerRadius="60%"
-          margin={{ top: 20, right:20, bottom: 20, left: 20 }}
+          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
         >
           <PolarGrid stroke="none" style={{ fill: chart.color('ember.solid'), fillOpacity: 0.1 }} />
-          {/* Persistent labels re-enabled (a past pass removed them "per feedback" — this brief
-              asked them back). `entry?.name` is already the same short label shown in Section
-              2's criteria list (e.g. "Songwriting"), not the full level description, so no new
-              data was needed here — just tick={false} to a small, muted style matching the
-              rest of the page's supporting text. Skipped entirely on the small mobile preview
-              (isSmall): the 40px icon has no room for labels and this brief doesn't touch
-              mobile. */}
+          {/* Persistent labels re-enabled (a past pass removed them "per feedback" — this
+              brief asked them back). `entry?.name` is the full criterion name; tickFormatter
+              abbreviates it (see abbreviateCriterionLabel above) only inside the 1024-1250px
+              viewport band where it would otherwise clip — full names outside that band.
+              Skipped entirely on the small mobile preview (isSmall): the 40px icon has no room
+              for labels and this brief doesn't touch mobile. */}
           <PolarAngleAxis
             dataKey={chart.key('criterion')}
             tick={isSmall ? false : { fontSize: 10, fill: criterionTickColor }}
+            tickFormatter={isNarrow ? abbreviateCriterionLabel : undefined}
           />
           {/* Explicit `ticks` — without it, Recharts' default "nice number" tick algorithm
               picks an uneven set for domain [0,5] (confirmed live: only 0/2/4/5, no ring at
