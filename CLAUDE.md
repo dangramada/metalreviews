@@ -89,10 +89,18 @@ en dash between level number and label. A separate same-day session then made
 vs `minmax(220px, 0.9fr)`, Section 1 fixed 300px), 768-1023px reorganizes into Section 1+3 on one
 row with Section 2 full-width below (`AlbumArtwork` gained a `size="auto"` fluid 1:1 mode for
 this tier), <768px (`MobileRatingLayout`) untouched. Verified live at 768/900/1023/1024/1150/
-1300/1600px via a temporary unauthenticated dev route, removed before commit. Full detail,
-including the confirmed `sand.600`-vs-review-card divergence, live verification across
-zero/partial/fully-rated albums plus all five text consumers, and the responsive-layout pass's
-chosen values and rationale: the four 2026-08-05 entries in `docs/decisions/album-rating-page.md`.
+1300/1600px via a temporary unauthenticated dev route, removed before commit. A further same-day
+follow-up fixed the radar chart (`RatingRadarChart.tsx`): its `Chart.Root` had a hardcoded
+`boxSize: 260px` — the actual reason it looked fixed-size/left-aligned in Section 3 despite the
+surrounding layout being responsive — replaced with a fluid `w="100%" aspectRatio="1"`; re-enabled
+`PolarAngleAxis` criterion-name labels (`tick={false}` from a past pass), fixing real label
+clipping at Tier 1's 1024px end (`outerRadius` 80%→50%, wider margins, confirmed via
+`getBoundingClientRect()` not eyeballing); and added Tier-2-only borders (Section 1 right border,
+Section 2 left/right→top) since Section 2 moved from flanked-between to a standalone full-width
+row at that tier. Full detail, including the confirmed `sand.600`-vs-review-card divergence, live
+verification across zero/partial/fully-rated albums plus all five text consumers, the
+responsive-layout pass's chosen values, and the radar-chart/border follow-up's diagnostic and
+fix: the five 2026-08-05 entries in `docs/decisions/album-rating-page.md`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**

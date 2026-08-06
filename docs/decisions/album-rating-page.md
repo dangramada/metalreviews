@@ -665,3 +665,74 @@ unauthenticated dev route (`/dev-rating-preview`, mock catalog + mock rating sum
 before this pass's commit — not part of the shipped diff) since `/rate/:albumId` is
 auth-gated and no test credentials were available in this session. `tsc --noEmit` clean,
 `npx vitest run` 217/217.
+
+## 2026-08-05: Radar chart labels + true responsiveness, Tier 2 border adjustments
+
+Follow-up to the 3-tier responsive layout above, on live review of the shipped result.
+
+**Diagnostic (reported before any change was made).** `RatingRadarChart.tsx`'s `Chart.Root`
+carried a hardcoded `boxSize={isSmall ? '40px' : '260px'}` — the "full" chart was always exactly
+260px square, regardless of Section 3's actual width. The inner `ResponsiveContainer
+width="100%" height="100%"` was genuinely responsive, but only to that fixed 260px box, so it
+never grew — this is why the chart read as fixed-size and left-aligned inside Section 3's wider
+column even after the layout around it became responsive. `PolarAngleAxis` already had
+`dataKey={chart.key('criterion')}` wired to `entry?.name` (the same short label shown in Section
+2's list, e.g. "Songwriting") but `tick={false}` explicitly suppressed rendering it — a past
+pass ("Axis labels removed per feedback"). No `outerRadius` was set at all, so Recharts' own
+default (`"80%"`, itself a percentage) meant the plotted shape would already have scaled
+correctly once its container did — the fix was entirely about the container, not the radius
+units. Confirmed this was a prop-level fix, not a structural recomposition, before proceeding.
+
+**Sizing fix.** `Chart.Root`'s fixed `boxSize` (full mode only — the 40px mobile preview icon in
+`MobileRatingLayout` is untouched) became `w="100%" aspectRatio="1"`, mirroring the same fluid
+1:1 pattern already used for `AlbumArtwork`'s `size="auto"` mode. Verified via
+`getBoundingClientRect()` at 1600px: exactly `449×449`, ratio `1` — uniform scaling confirmed,
+not just visually plausible.
+
+**Labels.** `PolarAngleAxis`'s `tick={false}` became `tick={isSmall ? false : { fontSize: 10,
+fill: criterionTickColor }}` (`criterionTickColor = chart.color('text.muted')`, resolved once in
+the component body so it and the radar's own stroke/fill read from the same token-resolution
+path). No new data needed — `entry?.name` was already short. Hover-tooltip content/behavior
+(criterion/level/weight on hover) is unchanged; the new labels are the always-visible
+supplement, not a replacement.
+
+**Label clipping, found and fixed via live measurement, not eyeballing.** The first attempt
+(`outerRadius="62%"`, `margin={{ top: 24, right: 24, bottom: 24, left: 24 }}`) still clipped at
+Tier 1's 1024px end: `getBoundingClientRect()` on `.recharts-polar-angle-axis-tick-value` showed
+"Consistency" (rightmost point, `text-anchor="start"` so its text runs further right than the
+plotted point itself) extending to `x=1006` against the outer card's own right edge at `x=1000`
+— about 6px of real clipping past the card border, not just visually tight. `outerRadius="50%"`
+with `margin={{ top: 24, right: 40, bottom: 24, left: 40 }}` was the first value with zero
+overflow at 1024px (re-measured: "Consistency" right edge `x=988.97`, card edge `x=1000`,
+~11px clear); re-verified at every other tested width up to 1600px with the same measurement
+approach, all clear.
+
+**Growth at Tier 2, per Dan's live-review note ("we have a ton of space").** Since the fix is
+container-driven (not a fixed cap), the chart naturally uses Section 3's much wider Tier 2 half-row
+share — confirmed visually at 768/900/1023px that it grows substantially larger than at Tier 1's
+narrow end, not staying small.
+
+**Tier 2 border adjustments**, same `64em` breakpoint already established for the grid itself:
+- Section 1 (`art`): gained `borderRight: 1px solid sand.600`, Tier 2 only (`@media
+  (max-width: 63.9375em)`) — separates it from Section 3 in Row 1. Section 3 needs no matching
+  left border; one edge is enough to read as the divider.
+- Section 2 (`crit`): its existing `borderLeft`/`borderRight` (`surface.ratingCard`, a token that
+  resolves to the same `sand.600`) now apply only at Tier 1 (`@media (min-width: 64em)`) — at
+  Tier 2 it's a standalone full-width row, not flanked between two neighbors, so left/right
+  borders would be meaningless. A `borderTop: 1px solid sand.600` takes their place at Tier 2,
+  separating Row 2 from Row 1.
+- Both toggle together via one `css` object per section (default = Tier 2 styles, `@media
+  (min-width: 64em)` override = Tier 1 styles) rather than two independent conditions — verified
+  via computed-style inspection, not just visual read: at 1023px, Section 1's right border is a
+  1px `rgb(77, 77, 76)` (`sand.600`, `#4d4d4c`) edge spanning exactly Row 1's height; Section 2
+  has `borderTop` `sand.600` and `0px` left/right. At 1024px, only Section 2 carries left/right
+  borders (both `1px`), and no element has a full-width top border — Tier 1 unchanged from
+  before this pass.
+
+**What did not change:** Tier 1's column widths, Tier 2's row structure, `MobileRatingLayout`,
+and the radar chart's hover-tooltip content.
+
+**Verification:** live-checked (screenshots plus `getBoundingClientRect()`/computed-style
+measurements, not visual assumption alone) at 768, 900, 1023, 1024, 1150, 1300, and 1600px via
+the same temporary unauthenticated dev route used for the previous pass (`/dev-rating-preview`,
+removed before this pass's commit). `tsc --noEmit` clean, `npx vitest run` 217/217.

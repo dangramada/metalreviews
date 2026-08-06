@@ -104,7 +104,21 @@ export function DesktopRatingLayout({
             margins (mb=1/mb=2) would stack with this section's 12px row gap and produce
             inconsistent spacing — not required to extract this pass, so duplicated instead of
             risking a shared-component change that could also affect the review card's spacing. */}
-        <VStack gridArea="art" align="stretch" gap={0} bg="surface.card">
+        <VStack
+          gridArea="art"
+          align="stretch"
+          gap={0}
+          bg="surface.card"
+          // Tier 2 only (768-1023px): Section 1 and Section 3 share Row 1, so a right border
+          // here separates them the same way Section 2's left/right borders separate it from
+          // its neighbors at Tier 1 — Section 3 needs no matching left border of its own, this
+          // single edge already reads as the divider between both cells. Unset (not present at
+          // all, not just transparent) at Tier 1, where Section 1 instead sits directly against
+          // Section 2's own left border.
+          css={{
+            '@media (max-width: 63.9375em)': { borderRight: '1px solid', borderColor: 'sand.600' },
+          }}
+        >
           {/* size="auto" fills this section's own grid-track width at a 1:1 ratio — at Tier 1
               (>=1024px) that track is a fixed 300px, so this renders identically to the
               previous hardcoded 300px square; at Tier 2 (768-1023px) the track is fluid
@@ -159,10 +173,24 @@ export function DesktopRatingLayout({
         <Flex
           gridArea="crit"
           minW={0}
-          borderLeft="1px solid"
-          borderRight="1px solid"
-          borderColor="surface.ratingCard"
           bg="surface.criterionRow"
+          // Tier-dependent borders: at Tier 1 (>=1024px) this section sits flanked between
+          // Section 1 and Section 3 in one row, so left/right borders (unchanged from the
+          // original single-tier layout) divide it from both neighbors. At Tier 2 (768-1023px)
+          // it's a standalone full-width row below Row 1 instead — left/right borders would be
+          // meaningless there (nothing beside it), so they're dropped in favor of a top border
+          // separating it from Row 1. Both edges toggle together per tier via the same 64em
+          // breakpoint already used for the grid itself, not two independent conditions.
+          css={{
+            borderTop: '1px solid',
+            borderColor: 'sand.600',
+            '@media (min-width: 64em)': {
+              borderTop: 'none',
+              borderLeft: '1px solid',
+              borderRight: '1px solid',
+              borderColor: 'surface.ratingCard',
+            },
+          }}
         >
           <VStack flex="1 1 0" minW={0} align="stretch" gap={0}>
             {order.map((id, index) => {
