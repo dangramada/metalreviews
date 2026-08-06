@@ -58,61 +58,12 @@ session/persistence/gate/engine logic touched. Page-shell pattern itself now doc
 `docs/decisions/architecture.md`.
 
 `album-rating-page-desktop-redesign` — **not yet merged to `master`**, pushed to `origin` on
-2026-08-05 (correcting this entry's earlier claim of "merged," written prematurely before the
-merge actually happened). Reworked `DesktopRatingLayout` into a 3-section bordered-card layout
-(artwork+meta | criteria-list+levels horizontal split | Rank/Score slabs+radar chart) against a
-new reference screenshot; mobile untouched. New reusable `PageBreadcrumb` component
-(`components/ui/breadcrumb.tsx`), new `AlbumMeta`/`RatingSlab` components, new `radii.circle`
-and `surface.ratingCard`/`criterionHover`/`criterionActive`/`ratingCardFill` theme tokens. Fixed
-two real RadioCard rendering bugs found via screenshot diagnostic: the level-picker indicator
-rendered square (Slant Take's app-wide `radii.full: 0px`) and bottom-left instead of end-of-row
-(`orientation="vertical"` on `RadioCardRoot`). Removed the desktop "View Your Evaluation" button
-(mobile keeps its own). Same-day retouch pass fixed four more issues found on live review: card
-fill corrected to `sand.900` (`surface.ratingCard` turned out to be shared with Section 2's
-border, not repointed), title moved inside the card, RadioCard text left-aligned/uppercase
-label/sentence-case-plus-period description (via a new shared `formatLevelDescription()` helper
-applied to all five real consumers of that text, not just this page — also touches
-`CriterionRow.tsx` in Criteria Calibration for text-formatting consistency only), and Rank/Score
-slabs now sit flush with no gap. A second same-day retouch pass fixed four more: added the
-missing outer card border (`border.ruleStrong`, static only — no score-conditional hover, no
-hover at all), fixed Section 2 badge contrast (measured via computed sRGB, not eyeballed —
-`text.dim` was ~4.1:1 against `sand.700`, below WCAG AA; `text.primary` brings it to ~6.9:1),
-found and fixed the *actual* cause of the RadioCard left-align bug (the previous pass's
-`textAlign="left"` fix was genuinely applied but had no visible effect — `ItemContent`'s
-`alignItems: center`, coupled to the same `align="center"` needed for indicator centering, was
-shrink-centering the whole text block as a flex item one level up; fixed via a new optional
-`contentAlignItems` prop on the shared `radio-card.tsx` wrapper, verified via
-`getBoundingClientRect()` rather than trusting the style alone), and swapped an em dash for an
-en dash between level number and label. A separate same-day session then made
-`DesktopRatingLayout` responsive across 3 tiers: >=1024px single-row grid rebalanced so Section 2
-(criteria+levels) keeps priority over Section 3 as the viewport narrows (`minmax(420px, 1.6fr)`
-vs `minmax(220px, 0.9fr)`, Section 1 fixed 300px), 768-1023px reorganizes into Section 1+3 on one
-row with Section 2 full-width below (`AlbumArtwork` gained a `size="auto"` fluid 1:1 mode for
-this tier), <768px (`MobileRatingLayout`) untouched. Verified live at 768/900/1023/1024/1150/
-1300/1600px via a temporary unauthenticated dev route, removed before commit. A further same-day
-follow-up fixed the radar chart (`RatingRadarChart.tsx`): its `Chart.Root` had a hardcoded
-`boxSize: 260px` — the actual reason it looked fixed-size/left-aligned in Section 3 despite the
-surrounding layout being responsive — replaced with a fluid `w="100%" aspectRatio="1"`; re-enabled
-`PolarAngleAxis` criterion-name labels (`tick={false}` from a past pass), fixing real label
-clipping at Tier 1's 1024px end (`outerRadius` 80%→50%, wider margins, confirmed via
-`getBoundingClientRect()` not eyeballing); and added Tier-2-only borders (Section 1 right border,
-Section 2 left/right→top) since Section 2 moved from flanked-between to a standalone full-width
-row at that tier. A next-day follow-up replaced that pass's `outerRadius`/`margin` tightening
-with label abbreviation instead, after manual edits (60% radius, uniform 20px margin — a
-deliberate bigger-chart preference) reintroduced clipping at Tier 1's 1024px end: widening
-Section 3's grid min-width was tried and doesn't work (radius is a % of the container, so it
-grows with any extra width given), and a size-aware `ResizeObserver` fix was rejected outright
-since any radius reduction visibly shrinks the chart. Shipped instead: `PolarAngleAxis`
-`tickFormatter` abbreviates axis labels only inside a fixed 1024-1250px viewport window (plain
-`window.innerWidth` + `resize` listener, not `matchMedia`/em units), via a fixed per-name lookup
-table matched to `supabase/criteria.sql`'s real six criteria — catching a real casing bug in the
-process (`'Emotional impact'` is sentence case in the seed data, a title-case key would have
-silently never matched). Axis-label color also changed `text.muted`→`sand.200` (manual choice).
-Full detail, including the confirmed `sand.600`-vs-review-card divergence, live verification
-across zero/partial/fully-rated albums plus all five text consumers, the responsive-layout
-pass's chosen values, the radar-chart/border follow-up's diagnostic and fix, and the label-
-abbreviation pass's rejected approaches and casing-bug fix: the six 2026-08-05/06 entries in
-`docs/decisions/album-rating-page.md`.
+2026-08-06. Reworked `DesktopRatingLayout` into a 3-section bordered-card layout (artwork+meta |
+criteria-list+levels | Rank/Score slabs+radar chart), since made responsive across 3 tiers
+(>=1024px / 768-1023px / <768px mobile untouched), plus a run of same-day/next-day retouch and
+radar-chart polish passes (borders, contrast, label abbreviation). Full detail, including all
+chosen values, rejected approaches, and bugs found along the way: the dated 2026-08-05/06
+entries in `docs/decisions/album-rating-page.md`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**
