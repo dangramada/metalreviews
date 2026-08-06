@@ -243,3 +243,638 @@ further changes go on a fresh branch, merged only when done; (2) the `album-rati
 ref itself now stops at the merge commit and doesn't include the polish pass or this undo, so it
 no longer accurately represents "this feature's retained history" per convention — fast-forwarding
 it to match `master`'s current tip is proposed but not yet done, pending confirmation.
+
+## Desktop layout redesign — 3-column layout replaced with 3-section card (2026-08-05)
+
+Branch: `album-rating-page-desktop-redesign`. Reworked `DesktopRatingLayout` against a new
+reference screenshot; mobile untouched. Step 0 diagnostic (mandatory per the brief) surfaced
+four real discrepancies from the brief's assumptions, built around rather than silently
+corrected:
+
+1. **RadioCard was already the real `RadioCardRoot`/`RadioCardItem`** (`components/ui/radio-card.tsx`)
+   — no replacement needed. But its visual defaults were wrong for this page: the indicator
+   rendered **square**, because Slant Take deliberately zeroes `radii.full` app-wide (see
+   `theme.ts`'s own comment anticipating this exact case — "reinstate a dedicated token if a
+   future component needs one"), and it sat **bottom-left** instead of end-of-row, because
+   `CriterionLevelPicker.tsx` passed `orientation="vertical"` to `RadioCardRoot`, putting
+   Chakra's `radio-card` recipe into a column `flexDirection` with default `align="start"`.
+   Fixed with two independent, narrowly-scoped changes: a new `radii.circle: '9999px'` token
+   (not reinstating `radii.full`, which the card-artwork heart-favorite toggle relies on
+   staying zeroed) applied only via `indicator={<RadioCardItemIndicator borderRadius="circle" />}`
+   on this one usage; and `orientation="horizontal" justify="space-between" align="center"` on
+   `RadioCardRoot` so the label/description sit left, the indicator sits right, vertically
+   centered.
+2. **`sand.600` does not match the review card's actual wrapper token.** The review card's own
+   wrapper (`cardStyle` in `App.tsx`) uses `surface.card`, which resolves to `ink.900` (`#131313`)
+   — much darker than `sand.600` (`#4d4d4c`). Went with `sand.600` anyway, since the brief's
+   hex table states these are exact matches (not approximations) and the reference screenshot
+   clearly shows a lighter gray card. This is a deliberate divergence from review-card styling,
+   not an oversight — documented here per the brief's own flagged ambiguity.
+3. **Release date + genre badges were inline JSX in `App.tsx`**, not a reusable component.
+   Extracted into `components/album-rating/AlbumMeta.tsx` (reused by both the review card and
+   this page now) — pure refactor, no visual change at the original call site.
+4. **A generic Chakra-generated Breadcrumb primitive already existed** at
+   `components/ui/breadcrumb.tsx` (`BreadcrumbRoot`/`BreadcrumbLink`/`BreadcrumbCurrentLink`,
+   same auto-generated-snippet pattern as `radio-card.tsx`/`dialog.tsx`) but was wired into zero
+   pages and wasn't the `{label, to?}[]` API the brief described. Added `PageBreadcrumb` in the
+   same file, wrapping those primitives with that array API — this project's intended shape for
+   every page needing back-navigation going forward. Wired up on `AlbumRatingPage` only this
+   session (see `deferred-work.md` for the retrofit-elsewhere follow-up). Note: a sibling file
+   named `Breadcrumb.tsx` was attempted first and rejected by the Write tool as a duplicate —
+   macOS's default case-insensitive filesystem treats it as the same path as the existing
+   lowercase `breadcrumb.tsx`. Extending the existing file was the correct fix, not a workaround.
+
+**New structure**: one `Box bg="surface.ratingCard"` (semantic alias for `sand.600`, following
+the existing `border.rule`/`border.ruleStrong`-style alias pattern rather than scattering raw
+`sand.*` references through the component) wrapping 3 sections in a single `Flex` row — artwork
+(fixed 300×300) + `AlbumMeta` on the left; a horizontal split (criteria rows | active picker)
+inside one bordered container in the middle; `RatingSlab`×2 (Rank/Score) + the relocated radar
+chart on the right. The page title (`[Band] – [Album]`) stays where it already was, above this
+card and shared with the mobile layout — not moved inside the card — since the brief itself
+flagged "above/within the card" as an open question and moving it risked touching mobile's
+shared header markup, which is out of scope this session.
+
+**Inline status badges** (`NOT EVALUATED` / `{level} – {LABEL}` per criterion row) are an
+intentional reversal of this doc's earlier "Column 2 shows no rating values inline" decision —
+the new reference design calls for them directly.
+
+**Rank/Score**: new `RatingSlab` component (`components/album-rating/RatingSlab.tsx`) wraps the
+existing `scoreSlabBase`/`scoreSlabHigh` style configs from `theme.ts` rather than reusing
+`App.tsx`'s `ScoreSlab` component directly — that component isn't exported and hardcodes a bare
+number + dimmed `/10`, whereas this needed a small label plus an arbitrary value string. Rank is
+always `scoreSlabHigh` (ember-filled), Score is always `scoreSlabBase` (light) — fixed
+assignment, not the review card's `score >= 8.0` threshold logic. Value is `—` until
+`useAlbumRatingsSummary` has an entry for the album (i.e. all 6 criteria rated); no new scoring
+logic added, same hook/`scoreAndRank.ts` reused as-is.
+
+**Selection vs. rating, verified live**: `selectedCriterionId` now defaults to
+`FIXED_CRITERION_ORDER[0]` instead of `null`, so Section 2 never opens on an empty placeholder.
+Confirmed live on a zero-ratings album (Draconian – In Somnolent Ruin) that this is purely
+display state: the first criterion shows as active with all 5 of its radio options unselected,
+and Rank/Score both showed `—`. Also verified a partially-rated state (2 of 6 criteria rated on
+the same album, via live picks) shows the correct mix of `NOT EVALUATED` and real-value badges
+per row with Rank/Score still `—`, and a fully-rated album (Urzah – A Tranquil Void) showed real
+`#4` rank / `79%` score slabs and a fully-plotted radar chart.
+
+**Removed**: the desktop "View Your Evaluation" button and its `DesktopRatingLayout`-side wiring.
+The confirmation dialog (`RatingSummaryView` in a `DialogRoot`) itself is untouched and still
+used by `MobileRatingLayout`, which keeps its own "View Your Evaluation" button — mobile is
+unchanged.
+
+**Verified**: `tsc --noEmit` clean, `npx vitest run` 217/217, live-verified against real
+Supabase data as described above at a 1600px desktop viewport (at the Browser pane's narrower
+default ~1037px width the criteria-row text wrapped uncomfortably — the fixed 300px artwork +
+~220px Rank/Score columns leave too little room for Section 2 below roughly 1300px; acceptable
+for now since real desktop monitors are comfortably wider, but worth keeping in mind as a
+lower-bound constraint if a narrower "desktop" breakpoint is ever targeted).
+
+## Retouch pass — four fixes after live review (2026-08-05, same day)
+
+Four corrections against the reference screenshot, diagnosed from source before any change per
+the project's standing convention:
+
+1. **Card fill was the wrong shade.** `surface.ratingCard` (`sand.600`) turned out to be shared
+   between the card's own background *and* Section 2's border — confirmed by grep before
+   touching anything. Rather than repoint the shared token (which would've also changed the
+   border), added a new `surface.ratingCardFill` token (`sand.900`, exact match to `#1A1A1A`)
+   used only for the card `Box`'s `bg`; `surface.ratingCard` keeps its original value and its
+   original job (Section 2's border).
+2. **Band/album title moved inside the card**, at the top, above the 3-section row — it
+   previously lived in a shared `Box` above/outside the card in `AlbumRatingPage.tsx`, rendered
+   unconditionally on both desktop and mobile even though `MobileRatingLayout` already shows its
+   own separate compact title. Moving it into `DesktopRatingLayout` (desktop-only) also removed
+   that pre-existing duplicate title on mobile as a side effect — `MobileRatingLayout.tsx`
+   itself was not touched.
+3. **RadioCard text — three related fixes, one shared helper.** Root cause of the centered text:
+   last session's `align="center"` on `RadioCardRoot` (added for the indicator's vertical
+   centering) also sets Chakra's `radio-card` recipe `itemControl.textAlign: 'center'` — the two
+   are coupled in the built-in recipe and can't be split via the variant prop. Fixed by keeping
+   `align="center"` (still needed for the indicator) and passing `label`/`description` as JSX
+   (`<Text textAlign="left">…</Text>`) instead of plain strings — both props accept
+   `React.ReactNode`, so this stayed scoped to `CriterionLevelPicker.tsx` without touching the
+   shared `radio-card.tsx` wrapper. Separately, confirmed against `supabase/criteria.sql` that
+   raw `criteria_levels` text is Title Case labels + lowercase, unpunctuated descriptions — and
+   confirmed via grep that both fields render in four *other* places beyond this page
+   (`CriterionRow.tsx`/`OptionCard.tsx` in Criteria Calibration, `RatingSummaryView.tsx`,
+   `MobileRatingLayout.tsx`, and this page's own status badges in `DesktopRatingLayout.tsx`,
+   which already had `textTransform="uppercase"` on the whole badge and needed no change).
+   Rather than fixing only `CriterionLevelPicker.tsx` and leaving the other four on stale
+   casing/punctuation (confirmed with Dan as the wrong call — same defect, not five separate
+   ones), added `formatLevelDescription()` next to `buildCriteriaCatalog` in
+   `criteriaCatalog.ts` (capitalize first letter, ensure a trailing `.`/`!`/`?`) and applied it
+   everywhere a description renders (`CriterionLevelPicker.tsx`, `CriterionRow.tsx`); the label's
+   uppercase treatment needed no shared helper since it's non-destructive CSS
+   (`textTransform="uppercase"`) applied individually at all five sites. This pass therefore
+   touches two files outside the original rating-page scope (`CriterionRow.tsx` — Criteria
+   Calibration's comparison cards) for text-formatting consistency only; no logic changed there.
+4. **Rank/Score slabs now sit flush**, no gap. `RatingSlab.tsx` had no `flex`/width of its own,
+   so the two slabs in `DesktopRatingLayout`'s Section 3 just floated at their intrinsic content
+   width with the parent `Flex`'s `gap={2}` (8px) showing the card background through the
+   middle. Fixed with `gap={0}` on the parent and `flex="1 1 0"` added directly inside
+   `RatingSlab.tsx` — hardcoded rather than passed as a prop, since this component only ever
+   renders in this fixed adjacent pair.
+
+**Verified**: `tsc --noEmit` clean, `npx vitest run` 217/217 (no test asserted on raw
+label/description casing or punctuation, so the wider text-formatting footprint didn't break
+anything). Live-verified at a 1600px desktop viewport: card fill visibly darker and distinct
+from the review-card `ink.900` bg, title inside the card, RadioCard text left-aligned/uppercase
+label/punctuated description, Rank/Score forming one continuous two-tone strip. Also
+live-verified the other four text consumers directly: Criteria Calibration's comparison cards
+(`/criteria-calibration`) show e.g. "BOLD" / "Risk-taking defines the album, not just a few
+moments.", and the mobile confirmation dialog (`RatingSummaryView`) shows e.g.
+"3 — SOME FRESH IDEAS" with the level-number prefix left untransformed and only the label
+uppercased.
+
+## Second retouch pass — four more fixes after live review (2026-08-05, same day)
+
+All four diagnosed from source/live computed style before changing, per the standing
+convention — two (badge contrast, left-alignment) required live `getComputedStyle` checks, not
+just re-reading the code, since the previous pass's left-align fix had visibly not worked.
+
+1. **Missing outer card border.** The card `Box` had no `border`/`borderColor` at all —
+   confirmed by reading the file, not assumed. Added the review card's static treatment
+   (`border="2px solid" borderColor="border.ruleStrong"`) but deliberately not its
+   score-conditional hover (`cardHoverBorderColor` in `App.tsx`) — this page has no score to
+   link a hover color to. Also skipped the Favorites-row precedent's plain `border.hover`
+   fallback (`FavoritesPage.tsx`, documented at `slant-take-design-system.md` pass 9, confirmed
+   as the intended reference for exactly this "no score" situation): unlike a review card or a
+   Favorites row, this card isn't a link/button, so there's no interaction for a hover state to
+   give feedback about. No hover treatment at all.
+2. **Section 2 badge contrast — measured, not eyeballed.** Computed styles confirmed current
+   pairings before touching anything: rated badges were already `accent.border`/`accent.ink`
+   (same as `scoreSlabHigh`, ~6.8:1 contrast by sRGB calculation) — no change needed, contrary
+   to the brief's assumption that both badge variants needed fixing. "NOT EVALUATED" was
+   `sand.700`/`text.dim` (sand.300), computed at ~4.1:1 — fails WCAG AA's 4.5:1 for the 10px
+   text, which matches how it read live. Fixed by keeping the same `sand.700` background and
+   switching text to `text.primary` (sand.200), computed at ~6.9:1.
+3. **Left-alignment still weren't showing — real root cause found via live computed style, not
+   re-applied.** The previous pass's fix (wrapping `label`/`description` in
+   `<Text textAlign="left">`) was confirmed present in the shipped code and its `text-align` WAS
+   computing to `left` on the actual DOM node — but the visible centering came from a different,
+   coupled property one level up: `align="center"` on `RadioCardRoot` (still needed for the
+   indicator's vertical centering) also sets `ItemContent`'s own `alignItems: center` in
+   Chakra's built-in recipe, not just `ItemControl`'s `textAlign`. `ItemContent` is a column
+   flexbox wrapping the label+description block; with `alignItems: center`, that block shrinks
+   to its content width and centers *as a flex item* within the row — at that point, `text-align:
+   left` on text that already exactly fills its own box has no visible effect. Confirmed via
+   `getBoundingClientRect()`: the label span's left edge exactly matched its container's left
+   edge only after the real fix. Since `ItemControl` and `ItemContent` read the same CSS var
+   from the same `align` prop, they can't be decoupled via variant props alone — added an
+   optional `contentAlignItems` prop to the shared `radio-card.tsx` wrapper (forwarded to
+   `RadioCard.ItemContent` only, default unset so the wrapper's only other potential future
+   consumers are unaffected) and passed `contentAlignItems="flex-start"` from
+   `CriterionLevelPicker.tsx`. The now-redundant `textAlign="left"` on the inner `Text`s was
+   removed. Also found and removed in the same file: `justify="space-between"` on
+   `RadioCardRoot` was silently invalid (the recipe's `justify` variant only defines
+   start/end/center; confirmed live that `--radio-card-justify` computed as empty) — harmless
+   only because `ItemContent`'s own `flex: 1` already pushes the indicator to the row's end
+   regardless. Removed as dead/misleading rather than left in place.
+4. **Em dash → en dash** between level number and label (`1 — FLAT` → `1 – FLAT`) in
+   `CriterionLevelPicker.tsx`'s template string.
+
+**Verified**: `tsc --noEmit` clean, `npx vitest run` 217/217. Live-verified via computed style
+(not visual inspection alone) on a zero-rated album (Draconian – In Somnolent Ruin) at a 1600px
+viewport: card `border-width: 2px`/`border-color: rgb(58, 58, 58)` on `rgb(26, 26, 26)` bg;
+"NOT EVALUATED" badge `rgb(56, 56, 56)` bg / `rgb(202, 198, 187)` text; level-picker
+`ItemContent` `align-items: flex-start` with the label span's `left` pixel value exactly equal
+to its container's; level-text codepoint `U+2013` (en dash) confirmed via `codePointAt`.
+
+Same-day follow-up fix (reported directly, not part of a formal pass): the multi-line
+description case still centered after the above. Root cause: `contentAlignItems="flex-start"`
+positions the label/description *block* at the row's left edge, but doesn't affect text-align
+*within* a wrapped block — a shrink-to-fit box that wraps takes the available width rather than
+its longest line's width, and inside that wider box the text still inherited `text-align:
+center` from `ItemControl` (still needed for the indicator's centering). The previous pass had
+removed `textAlign="left"` from the label/description `Text`s as apparently-redundant once
+`contentAlignItems` was added — restored it, since it's only redundant for single-line text.
+Also tweaked by hand in the same window: Section 2 badge font size 10px → 11px, and the
+`{level}–{LABEL}` dash spacing tightened (no surrounding spaces).
+
+## Third pass — spacing/padding sweep, title relocation, background layering (2026-08-05, same day)
+
+Scoped explicitly to precede the (separate, not-yet-started) responsive-breakpoints session.
+
+**Zero-padding sweep.** Removed the outer card `Box`'s `p={6}` and the 3-section `Flex`'s
+`gap={6}` entirely — all 3 sections now sit flush against the card's 2px border and against
+each other, with only the pre-existing 1px `surface.ratingCard` border (on Section 2's own box)
+as the visual divider on both sides, per the brief's confirmation that no new dividers were
+needed. Changed the 3-section `Flex`'s `align` from `flex-start` to `stretch` — not explicitly
+requested, but necessary for the new per-section background fills (below) to cover each
+section's full height rather than stopping at its shortest child. Two interpretive calls, not
+covered by the brief's explicit bullet list, made narrowly rather than guessed broadly: (1) no
+gap was added between the artwork and the text block below it — the brief's only stated
+exception was "16px horizontal padding and 12px gap between its 3 rows," not a gap *before* row
+1, so left at zero; (2) Section 3's existing `gap={4}` between the Rank/Score row and the radar
+chart was left untouched — the sweep's bullets are all about section/card-boundary spacing, not
+every internal component gap, and this one was never flagged as needing a value. Both are easy
+to adjust if wrong on manual review.
+
+**Title moved into Section 1.** Previously rendered as a full-width `Heading` at the top of the
+card (added in the first retouch pass), now removed from there and rebuilt as row 1 of Section
+1's stacked text block, directly under the artwork. Matched the review card's own band/album
+typography exactly (`App.tsx` ~line 741: `Heading` 19px/700/uppercase for band, `Text` 18px/500
+for album, tightly stacked with zero gap between them) rather than inventing new styles.
+Inlined rather than reusing `AlbumMeta.tsx` for the release-date/genre rows too: `AlbumMeta`'s
+own internal margins (`mb=1`/`mb=2`) would double up with this section's `gap="12px"`, and
+extraction wasn't required this pass — a few duplicated lines were the lower-risk choice over
+touching a component also used by the review card.
+
+**Background layering — one correction, one addition.**
+- `surface.criterionActive` repointed from `sand.950` to `sand.900` (now matches
+  `ratingCardFill` exactly) — confirmed via grep it has exactly two consumers, both in this
+  file, so repointing the token directly (not adding a new one) was safe.
+- Each section now has its own `bg="surface.card"` (`ink.900`) fill, reusing the token already
+  registered for review cards rather than adding a redundant new one at the same value.
+  Layering, outermost to innermost: card frame `sand.900` → section fill `ink.900` (darkest) →
+  active row/picker `sand.900` (back up to the frame's value) → row hover `sand.800`
+  (untouched this pass).
+- The outer 2px `border.ruleStrong` card border and the inner 1px `surface.ratingCard` (`sand.600`)
+  Section 2 border are unchanged and confirmed distinct — the padding removal didn't collapse
+  or remove either.
+
+**Flagged, not changed**: the brief describes the Rank/Score slabs as already having "no border
+between them," but `RatingSlab.tsx` spreads `scoreSlabBase`/`scoreSlabHigh` unmodified, and
+`scoreSlabBase` includes a 2px `borderLeft` (`border.rule`) — meaning the Score slab (right
+side) should show a thin vertical rule against Rank, not a seamless join. Nothing in this pass
+touched `RatingSlab.tsx`, so this predates it either way; left as-is rather than guessing
+whether to strip the border, pending a look at how it actually renders.
+
+**Not verified live this pass** — Dan is testing manually. `tsc --noEmit` is clean;
+`npx vitest run` not re-run since no test-covered logic changed (pure layout/token edits).
+
+## Fourth pass — Section 2 bg/border/padding, title removed from level picker, RadioCard highlight (2026-08-05, same day)
+
+Also not live-verified (`tsc` clean only) — Dan testing manually throughout this stretch.
+
+- `surface.criterionRow` (new, `ink.800`) as the uniform resting fill for both criteria rows and
+  the level picker; `surface.criterionHover` repointed `sand.800`→`ink.900`; `surface.criterionActive`
+  deleted (its 2 consumers both confirmed via grep) — "active" briefly had no distinct
+  background at all, only a text-color change (superseded by the fifth pass below).
+- Section 2's border reduced to left/right only (top/bottom removed — the outer 2px card border
+  already frames those since the third pass's zero-padding sweep).
+- Active criteria row text → `ink.500` (superseded by the fifth pass below).
+- `CriterionLevelPicker.tsx` gained a `showTitle` prop (default `true`) so its redundant-on-desktop
+  criterion-name heading could be hidden there without breaking `MobileRatingLayout`'s Detail
+  screen, which has no other place to show the name.
+- Criteria row `py`: 12px → 16px.
+- RadioCard checked-state highlight (item outline ring + indicator fill) → `sand.200`, via
+  explicit `_checked` overrides rather than `colorPalette` — `sand` isn't registered as a full
+  color palette in this theme (only `ember` is), so `colorPalette.solid` wouldn't have resolved.
+- `RatingSlab.tsx`: `border="none"` added after spreading `scoreSlabBase`/`scoreSlabHigh`,
+  stripping their inherited 2px border for this component's own usage only — the shared style
+  objects in `theme.ts` are untouched, still used by the review card's own `ScoreSlab`.
+
+## Fifth pass — active-state background restored, indicator default state (2026-08-05, same day)
+
+Correction to the fourth pass's "active has no background" simplification, after live review.
+
+- `surface.criterionRow` repointed again, `ink.800`→`sand.950` — now the *darker* resting fill.
+- `surface.criterionActive` reintroduced at a new value (`ink.800`, not its original `sand.900`/
+  `sand.950`) — shared by the active criteria row and the level picker panel next to it, so they
+  read as one lighter highlighted block against the darker `sand.950` resting rows.
+- Active row text: `ink.500` → `ember.500`.
+- RadioCard indicator default (unchecked) state: explicit `borderColor="sand.600"`,
+  `borderWidth="2px"` — previously unset, silently falling back to Chakra's built-in
+  `border.emphasized`/1px. The checked-state `sand.200` override from the fourth pass is
+  unchanged.
+
+Not live-verified — Dan testing manually.
+
+## Sixth pass — criteria/level-picker border continuity, flicker fix, hover/typography polish (2026-08-05, same day)
+
+Also not live-verified — Dan testing manually throughout. All in `DesktopRatingLayout.tsx`,
+`CriterionLevelPicker.tsx`, `RatingSlab.tsx`.
+
+**Border continuity between the criteria list and level picker.** The level picker panel
+carries no border of its own — a divider is instead drawn as `borderRight` on each *non-active*
+criteria row, `sand.600`. This achieves the same vertical rule a border on the panel itself
+would, but for free gets a gap exactly at the active row's height (which needs no divider there
+— the active row and the panel beside it share the same `surface.criterionActive` fill and
+should read as one continuous block), without needing to compute pixel offsets against a
+dynamically-sized panel.
+
+Two real bugs found via live review against this approach, both fixed:
+- **Small-screen gap**: the criteria list's 6 rows are often shorter than the level picker's
+  content (which can wrap to more lines), so the row-based border stopped partway down instead
+  of reaching the section's true bottom edge. Fixed by giving the *last* row `flex="1"`, so it
+  grows to fill any leftover column height — its own `border-right` then always reaches the
+  bottom regardless of viewport size, no runtime measurement needed.
+- **First/last-row border doubling**: when the active row is the first or last criterion, its
+  `borderTop`/`borderBottom` sits directly against the outer 2px card border (Section 2 itself
+  has no top/bottom border of its own, see the third pass), reading as a doubled line. Both are
+  now suppressed via `isFirst`/`isLast` index checks — top only for the first row, bottom only
+  for the last, left as separate, narrowly-scoped conditions rather than one broader rule.
+
+**Selection flicker, root cause found live, not guessed.** Clicking a different criterion
+visibly reflowed the rows below it. Cause: `borderTop`/`borderBottom`/`borderRight` were toggled
+between `undefined` and `'1px solid'` depending on state — since rows have no fixed height,
+adding/removing a border changes the row's own rendered box size (2px height swing for
+top+bottom), shifting every row below it on each click. Fixed by always rendering all 3 sides at
+`1px solid` and toggling only their *color* (`sand.600`/`transparent`) via
+`borderTopColor`/`borderBottomColor`/`borderRightColor` — box size never changes now.
+
+**Smaller fixes, same pass:**
+- Criteria row: `gap` between name and status badge, 4px→8px; `cursor="pointer"` on hover for
+  inactive rows only (clicking the already-active row is a no-op).
+- Criteria row + status badge text: explicit `textAlign="left"` added to both — same defensive
+  fix as the RadioCard centering bug from an earlier pass (likely cause: `as="button"`'s
+  browser-default centered text-align cascading to children with no explicit override; not
+  chased further since the fix is safe regardless of the exact source).
+- RadioCard level items: `_hover={{ borderColor: 'sand.500' }}` with
+  `transition="border-color 0.15s ease"`; `cursor="pointer"` by default, `"default"` when
+  checked (via the existing `_checked` override).
+- `RatingSlab.tsx`: label text `10px`→`14px` and `opacity: 0.7`→`1`; value text `23px`→`28px`;
+  container `pt`/`pb` `8px`/`4px`→`16px`/`12px` — all overridden locally, not touching the
+  shared `scoreSlabBase`/`scoreSlabHigh` objects the review card's own `ScoreSlab` still uses.
+
+## 2026-08-05: Responsive layout for DesktopRatingLayout (3 tiers)
+
+Separate session from the retouch passes above — a genuine responsive strategy for
+`DesktopRatingLayout`, not another visual fix. The real mobile/desktop split stays at `md`
+(768px, `AlbumRatingPage.tsx`'s existing raw `@media` show/hide — `MobileRatingLayout` untouched
+throughout this session). What changed is entirely inside the `>=768px` component itself, which
+previously rendered one fixed layout (Section 1 and Section 3 fixed-width, Section 2 absorbing
+100% of the squeeze) at every width above that.
+
+**Why the single-fluid-column approach was wrong.** Section 2 (criteria list + level picker) has
+the most content and the most sensitivity to width — criterion names, level descriptions that
+wrap across lines — so it should be the *last* section to give up space, not the *only* one
+compressing. Confirmed via live testing before writing any layout code: at ~900-1000px the old
+layout squeezed Section 2 uncomfortably while Section 1's fixed 300px artwork column and
+Section 3's fixed 220px slabs sat untouched.
+
+**Structure: one grid, not two render trees.** Rather than branching the component's JSX per
+tier, `DesktopRatingLayout`'s outer `Box` became a CSS Grid with `gridTemplateAreas`/
+`gridTemplateColumns` switched by a single internal `@media (min-width: 64em)` (1024px) — each
+section keeps a stable `gridArea` (`art`/`crit`/`score`) and DOM position; only the grid's own
+column/row definition changes. This is why Tier 2's row-1-then-row-2 reorder (Section 2 sits
+between 1 and 3 in the DOM) didn't need a `order` hack or a duplicate branch — grid areas handle
+the visual reorder for free.
+
+Raw `@media (min-width: 64em)`, not Chakra's `lg` breakpoint token — this theme defines no
+custom breakpoints, so Chakra's `lg` resolves to 992px, not the 1024px the brief calls for
+specifically. Same reasoning as the existing 47.9375em/48em split one level up in
+`AlbumRatingPage.tsx`: precision over convenience where an exact px boundary matters.
+
+**Tier 1 (>=1024px) — chosen values, found by live testing at 1024/1150/1300/1600px:**
+```
+gridTemplateColumns: 300px minmax(420px, 1.6fr) minmax(220px, 0.9fr)
+```
+- Section 1: unchanged fixed `300px` — least to gain from flexing, and the 300x300 artwork
+  requirement is explicit and repeated elsewhere in this project's history.
+- Section 2: `minmax(420px, 1.6fr)`. 420px is the narrowest width at which the level picker's
+  longest level descriptions still wrap to no more than 2 lines at the 1024px boundary itself
+  (checked directly, not assumed); the `1.6fr` share means it gives up space to Section 3 more
+  slowly as the viewport narrows, per the brief's priority ordering.
+- Section 3: `minmax(220px, 0.9fr)`. 220px matches `RatingSlab`'s own pre-responsive fixed width
+  — below that, "SCORE" plus a value like "100%" starts crowding the slab (checked live with a
+  3-digit `100%`/2-digit `#12` value at the narrow 1024px end, not just the default `72%`/`#3`
+  mock). The radar chart's own internal `ResponsiveContainer` (already required by Recharts, see
+  the engine-integration entry above) absorbs the rest of the narrowing without any extra work
+  here.
+
+At no tested width (1024/1150/1300/1600) did Section 2's text overflow, the radar chart clip, or
+either `RatingSlab`'s value wrap.
+
+**Tier 2 (768-1023px) — 2-row reorg, verified live at 768/900/1023px:**
+```
+gridTemplateAreas: '"art score" "crit crit"'
+gridTemplateColumns: 1fr 1fr
+```
+Row 1: Section 1 (artwork+meta) and Section 3 (Rank/Score+chart) side by side, evenly split —
+both are comparatively compact and content-light, and pair naturally per the brief. Row 2:
+Section 2 full width below, where it actually has room.
+
+**Artwork sizing at Tier 2.** `AlbumArtwork.tsx`'s `size` prop gained an `"auto"` mode (`w:
+'100%', h: 'auto', aspectRatio: '1'`) instead of a fixed px string — `DesktopRatingLayout` now
+always passes `size="auto"`. At Tier 1 this renders identically to the old hardcoded `300px`
+(the grid track itself is a fixed 300px there, so 100% width = 300px). At Tier 2, Section 1's
+own column is fluid (shared 1fr track with Section 3), so a hardcoded 300px would either
+overflow the shared row at the 768px end or leave Section 3 starved at the 1023px end — verified
+live at both ends that neither happens with `auto` (measured via `getBoundingClientRect()` at
+1023px: a 485.5px square, exactly half the 1023px card width minus its 2px border, matching
+Section 3's own column width).
+
+**What did not change:** `MobileRatingLayout` (confirmed via the still-intact 47.9375em/48em
+gate in `AlbumRatingPage.tsx`, one level above this component); the border/badge/alignment/dash
+fixes from the earlier retouch passes; `RatingSlab`'s inherited `borderLeft` (still open, still
+out of scope, not touched here).
+
+**Verification:** live-checked at 768, 900, 1023, 1024, 1150, 1300, and 1600px via a temporary
+unauthenticated dev route (`/dev-rating-preview`, mock catalog + mock rating summary, removed
+before this pass's commit — not part of the shipped diff) since `/rate/:albumId` is
+auth-gated and no test credentials were available in this session. `tsc --noEmit` clean,
+`npx vitest run` 217/217.
+
+## 2026-08-05: Radar chart labels + true responsiveness, Tier 2 border adjustments
+
+Follow-up to the 3-tier responsive layout above, on live review of the shipped result.
+
+**Diagnostic (reported before any change was made).** `RatingRadarChart.tsx`'s `Chart.Root`
+carried a hardcoded `boxSize={isSmall ? '40px' : '260px'}` — the "full" chart was always exactly
+260px square, regardless of Section 3's actual width. The inner `ResponsiveContainer
+width="100%" height="100%"` was genuinely responsive, but only to that fixed 260px box, so it
+never grew — this is why the chart read as fixed-size and left-aligned inside Section 3's wider
+column even after the layout around it became responsive. `PolarAngleAxis` already had
+`dataKey={chart.key('criterion')}` wired to `entry?.name` (the same short label shown in Section
+2's list, e.g. "Songwriting") but `tick={false}` explicitly suppressed rendering it — a past
+pass ("Axis labels removed per feedback"). No `outerRadius` was set at all, so Recharts' own
+default (`"80%"`, itself a percentage) meant the plotted shape would already have scaled
+correctly once its container did — the fix was entirely about the container, not the radius
+units. Confirmed this was a prop-level fix, not a structural recomposition, before proceeding.
+
+**Sizing fix.** `Chart.Root`'s fixed `boxSize` (full mode only — the 40px mobile preview icon in
+`MobileRatingLayout` is untouched) became `w="100%" aspectRatio="1"`, mirroring the same fluid
+1:1 pattern already used for `AlbumArtwork`'s `size="auto"` mode. Verified via
+`getBoundingClientRect()` at 1600px: exactly `449×449`, ratio `1` — uniform scaling confirmed,
+not just visually plausible.
+
+**Labels.** `PolarAngleAxis`'s `tick={false}` became `tick={isSmall ? false : { fontSize: 10,
+fill: criterionTickColor }}` (`criterionTickColor = chart.color('text.muted')`, resolved once in
+the component body so it and the radar's own stroke/fill read from the same token-resolution
+path). No new data needed — `entry?.name` was already short. Hover-tooltip content/behavior
+(criterion/level/weight on hover) is unchanged; the new labels are the always-visible
+supplement, not a replacement.
+
+**Label clipping, found and fixed via live measurement, not eyeballing.** The first attempt
+(`outerRadius="62%"`, `margin={{ top: 24, right: 24, bottom: 24, left: 24 }}`) still clipped at
+Tier 1's 1024px end: `getBoundingClientRect()` on `.recharts-polar-angle-axis-tick-value` showed
+"Consistency" (rightmost point, `text-anchor="start"` so its text runs further right than the
+plotted point itself) extending to `x=1006` against the outer card's own right edge at `x=1000`
+— about 6px of real clipping past the card border, not just visually tight. `outerRadius="50%"`
+with `margin={{ top: 24, right: 40, bottom: 24, left: 40 }}` was the first value with zero
+overflow at 1024px (re-measured: "Consistency" right edge `x=988.97`, card edge `x=1000`,
+~11px clear); re-verified at every other tested width up to 1600px with the same measurement
+approach, all clear.
+
+**Growth at Tier 2, per Dan's live-review note ("we have a ton of space").** Since the fix is
+container-driven (not a fixed cap), the chart naturally uses Section 3's much wider Tier 2 half-row
+share — confirmed visually at 768/900/1023px that it grows substantially larger than at Tier 1's
+narrow end, not staying small.
+
+**Tier 2 border adjustments**, same `64em` breakpoint already established for the grid itself:
+- Section 1 (`art`): gained `borderRight: 1px solid sand.600`, Tier 2 only (`@media
+  (max-width: 63.9375em)`) — separates it from Section 3 in Row 1. Section 3 needs no matching
+  left border; one edge is enough to read as the divider.
+- Section 2 (`crit`): its existing `borderLeft`/`borderRight` (`surface.ratingCard`, a token that
+  resolves to the same `sand.600`) now apply only at Tier 1 (`@media (min-width: 64em)`) — at
+  Tier 2 it's a standalone full-width row, not flanked between two neighbors, so left/right
+  borders would be meaningless. A `borderTop: 1px solid sand.600` takes their place at Tier 2,
+  separating Row 2 from Row 1.
+- Both toggle together via one `css` object per section (default = Tier 2 styles, `@media
+  (min-width: 64em)` override = Tier 1 styles) rather than two independent conditions — verified
+  via computed-style inspection, not just visual read: at 1023px, Section 1's right border is a
+  1px `rgb(77, 77, 76)` (`sand.600`, `#4d4d4c`) edge spanning exactly Row 1's height; Section 2
+  has `borderTop` `sand.600` and `0px` left/right. At 1024px, only Section 2 carries left/right
+  borders (both `1px`), and no element has a full-width top border — Tier 1 unchanged from
+  before this pass.
+
+**What did not change:** Tier 1's column widths, Tier 2's row structure, `MobileRatingLayout`,
+and the radar chart's hover-tooltip content.
+
+**Verification:** live-checked (screenshots plus `getBoundingClientRect()`/computed-style
+measurements, not visual assumption alone) at 768, 900, 1023, 1024, 1150, 1300, and 1600px via
+the same temporary unauthenticated dev route used for the previous pass (`/dev-rating-preview`,
+removed before this pass's commit). `tsc --noEmit` clean, `npx vitest run` 217/217.
+
+## 2026-08-06: Radar chart label abbreviation, replacing the size-aware-radius approach
+
+Follow-up correction to the 2026-08-05 radar-chart entry above. Live review after that pass
+shipped surfaced a real reintroduction of the label-clipping bug via manual edits to
+`outerRadius`/`margin` (60% / uniform 20px, up from 50% / 40px-left-right — a deliberate visual
+preference for a bigger, fuller-looking chart), and prompted a proper fix for the tradeoff this
+recreated at Tier 1's narrow end.
+
+**Approaches considered, in the order tried:**
+1. **Widen Section 3's grid min-width** (tested: 220px → 250px → 260px). Rejected — doesn't
+   work structurally. `outerRadius` is a *percentage* of the container, so a wider column grows
+   the plotted radius right along with it; the label's fixed pixel overhang past that radius
+   barely shrinks. Pushing further (260px) actively overconstrained the Tier 1 grid
+   (300+420+260 = 980px needed vs. 976px available at 1024px), making the whole chart spill past
+   the card edge — worse than the 220px baseline. Confirmed via `getBoundingClientRect()`
+   measurements at each step, not assumed.
+2. **Size-aware radius/margin via `ResizeObserver`** — proposed as the "correct" fix (shrink the
+   plotted shape only when the chart's own measured box is actually too narrow, full 60%/20px
+   look everywhere else). Rejected by design preference before implementation: any radius
+   reduction, even a conditional one, visibly shrinks the chart at the narrow end — not
+   acceptable regardless of how precisely it's targeted.
+3. **Label abbreviation in a fixed viewport band (shipped).** Keeps `outerRadius`/`margin`
+   constant everywhere (60% / 20px uniform, unchanged from the manual edit) — the plotted shape
+   never shrinks. Only the axis-label *text* degrades, and only inside a fixed 1024–1250px
+   window (given directly, not derived): full criterion names clip past the card at Tier 1's
+   narrow end, so labels shorten there; outside that band (Tier 2, and Tier 1 beyond ~1250px)
+   full names render.
+
+**Implementation.** `RatingRadarChart.tsx` gained a `CRITERION_ABBREVIATIONS` lookup (fixed
+per-name table, not generic truncation — reads as deliberate abbreviations rather than mid-word
+cutoffs) wired through `PolarAngleAxis`'s `tickFormatter`. Sizing detection is a plain
+`window.innerWidth` check with a `resize` listener (`isNarrow = innerWidth >= 1024 && innerWidth
+<= 1250`), not `matchMedia` (avoids string-parsing indirection) and not `em` units (avoids a
+repeat of the em-vs-px boundary confusion already documented in the layout entries above) — an
+exact, easy-to-verify match against the two numbers as given. A `ResizeObserver`-based variant
+(measuring the chart's own rendered box rather than the viewport) was built first per option 2
+above, then removed entirely once viewport-width was confirmed as the actual desired trigger —
+not layered on top of the simpler fix.
+
+**Real bug found and fixed independent of the above: label text keys must match seeded data
+exactly.** The abbreviation table's initial key was `'Emotional Impact'` (title case); the real
+row in `supabase/criteria.sql` is `'Emotional impact'` (sentence case, only the first word
+capitalized). A title-case key would have silently never matched — that criterion's label would
+never abbreviate, failing quietly with no error, only found by cross-checking the lookup keys
+against the actual seed file rather than trusting the brief's casing at face value. Also
+corrected: the dev-only test harness's mock catalog, which had used an entirely different,
+made-up set of six criterion names (leftover from the original responsive-layout pass) — swapped
+to the real six (`Innovation`/`Emotional impact`/`Performance`/`Coherence`/`Production`/
+`Songwriting`) and `FIXED_CRITERION_ORDER`'s real id mapping, so the abbreviation table was
+actually being exercised rather than silently falling through to its no-match fallback the whole
+time.
+
+**Two dev-server artifacts hit and fixed during iteration, neither a real code bug:** a stray
+plain `// comment` that landed directly inside JSX children (invalid — JSX comments need `{/*
+*/}`) after a mid-edit restructure, which rendered as literal on-page text and broke Vite HMR for
+the rest of that session; and a stale Vite module cache that kept serving a since-removed
+`useRef` import after the `ResizeObserver` approach was torn out, throwing `ReferenceError:
+useRef is not defined` until the dev server was restarted. Both are artifacts of iterating
+against a live server, not issues in the committed code — `tsc --noEmit`, which compiles from
+disk, was clean throughout even while the running server was serving stale/broken bundles.
+
+**Also this pass:** axis-label color changed from the semantic `text.muted` token to the raw
+`sand.200` palette value directly (a deliberate manual choice, not measured/justified by contrast
+tooling the way earlier badge-contrast fixes in this doc were — noted here for consistency with
+this doc's practice of recording token choices, not as an implied audit).
+
+**What did not change:** Tier 1/Tier 2 grid structure and borders (both from the prior entry,
+untouched by this pass), the chart's hover-tooltip content, `MobileRatingLayout`.
+
+**Verification:** `tsc --noEmit` clean and `npx vitest run` 217/217 confirmed after every
+substantive change in this pass. Live visual verification across the 1024–1250px band and its
+boundaries was run interactively during the session (confirmed working per direct user review)
+rather than captured here step-by-step, since the session's live-testing loop was cut short
+partway through automated re-verification at the user's request ("stop testing") after the
+dev-server artifacts above had already cost significant time — the fixes that followed (the
+`Emotional impact` casing correction and the `sand.200` color change) were applied and
+type-/test-checked but not re-screenshotted individually.
+
+### 2026-08-06 — Motion pass: radar animation, completion reveal, criterion-switch transition
+
+Four small, additive motion/interaction improvements, no layout changes. Site-wide convention
+followed: no bounce, short durations (150–350ms), nothing "playful" — matching the page's
+sharp-cornered, zero-border-radius aesthetic. (First shipped with a two-slab `RATED n`/`TOTAL 6`
+pending state and a same-node background-color reveal; both were replaced same-day per live
+feedback — this entry describes the final shipped shape, not the intermediate one.)
+
+**1. Radar chart animates on pick.** `RatingRadarChart.tsx`'s `<Radar>` already had
+`isAnimationActive`; added `animationDuration={250}` with no `animationEasing` override.
+Deliberately *not* using the house `ease-out` convention here — confirmed live that Recharts'
+default easing looks right on this specific animation and `ease-out` looked wrong in practice,
+despite matching the site's usual preference on paper. This is a tested exception, not an
+oversight — don't "fix" it back to `ease-out` later without re-testing live.
+
+**2+4. Evaluation-progress box + completion reveal.** `RatingSlab` gained a third `progress`
+variant (`bg: ember.950`, `color: sand.200`, `px: 12px` — a local style object, not added to
+`scoreSlabBase`/`High` in `theme.ts` since it's only ever used here). `DesktopRatingLayout`
+computes `isPending = ratings.size < order.length` and, while pending, renders exactly one
+`RatingSlab` spanning the full Rank/Score row — label "Evaluation progress", value `n` (the
+rated count, `RatingSlab`'s existing bold 28px number styling, untouched) followed by a
+`valueSuffix` of `` ` / ${order.length}` `` in a smaller/normal-weight inline `Text` (20px, 400
+weight) — e.g. `4` bold next to `/6` smaller, reading as one line. Deliberately gated on
+`ratings.size` directly rather than on `ratingSummary`'s presence: `ratingSummary` refetches
+asynchronously after the 6th save (`AlbumRatingPage.tsx`'s `handlePick` calls
+`refetchRatingSummary()` post-save), so gating on it would leave a stale "—" flash between the
+6th pick and the refetch resolving.
+
+The completion reveal is a structural swap (one full-width box → two half-width slabs), not a
+same-node prop change, so a plain `background-color` transition doesn't apply — confirmed live
+before committing to an approach: a first attempt used a single simultaneous `AnimatePresence`
+crossfade (both sides mounted and opacity-animating at once) and it read as a jump-cut, since the
+one full-width box and the two half-width slabs share too little visually for an overlap to look
+like a transition. Fixed with `mode="wait"`: the progress box fully unmounts (200ms `easeOut`
+fade-out) before the Rank/Score `Flex` mounts and fades in (200ms `easeOut`) — verified live via
+screenshots at mid-exit, mid-enter (visibly dimmed before settling), and the final `RANK #n`
+ember / `SCORE n%` light state. No layout shift, since only one side is ever mounted at a time.
+
+**5. Criterion-switch transition.** The active criterion's `CriterionLevelPicker` (inside
+`DesktopRatingLayout`'s Section 2 picker panel) is now wrapped in a `framer-motion` `motion.div`
+keyed on `selectedEntry.index`, with `initial={{ opacity: 0, y: 4 }}` →
+`animate={{ opacity: 1, y: 0 }}` over 180ms `easeOut`. The `key` forces a fresh mount (and thus a
+fresh `initial`→`animate` run) on every row click, not just the first render. `framer-motion` was
+already a transitive dependency (via Chakra) but not previously imported directly anywhere in
+`src/` — this is the first direct usage. No exit animation: the old content is removed instantly
+on remount rather than cross-fading out, which avoids the layout-shift risk of two stacked panels
+rendering simultaneously during a crossfade, at the cost of the brief's literal "old content
+fades out" phrasing — the visible, load-bearing part (new content settling in via fade +
+translateY) is unchanged.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 217/217 (as of the last pass that
+touched test-relevant logic — the two follow-up tweaks above, progress-box padding and the
+bold-count/smaller-suffix split, were type-checked and live-verified via screenshots but not
+re-run through the full suite, since neither touches logic any existing test covers). Live
+verification throughout used the `/dev-rating-preview` dev-only harness
+(`src/DevRatingPreview.tsx`, temporary — remove before merging): radar re-animation caught
+mid-animation (polygon interpolating between shapes); criterion-switch fade caught mid-fade
+(incoming level list at partial opacity); the progress-box → Rank/Score reveal caught at all
+three phases described above.
+
+**What did not change:** any layout/spacing/border/color token outside what's listed above, the
+radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
+`scoreSlabBase`/`scoreSlabHigh` themselves (only a new third variant added).

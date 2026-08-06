@@ -1,4 +1,4 @@
-import { RadioCard } from "@chakra-ui/react"
+import { RadioCard, type SystemStyleObject } from "@chakra-ui/react"
 import * as React from "react"
 
 interface RadioCardItemProps extends RadioCard.ItemProps {
@@ -9,6 +9,13 @@ interface RadioCardItemProps extends RadioCard.ItemProps {
   indicator?: React.ReactNode | null
   indicatorPlacement?: "start" | "end" | "inside"
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>
+  // Ark/Chakra's radio-card recipe couples RadioCard.Root's `align` variant to BOTH
+  // ItemControl's cross-axis alignItems (indicator vertical position) and ItemContent's own
+  // alignItems (label/description block's horizontal position) via the same CSS var — they
+  // can't be set independently through `align` alone. This lets a consumer override just
+  // ItemContent's alignItems without touching ItemControl/the indicator. Optional, unset by
+  // default, so existing consumers are unaffected.
+  contentAlignItems?: SystemStyleObject["alignItems"]
 }
 
 export const RadioCardItem = React.forwardRef<
@@ -23,11 +30,13 @@ export const RadioCardItem = React.forwardRef<
     icon,
     indicator = <RadioCard.ItemIndicator />,
     indicatorPlacement = "end",
+    contentAlignItems,
     ...rest
   } = props
 
   const hasContent = label || description || icon
   const ContentWrapper = indicator ? RadioCard.ItemContent : React.Fragment
+  const contentWrapperProps = indicator ? { alignItems: contentAlignItems } : {}
 
   return (
     <RadioCard.Item {...rest}>
@@ -35,7 +44,7 @@ export const RadioCardItem = React.forwardRef<
       <RadioCard.ItemControl>
         {indicatorPlacement === "start" && indicator}
         {hasContent && (
-          <ContentWrapper>
+          <ContentWrapper {...contentWrapperProps}>
             {icon}
             {label && <RadioCard.ItemText>{label}</RadioCard.ItemText>}
             {description && (

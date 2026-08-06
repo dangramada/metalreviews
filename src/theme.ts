@@ -115,6 +115,11 @@ const system = createSystem(defaultConfig, {
         md: { value: '0px' },
         lg: { value: '0px' },
         full: { value: '0px' },
+        // Reinstates a real circle, scoped to a single token rather than un-zeroing `full`
+        // app-wide — see the `full` comment above. Only consumer: the AlbumRatingPage level
+        // picker's radio indicator (CriterionLevelPicker.tsx), which needs a genuine circle to
+        // match its reference design; nothing else should opt into this.
+        circle: { value: '9999px' },
       },
     },
     semanticTokens: {
@@ -126,6 +131,29 @@ const system = createSystem(defaultConfig, {
           cardHover: { value: { base: '#181818' } },
           raised: { value: { base: '{colors.ink.700}' } },
           darkest: { value: { base: '{colors.ink.950}' } },
+          // AlbumRatingPage desktop redesign (see docs/decisions/album-rating-page.md). Anchored
+          // to the `sand` ramp, not `ink` like the rest of this group — the reference design's
+          // card is a distinctly lighter gray than the `surface.card` review cards use
+          // elsewhere, an intentional divergence for this page, not an oversight.
+          // `ratingCard` (sand.600) is shared by Section 2's border — kept as-is, not repointed,
+          // per the retouch pass's explicit instruction not to blindly repoint a shared token.
+          // `ratingCardFill` (sand.900) is the card's own background only, corrected in that
+          // same retouch pass after the initial sand.600 fill turned out not to match the
+          // reference design.
+          ratingCard: { value: { base: '{colors.sand.600}' } },
+          ratingCardFill: { value: { base: '{colors.sand.900}' } },
+          // Fifth pass (same day) correction: `criterionRow` is the resting fill for non-active
+          // criteria rows and the criteria-list container — repointed from ink.800 to sand.950,
+          // one step darker than the reintroduced `criterionActive` (ink.800) below, so the
+          // active row + its level picker read as a lighter highlighted block against the
+          // darker resting rows. `criterionHover` (ink.900) unchanged.
+          criterionRow: { value: { base: '{colors.sand.950}' } },
+          criterionHover: { value: { base: '{colors.ink.900}' } },
+          // Reintroduced (fifth pass) at a new value — the fourth pass deleted this token when
+          // "active" briefly had no distinct background at all; it's back because active now
+          // needs one again, this time ink.800 (not the original sand.900) shared by both the
+          // active criteria row and the level picker area next to it.
+          criterionActive: { value: { base: '{colors.sand.900}' } },
         },
         border: {
           default: { value: { base: '{colors.gray.600}' } },

@@ -37,6 +37,20 @@ export interface RawCriterionRow {
   criteria_levels: { level: number; label: string; description: string }[];
 }
 
+// Raw `criteria_levels.description` text is stored lowercase with no trailing punctuation
+// (see supabase/criteria.sql, e.g. "doesn't leave much of a feeling behind"). Every render site
+// that shows this text (CriterionLevelPicker, CriterionRow/OptionCard, RatingSummaryView,
+// MobileRatingLayout) wants sentence case + a trailing period, so the transform lives here once
+// rather than as five one-off fixes — see docs/decisions/album-rating-page.md's retouch-pass
+// entry. Labels get the same uppercase treatment at each site via CSS `textTransform`, not a
+// string transform, since that's non-destructive and doesn't need a shared helper.
+export function formatLevelDescription(description: string): string {
+  const trimmed = description.trim();
+  if (!trimmed) return trimmed;
+  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+}
+
 export function buildCriteriaCatalog(rows: RawCriterionRow[]): CriteriaCatalog {
   const entries: CriterionCatalogEntry[] = [];
   for (const row of rows) {

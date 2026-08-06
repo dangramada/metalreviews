@@ -57,6 +57,18 @@ not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shel
 session/persistence/gate/engine logic touched. Page-shell pattern itself now documented in
 `docs/decisions/architecture.md`.
 
+`album-rating-page-desktop-redesign` — **not yet merged to `master`**, pushed to `origin` on
+2026-08-06. Reworked `DesktopRatingLayout` into a 3-section bordered-card layout (artwork+meta |
+criteria-list+levels | Rank/Score slabs+radar chart), since made responsive across 3 tiers
+(>=1024px / 768-1023px / <768px mobile untouched), plus a run of same-day/next-day retouch and
+radar-chart polish passes (borders, contrast, label abbreviation), then a motion pass (radar
+animation, a single "Evaluation progress n/total" box pre-completion that crossfades to
+Rank/Score on the 6th rating, criterion-switch fade). Full detail, including all chosen values,
+rejected approaches, and bugs found along the way: the dated 2026-08-05/06 entries in
+`docs/decisions/album-rating-page.md`. A temporary dev-only harness, `src/DevRatingPreview.tsx`
+(route `/dev-rating-preview`), was added during the motion pass to live-verify animations
+without a real Supabase account — remove before merging.
+
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**
 (missing the post-merge polish pass `5e6f8af` and the docs commit `4b92722` recording a
@@ -64,10 +76,11 @@ concurrent-session collision/undo — fast-forward not yet done). Third UI attem
 (see the two entries below): a dedicated route `/rate/:albumId?from=favorites|aoty` replacing both
 `AlbumRatingDrawer` (deleted outright, confirmed unreferenced elsewhere) and the rejected
 `album-rating-modal` branch (left untouched, not built on, not referenced). Genuinely
-different desktop (3 simultaneous fluid columns: artwork+radar chart, criterion-name list,
-selected criterion's `RadioCard` levels) and mobile (2 sequential screens: Overview list with
-checkmarks, Detail with full levels, auto-return + highlight after a pick) layouts, not one
-layout scaled. New dependency `@chakra-ui/charts` (+ `recharts` transitively) for the radar
+different desktop (originally 3 simultaneous fluid columns: artwork+radar chart, criterion-name
+list, selected criterion's `RadioCard` levels — **superseded 2026-08-05 by the 3-section
+bordered-card layout above**, this description is historical only) and mobile (2 sequential
+screens: Overview list with checkmarks, Detail with full levels, auto-return + highlight after a
+pick) layouts, not one layout scaled. New dependency `@chakra-ui/charts` (+ `recharts` transitively) for the radar
 chart — first charting library in this project; the brief assumed a turnkey `RadarChart`
 component but the package only exports composition primitives (`useChart`/`Chart.Root`/
 `Chart.Tooltip`) wrapping Recharts' own chart components. Two real runtime-only bugs found and
