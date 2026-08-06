@@ -3,7 +3,7 @@
 // docs/decisions/album-rating-page.md's dated entry for the redesign from the original
 // 3-simultaneous-columns layout this replaces.
 import { Badge, Box, Flex, Heading, Text, VStack, Wrap, WrapItem } from '@chakra-ui/react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AlbumArtwork } from './AlbumArtwork';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
 import { RatingSlab } from './RatingSlab';
@@ -311,19 +311,45 @@ export function DesktopRatingLayout({
         {/* Section 3: rank/score slabs + radar chart. bg="surface.card" — same third-pass fill
             as the other two sections. */}
         <VStack gridArea="score" align="stretch" gap={4} bg="surface.card" minW={0}>
-          <Flex gap={0}>
+          {/* Structural swap, not a prop change on a stable node — pending is one full-width
+              box, complete is two side-by-side slabs, so there's no single DOM node to recolor
+              across the transition the way RatingSlab's own pending->final swap worked in the
+              previous motion pass (that trick doesn't apply once the child count itself
+              changes). `mode="wait"` fully unmounts the exiting side before mounting the
+              entering one so the two states never overlap mid-transition — see the dated entry
+              in docs/decisions/album-rating-page.md for what this looked like live and why a
+              plain simultaneous crossfade (both sides opacity-animating at once, letting a
+              same-position child straddle both) was rejected in favor of this. */}
+          <AnimatePresence mode="wait" initial={false}>
             {isPending ? (
-              <>
-                <RatingSlab label="Rated" value={String(ratings.size)} variant="pending" />
-                <RatingSlab label="Total" value={String(order.length)} variant="pending" />
-              </>
+              <motion.div
+                key="progress"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <RatingSlab
+                  label="Evaluation progress"
+                  value={`${ratings.size} / ${order.length}`}
+                  variant="progress"
+                />
+              </motion.div>
             ) : (
-              <>
-                <RatingSlab label="Rank" value={rankValue} variant="high" />
-                <RatingSlab label="Score" value={scoreValue} variant="base" />
-              </>
+              <motion.div
+                key="final"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <Flex gap={0}>
+                  <RatingSlab label="Rank" value={rankValue} variant="high" />
+                  <RatingSlab label="Score" value={scoreValue} variant="base" />
+                </Flex>
+              </motion.div>
             )}
-          </Flex>
+          </AnimatePresence>
           <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
         </VStack>
     </Box>

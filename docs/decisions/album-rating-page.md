@@ -871,3 +871,43 @@ than jump-cutting.
 **What did not change:** any layout/spacing/border/color token outside what's listed above,
 the radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
 `scoreSlabBase`/`scoreSlabHigh` themselves (only a new third variant added).
+
+### 2026-08-06 — Follow-up: single progress box replaces the two-slab pending state
+
+The previous entry's `RATED n`/`TOTAL 6` two-slab pending layout didn't match what was actually
+wanted — replaced with a single full-width box per a reference image, before this branch merges.
+
+**1. Single box.** `RatingSlab`'s `pending` variant (`sand.700`/`text.primary`, two slots) is
+gone, replaced by a `progress` variant (`bg: ember.950`, `color: sand.200`). `DesktopRatingLayout`
+renders exactly one `RatingSlab` — label "Evaluation progress", value `` `${ratings.size} / ${order.length}` ``
+(e.g. `4 / 6`) — while `isPending`. Reused `RatingSlab` itself rather than a sibling component:
+the brief wanted the label/value at the same font/size/weight as Rank/Score, and reusing the
+component guarantees that by construction instead of duplicating the two `Text` elements
+elsewhere and risking drift. `flex="1 1 0"` on the root `Box` already fills the full row width
+when it's the flex row's only child (flex-grow, not a fixed width) — no width special-casing
+needed for the solo-vs-paired cases.
+
+**2+4. Completion transition re-diagnosed, not reused.** The previous pass's `background-color`
+transition worked because `isPending` swapped props on the *same* `RatingSlab` node (same
+position in a stable 2-element array, same component type, React updates in place). That doesn't
+hold here: pending renders one child, complete renders two, so what previously was a same-node
+recolor is now a genuine mount-count change. Confirmed live before deciding anything: a first
+pass wired a single `AnimatePresence` around both states without `mode="wait"` (simultaneous
+crossfade, both sides mounted and opacity-animating at once) and it read exactly as warned — the
+one full-width box and the two half-width slabs have too little in common visually for an overlap
+to look like a transition rather than one thing snapping over another mid-fade. Switched to
+`mode="wait"`: the exiting side (progress box) fully unmounts — completing its own 200ms
+`easeOut` opacity-to-0 — before the entering side (Rank/Score `Flex`) mounts and runs its own
+200ms fade-in. Verified live via `/dev-rating-preview`: screenshotted mid-exit (progress box
+still showing its last content, `5/6`, fading), mid-enter (Rank/Score pair visible but visibly
+dimmed, colors not yet full-opacity), and the settled end state (`RANK #3` ember / `SCORE 72%`
+light) — no jump-cut, no layout shift (each state is the row's only mounted content at any given
+time, so there's no width/flex renegotiation mid-transition either).
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 217/217. Live-verified via
+`/dev-rating-preview`: single progress box confirmed at `4/6` (ember.950/sand.200, full width);
+rated the 5th and 6th criteria and confirmed the sequential fade-out/fade-in described above,
+landing on the correct final Rank/Score slabs.
+
+**What did not change:** `scoreSlabHigh`/`scoreSlabBase` visuals/content, items 1/3/5 from the
+prior pass (radar animation, criterion-switch fade), radar chart, card layout/borders.

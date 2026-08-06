@@ -3,19 +3,19 @@
 // App.tsx's own ScoreSlab component: that component isn't exported and hardcodes a bare
 // number + dimmed "/10" as its content, whereas this needs a small label plus an arbitrary
 // value string (a rank "#N", a percentage, or an em dash pre-completion).
-// flex="1 1 0" hardcodes an even 50/50 split against a sibling RatingSlab — safe because this
-// component only ever renders in the fixed Rank/Score pair in DesktopRatingLayout's Section 3,
-// not as a general-purpose slab.
+// flex="1 1 0" gives an even 50/50 split when paired with a sibling RatingSlab (Rank/Score), or
+// fills the full row width when rendered alone (the progress variant, pre-completion) — safe
+// because this component only ever renders inside DesktopRatingLayout's Section 3 top row, not
+// as a general-purpose slab.
 import { Box, Text } from '@chakra-ui/react';
 import { scoreSlabBase, scoreSlabHigh } from '../../theme';
 
-// Neutral in-progress state — same sand.700 fill on both slots while rating is incomplete
-// (see DesktopRatingLayout), replacing what used to be two static em-dashes. Not a theme.ts
-// style object like scoreSlabBase/High since it's only ever used here, not shared with the
-// review card.
-const scoreSlabPending = {
-  bg: 'sand.700',
-  color: 'text.primary',
+// In-progress state — single full-width box (see DesktopRatingLayout) shown in place of the
+// Rank/Score pair while rating is incomplete. Not a theme.ts style object like scoreSlabBase/
+// High since it's only ever used here, not shared with the review card.
+const scoreSlabProgress = {
+  bg: 'ember.950',
+  color: 'sand.200',
 } as const;
 
 export function RatingSlab({
@@ -25,10 +25,10 @@ export function RatingSlab({
 }: {
   label: string;
   value: string;
-  variant: 'base' | 'high' | 'pending';
+  variant: 'base' | 'high' | 'progress';
 }) {
   const styles =
-    variant === 'pending' ? scoreSlabPending : variant === 'high' ? scoreSlabHigh : scoreSlabBase;
+    variant === 'progress' ? scoreSlabProgress : variant === 'high' ? scoreSlabHigh : scoreSlabBase;
   return (
     <Box
       {...styles}
@@ -44,10 +44,6 @@ export function RatingSlab({
       display="flex"
       flexDirection="column"
       gap="2px"
-      // Drives the pending -> real-variant background swap at rating completion (see
-      // DesktopRatingLayout) — content (label/value) swaps instantly alongside this, only the
-      // color itself eases.
-      transition="background-color 350ms ease-out"
     >
       <Text as="span" fontFamily="mono" fontSize="14px" fontWeight="700" textTransform="uppercase" opacity={1}>
         {label}
