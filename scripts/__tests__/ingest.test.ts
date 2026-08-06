@@ -78,4 +78,13 @@ describe('shouldSkipPost — non-review post filtering', () => {
     expect(isAllowlistedFranchise(item, 'Angry Metal Guy')).toBe(true);
     expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(false);
   });
+
+  it('skips an AMG "Stuck in the Filter" post even when mistagged with Review/Reviews', () => {
+    const item = {
+      categories: ['Reviews', 'Stuck in the Filter', 'Death Metal', 'Review', 'Stuck in the Filter 2026'],
+    };
+    expect(isGenuineReview(item, 'Angry Metal Guy')).toBe(true);
+    expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(true);
+    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(true);
+  });
 });

@@ -95,8 +95,12 @@ const ALLOWLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
 // but one post got mistagged with both "Into the Obscure" and "Review"/"Reviews",
 // which would otherwise pass isGenuineReview. Deliberately a short,
 // audit-confirmed list — do not add speculative entries here.
+// "Stuck in the Filter" (monthly angry-misses roundup) has the same mistagging
+// pattern — confirmed via WP REST API across two posts (May/April 2026), both
+// carry the plain "Stuck in the Filter" tag (not just the dated variant), so a
+// single entry covers it. See docs/decisions/roundup-skip-fix.md addendum.
 const DENYLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
-  'Angry Metal Guy': ['Into the Obscure'],
+  'Angry Metal Guy': ['Into the Obscure', 'Stuck in the Filter'],
 };
 
 export function isGenuineReview(item: { categories?: string[] }, source: string): boolean {
