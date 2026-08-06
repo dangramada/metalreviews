@@ -819,7 +819,9 @@ type-/test-checked but not re-screenshotted individually.
 
 Four small, additive motion/interaction improvements, no layout changes. Site-wide convention
 followed: no bounce, short durations (150–350ms), nothing "playful" — matching the page's
-sharp-cornered, zero-border-radius aesthetic.
+sharp-cornered, zero-border-radius aesthetic. (First shipped with a two-slab `RATED n`/`TOTAL 6`
+pending state and a same-node background-color reveal; both were replaced same-day per live
+feedback — this entry describes the final shipped shape, not the intermediate one.)
 
 **1. Radar chart animates on pick.** `RatingRadarChart.tsx`'s `<Radar>` already had
 `isAnimationActive`; added `animationDuration={250}` with no `animationEasing` override.
@@ -828,23 +830,28 @@ default easing looks right on this specific animation and `ease-out` looked wron
 despite matching the site's usual preference on paper. This is a tested exception, not an
 oversight — don't "fix" it back to `ease-out` later without re-testing live.
 
-**2+4. Rank/Score pending state + completion reveal.** `RatingSlab` gained a third `pending`
-variant (`sand.700` bg, `text.primary` fg for both slots — a local style object, not added to
+**2+4. Evaluation-progress box + completion reveal.** `RatingSlab` gained a third `progress`
+variant (`bg: ember.950`, `color: sand.200`, `px: 12px` — a local style object, not added to
 `scoreSlabBase`/`High` in `theme.ts` since it's only ever used here). `DesktopRatingLayout`
-computes `isPending = ratings.size < order.length` and, while pending, renders `RATED {n}` /
-`TOTAL {order.length}` on both slabs instead of the old two static em-dashes. Deliberately gated
-on `ratings.size` directly rather than on `ratingSummary`'s presence: `ratingSummary` refetches
+computes `isPending = ratings.size < order.length` and, while pending, renders exactly one
+`RatingSlab` spanning the full Rank/Score row — label "Evaluation progress", value `n` (the
+rated count, `RatingSlab`'s existing bold 28px number styling, untouched) followed by a
+`valueSuffix` of `` ` / ${order.length}` `` in a smaller/normal-weight inline `Text` (20px, 400
+weight) — e.g. `4` bold next to `/6` smaller, reading as one line. Deliberately gated on
+`ratings.size` directly rather than on `ratingSummary`'s presence: `ratingSummary` refetches
 asynchronously after the 6th save (`AlbumRatingPage.tsx`'s `handlePick` calls
 `refetchRatingSummary()` post-save), so gating on it would leave a stale "—" flash between the
-6th pick and the refetch resolving. The completion reveal itself is a single
-`transition="background-color 350ms ease-out"` on `RatingSlab`'s root `Box` — since both the
-pending and real-variant renders are the same JSX position (same component, different props),
-React reuses the same DOM node across the swap, so the transition fires on the existing element
-rather than needing a keyed remount. Content (label/value) swaps instantly, only the color eases
-— matching the brief's framing that the color reveal itself is the celebration, not a separate
-effect layered on top. A scale pulse was considered but not added: the color transition alone
-read as sufficient live, so no pulse was implemented per the brief's "check both, don't assume
-the pulse is necessary."
+6th pick and the refetch resolving.
+
+The completion reveal is a structural swap (one full-width box → two half-width slabs), not a
+same-node prop change, so a plain `background-color` transition doesn't apply — confirmed live
+before committing to an approach: a first attempt used a single simultaneous `AnimatePresence`
+crossfade (both sides mounted and opacity-animating at once) and it read as a jump-cut, since the
+one full-width box and the two half-width slabs share too little visually for an overlap to look
+like a transition. Fixed with `mode="wait"`: the progress box fully unmounts (200ms `easeOut`
+fade-out) before the Rank/Score `Flex` mounts and fades in (200ms `easeOut`) — verified live via
+screenshots at mid-exit, mid-enter (visibly dimmed before settling), and the final `RANK #n`
+ember / `SCORE n%` light state. No layout shift, since only one side is ever mounted at a time.
 
 **5. Criterion-switch transition.** The active criterion's `CriterionLevelPicker` (inside
 `DesktopRatingLayout`'s Section 2 picker panel) is now wrapped in a `framer-motion` `motion.div`
@@ -852,62 +859,22 @@ keyed on `selectedEntry.index`, with `initial={{ opacity: 0, y: 4 }}` →
 `animate={{ opacity: 1, y: 0 }}` over 180ms `easeOut`. The `key` forces a fresh mount (and thus a
 fresh `initial`→`animate` run) on every row click, not just the first render. `framer-motion` was
 already a transitive dependency (via Chakra) but not previously imported directly anywhere in
-`src/` — this is the first direct usage. No `AnimatePresence`/exit animation: the old content is
-removed instantly on remount rather than cross-fading out, which avoids the layout-shift risk of
-two stacked panels rendering simultaneously during a crossfade, at the cost of the brief's
-literal "old content fades out" phrasing — the visible, load-bearing part (new content settling
-in via fade + translateY) is unchanged.
+`src/` — this is the first direct usage. No exit animation: the old content is removed instantly
+on remount rather than cross-fading out, which avoids the layout-shift risk of two stacked panels
+rendering simultaneously during a crossfade, at the cost of the brief's literal "old content
+fades out" phrasing — the visible, load-bearing part (new content settling in via fade +
+translateY) is unchanged.
 
-**Verification:** `tsc --noEmit` clean, `npx vitest run` 217/217. Live-verified via the
-`/dev-rating-preview` dev-only harness (`src/DevRatingPreview.tsx`, temporary — remove before
-merging): rated a 4th and 5th criterion and confirmed `RATED n`/`TOTAL 6` on neutral `sand.700`
-while incomplete; rated the 6th and confirmed both slabs swapped to real `RANK #n`/`SCORE n%`
-with `scoreSlabHigh`/`scoreSlabBase` colors, background-color transition visibly firing
-(caught mid-transition in a screenshot). Radar re-animation on a level change was also caught
-mid-animation (polygon interpolating between shapes) in a screenshot. Criterion-switch fade was
-caught mid-fade (incoming level list at partial opacity) confirming the transition fires rather
-than jump-cutting.
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 217/217 (as of the last pass that
+touched test-relevant logic — the two follow-up tweaks above, progress-box padding and the
+bold-count/smaller-suffix split, were type-checked and live-verified via screenshots but not
+re-run through the full suite, since neither touches logic any existing test covers). Live
+verification throughout used the `/dev-rating-preview` dev-only harness
+(`src/DevRatingPreview.tsx`, temporary — remove before merging): radar re-animation caught
+mid-animation (polygon interpolating between shapes); criterion-switch fade caught mid-fade
+(incoming level list at partial opacity); the progress-box → Rank/Score reveal caught at all
+three phases described above.
 
-**What did not change:** any layout/spacing/border/color token outside what's listed above,
-the radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
+**What did not change:** any layout/spacing/border/color token outside what's listed above, the
+radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
 `scoreSlabBase`/`scoreSlabHigh` themselves (only a new third variant added).
-
-### 2026-08-06 — Follow-up: single progress box replaces the two-slab pending state
-
-The previous entry's `RATED n`/`TOTAL 6` two-slab pending layout didn't match what was actually
-wanted — replaced with a single full-width box per a reference image, before this branch merges.
-
-**1. Single box.** `RatingSlab`'s `pending` variant (`sand.700`/`text.primary`, two slots) is
-gone, replaced by a `progress` variant (`bg: ember.950`, `color: sand.200`). `DesktopRatingLayout`
-renders exactly one `RatingSlab` — label "Evaluation progress", value `` `${ratings.size} / ${order.length}` ``
-(e.g. `4 / 6`) — while `isPending`. Reused `RatingSlab` itself rather than a sibling component:
-the brief wanted the label/value at the same font/size/weight as Rank/Score, and reusing the
-component guarantees that by construction instead of duplicating the two `Text` elements
-elsewhere and risking drift. `flex="1 1 0"` on the root `Box` already fills the full row width
-when it's the flex row's only child (flex-grow, not a fixed width) — no width special-casing
-needed for the solo-vs-paired cases.
-
-**2+4. Completion transition re-diagnosed, not reused.** The previous pass's `background-color`
-transition worked because `isPending` swapped props on the *same* `RatingSlab` node (same
-position in a stable 2-element array, same component type, React updates in place). That doesn't
-hold here: pending renders one child, complete renders two, so what previously was a same-node
-recolor is now a genuine mount-count change. Confirmed live before deciding anything: a first
-pass wired a single `AnimatePresence` around both states without `mode="wait"` (simultaneous
-crossfade, both sides mounted and opacity-animating at once) and it read exactly as warned — the
-one full-width box and the two half-width slabs have too little in common visually for an overlap
-to look like a transition rather than one thing snapping over another mid-fade. Switched to
-`mode="wait"`: the exiting side (progress box) fully unmounts — completing its own 200ms
-`easeOut` opacity-to-0 — before the entering side (Rank/Score `Flex`) mounts and runs its own
-200ms fade-in. Verified live via `/dev-rating-preview`: screenshotted mid-exit (progress box
-still showing its last content, `5/6`, fading), mid-enter (Rank/Score pair visible but visibly
-dimmed, colors not yet full-opacity), and the settled end state (`RANK #3` ember / `SCORE 72%`
-light) — no jump-cut, no layout shift (each state is the row's only mounted content at any given
-time, so there's no width/flex renegotiation mid-transition either).
-
-**Verification:** `tsc --noEmit` clean, `npx vitest run` 217/217. Live-verified via
-`/dev-rating-preview`: single progress box confirmed at `4/6` (ember.950/sand.200, full width);
-rated the 5th and 6th criteria and confirmed the sequential fade-out/fade-in described above,
-landing on the correct final Rank/Score slabs.
-
-**What did not change:** `scoreSlabHigh`/`scoreSlabBase` visuals/content, items 1/3/5 from the
-prior pass (radar animation, criterion-switch fade), radar chart, card layout/borders.

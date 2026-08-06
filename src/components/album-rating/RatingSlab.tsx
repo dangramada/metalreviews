@@ -16,15 +16,21 @@ import { scoreSlabBase, scoreSlabHigh } from '../../theme';
 const scoreSlabProgress = {
   bg: 'ember.950',
   color: 'sand.200',
+  px: '12px',
 } as const;
 
 export function RatingSlab({
   label,
   value,
+  // Trailing descriptive text after `value` (e.g. "/ total criteria") — normal weight, smaller
+  // than the count itself, so the count stays the visually dominant part of the line. Only the
+  // progress variant uses this; Rank/Score pass a plain `value` with no suffix.
+  valueSuffix,
   variant,
 }: {
   label: string;
   value: string;
+  valueSuffix?: string;
   variant: 'base' | 'high' | 'progress';
 }) {
   const styles =
@@ -50,6 +56,11 @@ export function RatingSlab({
       </Text>
       <Text as="span" fontFamily="heading" fontSize="28px" fontWeight="700" lineHeight="1" letterSpacing="-0.02em">
         {value}
+        {valueSuffix && (
+          <Text as="span" fontFamily="heading" fontSize="20px" fontWeight="400" letterSpacing="-0.02em">
+            {valueSuffix}
+          </Text>
+        )}
       </Text>
     </Box>
   );

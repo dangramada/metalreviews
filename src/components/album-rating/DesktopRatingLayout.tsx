@@ -331,7 +331,8 @@ export function DesktopRatingLayout({
               >
                 <RatingSlab
                   label="Evaluation progress"
-                  value={`${ratings.size} / ${order.length}`}
+                  value={String(ratings.size)}
+                  valueSuffix={` / ${order.length}`}
                   variant="progress"
                 />
               </motion.div>
