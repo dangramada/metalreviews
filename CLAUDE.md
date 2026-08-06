@@ -57,17 +57,19 @@ not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shel
 session/persistence/gate/engine logic touched. Page-shell pattern itself now documented in
 `docs/decisions/architecture.md`.
 
-`album-rating-page-desktop-redesign` — **not yet merged to `master`**, pushed to `origin` on
-2026-08-06. Reworked `DesktopRatingLayout` into a 3-section bordered-card layout (artwork+meta |
-criteria-list+levels | Rank/Score slabs+radar chart), since made responsive across 3 tiers
-(>=1024px / 768-1023px / <768px mobile untouched), plus a run of same-day/next-day retouch and
-radar-chart polish passes (borders, contrast, label abbreviation), then a motion pass (radar
-animation, a single "Evaluation progress n/total" box pre-completion that crossfades to
-Rank/Score on the 6th rating, criterion-switch fade). Full detail, including all chosen values,
-rejected approaches, and bugs found along the way: the dated 2026-08-05/06 entries in
-`docs/decisions/album-rating-page.md`. A temporary dev-only harness, `src/DevRatingPreview.tsx`
-(route `/dev-rating-preview`), was added during the motion pass to live-verify animations
-without a real Supabase account — remove before merging.
+`album-rating-page-desktop-redesign` merged to `master` on 2026-08-06 via merge commit
+`c316da6` (rollback tag `pre-album-rating-page-desktop-redesign-merge` on the prior tip) —
+branch retained per convention, not deleted. Reworked `DesktopRatingLayout` into a 3-section
+bordered-card layout (artwork+meta | criteria-list+levels | Rank/Score slabs+radar chart),
+since made responsive across 3 tiers (>=1024px / 768-1023px / <768px mobile untouched), plus a
+run of same-day/next-day retouch and radar-chart polish passes (borders, contrast, label
+abbreviation), then a motion pass (radar animation, a single "Evaluation progress n/total" box
+pre-completion that crossfades to Rank/Score on the 6th rating, criterion-switch fade). Full
+detail, including all chosen values, rejected approaches, and bugs found along the way: the
+dated 2026-08-05/06 entries in `docs/decisions/album-rating-page.md`. The temporary dev-only
+harness (`src/DevRatingPreview.tsx`, route `/dev-rating-preview`) added during the motion pass
+was confirmed still present ahead of the merge (despite the prior note to remove it) and removed
+in a pre-merge commit — not present on `master`.
 
 `album-rating-page` merged to `master` on 2026-08-03 via merge commit `523d059` — branch
 retained per convention, not deleted. **Branch ref is stale: 3 commits behind `master`**
