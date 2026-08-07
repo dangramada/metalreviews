@@ -82,11 +82,11 @@ export function MobileRatingLayout({
 
   // Zone 1 — artwork-left/meta-right, reimplemented locally from FavoriteListItemRow's desktop
   // tree (FavoritesPage.tsx, the >=768px `Flex` there) rather than shared/extracted this pass —
-  // 96px here vs. that row's 128px, hideGenres since this page shows genre nowhere else either.
+  // 110px here vs. that row's 128px, hideGenres since this page shows genre nowhere else either.
   const albumInfo = (
-    <Flex align="center" gap={4} p={4}>
+    <Flex align="center" gap={4} p={0}>
       <Box flexShrink={0}>
-        <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="96px" />
+        <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="110px" />
       </Box>
       <Box flex={1} minW={0}>
         <AlbumMetaBlock
@@ -101,6 +101,8 @@ export function MobileRatingLayout({
           albumFontSize="16px"
           truncateBand
           clampAlbumLines={2}
+          titleToDateGap={1}
+          hideReleaseDateLabel
         />
       </Box>
     </Flex>

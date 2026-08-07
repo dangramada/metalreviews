@@ -46,6 +46,9 @@ interface AlbumMetaBlockProps {
   // Opt-in, default undefined (no clamp) — multi-line album name clamped to this many lines
   // then ellipsis. Same stacked-layout-only scope as truncateBand.
   clampAlbumLines?: number;
+  // Opt-in, default false — drops the "Release date: " prefix, showing only the formatted
+  // date itself. Default false so every existing consumer keeps the labeled form.
+  hideReleaseDateLabel?: boolean;
 }
 
 export function AlbumMetaBlock({
@@ -62,27 +65,27 @@ export function AlbumMetaBlock({
   albumFontSize,
   truncateBand = false,
   clampAlbumLines,
+  hideReleaseDateLabel = false,
 }: AlbumMetaBlockProps) {
   const px = padding?.x ?? 4;
   const pt = padding?.top ?? padding?.y ?? 5;
   const pb = padding?.bottom ?? padding?.y ?? 5;
 
-  // Applied as objects (not per-prop JSX attrs) so an unset override never overwrites its
+  // Applied as an object (not a per-prop JSX attr) so an unset override never overwrites its
   // sibling value with `undefined` — `<Heading {...cardTitleBand} fontSize={undefined}>`
   // would otherwise blow away cardTitleBand's own fontSize, since a later explicit prop wins
   // over an earlier spread even when its value is undefined.
   const bandTruncateStyle = truncateBand
     ? { whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }
     : {};
-  const albumClampStyle = clampAlbumLines
-    ? {
-        display: '-webkit-box' as const,
-        WebkitLineClamp: clampAlbumLines,
-        WebkitBoxOrient: 'vertical' as const,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      }
-    : {};
+  // clampAlbumLines is passed straight to Chakra's own `lineClamp` prop below, not built as a
+  // raw style object here — a first attempt hand-rolled `{display: '-webkit-box',
+  // WebkitLineClamp, WebkitBoxOrient, overflow, textOverflow}` and spread it onto the `Text`,
+  // but Chakra v3 only moves *recognized* style props into the emitted CSS; unrecognized
+  // camelCase keys like `WebkitLineClamp` fall through as inert DOM attributes, so nothing
+  // actually clamped. `lineClamp` is Chakra's own built-in for this (see the inline layout's
+  // `lineClamp={1}` above) and produces the equivalent CSS itself, including wrapping (not
+  // truncating to one line) before the ellipsis kicks in at the given line count.
 
   return (
     <VStack align="stretch" gap={0} px={px} pt={pt} pb={pb}>
@@ -101,7 +104,12 @@ export function AlbumMetaBlock({
           >
             {band}
           </Heading>
-          <Text {...cardTitleAlbum} color="text.primary" fontSize={albumFontSize ?? cardTitleAlbum.fontSize} {...albumClampStyle}>
+          <Text
+            {...cardTitleAlbum}
+            color="text.primary"
+            fontSize={albumFontSize ?? cardTitleAlbum.fontSize}
+            lineClamp={clampAlbumLines}
+          >
             {album}
           </Text>
         </Box>
@@ -123,7 +131,7 @@ export function AlbumMetaBlock({
         color="text.muted"
         mt={titleToDateGap}
       >
-        Release date: {formatReleaseDate(releaseDate)}
+        {hideReleaseDateLabel ? formatReleaseDate(releaseDate) : `Release date: ${formatReleaseDate(releaseDate)}`}
       </Text>
       {!hideGenres && genre.length > 0 && (
         <Wrap gap={1} mt={dateToGenreGap}>
