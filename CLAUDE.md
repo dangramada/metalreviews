@@ -51,6 +51,14 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`mobile-album-evaluation-redesign` — in progress, not merged. Stage 1 of 4 (structural redesign)
+complete: `MobileRatingLayout` rebuilt to match `DesktopRatingLayout`'s bordered-card language
+(album-info zone + shared `RatingProgressBox` + text-badge criteria rows with dividers), old
+ambient radar chart + "← Favorites" header link removed, `AlbumMetaBlock` gained a `hideGenres`
+prop. Stages 2-4 (radar-chart modal, "View Your Evaluation"/`RatingSummaryView` removal,
+selection/transition animation) not started. Full detail: `docs/decisions/album-rating-page.md`'s
+2026-08-07 dated entry.
+
 `favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
 branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
 the `favorites-row-desktop-redesign` restyle (merged same day, commit `5055ba7`, branch also

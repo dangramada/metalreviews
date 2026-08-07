@@ -878,3 +878,72 @@ three phases described above.
 **What did not change:** any layout/spacing/border/color token outside what's listed above, the
 radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
 `scoreSlabBase`/`scoreSlabHigh` themselves (only a new third variant added).
+
+### 2026-08-07 — Mobile stage 1: structural redesign (`mobile-album-evaluation-redesign` branch)
+
+First of a planned 4-stage mobile pass bringing `MobileRatingLayout` in line with
+`DesktopRatingLayout`'s bordered-card visual language (album-rating-page-desktop-redesign,
+above). Stages 2-4 (radar-chart modal, "View Your Evaluation"/`RatingSummaryView` removal,
+selection/transition animation) are explicitly out of scope for this pass.
+
+**Diagnostic correction to the brief:** the brief referenced adding a `hideGenres` prop to
+`AlbumMeta` — that component no longer exists. It was replaced by `AlbumMetaBlock.tsx` during
+design-system-audit-2026-08 Pass 4 (see that doc). Added `hideGenres?: boolean = false` there
+instead, gating only the existing `genre.length > 0` Wrap block; default keeps all three existing
+consumers (`DesktopRatingLayout`, `FavoritesPage`'s desktop and mobile `FavoriteListItemRow`
+trees) unaffected.
+
+**Extracted `RatingProgressBox`** (`src/components/album-rating/RatingProgressBox.tsx`) out of
+`DesktopRatingLayout`'s Section 3 — the "Evaluation progress n/total" / Rank+Score
+`AnimatePresence` crossfade (see the dated 2026-08-0x motion-pass entry above for why
+`mode="wait"` was chosen) was inline JSX there, not a standalone component, so it couldn't be
+reused directly. Extraction is a pure lift: same props derived the same way
+(`ratedCount`/`totalCount`/`ratingSummary`), same crossfade timing, verified live at both
+pending and complete states on desktop post-extraction (no visual/behavior change) before wiring
+it into mobile. `RatingSlab`'s own comment (previously claiming it only ever renders inside
+`DesktopRatingLayout`'s Section 3) updated to reference `RatingProgressBox` instead.
+
+**Mobile album-info zone** reimplemented locally (no shared extraction this pass, per brief) from
+`FavoriteListItemRow`'s desktop tree in `FavoritesPage.tsx` (`Flex align="center" gap={4}` +
+flush artwork + `AlbumMetaBlock`) — explicitly not that same file's separate artwork-first
+*mobile* tree, which is a different pattern for a different context. Artwork resized 128px (the
+favorites-row precedent) → 96px per brief; `AlbumMetaBlock` called with `titleLayout="stacked"
+hideGenres` — this page shows genre nowhere else either, so suppressing it here is consistent
+with the existing page, not a new omission.
+
+**Criteria-row badges** replicate `DesktopRatingLayout`'s exact inline status-label expression
+(`` `${level}–${label}` `` / `'NOT EVALUATED'`, en dash, no spaces) — confirmed via grep that no
+shared helper exists to call instead, so this copies the expression rather than inventing a
+shared one.
+
+**Criteria-row dividers:** plain 1px `borderBottom` (color `sand.600`) on every row except the
+last — not desktop's isFirst/isLast border-suppression scheme, which exists there to solve a
+left/right border-doubling problem specific to desktop's split-panel row layout that doesn't
+apply to mobile's plain vertical list.
+
+**Removed from `MobileRatingLayout`:** the fixed header's ~40px ambient `RatingRadarChart` and
+the "← Favorites" `backHref`/`backLabel` link — both props dropped from
+`MobileRatingLayoutProps` and the call site in `AlbumRatingPage.tsx`, since the page-level
+`PageBreadcrumb` above both layouts already covers that navigation and nothing else consumed
+`backLabel` after the drop. `resolveBackDestination`'s return type narrowed from `{href, label,
+sourceLabel}` to `{href, sourceLabel}` accordingly (`AlbumRatingPage.tsx`).
+
+**Extended `MobileRatingLayout`'s props** to receive `releaseDate`, `genre`, `weights`,
+`ratingSummary` from `AlbumRatingPage.tsx` — plumbing only, mirroring what
+`DesktopRatingLayout` already received; no new data fetching.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified at a 375px mobile
+viewport against real Supabase data (logged in as the account's own session, not automated) for
+both a zero-ratings album (Ænigmatum — *Infinitude's Passage*, progress box showed "1/6" then
+"2/6" after picking a level live, confirming save + auto-return-to-overview + row highlight all
+still work) and a fully-rated album (Black Sites — *For Eternity*, Rank #1 / Score 100% slabs,
+all six criteria showing rated badges, "View Your Evaluation" button still present since its
+removal is stage 3). Both screens matched the three reference mockup screenshots' structure.
+Desktop re-verified unaffected at 1280px post-`RatingProgressBox` extraction (3-section card,
+Rank/Score slabs, radar chart all rendering correctly).
+
+**What did not change this pass:** `DesktopRatingLayout`'s own JSX/tokens (only the Section 3
+box's internals moved into `RatingProgressBox`, same output), auto-return timing/save/upsert
+logic, the "View Your Evaluation" button/`RatingSummaryView` dialog, route/breadcrumb logic
+(`from`-aware navigation, `PageBreadcrumb`), any screen-transition or selection-feedback
+animation (stage 4).

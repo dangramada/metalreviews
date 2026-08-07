@@ -21,6 +21,9 @@ interface AlbumMetaBlockProps {
   // picked silently. 'inline' is FavoriteListItemRow desktop's single-line "band – album"
   // treatment (a deliberate density choice, not something this component should default to).
   titleLayout: 'stacked' | 'inline';
+  // Suppresses only the genre-badges line — release date and title stay. Default false (no
+  // change to any existing consumer). Added for MobileRatingLayout's compact album-info zone.
+  hideGenres?: boolean;
   // `top`/`bottom` override `y` independently (e.g. the review card keeps the default
   // space.5 top but tightens bottom to space.3) — both fall back to `y`, which falls back
   // to space.5. Values are Chakra's own spacing scale (numbers) rather than literal px
@@ -37,6 +40,7 @@ export function AlbumMetaBlock({
   releaseDate,
   genre,
   titleLayout,
+  hideGenres = false,
   padding,
   titleToDateGap = 3,
   dateToGenreGap = 2,
@@ -76,7 +80,7 @@ export function AlbumMetaBlock({
       >
         Release date: {formatReleaseDate(releaseDate)}
       </Text>
-      {genre.length > 0 && (
+      {!hideGenres && genre.length > 0 && (
         <Wrap gap={1} mt={dateToGenreGap}>
           {genre.map((g) => (
             <WrapItem key={g}>
