@@ -947,3 +947,54 @@ box's internals moved into `RatingProgressBox`, same output), auto-return timing
 logic, the "View Your Evaluation" button/`RatingSummaryView` dialog, route/breadcrumb logic
 (`from`-aware navigation, `PageBreadcrumb`), any screen-transition or selection-feedback
 animation (stage 4).
+
+### 2026-08-07 — Mobile stage 1 retouch pass (visual adjustments)
+
+Four visual fixes against live review of the shipped stage-1 result, same
+`mobile-album-evaluation-redesign` branch.
+
+**Album-info block padding:** already 0/0 from stage 1 (`AlbumMetaBlock`'s `padding={{ x: 0, y:
+0 }}` at the mobile call site) — no change needed, confirmed against the brief's item 1.
+
+**`AlbumMetaBlock` gained `bandFontSize`/`albumFontSize`** (two flat optional props, not a
+grouped object like `padding` — band/album sizes have no shared spatial axis to justify nesting,
+so this matches `titleToDateGap`/`dateToGenreGap`'s flat-prop precedent instead). Both fall back
+to `cardTitleBand.fontSize`/`cardTitleAlbum.fontSize` via `??`, not a plain JSX override, since
+`<Heading {...cardTitleBand} fontSize={undefined}>` would otherwise blow away the spread's own
+fontSize (a later explicit prop always wins over an earlier spread, even when its value is
+`undefined`). Mobile passes `16px`/`16px`; no other consumer passes these.
+
+**Band line-height changed to `1.4` (from `1.1`) as `AlbumMetaBlock`'s own default** — applied
+directly in the component (not `theme.ts`'s `cardTitleBand`, which only StyleGuide.tsx's
+unrelated dev-only reference swatch also uses, hardcoding its own `lineHeight="1.1"`
+independently of this component). Global change, live-reverified on all three real consumers at
+their existing usages: `DesktopRatingLayout` (Section 1, stacked), `FavoritesPage`'s desktop row
+(inline) and mobile row (stacked) — no visible regression on any.
+
+**`truncateBand`/`clampAlbumLines`** added as opt-in props (`false`/`undefined` default,
+stacked-layout-only — the inline layout already truncates its whole "band – album" line via the
+parent `Text`'s `lineClamp={1}`, so per-span truncation there would be redundant). Mobile passes
+`truncateBand` + `clampAlbumLines={2}`. Implemented as conditional style objects spread onto the
+element (`{...bandTruncateStyle}`) rather than individual JSX props, for the same
+undefined-overwrite reason as the fontSize props above.
+
+**Rank/score block padding — diagnostic finding (brief's item 6):** `RatingProgressBox` has no
+`padding` prop and no hardcoded padding inside itself — its root is a bare `AnimatePresence`/
+`motion.div` with zero padding, and `DesktopRatingLayout`'s Section 3 `VStack` wraps it with no
+`px`/`py` either. The 16px mobile padding was entirely owned by `MobileRatingLayout`'s own
+wrapper `Box` around `<RatingProgressBox>` (stage 1), not by anything shared with desktop — so
+the fix was a plain `px={4} py={4}` → `px={0} py={0}` edit on that wrapper, no new prop needed,
+desktop untouched (it never had an equivalent wrapper to begin with).
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified at 375px against
+real Supabase data using an album with both a long band name (Labor of the Negative) and a long
+album name (*The Triumph of Time and the Disillusioned*) — band truncated to one line with
+ellipsis, album clamped to exactly 2 lines with ellipsis, both screens' font sizes and padding
+matched spec. Desktop re-checked at 1280px on `DesktopRatingLayout` (unaffected — full names
+shown, no truncation, progress-box padding unchanged) and both `FavoritesPage` trees (unaffected
+by the line-height default change).
+
+**What did not change:** `DesktopRatingLayout`'s own padding/spacing, any other
+`AlbumMetaBlock`/`RatingProgressBox` consumer's passed props (all still get old behavior via
+untouched defaults), stage-1 structural work (card border, badge format, dividers, auto-return/
+highlight behavior).
