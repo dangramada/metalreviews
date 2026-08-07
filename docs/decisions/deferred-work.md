@@ -101,15 +101,16 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   writeup: `auth-email-smtp.md`.
 - **Shareable AOTY page** (`/aoty/:shareId`) — route reserved (renamed from
   `/list/:shareId`), nothing built. `auth-routing.md`.
-- **Favorites row mobile redesign** — desktop-only pass shipped
-  (`favorites-row-desktop-redesign`, merged 2026-08-07); mobile layout for
-  `FavoriteListItemRow` untouched, separate brief needed. Two carry-over
-  questions for that brief: (1) the rate/delete icon buttons now use Chakra's
-  hover-driven `Tooltip`, untested on touch — needs a different treatment or an
-  explicit decision to accept as-is; (2) real artwork softness at the new 128px
-  display size (250px source via `toThumbnailUrl`) was never actually verified
-  live — both dev-harness passes used a non-resolving/`null` `artworkUrl`, so
-  the `<Image>` branch never rendered in the check. `favorites-row-desktop-redesign.md`.
+- ~~**Favorites row mobile redesign**~~ — **DONE**, `favorites-row-mobile-layout` branch (not
+  yet merged, blocked on Dan's live visual confirmation). Both carry-over questions from the
+  desktop pass are resolved: mobile drops `Tooltip` entirely (no touch/hover concern there;
+  desktop's own `Tooltip` is still unaddressed), and real artwork was live-verified at both
+  sizes. Full detail: `favorites-row-mobile-layout.md`.
+- **Font-size token audit — hardcoded values across the codebase, some non-standard.** Surfaced
+  2026-08-07: `FavoriteListItemRow`'s band/album typography is inline styles, not `theme.ts`
+  tokens. Dan's explicit note: real, separate concern (many hardcoded font-size values app-wide),
+  not to be fixed ad-hoc inside a component brief. Scope: audit all hardcoded font-size values
+  codebase-wide, decide whether/how to consolidate into tokens. Not started.
 
 ## B. Known code/data gaps (accepted, not fixed)
 

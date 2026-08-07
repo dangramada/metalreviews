@@ -51,6 +51,13 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`favorites-row-mobile-layout` — not yet merged, active as of 2026-08-07. Mobile counterpart to
+`favorites-row-desktop-redesign`: vertical artwork-first layout for `FavoriteListItemRow`, same
+768px `@media` split mechanism as `AlbumRatingPage`. Tests/tsc clean, tool-verified live against
+real artwork. **Blocked on Dan's own visual confirmation before merge.** Full detail:
+`docs/decisions/favorites-row-mobile-layout.md`; deferred font-size-token-audit item in
+`docs/decisions/deferred-work.md`.
+
 `favorites-row-desktop-redesign` merged to `master` on 2026-08-07 via merge commit `5055ba7` —
 branch retained per convention, not deleted. Desktop-only restyle of `FavoriteListItemRow`
 (`FavoritesPage.tsx`, shared by `/favorites` and the `AddAlbumDrawer` preview): 128px artwork

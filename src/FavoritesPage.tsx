@@ -88,127 +88,258 @@ export function FavoriteListItemRow({
   onRate?: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
+  const [mobileImgFailed, setMobileImgFailed] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const cancelRemoveRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
-      <Flex
-        align="center"
-        gap={4}
-        bg="surface.card"
-        borderRadius="lg"
-        // overflow="hidden" clips the flush-edge artwork (0 padding, see below) to the
-        // row's own rounded corners — without it the square artwork corners would poke
-        // past the row's border-radius on the left edge.
-        overflow="hidden"
-        // Zero padding on the left/top/bottom so the artwork sits flush against the row's
-        // edges (favorites-row-desktop-redesign) — only the right side (action buttons)
-        // keeps padding, applied on that Box below rather than here.
-        p={0}
-        border="2px solid"
-        borderColor="border.ruleStrong"
-        // Same border-width/hover language as the reviews-grid card (pass 9), but this row
-        // has no score to link the hover colour to — see docs/decisions/slant-take-design-system.md's
-        // pass 9 entry: favorites items carry no score data by design (useFavoritesList.ts),
-        // so the hover here is a plain colour change, not the score-conditional bone/ember split.
-        _hover={{ borderColor: 'border.hover' }}
-        css={{ '&:hover img': { transform: 'scale(1.06)' } }}
-      >
-        <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
-          {item.artworkUrl && !imgFailed ? (
-            <Image
-              src={toThumbnailUrl(item.artworkUrl, 250)}
-              alt={`${item.band} – ${item.album}`}
-              w="128px"
-              h="128px"
-              objectFit="cover"
-              transition="transform 0.3s"
-              onError={() => setImgFailed(true)}
-            />
-          ) : (
-            <Flex w="100%" h="100%" align="center" justify="center">
-              <Text fontSize="lg" color="text.muted">
-                ♪
-              </Text>
-            </Flex>
-          )}
-          {/* Rank overlay — flush bottom-left corner, same technique as the home page's
-              sourceBadge/scoreSlab overlays (position="absolute" + bottom={0}/left={0}, not
-              an inset offset — that was tried on other badges and rejected since partial
-              borders only read correctly flush into the corner). Only rendered when this
-              album has a rank; no placeholder otherwise. */}
-          {ratingSummary && (
-            <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
-              #{ratingSummary.rank}
-            </Box>
-          )}
-        </Box>
+      {/* Desktop (>= md): flush-left artwork + inline row. Hidden via raw CSS `@media`
+          display:none (not Chakra's responsive `display` prop) — matches the precedent
+          set by AlbumRatingPage's Desktop/MobileRatingLayout split (that component's own
+          comment: Chakra's responsive prop renders display:none in jsdom too, which breaks
+          role/text-based test queries). Both layouts always mount; only one is visible at
+          a time via the media query below. */}
+      <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
+        <Flex
+          align="center"
+          gap={4}
+          bg="surface.card"
+          borderRadius="lg"
+          // overflow="hidden" clips the flush-edge artwork (0 padding, see below) to the
+          // row's own rounded corners — without it the square artwork corners would poke
+          // past the row's border-radius on the left edge.
+          overflow="hidden"
+          // Zero padding on the left/top/bottom so the artwork sits flush against the row's
+          // edges (favorites-row-desktop-redesign) — only the right side (action buttons)
+          // keeps padding, applied on that Box below rather than here.
+          p={0}
+          border="2px solid"
+          borderColor="border.ruleStrong"
+          // Same border-width/hover language as the reviews-grid card (pass 9), but this row
+          // has no score to link the hover colour to — see docs/decisions/slant-take-design-system.md's
+          // pass 9 entry: favorites items carry no score data by design (useFavoritesList.ts),
+          // so the hover here is a plain colour change, not the score-conditional bone/ember split.
+          _hover={{ borderColor: 'border.hover' }}
+          css={{ '&:hover img': { transform: 'scale(1.06)' } }}
+        >
+          <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
+            {item.artworkUrl && !imgFailed ? (
+              <Image
+                src={toThumbnailUrl(item.artworkUrl, 250)}
+                alt={`${item.band} – ${item.album}`}
+                w="128px"
+                h="128px"
+                objectFit="cover"
+                transition="transform 0.3s"
+                onError={() => setImgFailed(true)}
+              />
+            ) : (
+              <Flex w="100%" h="100%" align="center" justify="center">
+                <Text fontSize="lg" color="text.muted">
+                  ♪
+                </Text>
+              </Flex>
+            )}
+            {/* Rank overlay — flush bottom-left corner, same technique as the home page's
+                sourceBadge/scoreSlab overlays (position="absolute" + bottom={0}/left={0}, not
+                an inset offset — that was tried on other badges and rejected since partial
+                borders only read correctly flush into the corner). Only rendered when this
+                album has a rank; no placeholder otherwise. */}
+            {ratingSummary && (
+              <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
+                #{ratingSummary.rank}
+              </Box>
+            )}
+          </Box>
 
-        <Box flex={1} minW={0} py={3}>
-          <Text lineClamp={1}>
+          <Box flex={1} minW={0} py={3}>
+            <Text lineClamp={1}>
+              <Text
+                as="span"
+                fontFamily="body"
+                fontSize="15px"
+                fontWeight={700}
+                letterSpacing="-0.01em"
+                textTransform="uppercase"
+              >
+                {item.band}
+              </Text>{' '}
+              <Text as="span" fontFamily="body" fontSize="14px" fontWeight={500} color="text.primary">
+                – {item.album}
+              </Text>
+            </Text>
+            <Text fontSize="sm" color="text.dim">
+              {formatReleaseDate(item.releaseDate)}
+            </Text>
+            {item.genre.length > 0 && (
+              <Wrap gap={1} mt={1}>
+                {item.genre.map((g) => (
+                  <WrapItem key={g}>
+                    <Badge {...genreBadge}>{g}</Badge>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            )}
+          </Box>
+
+          <Flex flexShrink={0} gap={1} pr={3}>
+            {onRate && (
+              <Tooltip content="Rate this album">
+                <IconButton
+                  aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
+                  size="sm"
+                  variant="ghost"
+                  color="text.muted"
+                  _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                  onClick={onRate}
+                >
+                  <Icon as={FaSlidersH} />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {onRemove && (
+              <Tooltip content="Remove from favorites">
+                <IconButton
+                  aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                  size="sm"
+                  variant="ghost"
+                  color="text.muted"
+                  _hover={{ color: 'red.400', bg: 'whiteAlpha.100' }}
+                  loading={removing}
+                  spinner={<LoadingIndicatorBars />}
+                  onClick={() => setShowRemoveConfirm(true)}
+                >
+                  <Icon as={FaTrash} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Flex>
+        </Flex>
+      </Box>
+
+      {/* Mobile (< md): vertical card, artwork-first. Same raw `@media` show/hide
+          mechanism as the desktop Box above — see that Box's comment for why. */}
+      <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
+        <Box
+          bg="surface.card"
+          borderRadius="lg"
+          overflow="hidden"
+          border="2px solid"
+          borderColor="border.ruleStrong"
+        >
+          <Box position="relative" w="100%" bg="surface.darkest">
+            {item.artworkUrl && !mobileImgFailed ? (
+              <Image
+                src={toThumbnailUrl(item.artworkUrl, 500)}
+                alt={`${item.band} – ${item.album}`}
+                w="100%"
+                aspectRatio="1 / 1"
+                objectFit="cover"
+                onError={() => setMobileImgFailed(true)}
+              />
+            ) : (
+              <Flex w="100%" aspectRatio="1 / 1" align="center" justify="center">
+                <Text fontSize="2xl" color="text.muted">
+                  ♪
+                </Text>
+              </Flex>
+            )}
+            {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
+                layout-agnostic (favorites-row-desktop-redesign). */}
+            {ratingSummary && (
+              <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
+                #{ratingSummary.rank}
+              </Box>
+            )}
+          </Box>
+
+          <Box p={3}>
+            {/* Band/album render as two separate lines here (not desktop's single-line
+                inline-span treatment) — card context below a large artwork reads better
+                as a stacked title than a dense inline row. Values proposed and confirmed
+                live by Dan; not theme tokens — see the font-size-token-audit item added to
+                deferred-work.md this session for the broader, out-of-scope hardcoded-value
+                cleanup this surfaced. The desktop "band – album" em-dash join is dropped
+                here since the two-line stack already separates them visually. */}
             <Text
-              as="span"
               fontFamily="body"
-              fontSize="15px"
+              fontSize="16px"
               fontWeight={700}
               letterSpacing="-0.01em"
               textTransform="uppercase"
+              lineHeight="1.2"
             >
               {item.band}
-            </Text>{' '}
-            <Text as="span" fontFamily="body" fontSize="14px" fontWeight={500} color="text.primary">
-              – {item.album}
             </Text>
-          </Text>
-          <Text fontSize="sm" color="text.dim">
-            {formatReleaseDate(item.releaseDate)}
-          </Text>
-          {item.genre.length > 0 && (
-            <Wrap gap={1} mt={1}>
-              {item.genre.map((g) => (
-                <WrapItem key={g}>
-                  <Badge {...genreBadge}>{g}</Badge>
-                </WrapItem>
-              ))}
-            </Wrap>
-          )}
+            <Text fontFamily="body" fontSize="14px" fontWeight={500} color="text.primary" lineHeight="1.3" mt={0.5}>
+              {item.album}
+            </Text>
+            <Text fontSize="sm" color="text.dim" mt={1}>
+              {formatReleaseDate(item.releaseDate)}
+            </Text>
+            {item.genre.length > 0 && (
+              <Wrap gap={1} mt={1}>
+                {item.genre.map((g) => (
+                  <WrapItem key={g}>
+                    <Badge {...genreBadge}>{g}</Badge>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            )}
+
+            {(onRate || onRemove) && (
+              <Flex gap={2} mt={3}>
+                {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
+                    hover state. Collapses to icon-only under a secondary raw-`@media`
+                    breakpoint (400px) rather than a container query: this codebase has no
+                    existing container-query usage, and the one precedent for a responsive
+                    split (AlbumRatingPage) uses viewport `@media`, so this stays consistent
+                    with that rather than introducing a new mechanism. Known imprecision
+                    (accepted, not blocking): this can't detect the AddAlbumDrawer preview's
+                    actual rendered width if it's ever narrower than the viewport at a given
+                    breakpoint — revisit if that proves visibly wrong on live testing. */}
+                {onRate && (
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    flex={1}
+                    aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
+                    onClick={onRate}
+                  >
+                    <Icon as={FaSlidersH} />
+                    <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                      Rate
+                    </Box>
+                  </Button>
+                )}
+
+                {onRemove && (
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    flex={1}
+                    color="text.muted"
+                    _hover={{ color: 'red.400' }}
+                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    loading={removing}
+                    spinner={<LoadingIndicatorBars />}
+                    onClick={() => setShowRemoveConfirm(true)}
+                  >
+                    <Icon as={FaTrash} />
+                    <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                      Remove
+                    </Box>
+                  </Button>
+                )}
+              </Flex>
+            )}
+          </Box>
         </Box>
-
-        <Flex flexShrink={0} gap={1} pr={3}>
-          {onRate && (
-            <Tooltip content="Rate this album">
-              <IconButton
-                aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
-                size="sm"
-                variant="ghost"
-                color="text.muted"
-                _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
-                onClick={onRate}
-              >
-                <Icon as={FaSlidersH} />
-              </IconButton>
-            </Tooltip>
-          )}
-
-          {onRemove && (
-            <Tooltip content="Remove from favorites">
-              <IconButton
-                aria-label={removing ? 'Loading' : 'Remove from favorites'}
-                size="sm"
-                variant="ghost"
-                color="text.muted"
-                _hover={{ color: 'red.400', bg: 'whiteAlpha.100' }}
-                loading={removing}
-                spinner={<LoadingIndicatorBars />}
-                onClick={() => setShowRemoveConfirm(true)}
-              >
-                <Icon as={FaTrash} />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Flex>
-      </Flex>
+      </Box>
 
       {onRemove && (
         <DialogRoot
