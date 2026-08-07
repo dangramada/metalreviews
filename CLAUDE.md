@@ -61,10 +61,14 @@ removed, `AlbumMetaBlock` gained `hideGenres`/`bandFontSize`/`albumFontSize`/`tr
 silently did nothing — unrecognized Chakra style props don't apply; fixed via Chakra's own
 `lineClamp` prop) and tightened mobile spacing/artwork size further. Stage 2 of 4 (radar-chart
 modal) also complete (2026-08-08): tap-to-open `DialogRoot` on Screen 1's `RatingProgressBox`
-showing the full radar chart, additive alongside the untouched "View Your Evaluation" dialog;
-`RatingProgressBox.tsx`/`DesktopRatingLayout.tsx` both zero-diff. Stages 3-4 ("View Your
-Evaluation"/`RatingSummaryView` removal, selection/transition animation) not started. Full
-detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08 dated entries.
+showing the full radar chart, additive alongside (at the time) the "View Your Evaluation"
+dialog; `RatingProgressBox.tsx`/`DesktopRatingLayout.tsx` both zero-diff. Stage 3 of 4 also
+complete (2026-08-08): removed the "View Your Evaluation" button and the page-level `DialogRoot`
++ `RatingSummaryView` render (button lived in `MobileRatingLayout.tsx`, but its dialog state and
+render were in `AlbumRatingPage.tsx`, not co-located as might be assumed); `RatingSummaryView.tsx`
+deleted outright (no other references anywhere in the repo, confirmed via `git grep`). Stage 4
+(selection/transition animation) not started. Full detail: `docs/decisions/album-rating-page.md`'s
+2026-08-07/08 dated entries.
 
 `favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
 branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
