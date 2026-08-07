@@ -380,8 +380,9 @@ export const rankOverlayBadge = {
   borderRightColor: 'border.rule',
   borderRadius: '0',
   fontFamily: 'heading',
-  fontSize: '13px',
-  fontWeight: 700,
+  fontSize: '14px',
+  fontWeight: 400,
+  letterSpacing: '0.1em',
   px: '8px',
   py: '4px',
 } as const;
