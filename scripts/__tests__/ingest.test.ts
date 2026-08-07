@@ -21,7 +21,7 @@ describe('shouldSkipPost — non-review post filtering', () => {
     expect(shouldSkipPost(item, 'The Progressive Subway')).toBe(true);
   });
 
-  it('does NOT skip an allowlisted AMG Unsigned Band Rodeo post', () => {
+  it('skips an AMG Unsigned Band Rodeo post even when tagged Review/Reviews (denylisted for title-format/multi-score inconsistency)', () => {
     const item = {
       categories: [
         "Angry Metal Guy's Unsigned Band Rodeo",
@@ -31,8 +31,9 @@ describe('shouldSkipPost — non-review post filtering', () => {
         'Reviews',
       ],
     };
-    expect(isAllowlistedFranchise(item, 'Angry Metal Guy')).toBe(true);
-    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(false);
+    expect(isAllowlistedFranchise(item, 'Angry Metal Guy')).toBe(false);
+    expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(true);
+    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(true);
   });
 
   it('does NOT skip a normal Angry Metal Guy review', () => {
@@ -64,19 +65,20 @@ describe('shouldSkipPost — non-review post filtering', () => {
     expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(true);
   });
 
-  it('still does NOT skip an allowlisted AMG Unsigned Band Rodeo post (denylist unaffected)', () => {
+  it('skips a realistic AMG Unsigned Band Rodeo post title ("Beware of Gods")', () => {
     const item = {
       categories: [
         "Angry Metal Guy's Unsigned Band Rodeo",
-        '2025',
+        '2026',
         'Death Metal',
         'Review',
         'Reviews',
       ],
+      title:
+        'AMG’s Unsigned Band Rodeö: Beware of Gods – Upon Whom The Last Light Descends III: Behead The Oracle',
     };
-    expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(false);
-    expect(isAllowlistedFranchise(item, 'Angry Metal Guy')).toBe(true);
-    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(false);
+    expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(true);
+    expect(shouldSkipPost(item, 'Angry Metal Guy')).toBe(true);
   });
 
   it('skips an AMG "Stuck in the Filter" post even when mistagged with Review/Reviews', () => {

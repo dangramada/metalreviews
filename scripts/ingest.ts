@@ -85,8 +85,10 @@ const REVIEW_CATEGORY_TAGS: Record<string, string[]> = {
 // instead of the source's review tag, so they'd otherwise be false-negatived
 // by isGenuineReview. Deliberately a short, audit-confirmed list — do not add
 // speculative entries here (see roundup-skip-fix.md "judgment call flagged").
+// Formerly included AMG's Unsigned Band Rodeo — moved to the denylist below
+// (see that entry's comment for why).
 const ALLOWLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
-  'Angry Metal Guy': ["Angry Metal Guy's Unsigned Band Rodeo"],
+  'Angry Metal Guy': [],
 };
 
 // Franchises that are never genuine (scored) reviews by editorial convention,
@@ -99,8 +101,20 @@ const ALLOWLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
 // pattern — confirmed via WP REST API across two posts (May/April 2026), both
 // carry the plain "Stuck in the Filter" tag (not just the dated variant), so a
 // single entry covers it. See docs/decisions/roundup-skip-fix.md addendum.
+// "Unsigned Band Rodeo" was previously allowlisted (individual editions are
+// genuine reviews with real scores), but live title-format variance across
+// editions (band/album not always in a parseable position, e.g. "The Graying
+// of Dave the Red: Taking Megadeth's Last Stand to the Rodeö") means no single
+// extraction pattern is reliable, and the reviews are collective (4-5 writers,
+// no single aggregate score) — a second, separate problem. Denylisted for data
+// -quality consistency, same tradeoff already accepted for "Yer Metal Is Olde"
+// and PS's "Lost in Time" (see unknown-band-collision-audit.md).
 const DENYLISTED_FRANCHISE_CATEGORIES: Record<string, string[]> = {
-  'Angry Metal Guy': ['Into the Obscure', 'Stuck in the Filter'],
+  'Angry Metal Guy': [
+    'Into the Obscure',
+    'Stuck in the Filter',
+    "Angry Metal Guy's Unsigned Band Rodeo",
+  ],
 };
 
 export function isGenuineReview(item: { categories?: string[] }, source: string): boolean {
