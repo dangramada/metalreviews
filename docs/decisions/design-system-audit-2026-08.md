@@ -152,8 +152,19 @@ candidate for token/component consolidation — see proposed tokens below.
 | StyleGuide.tsx:327 | `gap="3px"` | Mirrors App.tsx:138 exactly — consistent with each other, both off-grid |
 | RatingSlab.tsx:52 | `gap="2px"` | Off-grid |
 | RatingSlab.tsx:47–48 | `pt="16px" pb="12px"` | On-grid; literal px string rather than a spacing-scale number, but comment explains it's a deliberate override of `scoreSlabBase`'s own 8px/4px padding |
-| DesktopRatingLayout.tsx:134 | `gap="12px" px="16px" py="20px"` | On-grid, literal px strings |
+| DesktopRatingLayout.tsx:134 | `gap="12px" px="16px" py="20px"` | On-grid, literal px strings — **stale**: this line was consolidated into `AlbumMetaBlock` by the title+metadata unification commits (`6a37fa8` onward) shipped after this audit; the call site no longer carries its own spacing props |
 | DesktopRatingLayout.tsx:269–270 | `px="8px" py="4px"` | Matches the badge padding convention from theme.ts pass 4 exactly — **not a violation**, correct reuse of the established (if unnamed) pattern |
+
+**Update (2026-08-07):** the title+metadata consolidation above moved the literal px
+strings out of individual call sites and into `AlbumMetaBlock`'s own default/override
+props (`padding.x/y/top/bottom`, `titleToDateGap`, `dateToGenreGap`) — which then became
+the only place in the whole design system with a spacing scale living outside
+theme.ts/Chakra's own system. Fixed same day: replaced the literal `'16px'`/`'20px'`/
+`'12px'`/`'8px'` defaults and overrides with Chakra's native scale (`4`/`5`/`3`/`2`) —
+no new token group added to `theme.ts`, no semantic `spacing.*` names invented, per Dan's
+decision to use Chakra's own scale directly. Verified zero visual change (computed
+padding/margin identical before/after) on the review card and FavoritesPage desktop row,
+the two surfaces with non-default overrides. Commit `447d6d7`.
 
 None of these are visually risky. The only genuinely inconsistent values are the two
 `2px`/`3px` gaps, which don't fit the 4px-grid rule the rest of the codebase follows.
@@ -293,3 +304,37 @@ no third render site bypasses it.
 **Zero application code touched.** Audit was read-only throughout: no changes to `theme.ts`,
 `StyleGuide.tsx`, or any component file. Next step is Dan's review of the three open items
 above before any implementation session.
+
+---
+
+## Follow-up (2026-08-07) — §7 style-guide drift + surface token gaps resolved
+
+A focused 3-commit session on `StyleGuide.tsx` closed the highest-value gaps this audit
+found (`theme.ts` untouched, per the standing convention of not blindly repointing what
+an audit only flagged for the style guide itself):
+
+- The 5 `surface.*` tokens listed in §1 (`ratingCard`, `ratingCardFill`, `criterionRow`,
+  `criterionHover`, `criterionActive`) that existed in `theme.ts` but had no swatch in the
+  "Colors" section are now shown, plus `radii.circle` (also real but missing from
+  `RADIUS_TOKENS`).
+- §7's two confirmed findings are fixed: `rankOverlayBadge` now has a specimen in
+  "Badges — Contextual", and the `ScoreSlab` mirror's `fontSize` was corrected from
+  `22px` to `23px` (re-verified against `App.tsx` at fix time, still `23px`).
+- §3c's Band/Album typography specimen now spreads `cardTitleBand`/`cardTitleAlbum` from
+  `theme.ts` instead of hand-copying their literal values — same "drift because
+  hand-copied" root cause as the `ScoreSlab` mismatch and the `rankOverlayBadge` gap, so
+  bundled into the same pass. Verified zero visual change via computed style, not just
+  by eye (fontFamily/fontSize/fontWeight/letterSpacing/textTransform all matched before
+  and after).
+- Added an "Album Meta Block" section showing `AlbumMetaBlock`'s two real configurations
+  side by side: the default spacing (review card, rating page, favorites mobile) and the
+  favorites-desktop override (`padding={{x:0,y:3}}`, `titleToDateGap={1}`,
+  `dateToGenreGap={2}`) — not in the original audit's findings, but the same
+  "spec exists in code, no representation in the style guide" gap.
+
+Still deferred, unchanged from the audit's "Out of scope" section: `RatingRadarChart`,
+review card's unexported `ScoreSlab` assembly, `RatingSummaryView`, `AlbumArtwork`, the
+calibration-screen sub-components, and `MobileRatingLayout`. The three "Open items — Dan's
+decision needed" (card shadow, radius token naming, proposed new tokens) are also
+untouched — this session only closed style-guide-specimen gaps, not token-design
+decisions.
