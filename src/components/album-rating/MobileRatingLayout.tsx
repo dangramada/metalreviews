@@ -26,7 +26,7 @@ import { RatingRadarChart } from './RatingRadarChart';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
 import type { CriterionLevelWeight } from './RatingRadarChart';
-import { primaryButton, secondaryButton } from '../../theme';
+import { secondaryButton } from '../../theme';
 
 // Auto-return delay after a pick, then how long the just-updated row stays highlighted before
 // settling to its normal completed appearance — both "use your judgment" per the brief, not
@@ -47,8 +47,6 @@ interface MobileRatingLayoutProps {
   ratingSummary: AlbumRatingSummary | undefined;
   onPick: (criterionId: number, level: number) => Promise<void>;
   savingCriterionId: number | null;
-  isComplete: boolean;
-  onOpenSummary: () => void;
 }
 
 export function MobileRatingLayout({
@@ -64,8 +62,6 @@ export function MobileRatingLayout({
   ratingSummary,
   onPick,
   savingCriterionId,
-  isComplete,
-  onOpenSummary,
 }: MobileRatingLayoutProps) {
   const [screen, setScreen] = useState<'overview' | 'detail'>('overview');
   const [detailCriterionId, setDetailCriterionId] = useState<number | null>(null);
@@ -206,13 +202,6 @@ export function MobileRatingLayout({
               );
             })}
           </VStack>
-          {isComplete && (
-            <Box px={4} py={4}>
-              <Button {...primaryButton} w="100%" onClick={onOpenSummary}>
-                View Your Evaluation
-              </Button>
-            </Box>
-          )}
         </VStack>
       ) : (
         detailEntry && (
@@ -249,10 +238,9 @@ export function MobileRatingLayout({
       )}
     </Box>
 
-      {/* Radar-chart modal — additive alongside the existing "View Your Evaluation" dialog
-          (RatingSummaryView, untouched), not a replacement (that's stage 3). Same DialogRoot
-          structure/tokens as that dialog (AlbumRatingPage.tsx) for a consistent close pattern
-          (X button, tap-outside, Esc). Full-mode chart (size defaults to 'full') fed the same
+      {/* Radar-chart modal, added stage 2. Same DialogRoot structure/tokens as the page-level
+          dialog pattern (AlbumRatingPage.tsx) for a consistent close pattern (X button,
+          tap-outside, Esc). Full-mode chart (size defaults to 'full') fed the same
           weights/ratings/catalog/order MobileRatingLayout already receives — no new fetching.
           Recharts' Tooltip is mouse-hover only (confirmed via RatingRadarChart.tsx: no touch
           handlers wired) — tap-to-show-tooltip is a known limitation on mobile, not built here

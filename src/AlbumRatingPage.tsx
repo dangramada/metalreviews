@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Box, Button, Container, Flex, Text, VStack } from '@chakra-ui/react';
-import {
-  DialogRoot,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogBody,
-  DialogFooter,
-} from './components/ui/dialog';
-import { CloseButton } from './components/ui/close-button';
+import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
 import { PageBreadcrumb } from './components/ui/breadcrumb';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -19,14 +10,10 @@ import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import { supabase } from './supabaseClient';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { secondaryButton } from './theme';
 import { FIXED_CRITERION_ORDER } from './lib/album-rating/criterionOrder';
 import { DesktopRatingLayout } from './components/album-rating/DesktopRatingLayout';
 import { MobileRatingLayout } from './components/album-rating/MobileRatingLayout';
-import { RatingSummaryView } from './components/album-rating/RatingSummaryView';
 import type { CriterionLevelWeight } from './components/album-rating/RatingRadarChart';
-
-const CRITERIA_COUNT = 6;
 
 type RatingRow = { criterion_id: number; level: number };
 type WeightRow = { criterion_id: number; level: number; value: number };
@@ -74,7 +61,6 @@ export function AlbumRatingPage() {
   // docs/decisions/album-rating-page.md's dated entry on the desktop redesign.
   const [selectedCriterionId, setSelectedCriterionId] = useState<number>(FIXED_CRITERION_ORDER[0]);
   const [savingCriterionId, setSavingCriterionId] = useState<number | null>(null);
-  const [summaryOpen, setSummaryOpen] = useState(false);
 
   const { href: backHref, sourceLabel } = resolveBackDestination(searchParams.get('from'));
 
@@ -152,7 +138,6 @@ export function AlbumRatingPage() {
     refetchRatingSummary();
   }
 
-  const isComplete = ratings.size === CRITERIA_COUNT;
   const loading = catalogLoading || albumLoading || ratingsLoading;
 
   return (
@@ -217,8 +202,6 @@ export function AlbumRatingPage() {
                   ratingSummary={ratingSummary.get(albumInfo.id)}
                   onPick={handlePick}
                   savingCriterionId={savingCriterionId}
-                  isComplete={isComplete}
-                  onOpenSummary={() => setSummaryOpen(true)}
                 />
               </Box>
             </>
@@ -227,33 +210,6 @@ export function AlbumRatingPage() {
           <Footer />
         </VStack>
       </Container>
-
-      {albumInfo && (
-        <DialogRoot open={summaryOpen} onOpenChange={({ open }) => setSummaryOpen(open)}>
-          <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
-            <CloseButton
-              position="absolute"
-              right={2}
-              top={2}
-              color="text.primary"
-              onClick={() => setSummaryOpen(false)}
-            />
-            <DialogHeader>
-              <DialogTitle fontWeight="semibold">
-                {albumInfo.band} – {albumInfo.album}
-              </DialogTitle>
-            </DialogHeader>
-            <DialogBody>
-              <RatingSummaryView catalog={catalog} ratings={ratings} ratingSummary={ratingSummary.get(albumInfo.id)} />
-            </DialogBody>
-            <DialogFooter>
-              <Button {...secondaryButton} variant="outline" onClick={() => setSummaryOpen(false)}>
-                Done
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </DialogRoot>
-      )}
     </Box>
   );
 }
