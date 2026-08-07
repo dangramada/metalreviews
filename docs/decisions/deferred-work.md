@@ -101,6 +101,15 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   writeup: `auth-email-smtp.md`.
 - **Shareable AOTY page** (`/aoty/:shareId`) — route reserved (renamed from
   `/list/:shareId`), nothing built. `auth-routing.md`.
+- **Favorites row mobile redesign** — desktop-only pass shipped
+  (`favorites-row-desktop-redesign`, merged 2026-08-07); mobile layout for
+  `FavoriteListItemRow` untouched, separate brief needed. Two carry-over
+  questions for that brief: (1) the rate/delete icon buttons now use Chakra's
+  hover-driven `Tooltip`, untested on touch — needs a different treatment or an
+  explicit decision to accept as-is; (2) real artwork softness at the new 128px
+  display size (250px source via `toThumbnailUrl`) was never actually verified
+  live — both dev-harness passes used a non-resolving/`null` `artworkUrl`, so
+  the `<Image>` branch never rendered in the check. `favorites-row-desktop-redesign.md`.
 
 ## B. Known code/data gaps (accepted, not fixed)
 

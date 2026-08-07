@@ -51,6 +51,20 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`favorites-row-desktop-redesign` merged to `master` on 2026-08-07 via merge commit `5055ba7` —
+branch retained per convention, not deleted. Desktop-only restyle of `FavoriteListItemRow`
+(`FavoritesPage.tsx`, shared by `/favorites` and the `AddAlbumDrawer` preview): 128px artwork
+flush to the row's left/top/bottom edges, a new `rankOverlayBadge` token (`theme.ts`) replacing
+the old inline `rankBadge` chip — accent-filled flush-corner overlay on the artwork's bottom-left,
+single `#{rank}` node, no threshold — plus a new inline uppercase/bold band-name style (kept on
+the same combined "band – album" line, not split into two), hover `Tooltip`s on the rate/delete
+icon buttons, and a delete-confirmation `DialogRoot` (previously immediate) matching
+`AddAlbumDrawer`'s discard-confirm pattern. Mobile untouched — separate brief still needed, and
+two things carry over into it: the new `Tooltip`s are hover-only and untested on touch, and real
+artwork softness at the new 128px display size was never actually verified live (both dev-harness
+checks used a non-resolving artwork URL). Full detail: `docs/decisions/favorites-row-desktop-redesign.md`;
+carry-over items also tracked in `docs/decisions/deferred-work.md`.
+
 `criteria-calibration-update` merged to `master` on 2026-07-30 — branch retained per convention,
 not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shell chrome and
 `container.xl` margins as `App.tsx`/`FavoritesPage.tsx` (previously the only page without it); no
