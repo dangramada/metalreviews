@@ -1035,3 +1035,68 @@ session's live Browser-pane walkthrough (session was mid-flow when he said he'd 
 `hideReleaseDateLabel`, the `titleToDateGap`/padding call-site values, the artwork size — are
 either opt-in with an unchanged default or scoped to `MobileRatingLayout`'s own JSX), stage-1
 structural work.
+
+### 2026-08-08 — Mobile stage 2: radar-chart modal
+
+Third of four `mobile-album-evaluation-redesign` stages. Adds a tap-to-open modal showing the
+full radar chart on mobile's Screen 1 (Overview), triggered from the `RatingProgressBox` zone.
+Additive only — the existing "View Your Evaluation" button/`RatingSummaryView` dialog (stage 3)
+and all screen-transition/selection-feedback work (stage 4) untouched.
+
+**Diagnostic findings, confirmed before implementation:**
+- `RatingRadarChart`'s `size` prop (`'full' | 'small'`, default `'full'`) already gives the
+  brief's "full mode" for free — no new prop plumbing needed, just omit `size` or pass
+  `size="full"`.
+- No code path special-cases zero ratings — a 0/6 chart just plots every point at level 0,
+  degenerating to a tiny center shape. Live-verified via a temporary dev harness (see below):
+  renders correctly, no crash, no NaN.
+- `RatingProgressBox` has no `onClick`/ref-forwarding conflicts — safe to wrap from outside.
+
+**Trigger:** `MobileRatingLayout`'s existing `RatingProgressBox` usage (Screen 1 only) is wrapped
+in a native `Box as="button"` (not `role="button"`/`tabIndex` — a real `<button>` gets focus and
+Enter/Space activation for free) with `aria-label="View radar chart"`, opening a `radarOpen`
+dialog state on click. `RatingProgressBox.tsx` and `DesktopRatingLayout.tsx` have **zero diff**
+(confirmed via `git diff --stat` post-implementation) — desktop's usage is unaffected.
+
+**Modal:** same `DialogRoot`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogBody`/
+`DialogFooter` structure as the page-level `RatingSummaryView` dialog in `AlbumRatingPage.tsx`,
+kept local to `MobileRatingLayout.tsx` instead (all the data it needs — `catalog`/`ratings`/
+`order`/`weights`/`band`/`album` — were already props there; no new fetching). Title
+`` `${band} – ${album}` ``, same format as the existing dialog. Standard close (X, tap-outside,
+Esc) via Chakra's `Dialog.Root`.
+
+**Bug found and fixed in passing**: `MobileRatingLayout`'s `weights` prop was already declared
+in `MobileRatingLayoutProps` and passed by `AlbumRatingPage.tsx`, but never destructured in the
+component's parameter list — a pre-existing dead prop (unused until this stage needed it for the
+new chart). Fixed by adding it to the destructure; caught immediately by a live "weights is not
+defined" runtime error during verification, not by `tsc` (the prop's declared type made it look
+used).
+
+**Tooltip on tap — better than expected.** Diagnostic read of `RatingRadarChart.tsx` found no
+touch-specific wiring around Recharts' `Tooltip`, suggesting tap likely wouldn't trigger it. Live
+verification (Browser pane, mobile viewport/touch emulation) showed the opposite: tapping a
+radar point **did** show the tooltip correctly (tested at 0/6 — "Innovation / Not rated / —").
+Likely explained by the synthetic click event most mobile browsers dispatch after a touchend,
+which Recharts' tooltip activation responds to. Documenting as a positive finding rather than a
+gap — no custom touch-tooltip logic was built (per the brief, this wasn't to be built regardless
+of the diagnostic's outcome), and real-device behavior may still vary by browser; flagged as a
+candidate to spot-check on a real phone, not added to `deferred-work.md` as a known-broken item
+since it worked in the tested environment.
+
+**Live verification**: could not use a real logged-in Supabase session for this pass — verifying
+live would have required entering a live account's password into the browser tool, which is out
+of scope for this session to do (credential entry is not something this session performs). Used
+a temporary dev-only route (`/dev-radar-modal-preview`, `src/DevRadarModalPreview.tsx`) rendering
+`MobileRatingLayout` directly with mock catalog/ratings/weights data at 0/6, 3/6 (partial), and
+6/6 — same precedent as the desktop redesign's now-removed `DevRatingPreview.tsx`. All three
+states confirmed correct at 375px: 0/6 shows a degenerate center point, 3/6 a partial polygon,
+6/6 the full hexagon plus Rank/Score slabs and the (untouched) "View Your Evaluation" button
+still present and functional. Route and harness component removed before this stage's work was
+considered done — `git diff --stat` confirms only `MobileRatingLayout.tsx` changed.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222 (before and after harness
+removal).
+
+**What did not change:** `RatingProgressBox.tsx`, `DesktopRatingLayout.tsx` (both zero diff),
+`RatingSummaryView.tsx`/its dialog, `main.tsx` (temp route added and removed same session, net
+zero diff), any screen-transition/selection-feedback behavior (stage 4, not started).
