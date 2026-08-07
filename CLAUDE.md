@@ -198,3 +198,4 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `criteria-calibration-engine.md` — preference graph + closure, contradiction handling, LP solver, ordering heuristic; under-determination finding, ranking-stability result, unvalidated accuracy thresholds; branch merged to `master` 2026-07-30
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
+- `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
