@@ -97,6 +97,10 @@ export function MobileRatingLayout({
           titleLayout="stacked"
           hideGenres
           padding={{ x: 0, y: 0 }}
+          bandFontSize="16px"
+          albumFontSize="16px"
+          truncateBand
+          clampAlbumLines={2}
         />
       </Box>
     </Flex>
@@ -107,7 +111,11 @@ export function MobileRatingLayout({
       {screen === 'overview' ? (
         <VStack align="stretch" gap={0}>
           {albumInfo}
-          <Box borderTop="1px solid" borderColor="border.ruleStrong" px={4} py={4}>
+          {/* px/py 0 (Stage 1 retouch) — this wrapper's own padding, not anything owned by
+              RatingProgressBox or shared with DesktopRatingLayout (that layout wraps the same
+              component in a bare VStack with no px/py of its own either) — see the dated
+              stage-1-retouch entry in docs/decisions/album-rating-page.md. */}
+          <Box borderTop="1px solid" borderColor="border.ruleStrong" px={0} py={0}>
             <RatingProgressBox ratedCount={ratings.size} totalCount={order.length} ratingSummary={ratingSummary} />
           </Box>
           <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">
