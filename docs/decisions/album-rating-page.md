@@ -1121,6 +1121,26 @@ which lives entirely inside `MobileRatingLayout.tsx` and was untouched by this p
 files above plus the component itself, plus one now-updated comment) — no `aoty-*` doc or other
 page referenced it for reuse, so it was deleted outright rather than kept as an orphan.
 
+**Decoupling check on `RatingProgressBox` (re-confirmed post-hoc, with quote):** the brief
+required confirming `RatingProgressBox` computes its own completion state
+(`ratedCount`/`totalCount`) rather than depending on the `isComplete` this stage deletes. Quote,
+`RatingProgressBox.tsx`:
+```
+interface RatingProgressBoxProps {
+  ratedCount: number;
+  totalCount: number;
+  ratingSummary: AlbumRatingSummary | undefined;
+}
+
+export function RatingProgressBox({ ratedCount, totalCount, ratingSummary }: RatingProgressBoxProps) {
+  const isPending = ratedCount < totalCount;
+  ...
+```
+No `isComplete` prop in the interface, ever — both call sites
+(`MobileRatingLayout.tsx:146`, `DesktopRatingLayout.tsx:272`) pass only `ratedCount`/
+`totalCount`/`ratingSummary`. `isComplete` (`AlbumRatingPage.tsx`) existed solely to gate the
+now-removed button; it had no other reader. Confirmed safe to delete.
+
 **Removed:** the button block in `MobileRatingLayout.tsx` (with its now-unused
 `isComplete`/`onOpenSummary` props and the now-unused `primaryButton` import); `summaryOpen`
 state, the `isComplete` computation, the `RatingSummaryView` import, and the page-level
@@ -1133,17 +1153,36 @@ Reused stage 2's precedent: a temporary dev-only route (`/dev-mobile-stage3-prev
 `src/DevMobileStage3Preview.tsx`) rendering `MobileRatingLayout` directly with mock data at 6/6
 completion. Confirmed at 375px: Rank/Score box and all 6 criteria rows render correctly, no
 "View Your Evaluation" button present, `read_page` DOM scan showed exactly 7 interactive
-elements (radar-chart trigger + 6 criteria rows, no 8th button). Route and harness component
-removed before this stage's work was considered done — `git diff --stat` confirms only
-`AlbumRatingPage.tsx`, `MobileRatingLayout.tsx` (both modified) and `RatingSummaryView.tsx`
-(deleted) changed. Interactive click-through (opening the radar modal, tapping into a detail
-screen) was flaky in the browser tool during this session (timeouts, text-selection instead of
-click firing) — judged to be tooling/environment noise rather than a regression, since the same
-`RatingProgressBox`/row `onClick` code paths were untouched by this diff and passed live in
-stage 2's session.
+elements (radar-chart trigger + 6 criteria rows, no 8th button).
+
+The first verification pass stopped there and treated the element count as sufficient — it
+wasn't: a button count proves the old button is gone, not that the still-shipping stage-2 radar
+modal still opens after this stage's changes. The browser tool's coordinate/ref click was flaky
+in that pass (timeouts, text-selection instead of a click firing), and rather than finding a
+working alternative the pass moved on. Redone: `document.querySelector('[aria-label="View radar
+chart"]').dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))` fired the
+click directly, bypassing the flaky coordinate-based input path, and a screenshot confirmed the
+modal opened with the full hexagon chart rendered (all 6 criteria labeled: Emotional impact,
+Performance, Production, Songwriting, Innovation, Coherence). Stage 2's radar modal is confirmed
+unaffected by this stage's removal.
+
+Route and harness component removed before this stage's work was considered done — `git diff
+--stat` confirms only `AlbumRatingPage.tsx`, `MobileRatingLayout.tsx` (both modified) and
+`RatingSummaryView.tsx` (deleted) changed, `tsc --noEmit` clean after removal.
+
+**`RatingSummaryView.tsx` test-file question:** no test file for `RatingSummaryView` ever
+existed. Confirmed via full git history (`git log --all --diff-filter=A --name-only -- '*Rating
+SummaryView*'` returns only the component file itself, never a `.test.`/`.spec.` companion) and
+via the current tree (no `__tests__` file anywhere under `album-rating/` references it). No
+album-rating component in this codebase has dedicated unit tests — that's true before and after
+this stage, not something this stage changed. This is why `npx vitest run` stayed at 222/222
+both before and after the deletion: there was nothing to lose. The earlier brief's phrasing
+("delete the file and any test files for it") was gap-filling for an unconfirmed case — no such
+file existed, so nothing beyond the component itself needed removing.
 
 **Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222 (before and after harness
-removal).
+removal, and before/after this stage's deletion — see test-file note above for why the count
+didn't move).
 
 **What did not change:** `DesktopRatingLayout.tsx`, `RatingProgressBox.tsx`, `RatingRadarChart.tsx`,
 the radar-chart modal (stage 2, entirely inside `MobileRatingLayout.tsx`), any
