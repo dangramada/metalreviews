@@ -37,7 +37,7 @@ export function OptionCard({ criteria, selected, disabled, onSelect }: OptionCar
       p={6}
       border="2px solid"
       borderColor={selected ? 'accent.border' : 'border.ruleStrong'}
-      borderRadius="0"
+      borderRadius="none"
       bg={selected ? 'accent.border' : 'surface.card'}
       _hover={!selected && !disabled ? { borderColor: 'border.hover' } : undefined}
     >

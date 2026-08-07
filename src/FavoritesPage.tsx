@@ -105,7 +105,7 @@ export function FavoriteListItemRow({
           align="center"
           gap={4}
           bg="surface.card"
-          borderRadius="lg"
+          borderRadius="none"
           // overflow="hidden" clips the flush-edge artwork (0 padding, see below) to the
           // row's own rounded corners — without it the square artwork corners would poke
           // past the row's border-radius on the left edge.
@@ -224,7 +224,7 @@ export function FavoriteListItemRow({
       <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
         <Box
           bg="surface.card"
-          borderRadius="lg"
+          borderRadius="none"
           overflow="hidden"
           border="2px solid"
           borderColor="border.ruleStrong"

@@ -70,6 +70,7 @@ export function DesktopRatingLayout({
       bg="surface.ratingCardFill"
       border="2px solid"
       borderColor="border.ruleStrong"
+      borderRadius="none"
       // Two internal tiers within this >=768px component (the 768px Tier 3/mobile split itself
       // lives one level up, in AlbumRatingPage.tsx — MobileRatingLayout is untouched). Raw
       // `@media` at 64em/1024px, not Chakra's `lg` token (992px in this theme, no custom

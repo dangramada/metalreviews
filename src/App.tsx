@@ -592,7 +592,7 @@ function App() {
   // below only ever touches borderColor (the pre-existing score-linked mechanism).
   const cardStyle = {
     bg: 'surface.card',
-    borderRadius: 'md',
+    borderRadius: 'none',
     overflow: 'hidden',
     border: '2px solid',
     borderColor: 'border.ruleStrong',
