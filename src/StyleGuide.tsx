@@ -18,6 +18,7 @@ import { BUTTON_VARIANTS, primaryButton, secondaryButton, sourceBadge, scoreSlab
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -229,6 +230,46 @@ export function StyleGuide() {
                 <Text {...cardTitleAlbum} color="text.primary">
                   Blackwater Park
                 </Text>
+              </Box>
+            </VStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              ALBUM META BLOCK — title+date+genre unit (design-system-audit-2026-08.md
+              Pass 4). Two variants shown: the default spacing used by the review card,
+              rating page, and favorites mobile; and the favorites-desktop override.
+          ---------------------------------------------------------------- */}
+          <Section title="Album Meta Block">
+            <VStack gap={8} align="stretch">
+              <Box>
+                <Label>Default (review card, rating page, favorites mobile) — titleLayout=stacked, no overrides</Label>
+                <Box bg="surface.card" maxW="sm">
+                  <AlbumMetaBlock
+                    band="Opeth"
+                    album="Blackwater Park"
+                    releaseDate="2001-03-19"
+                    genre={['Death Metal', 'Progressive Rock']}
+                    titleLayout="stacked"
+                  />
+                </Box>
+              </Box>
+              <Box>
+                <Label>
+                  Favorites desktop override — titleLayout=inline, padding={'{x:0,y:3}'},
+                  titleToDateGap=1, dateToGenreGap=2
+                </Label>
+                <Box bg="surface.card" maxW="sm">
+                  <AlbumMetaBlock
+                    band="Opeth"
+                    album="Blackwater Park"
+                    releaseDate="2001-03-19"
+                    genre={['Death Metal', 'Progressive Rock']}
+                    titleLayout="inline"
+                    padding={{ x: 0, y: 3 }}
+                    titleToDateGap={1}
+                    dateToGenreGap={2}
+                  />
+                </Box>
               </Box>
             </VStack>
           </Section>
