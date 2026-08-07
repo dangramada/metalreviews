@@ -118,6 +118,10 @@ Standard Chakra `colorPalette` + `variant` props, no custom recipe overrides. Pa
 
 All tokens, typography, buttons, and badges are visible at `/style-guide` (`src/StyleGuide.tsx`) — an unlinked dev route, not shown in the app nav. Navigate to it manually to preview every token and component variant side by side.
 
+### PageBreadcrumb (2026-08-07)
+
+`src/components/ui/breadcrumb.tsx`'s `PageBreadcrumb` restyled to match a new reference: `LuChevronLeft` (react-icons/lu, same set used elsewhere — no new icon dep) prefixes the first item's link, separator changed from Chakra's default chevron icon to a literal `"/"` (passed via `BreadcrumbRoot`'s existing `separator` prop), current item made explicit `text.primary` + `fontWeight="semibold"` (Chakra's "plain" breadcrumb variant already colored `currentLink` brighter than `link` — `fg` vs `fg.muted` — this just makes that intentional rather than incidental). `{label, to?}[]` API unchanged. Specimen added to StyleGuide.tsx using the real Favorites → Album Evaluation trail. Still only wired up on `AlbumRatingPage` — that trail (`sourceLabel`/`backHref` from `resolveBackDestination`) already produced a real 2-item breadcrumb before this change; nothing there needed touching. `CriteriaCalibrationPage` still has no breadcrumb — deferred, see `deferred-work.md`.
+
 ## Intentional non-token values
 
 Two hardcoded values are deliberate carve-outs:
