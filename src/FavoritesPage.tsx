@@ -162,9 +162,9 @@ export function FavoriteListItemRow({
               releaseDate={item.releaseDate}
               genre={item.genre}
               titleLayout="inline"
-              padding={{ x: '0px', y: '12px' }}
-              titleToDateGap="4px"
-              dateToGenreGap="8px"
+              padding={{ x: 0, y: 3 }}
+              titleToDateGap={1}
+              dateToGenreGap={2}
             />
           </Box>
 

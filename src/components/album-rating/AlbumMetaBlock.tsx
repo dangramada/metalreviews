@@ -21,11 +21,14 @@ interface AlbumMetaBlockProps {
   // picked silently. 'inline' is FavoriteListItemRow desktop's single-line "band – album"
   // treatment (a deliberate density choice, not something this component should default to).
   titleLayout: 'stacked' | 'inline';
-  // `top`/`bottom` override `y` independently (e.g. the review card keeps the default 20px
-  // top but tightens bottom to 12px) — both fall back to `y`, which falls back to '20px'.
-  padding?: { x?: string; y?: string; top?: string; bottom?: string };
-  titleToDateGap?: string;
-  dateToGenreGap?: string;
+  // `top`/`bottom` override `y` independently (e.g. the review card keeps the default
+  // space.5 top but tightens bottom to space.3) — both fall back to `y`, which falls back
+  // to space.5. Values are Chakra's own spacing scale (numbers) rather than literal px
+  // strings — this is the only place in the design system that used to invent its own px
+  // values outside that scale; see design-system-audit-2026-08.md.
+  padding?: { x?: string | number; y?: string | number; top?: string | number; bottom?: string | number };
+  titleToDateGap?: string | number;
+  dateToGenreGap?: string | number;
 }
 
 export function AlbumMetaBlock({
@@ -35,12 +38,12 @@ export function AlbumMetaBlock({
   genre,
   titleLayout,
   padding,
-  titleToDateGap = '12px',
-  dateToGenreGap = '8px',
+  titleToDateGap = 3,
+  dateToGenreGap = 2,
 }: AlbumMetaBlockProps) {
-  const px = padding?.x ?? '16px';
-  const pt = padding?.top ?? padding?.y ?? '20px';
-  const pb = padding?.bottom ?? padding?.y ?? '20px';
+  const px = padding?.x ?? 4;
+  const pt = padding?.top ?? padding?.y ?? 5;
+  const pb = padding?.bottom ?? padding?.y ?? 5;
 
   return (
     <VStack align="stretch" gap={0} px={px} pt={pt} pb={pb}>

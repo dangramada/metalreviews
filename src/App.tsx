@@ -744,7 +744,7 @@ function App() {
                       releaseDate={rev.releaseDate}
                       genre={rev.genre ?? []}
                       titleLayout="stacked"
-                      padding={{ bottom: '12px' }}
+                      padding={{ bottom: 3 }}
                     />
                     <Box px={4} pb={4}>
                       {singleReview && (
