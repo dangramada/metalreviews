@@ -1,6 +1,5 @@
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Badge,
   Box,
   Button,
   Container,
@@ -26,8 +25,6 @@ import {
   NativeSelect,
   Text,
   VStack,
-  Wrap,
-  WrapItem,
   parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
@@ -59,11 +56,12 @@ import type { FavoriteListItem } from './hooks/useFavoritesList';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
-import { formatReleaseDate, getReleaseYear, toThumbnailUrl } from './App';
+import { getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { genreBadge, primaryButton, rankOverlayBadge, secondaryButton, cardTitleBand, cardTitleAlbum } from './theme';
+import { primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
 
@@ -153,33 +151,21 @@ export function FavoriteListItemRow({
             )}
           </Box>
 
-          <Box flex={1} minW={0} py={3}>
-            <Text lineClamp={1}>
-              <Text as="span" {...cardTitleBand}>
-                {item.band}
-              </Text>{' '}
-              <Text as="span" {...cardTitleAlbum} color="text.primary">
-                – {item.album}
-              </Text>
-            </Text>
-            <Text
-              fontFamily="mono"
-              fontSize="11px"
-              letterSpacing="0.08em"
-              textTransform="uppercase"
-              color="text.muted"
-            >
-              Release date: {formatReleaseDate(item.releaseDate)}
-            </Text>
-            {item.genre.length > 0 && (
-              <Wrap gap={1} mt={1}>
-                {item.genre.map((g) => (
-                  <WrapItem key={g}>
-                    <Badge {...genreBadge}>{g}</Badge>
-                  </WrapItem>
-                ))}
-              </Wrap>
-            )}
+          {/* AlbumMetaBlock's padding/gap overrides here preserve this row's original
+              gap-based composition (spaced by the parent Flex's own gap={4}, not a
+              self-contained padded block) — titleLayout="inline" keeps the deliberate
+              single-line "band – album" density from Pass 3, unchanged in shape. */}
+          <Box flex={1} minW={0}>
+            <AlbumMetaBlock
+              band={item.band}
+              album={item.album}
+              releaseDate={item.releaseDate}
+              genre={item.genre}
+              titleLayout="inline"
+              padding={{ x: '0px', y: '12px' }}
+              titleToDateGap="4px"
+              dateToGenreGap="8px"
+            />
           </Box>
 
           <Flex flexShrink={0} gap={1} pr={3}>
@@ -254,42 +240,23 @@ export function FavoriteListItemRow({
             )}
           </Box>
 
-          <Box p={3}>
-            {/* Band/album render as two separate lines here (not desktop's single-line
-                inline-span treatment) — card context below a large artwork reads better
-                as a stacked title than a dense inline row. Typography now shares
-                cardTitleBand/cardTitleAlbum (theme.ts) with the desktop row and the review
-                card — see docs/decisions/design-system-audit-2026-08.md. Line-height stays
-                local to this stacked layout. The desktop "band – album" em-dash join is
-                dropped here since the two-line stack already separates them visually. */}
-            <Text {...cardTitleBand} lineHeight="1.2">
-              {item.band}
-            </Text>
-            <Text {...cardTitleAlbum} color="text.primary" lineHeight="1.3" mt={0.5}>
-              {item.album}
-            </Text>
-            <Text
-              fontFamily="mono"
-              fontSize="11px"
-              letterSpacing="0.08em"
-              textTransform="uppercase"
-              color="text.muted"
-              mt={1}
-            >
-              Release date: {formatReleaseDate(item.releaseDate)}
-            </Text>
-            {item.genre.length > 0 && (
-              <Wrap gap={1} mt={1}>
-                {item.genre.map((g) => (
-                  <WrapItem key={g}>
-                    <Badge {...genreBadge}>{g}</Badge>
-                  </WrapItem>
-                ))}
-              </Wrap>
-            )}
-
+          {/* Title/date/genre now come from AlbumMetaBlock — stacked layout (matches review
+              card/AlbumRatingPage desktop), defaults apply (design-system-audit-2026-08.md
+              Pass 4). AlbumMetaBlock's own 20px bottom padding now provides the breathing
+              room before the action-button row below (dropping the old mt={3} on that row,
+              which would otherwise double up with it) — the original p={3} wrapper is gone,
+              replaced by AlbumMetaBlock's own padding plus px={4} pb={4} on the button row so
+              its edges still align. */}
+          <AlbumMetaBlock
+            band={item.band}
+            album={item.album}
+            releaseDate={item.releaseDate}
+            genre={item.genre}
+            titleLayout="stacked"
+          />
+          <Box px={4} pb={4}>
             {(onRate || onRemove) && (
-              <Flex gap={2} mt={3}>
+              <Flex gap={2}>
                 {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
                     hover state. Collapses to icon-only under a secondary raw-`@media`
                     breakpoint (400px) rather than a container query: this codebase has no

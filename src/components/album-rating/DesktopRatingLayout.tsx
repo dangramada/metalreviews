@@ -2,14 +2,13 @@
 // (artwork+meta, criteria+levels, rank/score+chart) per the reference design — see
 // docs/decisions/album-rating-page.md's dated entry for the redesign from the original
 // 3-simultaneous-columns layout this replaces.
-import { Badge, Box, Flex, Heading, Text, VStack, Wrap, WrapItem } from '@chakra-ui/react';
+import { Box, Flex, Text, VStack } from '@chakra-ui/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlbumArtwork } from './AlbumArtwork';
+import { AlbumMetaBlock } from './AlbumMetaBlock';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
 import { RatingSlab } from './RatingSlab';
 import { RatingRadarChart, type CriterionLevelWeight } from './RatingRadarChart';
-import { formatReleaseDate } from '../../App';
-import { genreBadge } from '../../theme';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
 
@@ -102,14 +101,14 @@ export function DesktopRatingLayout({
         },
       }}
     >
-        {/* Section 1: artwork (flush) + band/album/date/genre text block. Band/album typography
-            matches the review card's exactly (App.tsx ~line 741) rather than inventing new
-            styles — 19px/700/uppercase band, 18px/500 album, tightly stacked with no gap
-            between them (same as the review card), functioning as row 1 of this section's 3
-            stacked rows. Inlined rather than reusing AlbumMeta.tsx: AlbumMeta's own internal
-            margins (mb=1/mb=2) would stack with this section's 12px row gap and produce
-            inconsistent spacing — not required to extract this pass, so duplicated instead of
-            risking a shared-component change that could also affect the review card's spacing. */}
+        {/* Section 1: artwork (flush) + title/date/genre block. Band/album typography and the
+            title/date/genre spacing now come from AlbumMetaBlock (design-system-audit-2026-08.md
+            Pass 4) — this used to be hand-duplicated here rather than reusing AlbumMeta.tsx
+            because AlbumMeta's baked-in mb margins would have stacked with this section's own
+            spacing; AlbumMetaBlock's gap-based props solve exactly that, so the duplication is
+            gone. Padding/title→date gap here already matched the new component's defaults
+            (16px/20px, 12px); date→genre gap moves from this section's old 12px to
+            AlbumMetaBlock's 8px default — a small, approved change. */}
         <VStack
           gridArea="art"
           align="stretch"
@@ -132,42 +131,7 @@ export function DesktopRatingLayout({
               at 768/900/1023px that a hardcoded 300px would either overflow the shared column
               or starve Section 3. */}
           <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="auto" />
-          <VStack align="stretch" gap="12px" px="16px" py="20px">
-            <Box>
-              <Heading
-                as="h3"
-                fontFamily="body"
-                fontSize="19px"
-                fontWeight={700}
-                lineHeight="1.1"
-                letterSpacing="-0.01em"
-                textTransform="uppercase"
-              >
-                {band}
-              </Heading>
-              <Text fontFamily="body" fontSize="18px" fontWeight={500} color="text.primary">
-                {album}
-              </Text>
-            </Box>
-            <Text
-              fontFamily="mono"
-              fontSize="11px"
-              letterSpacing="0.08em"
-              textTransform="uppercase"
-              color="text.muted"
-            >
-              Release date: {formatReleaseDate(releaseDate)}
-            </Text>
-            {genre.length > 0 && (
-              <Wrap gap={1}>
-                {genre.map((g) => (
-                  <WrapItem key={g}>
-                    <Badge {...genreBadge}>{g}</Badge>
-                  </WrapItem>
-                ))}
-              </Wrap>
-            )}
-          </VStack>
+          <AlbumMetaBlock band={band} album={album} releaseDate={releaseDate} genre={genre} titleLayout="stacked" />
         </VStack>
 
         {/* Section 2: one wrapper, horizontal split — criteria list left, active criterion's

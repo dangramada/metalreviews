@@ -20,7 +20,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Badge,
-  Heading,
   Text,
   VStack,
   Container,
@@ -50,8 +49,8 @@ import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { sourceBadge, scoreSlabBase, scoreSlabHigh, cardTitleBand, cardTitleAlbum } from './theme';
-import { AlbumMeta } from './components/album-rating/AlbumMeta';
+import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
+import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -732,22 +731,22 @@ function App() {
                       isFavorited={favoritedIds.has(rev.albumId)}
                       onToggle={() => toggleFavorite(rev.albumId)}
                     />
-                    <Box p={4}>
-                      {/* Band and album are separate lines with distinct weights, and both
-                          use fontFamily="body" (Inter). They must NOT inherit the heading
-                          face: fonts.heading is Clash Display, which the design system
-                          reserves for the logo wordmark and the score-slab number only. */}
-                      <Heading as="h3" {...cardTitleBand} lineHeight="1.1">
-                        {rev.band || 'Unknown Band'}
-                      </Heading>
-                      {/* Same color as the band heading (inherited text.primary) — weight
-                          and size are the only remaining distinction between the two lines,
-                          per pass 4. Set explicitly rather than left to inherit, since this
-                          Text has no other reason to match its parent's color. */}
-                      <Text {...cardTitleAlbum} color="text.primary" mb={2}>
-                        {rev.album || 'Untitled Album'}
-                      </Text>
-                      <AlbumMeta releaseDate={rev.releaseDate} genre={rev.genre ?? []} />
+                    {/* Title + release date + genre — standardized spacing via AlbumMetaBlock
+                        (design-system-audit-2026-08.md, Pass 4). Its own px/py padding replaces
+                        this Box's former p={4} for the title/meta portion only; the remaining
+                        summary/review-list content below keeps px={4}/pb={4} so its edges still
+                        align with AlbumMetaBlock's. The gap between the genre tags and the
+                        summary text below grows from the old 8px to AlbumMetaBlock's own 20px
+                        bottom padding — a direct, expected consequence of the approved py
+                        default, not a separately-introduced change. */}
+                    <AlbumMetaBlock
+                      band={rev.band || 'Unknown Band'}
+                      album={rev.album || 'Untitled Album'}
+                      releaseDate={rev.releaseDate}
+                      genre={rev.genre ?? []}
+                      titleLayout="stacked"
+                    />
+                    <Box px={4} pb={4}>
                       {singleReview && (
                         <>
                           {/* lineClamp={3} truncates long summaries with an ellipsis (v3 prop) */}
