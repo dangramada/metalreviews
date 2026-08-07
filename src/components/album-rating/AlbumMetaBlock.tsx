@@ -21,7 +21,9 @@ interface AlbumMetaBlockProps {
   // picked silently. 'inline' is FavoriteListItemRow desktop's single-line "band – album"
   // treatment (a deliberate density choice, not something this component should default to).
   titleLayout: 'stacked' | 'inline';
-  padding?: { x?: string; y?: string };
+  // `top`/`bottom` override `y` independently (e.g. the review card keeps the default 20px
+  // top but tightens bottom to 12px) — both fall back to `y`, which falls back to '20px'.
+  padding?: { x?: string; y?: string; top?: string; bottom?: string };
   titleToDateGap?: string;
   dateToGenreGap?: string;
 }
@@ -37,10 +39,11 @@ export function AlbumMetaBlock({
   dateToGenreGap = '8px',
 }: AlbumMetaBlockProps) {
   const px = padding?.x ?? '16px';
-  const py = padding?.y ?? '20px';
+  const pt = padding?.top ?? padding?.y ?? '20px';
+  const pb = padding?.bottom ?? padding?.y ?? '20px';
 
   return (
-    <VStack align="stretch" gap={0} px={px} py={py}>
+    <VStack align="stretch" gap={0} px={px} pt={pt} pb={pb}>
       {titleLayout === 'stacked' ? (
         <Box>
           <Heading as="h3" {...cardTitleBand} lineHeight="1.1">

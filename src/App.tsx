@@ -735,16 +735,16 @@ function App() {
                         (design-system-audit-2026-08.md, Pass 4). Its own px/py padding replaces
                         this Box's former p={4} for the title/meta portion only; the remaining
                         summary/review-list content below keeps px={4}/pb={4} so its edges still
-                        align with AlbumMetaBlock's. The gap between the genre tags and the
-                        summary text below grows from the old 8px to AlbumMetaBlock's own 20px
-                        bottom padding — a direct, expected consequence of the approved py
-                        default, not a separately-introduced change. */}
+                        align with AlbumMetaBlock's. Bottom padding tightened to 12px (custom
+                        adjustment, review card only) so the gap to the summary text below isn't
+                        as wide as the full 20px default. */}
                     <AlbumMetaBlock
                       band={rev.band || 'Unknown Band'}
                       album={rev.album || 'Untitled Album'}
                       releaseDate={rev.releaseDate}
                       genre={rev.genre ?? []}
                       titleLayout="stacked"
+                      padding={{ bottom: '12px' }}
                     />
                     <Box px={4} pb={4}>
                       {singleReview && (
