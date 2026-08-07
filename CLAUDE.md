@@ -51,26 +51,12 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`favorites-row-mobile-layout` — not yet merged, active as of 2026-08-07. Mobile counterpart to
-`favorites-row-desktop-redesign`: vertical artwork-first layout for `FavoriteListItemRow`, same
-768px `@media` split mechanism as `AlbumRatingPage`. Tests/tsc clean, tool-verified live against
-real artwork. **Blocked on Dan's own visual confirmation before merge.** Full detail:
-`docs/decisions/favorites-row-mobile-layout.md`; deferred font-size-token-audit item in
-`docs/decisions/deferred-work.md`.
-
-`favorites-row-desktop-redesign` merged to `master` on 2026-08-07 via merge commit `5055ba7` —
-branch retained per convention, not deleted. Desktop-only restyle of `FavoriteListItemRow`
-(`FavoritesPage.tsx`, shared by `/favorites` and the `AddAlbumDrawer` preview): 128px artwork
-flush to the row's left/top/bottom edges, a new `rankOverlayBadge` token (`theme.ts`) replacing
-the old inline `rankBadge` chip — accent-filled flush-corner overlay on the artwork's bottom-left,
-single `#{rank}` node, no threshold — plus a new inline uppercase/bold band-name style (kept on
-the same combined "band – album" line, not split into two), hover `Tooltip`s on the rate/delete
-icon buttons, and a delete-confirmation `DialogRoot` (previously immediate) matching
-`AddAlbumDrawer`'s discard-confirm pattern. Mobile untouched — separate brief still needed, and
-two things carry over into it: the new `Tooltip`s are hover-only and untested on touch, and real
-artwork softness at the new 128px display size was never actually verified live (both dev-harness
-checks used a non-resolving artwork URL). Full detail: `docs/decisions/favorites-row-desktop-redesign.md`;
-carry-over items also tracked in `docs/decisions/deferred-work.md`.
+`favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
+branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
+the `favorites-row-desktop-redesign` restyle (merged same day, commit `5055ba7`, branch also
+retained). Both branches' full detail moved to the Past-decisions index below now that the
+desktop→mobile follow-on is done; remaining open item (desktop's `Tooltip`s untested on touch)
+tracked in `docs/decisions/deferred-work.md`.
 
 `criteria-calibration-update` merged to `master` on 2026-07-30 — branch retained per convention,
 not deleted. Gave `CriteriaCalibrationPage` the same `Header`/`Footer` page-shell chrome and
@@ -210,3 +196,5 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
 - `criteria-calibration-ui.md` — Phase 7 UI-only screen: selection/hold/fade state machine, Progress-vs-Accuracy split, `OptionCard`, Undo/Redo; branch merged to `master` 2026-07-30
 - `criteria-calibration-engine.md` — preference graph + closure, contradiction handling, LP solver, ordering heuristic; under-determination finding, ranking-stability result, unvalidated accuracy thresholds; branch merged to `master` 2026-07-30
+- `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
+- `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
