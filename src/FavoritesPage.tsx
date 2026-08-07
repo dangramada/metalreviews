@@ -162,8 +162,14 @@ export function FavoriteListItemRow({
                 – {item.album}
               </Text>
             </Text>
-            <Text fontSize="sm" color="text.dim">
-              {formatReleaseDate(item.releaseDate)}
+            <Text
+              fontFamily="mono"
+              fontSize="11px"
+              letterSpacing="0.08em"
+              textTransform="uppercase"
+              color="text.muted"
+            >
+              Release date: {formatReleaseDate(item.releaseDate)}
             </Text>
             {item.genre.length > 0 && (
               <Wrap gap={1} mt={1}>
@@ -262,8 +268,15 @@ export function FavoriteListItemRow({
             <Text {...cardTitleAlbum} color="text.primary" lineHeight="1.3" mt={0.5}>
               {item.album}
             </Text>
-            <Text fontSize="sm" color="text.dim" mt={1}>
-              {formatReleaseDate(item.releaseDate)}
+            <Text
+              fontFamily="mono"
+              fontSize="11px"
+              letterSpacing="0.08em"
+              textTransform="uppercase"
+              color="text.muted"
+              mt={1}
+            >
+              Release date: {formatReleaseDate(item.releaseDate)}
             </Text>
             {item.genre.length > 0 && (
               <Wrap gap={1} mt={1}>

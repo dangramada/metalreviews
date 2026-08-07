@@ -136,7 +136,9 @@ describe('FavoritesPage', () => {
   it('renders the formatted release date', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getAllByText(`16 Mar ${currentYear}`).length).toBeGreaterThanOrEqual(1);
+    // Release date now carries the same "Release date: " label as the review card and
+    // AlbumRatingPage desktop (design-system-audit-2026-08.md, Pass 4 unification).
+    expect(screen.getAllByText(`Release date: 16 Mar ${currentYear}`).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders genre tags', () => {
