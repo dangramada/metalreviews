@@ -140,6 +140,24 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   considering a cap or a "give up after N attempts" rule at some point, though
   that's a separate design question from fixing the match itself. No fix
   attempted; discovery only.
+- **AMG "Into the Obscure: Cianide" row recurred after its first cleanup —
+  root cause unknown, open.** Found 2026-08-07. The Cianide post was first
+  cleaned up 2026-07-26 (`reviews.id a0ee59d1-a7dd-4888-b691-848d24a446bc`,
+  `albums.id 8ab3a8a1-c3a0-423d-b3c8-fd6f70b8abe3` — see
+  `roundup-skip-fix.md`'s 2026-07-26 addendum), at which point the denylist fix
+  should have prevented any further ingestion of it. A second, differently-ID'd
+  copy was found live on 2026-08-07 (`reviews.id
+  8753001c-cc67-42fc-bdb1-e30b5c6b6f84`, `albums.id
+  47c1e4b8-340e-4705-8e98-768aefb0bae0`, `mb_lookup_attempts: 16` at time of
+  discovery — notably higher than a single MB-lookup-retry pattern would
+  predict) and deleted (see `roundup-skip-fix.md`'s 2026-08-07 addendum). A
+  correct `skipped_posts` row for this URL has existed since 2026-07-26 the
+  whole time, meaning the denylist check itself was never bypassed on the path
+  that logs skips — so how a second `reviews`/`albums` row got created at all
+  (which write path, when, why `mb_lookup_attempts` reached 16) was not
+  diagnosed this session; it was deliberately deferred in favor of the
+  higher-priority "Stuck in the Filter" regression investigation. Needs its own
+  read-only diagnostic session before any further action.
 - **`favorites.review_id` column — resolved, not open.** The original migration
   brief called for this to stay deferred pending Dan's go-ahead
   (`album-identity-migration.md`), but a later session confirmed via direct live
