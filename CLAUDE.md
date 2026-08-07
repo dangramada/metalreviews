@@ -59,9 +59,12 @@ removed, `AlbumMetaBlock` gained `hideGenres`/`bandFontSize`/`albumFontSize`/`tr
 `clampAlbumLines`/`hideReleaseDateLabel` props plus a global band line-height default change
 (1.1→1.4, re-verified on all consumers). Second retouch pass fixed a real bug (`clampAlbumLines`
 silently did nothing — unrecognized Chakra style props don't apply; fixed via Chakra's own
-`lineClamp` prop) and tightened mobile spacing/artwork size further. Stages 2-4 (radar-chart
-modal, "View Your Evaluation"/`RatingSummaryView` removal, selection/transition animation) not
-started. Full detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08 dated entries.
+`lineClamp` prop) and tightened mobile spacing/artwork size further. Stage 2 of 4 (radar-chart
+modal) also complete (2026-08-08): tap-to-open `DialogRoot` on Screen 1's `RatingProgressBox`
+showing the full radar chart, additive alongside the untouched "View Your Evaluation" dialog;
+`RatingProgressBox.tsx`/`DesktopRatingLayout.tsx` both zero-diff. Stages 3-4 ("View Your
+Evaluation"/`RatingSummaryView` removal, selection/transition animation) not started. Full
+detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08 dated entries.
 
 `favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
 branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
