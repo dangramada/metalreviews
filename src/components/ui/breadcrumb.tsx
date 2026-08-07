@@ -1,6 +1,7 @@
 import { Breadcrumb, type SystemStyleObject } from "@chakra-ui/react"
 import * as React from "react"
 import { Link as RouterLink } from "react-router-dom"
+import { LuChevronLeft } from "react-icons/lu"
 
 export interface BreadcrumbRootProps extends Breadcrumb.RootProps {
   separator?: React.ReactNode
@@ -52,14 +53,20 @@ export interface PageBreadcrumbItem {
 
 export function PageBreadcrumb({ items }: { items: PageBreadcrumbItem[] }) {
   return (
-    <BreadcrumbRoot color="text.dim" fontSize="sm">
+    <BreadcrumbRoot color="text.dim" fontSize="sm" separator="/" separatorGap={2}>
       {items.map((item, index) => {
+        const isFirst = index === 0
         const isLast = index === items.length - 1
         if (isLast || !item.to) {
-          return <BreadcrumbCurrentLink key={item.label}>{item.label}</BreadcrumbCurrentLink>
+          return (
+            <BreadcrumbCurrentLink key={item.label} color="text.primary" fontWeight="semibold">
+              {item.label}
+            </BreadcrumbCurrentLink>
+          )
         }
         return (
           <BreadcrumbLink key={item.label} as={RouterLink} to={item.to} _hover={{ color: "accent.text" }}>
+            {isFirst && <LuChevronLeft />}
             {item.label}
           </BreadcrumbLink>
         )

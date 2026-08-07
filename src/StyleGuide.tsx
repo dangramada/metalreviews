@@ -19,6 +19,7 @@ import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
+import { PageBreadcrumb } from './components/ui/breadcrumb';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -495,6 +496,22 @@ export function StyleGuide() {
           <Section title="Header">
             <Box bg="surface.page" p={4}>
               <Header />
+            </Box>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              PAGE BREADCRUMB — back-arrow first item, "/" separator, bold
+              current item. Currently wired up on AlbumRatingPage only.
+          ---------------------------------------------------------------- */}
+          <Section title="Page Breadcrumb">
+            <Box>
+              <Label>Favorites → Album Evaluation — matches AlbumRatingPage's live trail</Label>
+              <PageBreadcrumb
+                items={[
+                  { label: 'Favorites', to: '/favorites' },
+                  { label: 'Album Evaluation' },
+                ]}
+              />
             </Box>
           </Section>
 
