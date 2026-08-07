@@ -114,6 +114,14 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **`skipped_posts.url` has no index.** Surfaced 2026-08-07 while adding the
+  `filterAlreadySkipped` safety-net check (see `roundup-skip-fix.md`'s stale-deploy
+  addendum). The new bulk check does one full-table `select('url')` per ingest run rather
+  than a per-item query, so it doesn't strictly need an index yet, but the existing
+  `logSkippedPost` dedup lookup (`.eq('url', url)`) is already unindexed too. Table is
+  small (dozens of rows) — deliberately not built now, Dan's explicit call. Future
+  hygiene: `create index skipped_posts_url_idx on skipped_posts (url);` as a `.sql` file
+  for manual run, if the table grows enough to matter.
 - **Multi-artist-credit genre gap (Sunn O))) & Boris style) — real but currently
   dormant, 0/128 live catalog matches.** `resolveAlbumIdentity`/Step C's
   artist-fallback only fetches genres for `artist-credit[0]`, ignoring

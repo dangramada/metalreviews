@@ -235,3 +235,54 @@ directly from on-disk `scripts/ingest.ts` in a brand-new process against the liv
 A full `npm run ingest` was intentionally not run as part of this verification (would risk writing
 unrelated new rows from whatever else is currently in the feed) — the fresh-process check above
 was judged sufficient to confirm the logic.
+
+## Addendum: stale-deploy regression #2 + `skipped_posts` safety net (2026-08-07, later same day)
+
+### Root cause of the recurrence
+
+Both "Stuck in the Filter" and "Rodeö" reappeared **again** with fresh row IDs after the same-day
+cleanup above (`reviews.id 40dc7403-204b-4191-858e-e9f881b92bc6` / `albums.id
+c696aa0b-4a22-4a3f-b0d3-dfae05f4eaef`, and `reviews.id 9ccbfd3f-dcb6-4079-a783-fc2b8884d8b2` /
+`albums.id e75b2595-58ba-47d2-ab34-c3b8b4bb8acf`). A dedicated read-only diagnostic session traced
+this to GitHub Actions' scheduled ingest run **#35** (`id 31160728998`, `event: schedule`, fired
+`2026-08-07T08:12:13Z` — about 72 minutes after its nominal 07:00 UTC slot, consistent with
+GitHub Actions' documented scheduling-delay behavior, not a code bug) hitting Render during its
+deploy-propagation lag: the fixes (`f14d27c`, `0fb8410`) were already committed and locally
+verified, but the container serving that scheduled request hadn't yet swapped to the new build.
+Both bad rows share an identical `created_at` (`08:16:16.392021Z`) and `mb_lookup_attempts: 0`,
+consistent with one ingestion pass on stale code, not two independent events. Ruled out as the
+cause: server/process boot directly triggering ingest — confirmed no code path does this (`grep`
+across the repo; `server.ts` only calls `runIngestion()` inside the authenticated
+`POST /api/ingest` handler, never at startup). Not investigated further in this session (separate,
+larger problem if pursued): the deploy-propagation-lag window itself — no GitHub Actions workflow
+or Render config changes were made.
+
+Both rows deleted the same way as the pass above (fresh-lookup verification, no new
+`skipped_posts` insert needed — both already had a covering row from the original 2026-08-06/07
+skip-logging).
+
+### `skipped_posts` safety net added
+
+The diagnostic also found a structural gap independent of the specific stale-deploy trigger:
+`shouldSkipPost` is re-evaluated fresh every run against whatever denylist code is loaded in that
+process, and nothing in the insert path ever reads `skipped_posts` — a correctly-logged skip from
+one (correct) process does nothing to stop a different (stale) process from inserting the same
+post anyway. Fixed by adding `filterAlreadySkipped()` in `scripts/ingest.ts`, applied to `allRaw`
+in `runIngestion()` before any MusicBrainz lookup or upsert — the one write path all three sources
+(AMG, Progressive Subway, Metal Storm) share, so it can't be bypassed by whichever fetcher/denylist
+code version produced a given raw item. Matches on exact `url` string equality (confirmed both
+`reviews.url` and `skipped_posts.url` come from the same RSS `item.link` field via the same
+parser, no normalization needed). Logs a distinguishable `"Safety-net skip: ..."` line on match,
+separate from a normal `shouldSkipPost`-driven skip, so this path is visible in Render logs if it
+fires again. Does not replace or modify the denylist/category logic — additional guard only.
+
+`skipped_posts.url` has no index; not added this session (table too small to matter yet, Dan's
+explicit call) — tracked in `deferred-work.md`.
+
+Tests: `scripts/__tests__/ingest.test.ts`, new `filterAlreadySkipped` describe block (4 cases:
+empty skip set passes through, a matched URL is filtered even though it reached `allRaw`, the
+distinguishable log fires on match, no log on a clean pass). Full suite 222/222 passing, `tsc
+--noEmit` clean.
+
+**Not touched:** the Cianide recurrence (`deferred-work.md`, `mb_lookup_attempts: 16` — doesn't
+fit this session's single-fresh-insert pattern) stays open as its own separate investigation.
