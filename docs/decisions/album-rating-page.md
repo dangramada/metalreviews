@@ -1100,3 +1100,51 @@ removal).
 **What did not change:** `RatingProgressBox.tsx`, `DesktopRatingLayout.tsx` (both zero diff),
 `RatingSummaryView.tsx`/its dialog, `main.tsx` (temp route added and removed same session, net
 zero diff), any screen-transition/selection-feedback behavior (stage 4, not started).
+
+### 2026-08-08 — Mobile stage 3: remove "View Your Evaluation" / `RatingSummaryView`
+
+Fourth of four `mobile-album-evaluation-redesign` stages (stage 4, selection/transition
+animation, still not started).
+
+**Diagnostic findings, confirmed before implementation:** the button, its open/close state, and
+the `RatingSummaryView` render were split across two files, not all in `MobileRatingLayout.tsx`
+as might be assumed from the button living there. The button itself
+(`MobileRatingLayout.tsx`, gated on `isComplete`) called an `onOpenSummary` prop; the actual
+`summaryOpen` state, the `DialogRoot`, and the `RatingSummaryView` render all lived in
+`AlbumRatingPage.tsx`, rendered page-level (outside both `DesktopRatingLayout` and
+`MobileRatingLayout`, gated only on `albumInfo` truthiness) — dead weight on desktop, which never
+set `summaryOpen` since `isComplete`/`onOpenSummary` were never passed to `DesktopRatingLayout`.
+This confirmed stage 2's diagnostic note ("DialogRoot pattern in AlbumRatingPage.tsx") was
+accurate and not a misattribution — it's a distinct dialog from stage 2's radar-chart modal,
+which lives entirely inside `MobileRatingLayout.tsx` and was untouched by this pass.
+`git grep RatingSummaryView` across the whole repo found only 3 source references (the two
+files above plus the component itself, plus one now-updated comment) — no `aoty-*` doc or other
+page referenced it for reuse, so it was deleted outright rather than kept as an orphan.
+
+**Removed:** the button block in `MobileRatingLayout.tsx` (with its now-unused
+`isComplete`/`onOpenSummary` props and the now-unused `primaryButton` import); `summaryOpen`
+state, the `isComplete` computation, the `RatingSummaryView` import, and the page-level
+`DialogRoot` block in `AlbumRatingPage.tsx` (along with now-unused `Button`/`Dialog*`/
+`CloseButton`/`secondaryButton` imports and the `CRITERIA_COUNT` constant); the file
+`RatingSummaryView.tsx` deleted outright.
+
+**Live verification:** same constraint as stage 2 — no real logged-in Supabase session used.
+Reused stage 2's precedent: a temporary dev-only route (`/dev-mobile-stage3-preview`,
+`src/DevMobileStage3Preview.tsx`) rendering `MobileRatingLayout` directly with mock data at 6/6
+completion. Confirmed at 375px: Rank/Score box and all 6 criteria rows render correctly, no
+"View Your Evaluation" button present, `read_page` DOM scan showed exactly 7 interactive
+elements (radar-chart trigger + 6 criteria rows, no 8th button). Route and harness component
+removed before this stage's work was considered done — `git diff --stat` confirms only
+`AlbumRatingPage.tsx`, `MobileRatingLayout.tsx` (both modified) and `RatingSummaryView.tsx`
+(deleted) changed. Interactive click-through (opening the radar modal, tapping into a detail
+screen) was flaky in the browser tool during this session (timeouts, text-selection instead of
+click firing) — judged to be tooling/environment noise rather than a regression, since the same
+`RatingProgressBox`/row `onClick` code paths were untouched by this diff and passed live in
+stage 2's session.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222 (before and after harness
+removal).
+
+**What did not change:** `DesktopRatingLayout.tsx`, `RatingProgressBox.tsx`, `RatingRadarChart.tsx`,
+the radar-chart modal (stage 2, entirely inside `MobileRatingLayout.tsx`), any
+screen-transition/selection-feedback behavior (stage 4, not started).
