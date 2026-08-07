@@ -177,6 +177,22 @@ export async function logSkippedPost(
   }
 }
 
+// Last-line-of-defense safety net, independent of shouldSkipPost/isDenylistedFranchise:
+// those run against whatever denylist/category logic is loaded in THIS process, which can
+// be stale if this process is running old code (e.g. a scheduled ingest hitting a Render
+// container mid-deploy, before a just-pushed denylist fix has swapped in — see
+// docs/decisions/roundup-skip-fix.md's stale-deploy addendum for the confirmed real-world
+// case this closes). skippedUrls is fetched fresh from `skipped_posts` every run, so even
+// if this process's in-memory denylist misses a post, a correct skip already logged by a
+// DIFFERENT (newer) process still blocks the insert here.
+export function filterAlreadySkipped(raw: RawReview[], skippedUrls: Set<string>): RawReview[] {
+  return raw.filter((r) => {
+    if (!skippedUrls.has(r.url)) return true;
+    console.log(`Safety-net skip: ${r.url} already in skipped_posts, not inserting`);
+    return false;
+  });
+}
+
 // Combined skip decision: denylisted franchises are always skipped, regardless
 // of any other category present (so a stray Review/Reviews tag can't override
 // it — see the Into the Obscure case in DENYLISTED_FRANCHISE_CATEGORIES above).
@@ -632,8 +648,9 @@ export async function runIngestion() {
   // A read failure is non-fatal — we start fresh rather than aborting the entire run.
   let existingReviews: ExistingReviewRow[] = [];
   let existingAlbums: AlbumRow[] = [];
+  let skippedUrls = new Set<string>();
   try {
-    const [reviewsRes, albumsRes] = await Promise.all([
+    const [reviewsRes, albumsRes, skippedRes] = await Promise.all([
       supabase
         .from('reviews')
         .select(
@@ -642,13 +659,19 @@ export async function runIngestion() {
       supabase
         .from('albums')
         .select('id, band, album, mb_release_group_id, norm_key, artwork_url, genre, release_date'),
+      supabase.from('skipped_posts').select('url'),
     ]);
     if (reviewsRes.error) throw reviewsRes.error;
     if (albumsRes.error) throw albumsRes.error;
+    if (skippedRes.error) throw skippedRes.error;
     existingReviews = (reviewsRes.data ?? []) as ExistingReviewRow[];
     existingAlbums = (albumsRes.data ?? []) as AlbumRow[];
+    skippedUrls = new Set((skippedRes.data ?? []).map((r) => (r as { url: string }).url));
   } catch (e) {
-    console.warn('Failed to fetch existing reviews/albums from Supabase, starting fresh:', e);
+    console.warn(
+      'Failed to fetch existing reviews/albums/skipped_posts from Supabase, starting fresh:',
+      e
+    );
   }
 
   const albumById = new Map(existingAlbums.map((a) => [a.id, a]));
@@ -683,7 +706,7 @@ export async function runIngestion() {
     fetchMetalStorm(scoreByNormKeyForSource('Metal Storm')),
     fetchSputnik(),
   ]);
-  const allRaw = [...amg, ...ps, ...ms, ...sp];
+  const allRaw = filterAlreadySkipped([...amg, ...ps, ...ms, ...sp], skippedUrls);
 
   // Live album-lookup maps, seeded from Supabase and updated as this run resolves/creates
   // albums — so if two sources in the same run both review a brand-new album, the second
