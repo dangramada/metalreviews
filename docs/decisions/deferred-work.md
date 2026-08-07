@@ -101,32 +101,16 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   writeup: `auth-email-smtp.md`.
 - **Shareable AOTY page** (`/aoty/:shareId`) — route reserved (renamed from
   `/list/:shareId`), nothing built. `auth-routing.md`.
-- ~~**Favorites row mobile redesign**~~ — **DONE**, `favorites-row-mobile-layout`
-  branch (not yet merged as of this writing). Vertical artwork-first mobile card for
-  `FavoriteListItemRow`, gated at 768px via the same raw-`@media` show/hide mechanism
-  `AlbumRatingPage` already uses (both layouts always mount, CSS toggles visibility —
-  not `useBreakpointValue`). `toThumbnailUrl(url, 500)` on mobile (up from desktop's
-  250px, untouched). `rankOverlayBadge` reused unmodified. Two-line band/album title
-  with new mobile-only inline-style values (16px/14px, confirmed live by Dan), dropping
-  the desktop inline em-dash join. Actions footer uses `Button` (icon+label) collapsing
-  to icon-only under a secondary 400px `@media` breakpoint, no `Tooltip` (touch has no
-  hover). Both carry-over questions from the desktop pass are now resolved: (1) mobile
-  has no `Tooltip` at all, so the touch/hover question doesn't apply there — desktop's
-  `Tooltip` usage is unchanged and still untested on touch, unaddressed; (2) real
-  artwork was live-verified this session via a temporary dev-only route (removed
-  before finishing) against a real Cover Art Archive URL fetched directly from
-  Supabase — confirmed loading correctly at both 250px (desktop) and 500px (mobile).
-  Full detail: `favorites-row-desktop-redesign.md` (desktop pass), this session has no
-  separate decision doc yet.
-- **Font-size token audit — hardcoded values across the codebase, some non-standard
-  (odd numbers).** Surfaced 2026-08-07 during the favorites-row-mobile-layout brief:
-  `FavoriteListItemRow`'s band/album typography (desktop 15px/14px, new mobile
-  16px/14px) are inline styles, not `theme.ts` tokens — confirmed no shared token
-  exists for this. Dan's explicit note: this is a real, separate concern (many
-  hardcoded font-size values scattered across the app, some odd numbers) and should
-  not be fixed ad-hoc inside a component-scoped brief. Scope: audit all hardcoded
-  font-size values across the codebase (not just this component) and decide whether/how
-  to consolidate into `theme.ts` tokens. Not started.
+- ~~**Favorites row mobile redesign**~~ — **DONE**, `favorites-row-mobile-layout` branch (not
+  yet merged, blocked on Dan's live visual confirmation). Both carry-over questions from the
+  desktop pass are resolved: mobile drops `Tooltip` entirely (no touch/hover concern there;
+  desktop's own `Tooltip` is still unaddressed), and real artwork was live-verified at both
+  sizes. Full detail: `favorites-row-mobile-layout.md`.
+- **Font-size token audit — hardcoded values across the codebase, some non-standard.** Surfaced
+  2026-08-07: `FavoriteListItemRow`'s band/album typography is inline styles, not `theme.ts`
+  tokens. Dan's explicit note: real, separate concern (many hardcoded font-size values app-wide),
+  not to be fixed ad-hoc inside a component brief. Scope: audit all hardcoded font-size values
+  codebase-wide, decide whether/how to consolidate into tokens. Not started.
 
 ## B. Known code/data gaps (accepted, not fixed)
 
