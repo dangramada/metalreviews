@@ -9,14 +9,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Flex, Icon, Text, VStack } from '@chakra-ui/react';
 import { LuArrowLeft, LuChevronRight } from 'react-icons/lu';
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogBody,
+  DialogFooter,
+} from '../ui/dialog';
+import { CloseButton } from '../ui/close-button';
 import { AlbumArtwork } from './AlbumArtwork';
 import { AlbumMetaBlock } from './AlbumMetaBlock';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
 import { RatingProgressBox } from './RatingProgressBox';
+import { RatingRadarChart } from './RatingRadarChart';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
 import type { CriterionLevelWeight } from './RatingRadarChart';
-import { primaryButton } from '../../theme';
+import { primaryButton, secondaryButton } from '../../theme';
 
 // Auto-return delay after a pick, then how long the just-updated row stays highlighted before
 // settling to its normal completed appearance — both "use your judgment" per the brief, not
@@ -50,6 +60,7 @@ export function MobileRatingLayout({
   catalog,
   order,
   ratings,
+  weights,
   ratingSummary,
   onPick,
   savingCriterionId,
@@ -59,6 +70,7 @@ export function MobileRatingLayout({
   const [screen, setScreen] = useState<'overview' | 'detail'>('overview');
   const [detailCriterionId, setDetailCriterionId] = useState<number | null>(null);
   const [highlightedCriterionId, setHighlightedCriterionId] = useState<number | null>(null);
+  const [radarOpen, setRadarOpen] = useState(false);
   const returnTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -109,6 +121,7 @@ export function MobileRatingLayout({
   );
 
   return (
+    <>
     <Box bg="surface.ratingCardFill" border="2px solid" borderColor="border.ruleStrong" borderRadius="none">
       {screen === 'overview' ? (
         <VStack align="stretch" gap={0}>
@@ -116,8 +129,24 @@ export function MobileRatingLayout({
           {/* px/py 0 (Stage 1 retouch) — this wrapper's own padding, not anything owned by
               RatingProgressBox or shared with DesktopRatingLayout (that layout wraps the same
               component in a bare VStack with no px/py of its own either) — see the dated
-              stage-1-retouch entry in docs/decisions/album-rating-page.md. */}
-          <Box borderTop="1px solid" borderColor="border.ruleStrong" px={0} py={0}>
+              stage-1-retouch entry in docs/decisions/album-rating-page.md.
+
+              Stage 2: an interactive wrapper *around* RatingProgressBox opens the radar-chart
+              modal — RatingProgressBox itself gets no onClick/prop change so desktop's usage
+              (DesktopRatingLayout.tsx) stays byte-for-byte unaffected. */}
+          <Box
+            as="button"
+            type="button"
+            onClick={() => setRadarOpen(true)}
+            aria-label="View radar chart"
+            w="100%"
+            textAlign="left"
+            cursor="pointer"
+            borderTop="1px solid"
+            borderColor="border.ruleStrong"
+            px={0}
+            py={0}
+          >
             <RatingProgressBox ratedCount={ratings.size} totalCount={order.length} ratingSummary={ratingSummary} />
           </Box>
           <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">
@@ -219,5 +248,39 @@ export function MobileRatingLayout({
         )
       )}
     </Box>
+
+      {/* Radar-chart modal — additive alongside the existing "View Your Evaluation" dialog
+          (RatingSummaryView, untouched), not a replacement (that's stage 3). Same DialogRoot
+          structure/tokens as that dialog (AlbumRatingPage.tsx) for a consistent close pattern
+          (X button, tap-outside, Esc). Full-mode chart (size defaults to 'full') fed the same
+          weights/ratings/catalog/order MobileRatingLayout already receives — no new fetching.
+          Recharts' Tooltip is mouse-hover only (confirmed via RatingRadarChart.tsx: no touch
+          handlers wired) — tap-to-show-tooltip is a known limitation on mobile, not built here
+          per the stage-2 brief; see docs/decisions/album-rating-page.md's stage-2 entry. */}
+      <DialogRoot open={radarOpen} onOpenChange={({ open }) => setRadarOpen(open)}>
+        <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
+          <CloseButton
+            position="absolute"
+            right={2}
+            top={2}
+            color="text.primary"
+            onClick={() => setRadarOpen(false)}
+          />
+          <DialogHeader>
+            <DialogTitle fontWeight="semibold">
+              {band} – {album}
+            </DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
+          </DialogBody>
+          <DialogFooter>
+            <Button {...secondaryButton} variant="outline" onClick={() => setRadarOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
+    </>
   );
 }
