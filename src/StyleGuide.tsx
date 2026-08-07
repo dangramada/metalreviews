@@ -14,7 +14,7 @@ import {
   Badge,
   Separator,
 } from '@chakra-ui/react';
-import { BUTTON_VARIANTS, primaryButton, secondaryButton, sourceBadge, scoreSlabBase, scoreSlabHigh, genreBadge } from './theme';
+import { BUTTON_VARIANTS, primaryButton, secondaryButton, sourceBadge, scoreSlabBase, scoreSlabHigh, genreBadge, rankOverlayBadge, cardTitleBand, cardTitleAlbum } from './theme';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -219,23 +219,14 @@ export function StyleGuide() {
                   deliberately, never the heading face: Clash Display is reserved for the
                   wordmark and score-slab number only (see docs/decisions/naming-decisions.md). */}
               <Box>
-                <Label>Band — fontFamily=body, 19px/700, uppercase</Label>
-                <Heading
-                  as="h3"
-                  fontFamily="body"
-                  fontSize="19px"
-                  fontWeight={700}
-                  lineHeight="1.1"
-                  letterSpacing="-0.01em"
-                  textTransform="uppercase"
-                  color="text.primary"
-                >
+                <Label>Band — cardTitleBand, lineHeight=1.1</Label>
+                <Heading as="h3" {...cardTitleBand} lineHeight="1.1" color="text.primary">
                   Opeth
                 </Heading>
               </Box>
               <Box>
-                <Label>Album — fontFamily=body, 18px/500</Label>
-                <Text fontFamily="body" fontSize="18px" fontWeight={500} color="text.primary">
+                <Label>Album — cardTitleAlbum</Label>
+                <Text {...cardTitleAlbum} color="text.primary">
                   Blackwater Park
                 </Text>
               </Box>
@@ -333,7 +324,7 @@ export function StyleGuide() {
                       <Text
                         as="span"
                         fontFamily="heading"
-                        fontSize="22px"
+                        fontSize="23px"
                         fontWeight="700"
                         lineHeight="1"
                         letterSpacing="-0.02em"
@@ -354,6 +345,14 @@ export function StyleGuide() {
                   <Badge {...genreBadge}>Black Metal</Badge>
                   <Badge {...genreBadge}>Progressive Rock</Badge>
                   <Badge {...genreBadge}>Doom</Badge>
+                </HStack>
+              </Box>
+              <Box>
+                <Label>rankOverlayBadge — favorites row desktop, flush bottom-left of artwork</Label>
+                <HStack gap={2}>
+                  <Badge {...rankOverlayBadge}>#1</Badge>
+                  <Badge {...rankOverlayBadge}>#2</Badge>
+                  <Badge {...rankOverlayBadge}>#3</Badge>
                 </HStack>
               </Box>
             </VStack>
