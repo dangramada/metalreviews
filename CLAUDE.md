@@ -51,6 +51,34 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`favorites-row-mobile-layout` — not yet merged, active as of 2026-08-07. Adds the mobile
+counterpart to the desktop redesign below: a vertical, artwork-first mobile layout for
+`FavoriteListItemRow`, gated at 768px via the same raw-`@media` show/hide mechanism
+`AlbumRatingPage`'s `DesktopRatingLayout`/`MobileRatingLayout` split already uses (both layouts
+always mount; CSS `display:none` toggles which is visible — not `useBreakpointValue`, and not a
+container query, per Dan's explicit approval of that tradeoff). `toThumbnailUrl(url, 500)` for
+mobile artwork (desktop's 250px call is untouched); `rankOverlayBadge` reused unmodified,
+overlaid bottom-left on the mobile artwork. Band/album render as two separate lines on mobile
+(16px/14px, new inline styles — not tokens, dropping the desktop's inline em-dash join) instead
+of desktop's single-line inline-span treatment. Actions footer uses Chakra `Button` (icon+label),
+collapsing to icon-only under a secondary 400px `@media` breakpoint (an accepted-imprecision
+tradeoff vs. a container query — flagged, not blocking); no `Tooltip` on mobile since touch has
+no hover state. Delete-confirmation `DialogRoot` reused unchanged, triggered from the mobile
+button. `FavoriteListItemRow` mounts both layouts simultaneously (CSS-hidden, not conditionally
+rendered), which required updating several `FavoritesPage.test.tsx` assertions from single-match
+(`getByText`/`getByRole`) to multi-match (`getAllByText`/`getAllByRole`) queries, since band/
+album text and artwork now appear twice in the DOM regardless of viewport — `tsc --noEmit` clean,
+218/218 tests passing. Live-verified at 375px and 430px via a temporary dev-only route
+(`/dev-favorites-row-preview`, removed before this branch's work concluded) against a real Cover
+Art Archive URL fetched directly from Supabase — confirmed real artwork loads correctly at both
+the 250px desktop and 500px mobile sizes, the icon-only/icon+label collapse triggers correctly
+either side of 400px, the desktop layout is unaffected at >=768px, and the delete-confirmation
+dialog opens correctly from the mobile trigger. Surfaced a new deferred item: a font-size-token
+audit (many hardcoded, some non-standard, values app-wide) — explicitly out of scope for this
+component-level brief, tracked in `docs/decisions/deferred-work.md`. **Still needed before this
+is mergeable: Dan's own live visual confirmation of the rendered mobile card** (this session's
+verification was tool-driven, not a substitute for that per the brief's Definition of Done).
+
 `favorites-row-desktop-redesign` merged to `master` on 2026-08-07 via merge commit `5055ba7` —
 branch retained per convention, not deleted. Desktop-only restyle of `FavoriteListItemRow`
 (`FavoritesPage.tsx`, shared by `/favorites` and the `AddAlbumDrawer` preview): 128px artwork

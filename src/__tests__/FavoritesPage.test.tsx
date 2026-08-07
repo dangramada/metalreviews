@@ -126,21 +126,24 @@ describe('FavoritesPage', () => {
   it('renders band and album for each item', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getByText(/Opeth/)).toBeInTheDocument();
-    expect(screen.getByText(/Blackwater Park/)).toBeInTheDocument();
+    // FavoriteListItemRow mounts both a desktop and a mobile layout simultaneously
+    // (CSS `@media` display:none toggles which is visible — see FavoritesPage.tsx),
+    // so band/album text appears twice in the DOM regardless of viewport.
+    expect(screen.getAllByText(/Opeth/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Blackwater Park/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the formatted release date', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getByText(`16 Mar ${currentYear}`)).toBeInTheDocument();
+    expect(screen.getAllByText(`16 Mar ${currentYear}`).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders genre tags', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    expect(screen.getByText('progressive metal')).toBeInTheDocument();
-    expect(screen.getByText('death metal')).toBeInTheDocument();
+    expect(screen.getAllByText('progressive metal').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('death metal').length).toBeGreaterThanOrEqual(1);
   });
 
   it('does NOT render a score badge', () => {
@@ -158,9 +161,14 @@ describe('FavoritesPage', () => {
   it('renders artwork thumbnail when artworkUrl is present', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
-    const img = screen.getByRole('img');
-    expect(img).toHaveAttribute('src', 'https://example.com/art-250.jpg');
-    expect(img).toHaveAttribute('alt', 'Opeth – Blackwater Park');
+    // Desktop and mobile layouts both mount (CSS-hidden, not conditionally rendered) and
+    // request different thumbnail sizes — 250px desktop, 500px mobile.
+    const imgs = screen.getAllByRole('img');
+    expect(imgs).toHaveLength(2);
+    const srcs = imgs.map((img) => img.getAttribute('src'));
+    expect(srcs).toContain('https://example.com/art-250.jpg');
+    expect(srcs).toContain('https://example.com/art-500.jpg');
+    imgs.forEach((img) => expect(img).toHaveAttribute('alt', 'Opeth – Blackwater Park'));
   });
 
   it('renders ♪ placeholder when artworkUrl is null', () => {
@@ -169,7 +177,8 @@ describe('FavoritesPage', () => {
     );
     render(<FavoritesPage />, { wrapper });
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.getByText('♪')).toBeInTheDocument();
+    // One placeholder each for the desktop and mobile layouts.
+    expect(screen.getAllByText('♪')).toHaveLength(2);
   });
 
   it('renders year dropdown with current year and All years options', () => {
