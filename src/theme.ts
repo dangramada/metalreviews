@@ -366,19 +366,22 @@ export const genreBadge = {
   py: '4px',
 } as const;
 
-// Rank badge — Criteria Calibration part 6, Favorites card. Same inline-chip shape as
-// genreBadge (1px border, mono/uppercase) but on the accent palette so it reads as a
-// distinct, earned indicator rather than another genre tag.
-export const rankBadge = {
-  bg: 'transparent',
-  color: 'accent.text',
-  border: '1px solid',
-  borderColor: 'accent.border',
+// Rank overlay badge — favorites row desktop redesign. Flush-corner overlay on the
+// artwork thumbnail (bottom-left), structurally modeled on scoreSlabHigh (accent fill,
+// 2px structural border, zero radius) but single-node: just "#{rank}", no second
+// value node like ScoreSlab's score/denominator pair. Always accent-filled — unlike
+// scoreSlabHigh there's no threshold, every rank renders identically.
+export const rankOverlayBadge = {
+  bg: 'accent.border',
+  color: 'accent.ink',
+  borderTop: '2px solid',
+  borderTopColor: 'border.rule',
+  borderRight: '2px solid',
+  borderRightColor: 'border.rule',
   borderRadius: '0',
-  fontFamily: 'mono',
-  fontSize: '11px',
-  fontWeight: '600',
-  letterSpacing: '0.06em',
+  fontFamily: 'heading',
+  fontSize: '13px',
+  fontWeight: 700,
   px: '8px',
   py: '4px',
 } as const;
