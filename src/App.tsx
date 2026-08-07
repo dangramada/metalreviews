@@ -594,7 +594,6 @@ function App() {
     bg: 'surface.card',
     borderRadius: 'md',
     overflow: 'hidden',
-    boxShadow: 'md',
     border: '2px solid',
     borderColor: 'border.ruleStrong',
     css: { '&:hover img': { transform: 'scale(0.97)' } },
