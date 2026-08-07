@@ -88,6 +88,11 @@ const COLOR_GROUPS = [
       { token: 'surface.cardHover', description: 'Card hover background (#181818)', bg: 'surface.cardHover' },
       { token: 'surface.raised', description: 'Raised element (ink.700)', bg: 'surface.raised' },
       { token: 'surface.darkest', description: 'Deepest surface (ink.950)', bg: 'surface.darkest' },
+      { token: 'surface.ratingCard', description: 'AlbumRatingPage card border (sand.600)', bg: 'surface.ratingCard' },
+      { token: 'surface.ratingCardFill', description: 'AlbumRatingPage card background (sand.900)', bg: 'surface.ratingCardFill' },
+      { token: 'surface.criterionRow', description: 'Criteria row resting fill (sand.950)', bg: 'surface.criterionRow' },
+      { token: 'surface.criterionHover', description: 'Criteria row hover fill (ink.900)', bg: 'surface.criterionHover' },
+      { token: 'surface.criterionActive', description: 'Criteria row + level picker active fill (sand.900)', bg: 'surface.criterionActive' },
     ],
   },
   {
@@ -121,7 +126,7 @@ const COLOR_GROUPS = [
 
 // Slant Take's radii are all zeroed (pass 2) — every corner is square. Shown against a
 // mid-tone swatch so the (lack of) corner rounding is actually visible.
-const RADIUS_TOKENS = ['none', 'xs', 'sm', 'base', 'md', 'lg', 'full'] as const;
+const RADIUS_TOKENS = ['none', 'xs', 'sm', 'base', 'md', 'lg', 'full', 'circle'] as const;
 
 // ---------------------------------------------------------------------------
 // Typography specimens
