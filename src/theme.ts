@@ -386,3 +386,24 @@ export const rankOverlayBadge = {
   px: '8px',
   py: '4px',
 } as const;
+
+// Band/album title typography — shared source of truth (design-system-audit-2026-08.md).
+// Review card and AlbumRatingPage desktop already matched byte-for-byte before this token
+// existed; FavoriteListItemRow desktop/mobile previously used their own smaller literal
+// values (15/14px, 16/14px) and now adopt these too. Only the 5 props that make up the
+// "title identity" live here — line-height stays per-site since it's a layout concern
+// (each site's line count/spacing differs), not a typography-identity one.
+// MobileRatingLayout is explicitly excluded (still under active development, out of scope).
+export const cardTitleBand = {
+  fontFamily: 'body',
+  fontSize: '19px',
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
+  textTransform: 'uppercase',
+} as const;
+
+export const cardTitleAlbum = {
+  fontFamily: 'body',
+  fontSize: '18px',
+  fontWeight: 500,
+} as const;

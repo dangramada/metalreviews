@@ -63,7 +63,7 @@ import { formatReleaseDate, getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { genreBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import { genreBadge, primaryButton, rankOverlayBadge, secondaryButton, cardTitleBand, cardTitleAlbum } from './theme';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
 
@@ -155,17 +155,10 @@ export function FavoriteListItemRow({
 
           <Box flex={1} minW={0} py={3}>
             <Text lineClamp={1}>
-              <Text
-                as="span"
-                fontFamily="body"
-                fontSize="15px"
-                fontWeight={700}
-                letterSpacing="-0.01em"
-                textTransform="uppercase"
-              >
+              <Text as="span" {...cardTitleBand}>
                 {item.band}
               </Text>{' '}
-              <Text as="span" fontFamily="body" fontSize="14px" fontWeight={500} color="text.primary">
+              <Text as="span" {...cardTitleAlbum} color="text.primary">
                 – {item.album}
               </Text>
             </Text>
@@ -258,22 +251,15 @@ export function FavoriteListItemRow({
           <Box p={3}>
             {/* Band/album render as two separate lines here (not desktop's single-line
                 inline-span treatment) — card context below a large artwork reads better
-                as a stacked title than a dense inline row. Values proposed and confirmed
-                live by Dan; not theme tokens — see the font-size-token-audit item added to
-                deferred-work.md this session for the broader, out-of-scope hardcoded-value
-                cleanup this surfaced. The desktop "band – album" em-dash join is dropped
-                here since the two-line stack already separates them visually. */}
-            <Text
-              fontFamily="body"
-              fontSize="16px"
-              fontWeight={700}
-              letterSpacing="-0.01em"
-              textTransform="uppercase"
-              lineHeight="1.2"
-            >
+                as a stacked title than a dense inline row. Typography now shares
+                cardTitleBand/cardTitleAlbum (theme.ts) with the desktop row and the review
+                card — see docs/decisions/design-system-audit-2026-08.md. Line-height stays
+                local to this stacked layout. The desktop "band – album" em-dash join is
+                dropped here since the two-line stack already separates them visually. */}
+            <Text {...cardTitleBand} lineHeight="1.2">
               {item.band}
             </Text>
-            <Text fontFamily="body" fontSize="14px" fontWeight={500} color="text.primary" lineHeight="1.3" mt={0.5}>
+            <Text {...cardTitleAlbum} color="text.primary" lineHeight="1.3" mt={0.5}>
               {item.album}
             </Text>
             <Text fontSize="sm" color="text.dim" mt={1}>

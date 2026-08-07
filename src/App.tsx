@@ -50,7 +50,7 @@ import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
+import { sourceBadge, scoreSlabBase, scoreSlabHigh, cardTitleBand, cardTitleAlbum } from './theme';
 import { AlbumMeta } from './components/album-rating/AlbumMeta';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
@@ -737,28 +737,14 @@ function App() {
                           use fontFamily="body" (Inter). They must NOT inherit the heading
                           face: fonts.heading is Clash Display, which the design system
                           reserves for the logo wordmark and the score-slab number only. */}
-                      <Heading
-                        as="h3"
-                        fontFamily="body"
-                        fontSize="19px"
-                        fontWeight={700}
-                        lineHeight="1.1"
-                        letterSpacing="-0.01em"
-                        textTransform="uppercase"
-                      >
+                      <Heading as="h3" {...cardTitleBand} lineHeight="1.1">
                         {rev.band || 'Unknown Band'}
                       </Heading>
                       {/* Same color as the band heading (inherited text.primary) — weight
                           and size are the only remaining distinction between the two lines,
                           per pass 4. Set explicitly rather than left to inherit, since this
                           Text has no other reason to match its parent's color. */}
-                      <Text
-                        fontFamily="body"
-                        fontSize="18px"
-                        fontWeight={500}
-                        color="text.primary"
-                        mb={2}
-                      >
+                      <Text {...cardTitleAlbum} color="text.primary" mb={2}>
                         {rev.album || 'Untitled Album'}
                       </Text>
                       <AlbumMeta releaseDate={rev.releaseDate} genre={rev.genre ?? []} />
