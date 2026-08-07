@@ -998,3 +998,40 @@ by the line-height default change).
 `AlbumMetaBlock`/`RatingProgressBox` consumer's passed props (all still get old behavior via
 untouched defaults), stage-1 structural work (card border, badge format, dividers, auto-return/
 highlight behavior).
+
+### 2026-08-08 — Mobile stage 1: second retouch pass (manual-testing fixes)
+
+Three more fixes against Dan's own manual testing of the retouch pass above, same branch.
+
+**Album-info block padding removed:** the `Flex` wrapping Zone 1's artwork+meta (`p={4}` →
+`p={0}`) — a further tightening beyond `AlbumMetaBlock`'s own already-zeroed padding. Also added
+`titleToDateGap={1}` (4px, Chakra's `space.1`) at the same call site, closing the gap between the
+album name and the release-date line specifically on mobile; no other consumer's gap changed
+(prop default stays `3`).
+
+**Artwork size:** 96px → 110px in `MobileRatingLayout`'s Zone 1 only.
+
+**Fixed a real bug: `clampAlbumLines` wasn't clamping anything.** The first retouch pass (above)
+hand-built the 2-line-clamp CSS as a plain object (`display: '-webkit-box'`, `WebkitLineClamp`,
+`WebkitBoxOrient`, `overflow`, `textOverflow`) and spread it onto the `Text`'s JSX props.
+Confirmed live (Dan's manual test) that this did nothing — Chakra v3 only promotes *recognized*
+style props into emitted CSS; arbitrary camelCase keys like `WebkitLineClamp` fall through as
+inert DOM attributes rather than styling anything. Fixed by passing `clampAlbumLines` straight
+into Chakra's own `lineClamp` prop (already in use elsewhere in this file, on the inline layout's
+whole-line truncation) — it generates the equivalent CSS itself, and additionally sets
+`textWrap: 'wrap'`, which is what actually lets the album name wrap across 2 lines before the
+ellipsis kicks in, rather than truncating immediately on line 1 the way `truncateBand`'s
+single-line style does.
+
+**`hideReleaseDateLabel` prop added** (opt-in, default `false`) — drops the "Release date: "
+prefix, showing only `formatReleaseDate(releaseDate)`. Used by `MobileRatingLayout` only; every
+other consumer keeps the labeled form unchanged.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Visual confirmation of the
+clamp fix and the other three changes was via Dan's own manual testing this pass, not this
+session's live Browser-pane walkthrough (session was mid-flow when he said he'd verify directly).
+
+**What did not change:** any other `AlbumMetaBlock` consumer (all four new/changed props here —
+`hideReleaseDateLabel`, the `titleToDateGap`/padding call-site values, the artwork size — are
+either opt-in with an unchanged default or scoped to `MobileRatingLayout`'s own JSX), stage-1
+structural work.
