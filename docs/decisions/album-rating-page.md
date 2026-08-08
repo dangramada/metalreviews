@@ -1344,3 +1344,77 @@ on both screens, persistent accent border on an already-rated level shown immedi
 open (screenshot), arrival highlight confirmed with the correct resolved color and no layout
 shift (screenshot + computed-style polling), radar-chart modal still functional (real click, real
 screenshot), desktop at 1280px visually unaffected.
+
+## Stage 4a revision 4 (2026-08-08) — Rank/Score race, full accent-color revert, feedback pause
+
+**Audit of the previous "full 4-pick sequence...correct progress increments" claim**, asked for
+before proceeding with new fixes: that claim (end of the revision-3 message) was backed by real
+screenshots — both `Labor of the Negative` (revision 2 session, "RANK #7 / SCORE 81%") and `REZN
+— Cycles In The Infinite Dream` (revision 3 session, "RANK #11 / SCORE 72%") showed the
+crossfaded Rank/Score in actual captured screenshots, not inferred from "no errors thrown." That
+doesn't contradict Dan's new bug report, though — see the race explanation below: passing runs
+and failing runs are both consistent with a genuine race condition where the outcome depends on
+which of two independent async operations finishes first. Every one of this session's own test
+runs happened to have the refetch win the race; Dan's real-world testing hit the other outcome.
+Neither observation was wrong; the mechanism itself was non-deterministic.
+
+**Root cause of the missing Rank/Score, confirmed via code inspection.**
+`AlbumRatingPage.tsx`'s `handlePick` calls `refetchRatingSummary()` fire-and-forget — not
+awaited — immediately after `setRatings(...)`. `MobileRatingLayout`'s own `handlePick` only
+awaits the upsert itself (`await onPick(...)`), which resolves as soon as `AlbumRatingPage`'s
+`handlePick` function body finishes running, well before the refetch's own network round trip
+completes. The previous (revision 2/3) `progressSnapshot` mechanism was a *one-shot* sync: it
+copied `ratedCount`/`ratingSummary` from a ref into state exactly once, at the "slide settled"
+moment, 450+280=730ms after the save resolved (before revision 4's `PAUSE_MS`, 880ms after). If
+`refetchRatingSummary()`'s query took longer than that window — an unremarkable amount of real
+network latency on the 6th/final pick specifically — the one-shot sync captured the still-stale
+`ratingSummary` (`undefined`), and nothing ever re-triggered a second sync while the user stayed
+on Overview, so it stayed permanently stuck showing "—" instead of a real rank/score.
+
+**Fix**: replaced the one-shot value copy with a `revealed` boolean gate. `RatingProgressBox` now
+reads `revealed ? <live props> : progressSnapshot` — while `!revealed` (the whole feedback+pause+
+slide window), it shows a fixed last-known snapshot (captured directly in `handlePick`'s own
+closure, not via a `useEffect`+`setState` mirror — the first attempt at this hit React's
+"don't call setState synchronously inside an effect" cascading-render lint error, and wasn't
+needed anyway once the snapshot is captured inline in the event-handler flow instead). Once
+`revealed` flips to `true` at settle, the box tracks live props on every subsequent render,
+indefinitely — no single-shot window left to lose the race against. A late-arriving refetch now
+simply re-renders the box correctly whenever it actually resolves, whether that's before or after
+the settle point.
+
+**Verified with a deliberate post-settle wait** (per the brief, not a same-instant check): full
+0/6 -> 6/6 live run against `IMMOLATION — Descent` (a fresh, previously-unrated album), 6th pick
+on Coherence, then a 4-second explicit wait before checking — Rank #2 / Score 100% confirmed via
+both a script-level DOM check and a real screenshot, ~12 seconds after the pick (long past the
+730-880ms settle window, well into territory where the old one-shot bug would have already shown
+its permanent-stale-dash failure mode if it were still present).
+
+**Accent-color revert**: Dan asked to fully back out the accent-border treatment added to
+`CriterionLevelPicker` across revisions 2-3 (both the persistent already-selected border and the
+feedback-moment color) — back to the plain, unconditional `sand.200` `_checked` ring, byte-
+identical to `DesktopRatingLayout`'s untouched style. The scale-up + dim/fade feedback
+(`motion.div`, the `_disabled` opacity fix) was kept, confirmed still working. The Overview row's
+arrival highlight (box-shadow, `accent.border`) was explicitly out of scope for this revert and
+is unchanged. Verified live: reopening an already-rated criterion now shows the plain white ring,
+no accent color anywhere in the picker at any point (idle, mid-feedback, or persistent).
+
+**Pause between feedback and slide** (`PAUSE_MS`): added a `setTimeout` between `FEEDBACK_MS`
+elapsing and the slide starting, so the two read as distinct steps rather than blurring together.
+Set to 150ms — the midpoint of the brief's suggested 100-250ms range. Verified the mechanism
+itself fires correctly (monitored `MobileScreenTransition`'s track `transform` directly: it only
+starts moving ~600-800ms after a pick, matching `FEEDBACK_MS + PAUSE_MS` plus real network
+latency for the save), but **not** live-feel-tested — this tool can confirm the pause exists and
+measure its duration, but can't judge whether 150ms specifically "feels right" the way a human
+watching it can, the same limitation noted for `SLIDE_MS`/`FEEDBACK_MS` previously. Flagged for
+Dan, not closed out.
+
+**Verification**: `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified against real
+Supabase data end to end (`IMMOLATION — Descent`, 0/6 -> 6/6, driven via `label.click()`/
+`button.click()` dispatch): radar-chart modal still functional (real click, real screenshot),
+desktop at 1280px visually unaffected (plain checked ring, no accent color, Rank/Score/radar all
+correct).
+
+**Still open going into any future stage-4a work**: `FEEDBACK_MS` (450), `PAUSE_MS` (150), and
+`SLIDE_MS` (280) all need Dan's live feel-confirmation — none have been adjusted from
+first-guess/brief-suggested values based on actual perceived feel, only verified to fire
+correctly. Stage 4b (sticky headers) not started.
