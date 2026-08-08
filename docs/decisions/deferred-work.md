@@ -13,6 +13,31 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## A. Product features (named, not built)
 
+- **Sticky album-info (+ criterion-name row on Detail) for mobile album evaluation
+  — stage 4b of the `mobile-album-evaluation-redesign` brief, deferred, needs its
+  own branch.** Two approaches tried and reverted on that branch (not present in
+  the merge to `master`):
+  (a) internal scroll container with capped card height — rejected live, wasted
+  screen space and clipped content (confirmed via screenshot, only 4/6 criteria
+  rows visible before hitting an untuned `maxH` budget);
+  (b) page-level sticky — technically simpler and preferred, but
+  `MobileScreenTransition`'s horizontal slide uses `transform: translateX`,
+  which creates a new containing block for descendants and is a known
+  Safari/WebKit trouble spot for `position: sticky` (inconsistent — sometimes
+  doesn't stick at all). Known fix if revisited: switch the track's horizontal
+  animation from `x`/transform to `marginLeft` (0 -> -50%), which removes the
+  containing-block effect; would need re-verification that this doesn't
+  introduce jank (layout-property animation reflows every frame, unlike
+  transform's GPU-composited path) and that sticky then works reliably in real
+  Safari/iOS testing (emulated mobile viewports in Chrome DevTools don't
+  exercise WebKit and don't prove anything here — this was tested for real in
+  Safari desktop, not assumed).
+  Also found and **not yet fixed**: `MobileScreenTransition`'s track is a flex
+  row that sizes to its tallest child regardless of which panel is active — any
+  future sticky work should keep the height-follows-active-panel fix
+  (`animate={{ height }}` alongside `x`) that was part of this investigation,
+  it's independent of the sticky question and still correct/needed.
+  `album-rating-page.md` (stage 4a entries, same branch/file).
 - **Retrofit the new `PageBreadcrumb` component onto other pages** — built reusable
   (`{label, to?}[]` API, `components/ui/breadcrumb.tsx`) during the AlbumRatingPage desktop
   redesign (2026-08-05) but only wired up there this session, per the brief's explicit scope
