@@ -1418,3 +1418,21 @@ correct).
 `SLIDE_MS` (280) all need Dan's live feel-confirmation — none have been adjusted from
 first-guess/brief-suggested values based on actual perceived feel, only verified to fire
 correctly. Stage 4b (sticky headers) not started.
+
+**Post-hoc audit of the `revealed` reset, requested by Dan before accepting the race fix above**:
+confirmed via code trace (not re-asserted from memory) that `setRevealed(false)`
+(`MobileRatingLayout.tsx:167`) sits inside `handlePick` itself, unconditionally, and therefore
+re-arms on *every* pick — not a one-time flip at mount that happened to already be `true` by the
+6th pick. Traced pick 6 specifically: `revealed` is `true` (left over from pick 5's own settle,
+line 177) right up until line 167 flips it `false` for pick 6's own hidden window, then line 177
+flips it back `true` at pick 6's own settle. The earlier live-verification screenshot (Rank
+#2/100%, confirmed 12s after the pick with a deliberate 4s wait) therefore did exercise a real
+`false -> true` cycle scoped to the final pick, not a no-op.
+
+One gap this trace does not close: whether that test's `refetchRatingSummary()` happened to
+resolve *before* the freeze started (line 167) or genuinely *after* the reveal (line 177) — both
+are consistent with the passing result, and only the latter actually proves the gate bridges a
+real gap rather than the refetch simply always winning the race in this dev environment. Forcing
+the slow-refetch case directly (e.g. throttling network in the browser tool) was proposed but not
+yet attempted — open follow-up if this needs a harder guarantee than "verified to behave
+correctly under normal network conditions."

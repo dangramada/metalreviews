@@ -114,6 +114,21 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **`MobileRatingLayout`'s `revealed` gate race fix — not tested under a forced
+  slow refetch.** Stage 4a revision 4 (2026-08-08, `mobile-album-evaluation-redesign`
+  branch, `album-rating-page.md`'s dated stage-4a revision-4 entry) fixed a real bug
+  where `RatingProgressBox`'s Rank/Score could permanently stick at "—" after the
+  6th/final pick, by replacing a one-shot snapshot sync with a `revealed` boolean
+  gate that re-arms on every pick (traced and confirmed at Dan's request:
+  `setRevealed(false)` at `MobileRatingLayout.tsx:167` sits inside `handlePick`
+  itself, not a one-time mount flip). Live-verified end to end against real
+  Supabase data (0/6 -> 6/6, deliberate post-settle wait, Rank/Score correctly
+  appeared) — but that test's `refetchRatingSummary()` may simply have resolved
+  fast enough that the gate never had to bridge an actual gap; both a
+  same-instant resolve and a genuinely-late resolve are consistent with the
+  passing result. Proposed but not attempted: throttle network in the browser
+  tool (if available) to force the refetch to resolve *after* the slide settles,
+  to get a harder guarantee than "verified under normal network conditions."
 - **`skipped_posts.url` has no index.** Surfaced 2026-08-07 while adding the
   `filterAlreadySkipped` safety-net check (see `roundup-skip-fix.md`'s stale-deploy
   addendum). The new bulk check does one full-table `select('url')` per ingest run rather
