@@ -51,6 +51,18 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`criteria-calibration-progress-ring-accuracy` merged to `master` on 2026-08-09 via merge
+commit `8efa3ac` (rollback tag `pre-merge-progress-ring-accuracy` on the prior tip) —
+branch retained per convention, not deleted. Fixes a live contradiction Dan hit
+(Progress ring at 100% while Accuracy label read "Low"): the ring was driven by stale
+canonical-pair-coverage bookkeeping while the Accuracy label used the real solver
+accuracy. Both the ring and the Accuracy number now derive from the same
+`computeSolverAccuracy` call — a deliberate reversal of the original 28 July design that
+kept Progress and Accuracy as two distinct metrics. `sessionProgress.ts` and its test
+deleted outright (no other consumer). `tsc`/lint/vitest all clean post-merge (222/222
+tests). Full detail: `docs/decisions/criteria-calibration-medium-gate-redesign.md`'s
+2026-08-09 entry.
+
 `criteria-calibration-medium-gate-redesign` merged to `master` on 2026-08-09 via merge
 commit `5555b7e` (rollback tag `pre-merge-criteria-calibration-medium-gate-redesign` on the
 prior tip) — branch retained per convention, not deleted. Redefines Medium tier:
