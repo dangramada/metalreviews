@@ -1,8 +1,8 @@
 // Drives a Criteria Calibration session: decides what comparison to show next, whether
-// degree-2 coverage (Medium tier's prerequisite) is complete, and when the current degree
-// has nothing left worth asking. Composes preferenceGraph.ts, solver.ts, questionOrdering.ts,
-// and calibrationSession.ts as-is — none of their contracts change here. This module holds
-// no session state of its own; every decision is derived live from the CalibrationSession
+// degree-2 cold-start coverage is complete, and when the current degree has nothing left
+// worth asking. Composes preferenceGraph.ts, solver.ts, questionOrdering.ts, and
+// calibrationSession.ts as-is — none of their contracts change here. This module holds no
+// session state of its own; every decision is derived live from the CalibrationSession
 // passed in, so there is nothing to keep in sync or duplicate.
 //
 // Coverage requirement (degree 2): with N criteria there are exactly C(N,2) possible
@@ -10,8 +10,12 @@
 // elicitationDriver.test.ts's "closure never bridges..." test): answering one pair never
 // implies anything about a different, disjoint pair, and even a different level
 // combination within an ALREADY-answered pair isn't automatically implied by closure. So
-// covering all C(N,2) pairs with at least one direct answer each is a structural
-// requirement of the graph, not a policy choice.
+// covering all C(N,2) pairs with at least one direct answer each is still asked first,
+// unconditionally, as this driver's cold-start floor — but as of 2026-08-08 (see
+// docs/decisions/criteria-calibration-medium-gate-redesign.md) this coverage is no longer
+// what gates Medium tier; accuracyTiers.ts's `isMediumTierReached` now reads solver
+// accuracy directly. Cold-start coverage remains here only to seed the solver with an
+// initial answer per pair before the ambiguity-driven refinement phase (below) takes over.
 //
 // Degree escalation is never automatic: `nextAction` only ever signals
 // `degree-exhausted` with `canEscalate`; the caller decides whether to actually move to
@@ -65,10 +69,10 @@ export function coldStartProfilesForPair(
 
 /**
  * One canonical comparison per criteria pair — exactly what the cold-start rule asks
- * first for each pair. Doubles as the `allDegree2Pairs` argument accuracyTiers.ts's
- * `isMediumTierReached` expects: since the driver always asks precisely this comparison
- * to cover a pair, "covered" (driver's own tracking) and "resolved" (isImplied) agree by
- * construction — cross-checked directly in elicitationDriver.test.ts, not just assumed.
+ * first for each pair. No longer consumed by accuracyTiers.ts's `isMediumTierReached`
+ * (which reads solver accuracy directly as of 2026-08-08); still used by
+ * sessionProgress.ts's `degree2CoveragePercent` to drive the UI's progress display, which
+ * is unchanged by this pass.
  */
 export function buildCanonicalDegree2Pairs(levelsPerCriterion: number[]): CandidatePair[] {
   return enumerateCriterionPairs(levelsPerCriterion.length).map(([a, b]) =>
@@ -204,6 +208,14 @@ function buildRefinementCandidatePool(
  * little in between — 0.05 sits cleanly in that gap. Proposed judgment call, same status
  * as accuracyTiers.ts's tier thresholds: a reasonable, empirically-grounded default, not
  * independently validated against a second real session.
+ *
+ * Scope, as of 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md):
+ * this constant governs UX pacing only — when `nextAction` stops *offering* further
+ * refinement questions at the current degree. It has no bearing on whether Medium tier is
+ * granted; that's decided solely by `accuracyTiers.ts`'s `isMediumTierReached` against
+ * live solver accuracy. Deliberately decoupled: this driver can legitimately decide
+ * there's nothing left worth asking (every remaining candidate looks resolved) at a point
+ * where solver accuracy still sits below the Medium threshold, and vice versa.
  */
 const MAX_AMBIGUOUS_GAP = 0.05;
 

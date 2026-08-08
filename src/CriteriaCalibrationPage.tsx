@@ -18,7 +18,11 @@ import {
   nextAction,
   buildCanonicalDegree2Pairs,
 } from './lib/criteria-calibration/elicitationDriver';
-import { isMediumTierReached } from './lib/criteria-calibration/accuracyTiers';
+import {
+  isMediumTierReached,
+  computeSolverAccuracy,
+} from './lib/criteria-calibration/accuracyTiers';
+import { solveValues } from './lib/criteria-calibration/solver';
 import { degree2CoveragePercent } from './lib/criteria-calibration/sessionProgress';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
@@ -163,7 +167,17 @@ export function CriteriaCalibrationPage() {
     () => (catalog ? buildCanonicalDegree2Pairs(catalog.levelsPerCriterion) : []),
     [catalog]
   );
-  const mediumReached = catalog ? isMediumTierReached(session.graph, canonicalPairs) : false;
+  // Medium tier is now a solver-accuracy threshold (see accuracyTiers.ts), so it needs a
+  // live solve of the current answer log rather than the strict graph's closure —
+  // `canonicalPairs`/`session.graph` remain in use below only for the progress display.
+  const mediumReached = useMemo(() => {
+    if (!catalog) return false;
+    const solved = solveValues({
+      levelsPerCriterion: catalog.levelsPerCriterion,
+      answers,
+    });
+    return isMediumTierReached(computeSolverAccuracy(solved));
+  }, [catalog, answers]);
   const progressPercent = catalog ? degree2CoveragePercent(session.graph, canonicalPairs) : 0;
 
   const interactionDisabled = phase !== 'idle' || stopped;

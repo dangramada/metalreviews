@@ -3,19 +3,21 @@
 // but doesn't modify any of the locked engine modules or the schema (part 3).
 //
 // Combined tier rule (per user_calibration_status.sql's own documented gap): 'high'/
-// 'very_high' require isMediumTierReached() to ALSO be true, not solverAccuracyTier() alone
-// — otherwise a user could reach a high solver-accuracy value via degree-3+ answers while
-// having skipped a degree-2 pair entirely, contradicting Medium being the documented floor
-// tier. Storing a 'high'/'very_high' value is harmless even though the UI (5a, unchanged
-// here) never displays anything beyond Medium/not-Medium.
+// 'very_high' require isMediumTierReached() to ALSO be true, not solverAccuracyTier() alone.
+// As of 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md) both
+// checks read the same `accuracy` value against different thresholds (Medium >= 0.85,
+// High/Very High >= 0.92/0.97), so this is now structurally always true — a solverTier of
+// 'high' or 'veryHigh' necessarily implies accuracy >= 0.85, hence Medium. The combined
+// check is kept as-is (harmless, and keeps `computeTier` correct if Medium's threshold
+// and High's threshold are ever independently retuned to no longer nest). Storing a
+// 'high'/'very_high' value is harmless even though the UI (5a, unchanged here) never
+// displays anything beyond Medium/not-Medium.
 
 import { supabase } from '../../supabaseClient.js';
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
 import { solveValues, type SolverAnswer } from './solver.js';
 import { isMediumTierReached, computeSolverAccuracy, solverAccuracyTier } from './accuracyTiers.js';
 import type { CriteriaCatalog } from './criteriaCatalog.js';
-import { CalibrationSession } from './calibrationSession.js';
-import { buildCanonicalDegree2Pairs } from './elicitationDriver.js';
 
 export type DbResult = 'a_preferred' | 'b_preferred' | 'equal';
 export type StatusTier = 'none' | 'medium' | 'high' | 'very_high';
@@ -104,11 +106,8 @@ export async function upsertWeightsAndStatus(
   answers: readonly SolverAnswer[]
 ): Promise<void> {
   const solved = solveValues({ levelsPerCriterion: catalog.levelsPerCriterion, answers });
-
-  const session = new CalibrationSession();
-  for (const a of answers) session.recordAnswer(a.profileA, a.profileB, a.result);
-  const canonicalPairs = buildCanonicalDegree2Pairs(catalog.levelsPerCriterion);
-  const mediumReached = isMediumTierReached(session.graph, canonicalPairs);
+  const accuracy = computeSolverAccuracy(solved);
+  const mediumReached = isMediumTierReached(accuracy);
 
   const weightRows = catalog.entries.flatMap((entry) =>
     Object.keys(entry.levels)
@@ -126,7 +125,6 @@ export async function upsertWeightsAndStatus(
     .upsert(weightRows, { onConflict: 'user_id,criterion_id,level' });
   if (weightsError) throw weightsError;
 
-  const accuracy = computeSolverAccuracy(solved);
   const tier = computeTier(mediumReached, accuracy);
 
   const { error: statusError } = await supabase

@@ -1,11 +1,22 @@
 // Accuracy tier helpers for Criteria Calibration.
 //
-// Medium is concretely defined and checkable directly against the strict graph — no
-// solver output needed. High/Very High are a proposed UX/product judgment call based on
-// how narrow the solver's feasible ranges have gotten, NOT settled math — see the
-// threshold constants below, explicitly flagged pending Dan's confirmation.
+// All three tiers (Medium, High, Very High) are now solver-accuracy thresholds — a
+// product judgment call, NOT settled math — see the threshold constants below,
+// explicitly flagged as provisional.
+//
+// Medium's definition changed 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md):
+// it used to require every canonical degree-2 pair (cold-start's extremes-only
+// comparisons) resolved via the strict graph's closure. That definition was replaced
+// because it measured pair-coverage bookkeeping, not actual model determinacy — a real
+// production account reached the old Medium at 0.60 solver accuracy with levels 2-4
+// completely unconstrained for every criterion, while a real reference session (see
+// fixtures.ts's REAL_SESSION_* export) reached 0.88+ accuracy while never once touching
+// one of its 10 possible degree-2 pairs. `ComparisonPair`/ `PreferenceGraph.isImplied`
+// are no longer involved in the Medium decision; they're still used by
+// sessionProgress.ts's `degree2CoveragePercent` for the UI's progress display, which is
+// unchanged.
 
-import type { PreferenceGraph, Profile } from './preferenceGraph.js';
+import type { Profile } from './preferenceGraph.js';
 import type { ValueSolverResult } from './solver.js';
 
 export interface ComparisonPair {
@@ -13,14 +24,17 @@ export interface ComparisonPair {
   profileB: Profile;
 }
 
-/** Medium tier: every degree-2 pair is resolved, either directly answered or implied by the strict graph's closure. */
-export function isMediumTierReached(
-  graph: PreferenceGraph,
-  allDegree2Pairs: readonly ComparisonPair[]
-): boolean {
-  return allDegree2Pairs.every(
-    ({ profileA, profileB }) => graph.isImplied(profileA, profileB).implied
-  );
+// PROVISIONAL — same unvalidated-constant status as HIGH/VERY_HIGH_ACCURACY_THRESHOLD
+// below. Chosen so Medium sits meaningfully below the real reference session's ~0.88
+// accuracy at its 20-answer degree-2 milestone, without being so low it's trivially
+// satisfied by a handful of cold-start-only answers. Final calibration deferred to the
+// planned real calibration session on the current 6-criteria model — do not tighten or
+// loosen this without that session's data.
+export const MEDIUM_ACCURACY_THRESHOLD = 0.85;
+
+/** Medium tier: solver accuracy (see computeSolverAccuracy) has crossed the provisional threshold. */
+export function isMediumTierReached(accuracy: number): boolean {
+  return accuracy >= MEDIUM_ACCURACY_THRESHOLD;
 }
 
 /**
