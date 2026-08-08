@@ -102,14 +102,19 @@ export function CriterionLevelPicker({
                   // covers its fill dot — both driven by `colorPalette.solid`/`.contrast` in the
                   // recipe otherwise.
                   //
-                  // Stage 4a revision 2: while `isFeedbackTarget`, swap the checked ring to the
-                  // same accent color MobileRatingLayout's arrival row-highlight uses
-                  // (`accent.border`) — a border, not a fill, matching the "highlight = border,
-                  // never background" rule applied consistently across both feedback moments.
-                  // Reverts to the plain sand.200 ring once MobileRatingLayout clears
-                  // `pendingLevel` at the end of the feedback window.
+                  // Stage 4a: on mobile (`feedbackActive`, i.e. whenever MobileRatingLayout passes
+                  // `pendingLevel` at all — desktop never does), every checked item uses the same
+                  // accent color MobileRatingLayout's arrival row-highlight uses (`accent.border`)
+                  // — a border, not a fill, matching the "highlight = border, never background"
+                  // rule applied consistently across both feedback moments. Revision 3: this is
+                  // unconditional on `feedbackActive`, not scoped to `isFeedbackTarget` — opening
+                  // the Detail screen for an *already*-rated criterion should show the same accent
+                  // border on that saved level immediately, not only during the transient
+                  // just-picked window, so "already selected" and "just now selected" read as the
+                  // same state. Desktop (`feedbackActive` always false, since it never passes
+                  // `pendingLevel`) keeps the original plain sand.200 ring — zero-diff preserved.
                   _checked={
-                    isFeedbackTarget
+                    feedbackActive
                       ? {
                           borderColor: 'accent.border',
                           boxShadowColor: 'accent.border',

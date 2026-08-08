@@ -7,7 +7,7 @@
 // (56px artwork + ambient radar chart + "← Favorites" link) and checkmark/circle row icons.
 // See docs/decisions/album-rating-page.md for the dated stage-1 entry.
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, Flex, Icon, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Flex, Icon, Text, VStack, useToken } from '@chakra-ui/react';
 import { LuArrowLeft, LuChevronRight } from 'react-icons/lu';
 import {
   DialogRoot,
@@ -73,6 +73,14 @@ export function MobileRatingLayout({
   onPick,
   savingCriterionId,
 }: MobileRatingLayoutProps) {
+  // Resolved once via Chakra's `useToken` rather than embedded inline as a `{colors.accent.
+  // border}`-style string inside the `boxShadow` value below — that brace-interpolation syntax
+  // is a Panda CSS *build-time* token-extraction feature, not something the runtime style-prop
+  // resolver reliably expands for an arbitrary compound string value; live-tested and confirmed
+  // via computed style that it produced an inconsistent/absent box-shadow rather than the
+  // intended accent color. `useToken` is Chakra's own documented runtime API for resolving a
+  // token to its real CSS value, so it works regardless of that build-time-vs-runtime split.
+  const [accentBorderColor] = useToken('colors', 'accent.border');
   const [screen, setScreen] = useState<'overview' | 'detail'>('overview');
   // Defaults to the first criterion (not null) so the detail panel always has real content to
   // render — MobileScreenTransition keeps both panels mounted side by side at all times (see
@@ -191,16 +199,21 @@ export function MobileRatingLayout({
   // other (the detail back-row `Flex`, no explicit width) visibly stopped short of the card's
   // right edge — a plain `Box` with an explicit width sidesteps the whole bug class rather than
   // special-casing the one spot that broke.
+  //
+  // Revision 3: `albumInfo` is identical on both screens and was never part of the disjointed-
+  // slide bug (that was specifically RatingProgressBox popping independently) — so per Dan's
+  // review it no longer belongs inside MobileScreenTransition's per-panel content at all. It (and
+  // this one divider) now render once, above the sliding track, both statically visible on both
+  // screens without needing to move — this also collapses the divider back down to a single
+  // instance instead of two copies that had to be kept in sync.
   const divider = <Box w="100%" borderTop="1px solid" borderColor="border.ruleStrong" />;
 
-  // Screen 1, fully self-contained: album info + progress/rank+score box + criteria list, all
-  // one panel so MobileScreenTransition slides them together as a single unit — no more hoisting
-  // RatingProgressBox out to a separately CSS-toggled position (that was the previous attempt's
-  // "disjointed slide" bug: the box popped independently of the list instead of moving with it).
+  // Screen 1: progress/rank+score box + criteria list — everything MobileScreenTransition needs
+  // to slide as a single unit for this screen. No more hoisting RatingProgressBox out to a
+  // separately CSS-toggled position (that was the previous revision's "disjointed slide" bug:
+  // the box popped independently of the list instead of moving with it).
   const overviewPanel = (
     <VStack align="stretch" gap={0}>
-      {albumInfo}
-      {divider}
       {/* px/py 0 (Stage 1 retouch) — this wrapper's own padding, not anything owned by
           RatingProgressBox or shared with DesktopRatingLayout (that layout wraps the same
           component in a bare VStack with no px/py of its own either) — see the dated
@@ -257,17 +270,29 @@ export function MobileRatingLayout({
               py={4}
               borderBottom={isLast ? 'none' : '1px solid'}
               borderColor="sand.600"
-              // Revision 2: highlight is border-only, not a background fill — `accent.border`
+              // Revision 2 made this border-only, not a background fill — `accent.border`
               // (ember.500) is the same token/color the selection-feedback ring in
-              // CriterionLevelPicker now uses, so arrival and mid-pick feedback read as the same
+              // CriterionLevelPicker uses, so arrival and mid-pick feedback read as the same
               // "just touched this" treatment. No more `accent.ink` text-color swap either — that
               // existed only for contrast against the (now-removed) fill.
-              border={highlighted ? '2px solid' : undefined}
-              borderColor={highlighted ? 'accent.border' : 'sand.600'}
-              _hover={{
-                borderColor: highlighted ? 'accent.border' : undefined,
-                bg: highlighted ? undefined : 'surface.criterionHover',
-              }}
+              //
+              // Revision 3: that first attempt toggled `border` presence (`undefined` -> "2px
+              // solid"), which shifts layout regardless of box-sizing — this element has no fixed
+              // height, so adding a border still grows its total rendered height (border-box only
+              // keeps padding+border+content within an *explicit* size; with an auto height there
+              // is nothing to keep them within). It also likely explains the wrong-color report:
+              // the `border` shorthand and the separate `borderColor` prop both write border-color
+              // declarations, and their precedence in the generated CSS isn't guaranteed, so the
+              // shorthand's implicit color could've been winning over the intended one.
+              //
+              // Fixed with an inset `boxShadow` instead of a real border: its shape (2px solid
+              // ring) is now identical in both states — only the color itself
+              // ('accent.border' <-> 'transparent') ever changes, and box-shadow never
+              // participates in layout at all, so there is no "should be fine because box-sizing
+              // is border-box" caveat to rely on. One property, one value being swapped — no
+              // second declaration to race against.
+              boxShadow={`inset 0 0 0 2px ${highlighted ? accentBorderColor : 'transparent'}`}
+              _hover={{ bg: highlighted ? undefined : 'surface.criterionHover' }}
             >
               <Text
                 flex={1}
@@ -300,13 +325,12 @@ export function MobileRatingLayout({
     </VStack>
   );
 
-  // Screen 2, equally self-contained. `detailEntry` always resolves once `catalog` has loaded
-  // (see `detailCriterionId`'s initializer above) — this panel is permanently mounted by
-  // MobileScreenTransition, including while off-screen, so it never needs a null/undefined guard.
+  // Screen 2: back-arrow+criterion-name row + picker. `detailEntry` always resolves once
+  // `catalog` has loaded (see `detailCriterionId`'s initializer above) — this panel is
+  // permanently mounted by MobileScreenTransition, including while off-screen, so it never needs
+  // a null/undefined guard.
   const detailPanel = detailEntry && (
     <VStack align="stretch" gap={0}>
-      {albumInfo}
-      {divider}
       <Flex
         as="button"
         onClick={returnToOverview}
@@ -344,6 +368,10 @@ export function MobileRatingLayout({
         borderColor="border.ruleStrong"
         borderRadius="none"
       >
+        {/* Static — outside MobileScreenTransition entirely, so it never moves during a screen
+            transition (revision 3; see the divider comment above for why it was pulled out). */}
+        {albumInfo}
+        {divider}
         <MobileScreenTransition
           screen={screen}
           overview={overviewPanel}
