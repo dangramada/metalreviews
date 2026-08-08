@@ -51,6 +51,34 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`mobile-album-evaluation-redesign` — in progress, not merged. Stage 1 of 4 (structural redesign)
+complete plus two retouch passes (2026-08-07, 2026-08-08): `MobileRatingLayout` rebuilt to match
+`DesktopRatingLayout`'s bordered-card language (album-info zone + shared `RatingProgressBox` +
+text-badge criteria rows with dividers), old ambient radar chart + "← Favorites" header link
+removed, `AlbumMetaBlock` gained `hideGenres`/`bandFontSize`/`albumFontSize`/`truncateBand`/
+`clampAlbumLines`/`hideReleaseDateLabel` props plus a global band line-height default change
+(1.1→1.4, re-verified on all consumers). Second retouch pass fixed a real bug (`clampAlbumLines`
+silently did nothing — unrecognized Chakra style props don't apply; fixed via Chakra's own
+`lineClamp` prop) and tightened mobile spacing/artwork size further. Stage 2 of 4 (radar-chart
+modal) also complete (2026-08-08): tap-to-open `DialogRoot` on Screen 1's `RatingProgressBox`
+showing the full radar chart, additive alongside (at the time) the "View Your Evaluation"
+dialog; `RatingProgressBox.tsx`/`DesktopRatingLayout.tsx` both zero-diff. Stage 3 of 4 also
+complete (2026-08-08): removed the "View Your Evaluation" button and the page-level `DialogRoot`
++ `RatingSummaryView` render (button lived in `MobileRatingLayout.tsx`, but its dialog state and
+render were in `AlbumRatingPage.tsx`, not co-located as might be assumed); `RatingSummaryView.tsx`
+deleted outright (no other references anywhere in the repo, confirmed via `git grep`). Stage 4a
+(selection feedback + screen transitions) functionally complete (2026-08-08) after four rounds
+of live testing: `MobileScreenTransition` component owns a unified two-panel slide holding only
+screen-specific content (album info renders once, statically, above it); row highlight uses an
+inset `boxShadow` with its color resolved via `useToken`; a `revealed` boolean gate (not a
+one-shot value copy) fixed a real race where `RatingProgressBox`'s Rank/Score could permanently
+stick at "—" if the async `refetchRatingSummary()` resolved after the old one-shot sync point;
+all accent-border coloring on `CriterionLevelPicker` reverted to plain `sand.200` per Dan's
+request (scale/dim feedback kept); a `PAUSE_MS` (150) beat added between the feedback animation
+and the slide. `FEEDBACK_MS`/`PAUSE_MS`/`SLIDE_MS` timing not yet feel-confirmed by Dan. Stage 4b
+(sticky headers) not started. Full detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08
+dated entries, esp. the Stage 4a revision-2/3/4 entries.
+
 `favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
 branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
 the `favorites-row-desktop-redesign` restyle (merged same day, commit `5055ba7`, branch also

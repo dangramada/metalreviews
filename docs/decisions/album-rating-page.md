@@ -878,3 +878,561 @@ three phases described above.
 **What did not change:** any layout/spacing/border/color token outside what's listed above, the
 radar chart's hover-tooltip behavior/`outerRadius`/margins/axis labels, `MobileRatingLayout`,
 `scoreSlabBase`/`scoreSlabHigh` themselves (only a new third variant added).
+
+### 2026-08-07 — Mobile stage 1: structural redesign (`mobile-album-evaluation-redesign` branch)
+
+First of a planned 4-stage mobile pass bringing `MobileRatingLayout` in line with
+`DesktopRatingLayout`'s bordered-card visual language (album-rating-page-desktop-redesign,
+above). Stages 2-4 (radar-chart modal, "View Your Evaluation"/`RatingSummaryView` removal,
+selection/transition animation) are explicitly out of scope for this pass.
+
+**Diagnostic correction to the brief:** the brief referenced adding a `hideGenres` prop to
+`AlbumMeta` — that component no longer exists. It was replaced by `AlbumMetaBlock.tsx` during
+design-system-audit-2026-08 Pass 4 (see that doc). Added `hideGenres?: boolean = false` there
+instead, gating only the existing `genre.length > 0` Wrap block; default keeps all three existing
+consumers (`DesktopRatingLayout`, `FavoritesPage`'s desktop and mobile `FavoriteListItemRow`
+trees) unaffected.
+
+**Extracted `RatingProgressBox`** (`src/components/album-rating/RatingProgressBox.tsx`) out of
+`DesktopRatingLayout`'s Section 3 — the "Evaluation progress n/total" / Rank+Score
+`AnimatePresence` crossfade (see the dated 2026-08-0x motion-pass entry above for why
+`mode="wait"` was chosen) was inline JSX there, not a standalone component, so it couldn't be
+reused directly. Extraction is a pure lift: same props derived the same way
+(`ratedCount`/`totalCount`/`ratingSummary`), same crossfade timing, verified live at both
+pending and complete states on desktop post-extraction (no visual/behavior change) before wiring
+it into mobile. `RatingSlab`'s own comment (previously claiming it only ever renders inside
+`DesktopRatingLayout`'s Section 3) updated to reference `RatingProgressBox` instead.
+
+**Mobile album-info zone** reimplemented locally (no shared extraction this pass, per brief) from
+`FavoriteListItemRow`'s desktop tree in `FavoritesPage.tsx` (`Flex align="center" gap={4}` +
+flush artwork + `AlbumMetaBlock`) — explicitly not that same file's separate artwork-first
+*mobile* tree, which is a different pattern for a different context. Artwork resized 128px (the
+favorites-row precedent) → 96px per brief; `AlbumMetaBlock` called with `titleLayout="stacked"
+hideGenres` — this page shows genre nowhere else either, so suppressing it here is consistent
+with the existing page, not a new omission.
+
+**Criteria-row badges** replicate `DesktopRatingLayout`'s exact inline status-label expression
+(`` `${level}–${label}` `` / `'NOT EVALUATED'`, en dash, no spaces) — confirmed via grep that no
+shared helper exists to call instead, so this copies the expression rather than inventing a
+shared one.
+
+**Criteria-row dividers:** plain 1px `borderBottom` (color `sand.600`) on every row except the
+last — not desktop's isFirst/isLast border-suppression scheme, which exists there to solve a
+left/right border-doubling problem specific to desktop's split-panel row layout that doesn't
+apply to mobile's plain vertical list.
+
+**Removed from `MobileRatingLayout`:** the fixed header's ~40px ambient `RatingRadarChart` and
+the "← Favorites" `backHref`/`backLabel` link — both props dropped from
+`MobileRatingLayoutProps` and the call site in `AlbumRatingPage.tsx`, since the page-level
+`PageBreadcrumb` above both layouts already covers that navigation and nothing else consumed
+`backLabel` after the drop. `resolveBackDestination`'s return type narrowed from `{href, label,
+sourceLabel}` to `{href, sourceLabel}` accordingly (`AlbumRatingPage.tsx`).
+
+**Extended `MobileRatingLayout`'s props** to receive `releaseDate`, `genre`, `weights`,
+`ratingSummary` from `AlbumRatingPage.tsx` — plumbing only, mirroring what
+`DesktopRatingLayout` already received; no new data fetching.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified at a 375px mobile
+viewport against real Supabase data (logged in as the account's own session, not automated) for
+both a zero-ratings album (Ænigmatum — *Infinitude's Passage*, progress box showed "1/6" then
+"2/6" after picking a level live, confirming save + auto-return-to-overview + row highlight all
+still work) and a fully-rated album (Black Sites — *For Eternity*, Rank #1 / Score 100% slabs,
+all six criteria showing rated badges, "View Your Evaluation" button still present since its
+removal is stage 3). Both screens matched the three reference mockup screenshots' structure.
+Desktop re-verified unaffected at 1280px post-`RatingProgressBox` extraction (3-section card,
+Rank/Score slabs, radar chart all rendering correctly).
+
+**What did not change this pass:** `DesktopRatingLayout`'s own JSX/tokens (only the Section 3
+box's internals moved into `RatingProgressBox`, same output), auto-return timing/save/upsert
+logic, the "View Your Evaluation" button/`RatingSummaryView` dialog, route/breadcrumb logic
+(`from`-aware navigation, `PageBreadcrumb`), any screen-transition or selection-feedback
+animation (stage 4).
+
+### 2026-08-07 — Mobile stage 1 retouch pass (visual adjustments)
+
+Four visual fixes against live review of the shipped stage-1 result, same
+`mobile-album-evaluation-redesign` branch.
+
+**Album-info block padding:** already 0/0 from stage 1 (`AlbumMetaBlock`'s `padding={{ x: 0, y:
+0 }}` at the mobile call site) — no change needed, confirmed against the brief's item 1.
+
+**`AlbumMetaBlock` gained `bandFontSize`/`albumFontSize`** (two flat optional props, not a
+grouped object like `padding` — band/album sizes have no shared spatial axis to justify nesting,
+so this matches `titleToDateGap`/`dateToGenreGap`'s flat-prop precedent instead). Both fall back
+to `cardTitleBand.fontSize`/`cardTitleAlbum.fontSize` via `??`, not a plain JSX override, since
+`<Heading {...cardTitleBand} fontSize={undefined}>` would otherwise blow away the spread's own
+fontSize (a later explicit prop always wins over an earlier spread, even when its value is
+`undefined`). Mobile passes `16px`/`16px`; no other consumer passes these.
+
+**Band line-height changed to `1.4` (from `1.1`) as `AlbumMetaBlock`'s own default** — applied
+directly in the component (not `theme.ts`'s `cardTitleBand`, which only StyleGuide.tsx's
+unrelated dev-only reference swatch also uses, hardcoding its own `lineHeight="1.1"`
+independently of this component). Global change, live-reverified on all three real consumers at
+their existing usages: `DesktopRatingLayout` (Section 1, stacked), `FavoritesPage`'s desktop row
+(inline) and mobile row (stacked) — no visible regression on any.
+
+**`truncateBand`/`clampAlbumLines`** added as opt-in props (`false`/`undefined` default,
+stacked-layout-only — the inline layout already truncates its whole "band – album" line via the
+parent `Text`'s `lineClamp={1}`, so per-span truncation there would be redundant). Mobile passes
+`truncateBand` + `clampAlbumLines={2}`. Implemented as conditional style objects spread onto the
+element (`{...bandTruncateStyle}`) rather than individual JSX props, for the same
+undefined-overwrite reason as the fontSize props above.
+
+**Rank/score block padding — diagnostic finding (brief's item 6):** `RatingProgressBox` has no
+`padding` prop and no hardcoded padding inside itself — its root is a bare `AnimatePresence`/
+`motion.div` with zero padding, and `DesktopRatingLayout`'s Section 3 `VStack` wraps it with no
+`px`/`py` either. The 16px mobile padding was entirely owned by `MobileRatingLayout`'s own
+wrapper `Box` around `<RatingProgressBox>` (stage 1), not by anything shared with desktop — so
+the fix was a plain `px={4} py={4}` → `px={0} py={0}` edit on that wrapper, no new prop needed,
+desktop untouched (it never had an equivalent wrapper to begin with).
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified at 375px against
+real Supabase data using an album with both a long band name (Labor of the Negative) and a long
+album name (*The Triumph of Time and the Disillusioned*) — band truncated to one line with
+ellipsis, album clamped to exactly 2 lines with ellipsis, both screens' font sizes and padding
+matched spec. Desktop re-checked at 1280px on `DesktopRatingLayout` (unaffected — full names
+shown, no truncation, progress-box padding unchanged) and both `FavoritesPage` trees (unaffected
+by the line-height default change).
+
+**What did not change:** `DesktopRatingLayout`'s own padding/spacing, any other
+`AlbumMetaBlock`/`RatingProgressBox` consumer's passed props (all still get old behavior via
+untouched defaults), stage-1 structural work (card border, badge format, dividers, auto-return/
+highlight behavior).
+
+### 2026-08-08 — Mobile stage 1: second retouch pass (manual-testing fixes)
+
+Three more fixes against Dan's own manual testing of the retouch pass above, same branch.
+
+**Album-info block padding removed:** the `Flex` wrapping Zone 1's artwork+meta (`p={4}` →
+`p={0}`) — a further tightening beyond `AlbumMetaBlock`'s own already-zeroed padding. Also added
+`titleToDateGap={1}` (4px, Chakra's `space.1`) at the same call site, closing the gap between the
+album name and the release-date line specifically on mobile; no other consumer's gap changed
+(prop default stays `3`).
+
+**Artwork size:** 96px → 110px in `MobileRatingLayout`'s Zone 1 only.
+
+**Fixed a real bug: `clampAlbumLines` wasn't clamping anything.** The first retouch pass (above)
+hand-built the 2-line-clamp CSS as a plain object (`display: '-webkit-box'`, `WebkitLineClamp`,
+`WebkitBoxOrient`, `overflow`, `textOverflow`) and spread it onto the `Text`'s JSX props.
+Confirmed live (Dan's manual test) that this did nothing — Chakra v3 only promotes *recognized*
+style props into emitted CSS; arbitrary camelCase keys like `WebkitLineClamp` fall through as
+inert DOM attributes rather than styling anything. Fixed by passing `clampAlbumLines` straight
+into Chakra's own `lineClamp` prop (already in use elsewhere in this file, on the inline layout's
+whole-line truncation) — it generates the equivalent CSS itself, and additionally sets
+`textWrap: 'wrap'`, which is what actually lets the album name wrap across 2 lines before the
+ellipsis kicks in, rather than truncating immediately on line 1 the way `truncateBand`'s
+single-line style does.
+
+**`hideReleaseDateLabel` prop added** (opt-in, default `false`) — drops the "Release date: "
+prefix, showing only `formatReleaseDate(releaseDate)`. Used by `MobileRatingLayout` only; every
+other consumer keeps the labeled form unchanged.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Visual confirmation of the
+clamp fix and the other three changes was via Dan's own manual testing this pass, not this
+session's live Browser-pane walkthrough (session was mid-flow when he said he'd verify directly).
+
+**What did not change:** any other `AlbumMetaBlock` consumer (all four new/changed props here —
+`hideReleaseDateLabel`, the `titleToDateGap`/padding call-site values, the artwork size — are
+either opt-in with an unchanged default or scoped to `MobileRatingLayout`'s own JSX), stage-1
+structural work.
+
+### 2026-08-08 — Mobile stage 2: radar-chart modal
+
+Third of four `mobile-album-evaluation-redesign` stages. Adds a tap-to-open modal showing the
+full radar chart on mobile's Screen 1 (Overview), triggered from the `RatingProgressBox` zone.
+Additive only — the existing "View Your Evaluation" button/`RatingSummaryView` dialog (stage 3)
+and all screen-transition/selection-feedback work (stage 4) untouched.
+
+**Diagnostic findings, confirmed before implementation:**
+- `RatingRadarChart`'s `size` prop (`'full' | 'small'`, default `'full'`) already gives the
+  brief's "full mode" for free — no new prop plumbing needed, just omit `size` or pass
+  `size="full"`.
+- No code path special-cases zero ratings — a 0/6 chart just plots every point at level 0,
+  degenerating to a tiny center shape. Live-verified via a temporary dev harness (see below):
+  renders correctly, no crash, no NaN.
+- `RatingProgressBox` has no `onClick`/ref-forwarding conflicts — safe to wrap from outside.
+
+**Trigger:** `MobileRatingLayout`'s existing `RatingProgressBox` usage (Screen 1 only) is wrapped
+in a native `Box as="button"` (not `role="button"`/`tabIndex` — a real `<button>` gets focus and
+Enter/Space activation for free) with `aria-label="View radar chart"`, opening a `radarOpen`
+dialog state on click. `RatingProgressBox.tsx` and `DesktopRatingLayout.tsx` have **zero diff**
+(confirmed via `git diff --stat` post-implementation) — desktop's usage is unaffected.
+
+**Modal:** same `DialogRoot`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogBody`/
+`DialogFooter` structure as the page-level `RatingSummaryView` dialog in `AlbumRatingPage.tsx`,
+kept local to `MobileRatingLayout.tsx` instead (all the data it needs — `catalog`/`ratings`/
+`order`/`weights`/`band`/`album` — were already props there; no new fetching). Title
+`` `${band} – ${album}` ``, same format as the existing dialog. Standard close (X, tap-outside,
+Esc) via Chakra's `Dialog.Root`.
+
+**Bug found and fixed in passing**: `MobileRatingLayout`'s `weights` prop was already declared
+in `MobileRatingLayoutProps` and passed by `AlbumRatingPage.tsx`, but never destructured in the
+component's parameter list — a pre-existing dead prop (unused until this stage needed it for the
+new chart). Fixed by adding it to the destructure; caught immediately by a live "weights is not
+defined" runtime error during verification, not by `tsc` (the prop's declared type made it look
+used).
+
+**Tooltip on tap — better than expected.** Diagnostic read of `RatingRadarChart.tsx` found no
+touch-specific wiring around Recharts' `Tooltip`, suggesting tap likely wouldn't trigger it. Live
+verification (Browser pane, mobile viewport/touch emulation) showed the opposite: tapping a
+radar point **did** show the tooltip correctly (tested at 0/6 — "Innovation / Not rated / —").
+Likely explained by the synthetic click event most mobile browsers dispatch after a touchend,
+which Recharts' tooltip activation responds to. Documenting as a positive finding rather than a
+gap — no custom touch-tooltip logic was built (per the brief, this wasn't to be built regardless
+of the diagnostic's outcome), and real-device behavior may still vary by browser; flagged as a
+candidate to spot-check on a real phone, not added to `deferred-work.md` as a known-broken item
+since it worked in the tested environment.
+
+**Live verification**: could not use a real logged-in Supabase session for this pass — verifying
+live would have required entering a live account's password into the browser tool, which is out
+of scope for this session to do (credential entry is not something this session performs). Used
+a temporary dev-only route (`/dev-radar-modal-preview`, `src/DevRadarModalPreview.tsx`) rendering
+`MobileRatingLayout` directly with mock catalog/ratings/weights data at 0/6, 3/6 (partial), and
+6/6 — same precedent as the desktop redesign's now-removed `DevRatingPreview.tsx`. All three
+states confirmed correct at 375px: 0/6 shows a degenerate center point, 3/6 a partial polygon,
+6/6 the full hexagon plus Rank/Score slabs and the (untouched) "View Your Evaluation" button
+still present and functional. Route and harness component removed before this stage's work was
+considered done — `git diff --stat` confirms only `MobileRatingLayout.tsx` changed.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222 (before and after harness
+removal).
+
+**What did not change:** `RatingProgressBox.tsx`, `DesktopRatingLayout.tsx` (both zero diff),
+`RatingSummaryView.tsx`/its dialog, `main.tsx` (temp route added and removed same session, net
+zero diff), any screen-transition/selection-feedback behavior (stage 4, not started).
+
+### 2026-08-08 — Mobile stage 3: remove "View Your Evaluation" / `RatingSummaryView`
+
+Fourth of four `mobile-album-evaluation-redesign` stages (stage 4, selection/transition
+animation, still not started).
+
+**Diagnostic findings, confirmed before implementation:** the button, its open/close state, and
+the `RatingSummaryView` render were split across two files, not all in `MobileRatingLayout.tsx`
+as might be assumed from the button living there. The button itself
+(`MobileRatingLayout.tsx`, gated on `isComplete`) called an `onOpenSummary` prop; the actual
+`summaryOpen` state, the `DialogRoot`, and the `RatingSummaryView` render all lived in
+`AlbumRatingPage.tsx`, rendered page-level (outside both `DesktopRatingLayout` and
+`MobileRatingLayout`, gated only on `albumInfo` truthiness) — dead weight on desktop, which never
+set `summaryOpen` since `isComplete`/`onOpenSummary` were never passed to `DesktopRatingLayout`.
+This confirmed stage 2's diagnostic note ("DialogRoot pattern in AlbumRatingPage.tsx") was
+accurate and not a misattribution — it's a distinct dialog from stage 2's radar-chart modal,
+which lives entirely inside `MobileRatingLayout.tsx` and was untouched by this pass.
+`git grep RatingSummaryView` across the whole repo found only 3 source references (the two
+files above plus the component itself, plus one now-updated comment) — no `aoty-*` doc or other
+page referenced it for reuse, so it was deleted outright rather than kept as an orphan.
+
+**Decoupling check on `RatingProgressBox` (re-confirmed post-hoc, with quote):** the brief
+required confirming `RatingProgressBox` computes its own completion state
+(`ratedCount`/`totalCount`) rather than depending on the `isComplete` this stage deletes. Quote,
+`RatingProgressBox.tsx`:
+```
+interface RatingProgressBoxProps {
+  ratedCount: number;
+  totalCount: number;
+  ratingSummary: AlbumRatingSummary | undefined;
+}
+
+export function RatingProgressBox({ ratedCount, totalCount, ratingSummary }: RatingProgressBoxProps) {
+  const isPending = ratedCount < totalCount;
+  ...
+```
+No `isComplete` prop in the interface, ever — both call sites
+(`MobileRatingLayout.tsx:146`, `DesktopRatingLayout.tsx:272`) pass only `ratedCount`/
+`totalCount`/`ratingSummary`. `isComplete` (`AlbumRatingPage.tsx`) existed solely to gate the
+now-removed button; it had no other reader. Confirmed safe to delete.
+
+**Removed:** the button block in `MobileRatingLayout.tsx` (with its now-unused
+`isComplete`/`onOpenSummary` props and the now-unused `primaryButton` import); `summaryOpen`
+state, the `isComplete` computation, the `RatingSummaryView` import, and the page-level
+`DialogRoot` block in `AlbumRatingPage.tsx` (along with now-unused `Button`/`Dialog*`/
+`CloseButton`/`secondaryButton` imports and the `CRITERIA_COUNT` constant); the file
+`RatingSummaryView.tsx` deleted outright.
+
+**Live verification:** same constraint as stage 2 — no real logged-in Supabase session used.
+Reused stage 2's precedent: a temporary dev-only route (`/dev-mobile-stage3-preview`,
+`src/DevMobileStage3Preview.tsx`) rendering `MobileRatingLayout` directly with mock data at 6/6
+completion. Confirmed at 375px: Rank/Score box and all 6 criteria rows render correctly, no
+"View Your Evaluation" button present, `read_page` DOM scan showed exactly 7 interactive
+elements (radar-chart trigger + 6 criteria rows, no 8th button).
+
+The first verification pass stopped there and treated the element count as sufficient — it
+wasn't: a button count proves the old button is gone, not that the still-shipping stage-2 radar
+modal still opens after this stage's changes. The browser tool's coordinate/ref click was flaky
+in that pass (timeouts, text-selection instead of a click firing), and rather than finding a
+working alternative the pass moved on. Redone: `document.querySelector('[aria-label="View radar
+chart"]').dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))` fired the
+click directly, bypassing the flaky coordinate-based input path, and a screenshot confirmed the
+modal opened with the full hexagon chart rendered (all 6 criteria labeled: Emotional impact,
+Performance, Production, Songwriting, Innovation, Coherence). Stage 2's radar modal is confirmed
+unaffected by this stage's removal.
+
+Route and harness component removed before this stage's work was considered done — `git diff
+--stat` confirms only `AlbumRatingPage.tsx`, `MobileRatingLayout.tsx` (both modified) and
+`RatingSummaryView.tsx` (deleted) changed, `tsc --noEmit` clean after removal.
+
+**`RatingSummaryView.tsx` test-file question:** no test file for `RatingSummaryView` ever
+existed. Confirmed via full git history (`git log --all --diff-filter=A --name-only -- '*Rating
+SummaryView*'` returns only the component file itself, never a `.test.`/`.spec.` companion) and
+via the current tree (no `__tests__` file anywhere under `album-rating/` references it). No
+album-rating component in this codebase has dedicated unit tests — that's true before and after
+this stage, not something this stage changed. This is why `npx vitest run` stayed at 222/222
+both before and after the deletion: there was nothing to lose. The earlier brief's phrasing
+("delete the file and any test files for it") was gap-filling for an unconfirmed case — no such
+file existed, so nothing beyond the component itself needed removing.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222 (before and after harness
+removal, and before/after this stage's deletion — see test-file note above for why the count
+didn't move).
+
+**What did not change:** `DesktopRatingLayout.tsx`, `RatingProgressBox.tsx`, `RatingRadarChart.tsx`,
+the radar-chart modal (stage 2, entirely inside `MobileRatingLayout.tsx`), any
+screen-transition/selection-feedback behavior (stage 4, not started).
+
+## Stage 4a (2026-08-08) — selection feedback + screen transitions, two revisions
+
+First live testing of the mobile-album-evaluation-redesign branch (prior stages were
+DOM-scan/mock-data verified only, never a real logged-in click-through) surfaced real problems
+in the first attempt, leading to a second revision. Both are recorded here since revision 1's
+mistakes are exactly why revision 2 looks the way it does.
+
+**Revision 1.** Replaced the flat `AUTO_RETURN_MS` (1750ms) delay-then-snap with: save → scale +
+checkmark + dim feedback on the picked `RadioCardItem` (`FEEDBACK_MS`) → a directional
+`AnimatePresence`/`mode="popLayout"` slide back to Screen 1 (`SLIDE_MS`) → row highlight once
+settled. `RatingProgressBox` was hoisted above the `AnimatePresence` block and toggled via CSS
+`display` (not unmounted) specifically so its own crossfade — previously never able to play on
+mobile at all, since the box used to live *inside* the per-screen branch and so unmounted on
+every screen switch — could survive the switch. A `progressSnapshot` state, synced from the live
+`ratings`/`ratingSummary` props only inside the "slide settled" callback, gated when the box
+was allowed to see the new `ratedCount` at all, so the crossfade would play at arrival instead of
+mid-slide.
+
+Dan's live testing (real Supabase account, real clicks) found this genuinely felt "greoaie/
+sacadată" (heavy/jerky), and diagnosed why precisely: `RatingProgressBox`, hoisted outside the
+`AnimatePresence` block, wasn't part of what actually slid — it popped via `display` toggle at
+its own independent moment while the criteria list slid as a separate, uncoordinated animation.
+Two treatments on what should read as one panel.
+
+**Revision 2 — structural fix.** Root-caused (not guessed) two more issues at the same time:
+
+- **Border bug**: the album-info→content divider used `borderTop` on `Flex`/`VStack` elements,
+  one of them (`Flex as="button"`, the detail screen's back row) without an explicit `w="100%"`
+  — a `Flex` rendered `as="button"` can pick up a native `<button>`'s intrinsic sizing behavior
+  on some mobile engines even with `display:flex` applied. Per Dan's screenshot, that border
+  visibly stopped short of the card's right edge. Fixed by using one dedicated `Box` divider
+  with an explicit `w="100%"` in both panels, rather than relying on ambient block-width
+  behavior on a `Flex`/`VStack`.
+- **Dim-affects-selected-card bug**: Chakra's radio-card recipe bakes in `_disabled: {opacity:
+  0.5}` on the item slot. `disabled` was set to `true` for *every* `RadioCardItem` during the
+  feedback window (to block re-taps), including the selected one — so even though the custom
+  per-item dim logic correctly excluded the selected card, Chakra's own disabled-opacity still
+  applied to it (opacities compound: 1 × 0.5 = 0.5). Fixed with a per-item `_disabled={{opacity:
+  isFeedbackTarget ? 1 : 0.5}}` override.
+
+Structural fix: `MobileScreenTransition.tsx` (new) — owns *only* the slide mechanics, decoupled
+on purpose from feedback/highlight/snapshot state (so a future switch to e.g. a bottom-sheet
+reveal only touches this file). A two-panel flex track (`width: 200%`, each panel `50%`/
+`flexShrink: 0`), both panels *always* mounted side by side, with a single `translateX` on the
+shared track (`x: 0%` for overview, `x: -50%` for detail) driving visibility — no
+`AnimatePresence`, no enter/exit variant pair, one transform serves both directions.
+`MobileRatingLayout.tsx` was rebuilt around it: `albumInfo` is no longer hoisted/deduplicated
+above the sliding content — each screen is now a fully self-contained panel (album info +
+progress box + list, or album info + back row + picker), so *everything* in a panel moves
+together as MobileScreenTransition slides it. `detailCriterionId` no longer resets to `null` on
+return (defaults to `order[0]`, never null) — since both panels are permanently mounted,
+including while the detail panel is still visible mid-slide-back, a null-guarded panel would
+flash blank instead of showing the just-rated criterion underneath.
+
+`progressSnapshot` (the delayed-sync mechanism) was **kept**, not dropped, despite the panel
+now being permanently mounted — flagged explicitly by Dan before implementation: "always
+mounted" only fixes state loss on remount, it doesn't stop the *live* `ratings`/`ratingSummary`
+props from updating (and `RatingProgressBox` reacting to them) the instant the save resolves,
+well before the feedback+slide sequence finishes, while the panel may still be translated
+off-screen. Without the snapshot, the crossfade would play and finish while invisible — the
+exact "pop instead of crossfade" bug this mechanism exists to prevent, reintroduced via a
+different path. `progressSnapshot` still only syncs from live props inside the same
+"slide settled" `setTimeout` as before; only the CSS-`display` toggle was dropped (no longer
+needed once the panel is naturally always-mounted rather than hoisted-and-toggled).
+
+**Other revision-2 fixes**, both in `CriterionLevelPicker.tsx`: removed the checkmark-over-
+indicator overlay entirely (visually clashed with Ark UI's own `_checked` state) — feedback is
+scale-up only now. Row highlight (`MobileRatingLayout.tsx`, arrival) and the selection-feedback
+ring (`CriterionLevelPicker.tsx`, mid-pick) both switched from a `bg` fill to a `border`, same
+`accent.border` token in both places — the arrival highlight's `accent.ink` text-color swap was
+also dropped (it existed only for contrast against the now-removed fill).
+
+**Timing**: `FEEDBACK_MS` (450) and `SLIDE_MS` (280) carried over unchanged from revision 1 —
+revision 1's "snappier, not sluggish" read was against the disjointed two-treatment slide, not
+the unified one, so per the brief these values are flagged as still needing a live-feel
+re-confirmation post-restructure rather than assumed correct.
+
+**Verification**: `tsc --noEmit` clean, `npx vitest run` 222/222, both revisions. Live-tested
+against real Supabase data (Dan directly, plus tool-driven verification via
+`label.click()`/`button.click()` dispatch — the browser tool's coordinate-based `left_click`
+was unreliable across both sessions, consistent with the flakiness noted in the stage-3 entry
+above, so verification routed around it the same way). Confirmed end-to-end: progress increments
+correctly across 4 sequential picks (3/6 → 6/6) on a real album, the 6th pick correctly shows
+the crossfaded Rank/Score (not a stuck pending state), both panel dividers span the full card
+width, the radar-chart modal still opens correctly post-restructure (real click, real screenshot
+with rendered hexagon), and `DesktopRatingLayout` at 1280px is visually unaffected (own
+`CriterionLevelPicker` usage never passes `pendingLevel`, so `feedbackActive` is always `false`
+there — same checked-ring styling as before this stage). Not captured: a mid-slide screenshot
+proving `RatingProgressBox` hasn't reached its final state while still transitioning into
+view — the tool's round-trip latency consistently exceeded the ~730ms total animation window
+across repeated attempts in both sessions, so that specific proof relies on Dan's own live
+observation (he reached 6/6 on a separate album, Ænigmatum, independently during this stage).
+Stage 4b (sticky headers) not started; selection/transition animation for stage 4 is otherwise
+functionally complete pending Dan's feel-confirmation on the two timing values above.
+
+## Stage 4a revision 3 (2026-08-08) — three more live-testing fixes
+
+Three issues from Dan's continued live testing of revision 2, addressed together.
+
+**Album info no longer duplicated per-panel.** `albumInfo` was identical on both screens and,
+per Dan's review, was never actually implicated in the original disjointed-slide bug (that was
+specifically `RatingProgressBox` popping independently of the sliding list) — so it didn't
+belong inside `MobileScreenTransition`'s per-panel content at all. Pulled out to render once,
+statically, above the sliding track in `MobileRatingLayout.tsx`, with a single divider below it
+instead of one copy per panel. `MobileScreenTransition`'s two panels now hold only
+screen-specific content: overview = progress box + criteria list, detail = back-row + picker.
+Sets up cleanly for stage 4b's sticky-header work too (nothing to keep in sync between two
+divider instances anymore).
+
+**Arrival-highlight layout shift and wrong color, root-caused.** The row highlight (added
+revision 2) toggled `border` presence outright (`undefined` -> `"2px solid"`). Confirmed via
+Chakra's global reset (Panda's Preflight, `box-sizing: border-box` on `*`) that box-sizing
+wasn't the cause — the real mechanism: this row has no fixed height, so adding a border still
+grows its *total* rendered height regardless of box-sizing (border-box only keeps
+padding+border+content within an *explicit* size; with `height: auto` there's nothing to keep
+them within). Also very likely explained the wrong-color report: `border="2px solid"` (shorthand)
+and a separate `borderColor` prop both emit border-color declarations, with no guaranteed
+precedence between them in the generated CSS.
+
+Fixed by switching to an inset `boxShadow` instead of a real border: same 2px ring shape in both
+states, only the color value ever changes (`accent.border` <-> `transparent`), and box-shadow
+never participates in layout at all — a stronger guarantee than "should be fine because
+box-sizing is border-box," since it holds regardless of the row's height being fixed or auto.
+
+That surfaced a second, genuinely separate bug during live verification: the color itself was
+written as `'inset 0 0 0 2px {colors.accent.border}'`, using Panda CSS's `{colors.x.y}`
+brace-interpolation token syntax embedded in a compound string. That syntax is a *build-time*
+token-extraction feature; live-tested via computed style and confirmed it produced an
+inconsistent/absent box-shadow at runtime rather than the intended color (polled
+`getComputedStyle(row).boxShadow` for 6-9 seconds after a pick across several attempts — the
+inset shadow was present with the correct *shape* but stuck at a transparent color the entire
+time). Fixed with Chakra's own `useToken('colors', 'accent.border')` hook, which resolves to the
+real CSS color value (confirmed live: `rgb(255, 106, 26)`) — a documented runtime API, not a
+build-time-only string convention. Re-verified live end to end after the `useToken` fix: the
+highlight now renders with the correct accent color and the expected ~1.2s-to-trigger,
+~2.5s-duration timing, with no visible layout shift (row height/spacing identical to unhighlighted
+siblings in a before/after screenshot).
+
+**Already-selected level now shows a persistent accent border.** `CriterionLevelPicker`'s
+`_checked` styling previously only used the accent color while `isFeedbackTarget` (the transient
+just-picked window); opening the Detail screen for an already-rated criterion showed the old
+plain `sand.200` ring instead. Changed the condition from `isFeedbackTarget` to `feedbackActive`
+(true for any mobile-mounted picker, regardless of whether a pick is transiently in progress) —
+so every checked item shows the accent border on mobile, matching "already selected" and "just
+now selected" visually. Desktop (`feedbackActive` always `false`, since `DesktopRatingLayout`
+never passes `pendingLevel`) is unaffected — verified at 1280px, checked ring still plain
+`sand.200`.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified against real
+Supabase data (`REZN — Cycles In The Infinite Dream`, driven via `label.click()`/`button.click()`
+dispatch — the browser tool's coordinate-based `left_click` remains unreliable this session):
+static album info confirmed via screenshot to not move between screens, single full-width divider
+on both screens, persistent accent border on an already-rated level shown immediately on Detail
+open (screenshot), arrival highlight confirmed with the correct resolved color and no layout
+shift (screenshot + computed-style polling), radar-chart modal still functional (real click, real
+screenshot), desktop at 1280px visually unaffected.
+
+## Stage 4a revision 4 (2026-08-08) — Rank/Score race, full accent-color revert, feedback pause
+
+**Audit of the previous "full 4-pick sequence...correct progress increments" claim**, asked for
+before proceeding with new fixes: that claim (end of the revision-3 message) was backed by real
+screenshots — both `Labor of the Negative` (revision 2 session, "RANK #7 / SCORE 81%") and `REZN
+— Cycles In The Infinite Dream` (revision 3 session, "RANK #11 / SCORE 72%") showed the
+crossfaded Rank/Score in actual captured screenshots, not inferred from "no errors thrown." That
+doesn't contradict Dan's new bug report, though — see the race explanation below: passing runs
+and failing runs are both consistent with a genuine race condition where the outcome depends on
+which of two independent async operations finishes first. Every one of this session's own test
+runs happened to have the refetch win the race; Dan's real-world testing hit the other outcome.
+Neither observation was wrong; the mechanism itself was non-deterministic.
+
+**Root cause of the missing Rank/Score, confirmed via code inspection.**
+`AlbumRatingPage.tsx`'s `handlePick` calls `refetchRatingSummary()` fire-and-forget — not
+awaited — immediately after `setRatings(...)`. `MobileRatingLayout`'s own `handlePick` only
+awaits the upsert itself (`await onPick(...)`), which resolves as soon as `AlbumRatingPage`'s
+`handlePick` function body finishes running, well before the refetch's own network round trip
+completes. The previous (revision 2/3) `progressSnapshot` mechanism was a *one-shot* sync: it
+copied `ratedCount`/`ratingSummary` from a ref into state exactly once, at the "slide settled"
+moment, 450+280=730ms after the save resolved (before revision 4's `PAUSE_MS`, 880ms after). If
+`refetchRatingSummary()`'s query took longer than that window — an unremarkable amount of real
+network latency on the 6th/final pick specifically — the one-shot sync captured the still-stale
+`ratingSummary` (`undefined`), and nothing ever re-triggered a second sync while the user stayed
+on Overview, so it stayed permanently stuck showing "—" instead of a real rank/score.
+
+**Fix**: replaced the one-shot value copy with a `revealed` boolean gate. `RatingProgressBox` now
+reads `revealed ? <live props> : progressSnapshot` — while `!revealed` (the whole feedback+pause+
+slide window), it shows a fixed last-known snapshot (captured directly in `handlePick`'s own
+closure, not via a `useEffect`+`setState` mirror — the first attempt at this hit React's
+"don't call setState synchronously inside an effect" cascading-render lint error, and wasn't
+needed anyway once the snapshot is captured inline in the event-handler flow instead). Once
+`revealed` flips to `true` at settle, the box tracks live props on every subsequent render,
+indefinitely — no single-shot window left to lose the race against. A late-arriving refetch now
+simply re-renders the box correctly whenever it actually resolves, whether that's before or after
+the settle point.
+
+**Verified with a deliberate post-settle wait** (per the brief, not a same-instant check): full
+0/6 -> 6/6 live run against `IMMOLATION — Descent` (a fresh, previously-unrated album), 6th pick
+on Coherence, then a 4-second explicit wait before checking — Rank #2 / Score 100% confirmed via
+both a script-level DOM check and a real screenshot, ~12 seconds after the pick (long past the
+730-880ms settle window, well into territory where the old one-shot bug would have already shown
+its permanent-stale-dash failure mode if it were still present).
+
+**Accent-color revert**: Dan asked to fully back out the accent-border treatment added to
+`CriterionLevelPicker` across revisions 2-3 (both the persistent already-selected border and the
+feedback-moment color) — back to the plain, unconditional `sand.200` `_checked` ring, byte-
+identical to `DesktopRatingLayout`'s untouched style. The scale-up + dim/fade feedback
+(`motion.div`, the `_disabled` opacity fix) was kept, confirmed still working. The Overview row's
+arrival highlight (box-shadow, `accent.border`) was explicitly out of scope for this revert and
+is unchanged. Verified live: reopening an already-rated criterion now shows the plain white ring,
+no accent color anywhere in the picker at any point (idle, mid-feedback, or persistent).
+
+**Pause between feedback and slide** (`PAUSE_MS`): added a `setTimeout` between `FEEDBACK_MS`
+elapsing and the slide starting, so the two read as distinct steps rather than blurring together.
+Set to 150ms — the midpoint of the brief's suggested 100-250ms range. Verified the mechanism
+itself fires correctly (monitored `MobileScreenTransition`'s track `transform` directly: it only
+starts moving ~600-800ms after a pick, matching `FEEDBACK_MS + PAUSE_MS` plus real network
+latency for the save), but **not** live-feel-tested — this tool can confirm the pause exists and
+measure its duration, but can't judge whether 150ms specifically "feels right" the way a human
+watching it can, the same limitation noted for `SLIDE_MS`/`FEEDBACK_MS` previously. Flagged for
+Dan, not closed out.
+
+**Verification**: `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified against real
+Supabase data end to end (`IMMOLATION — Descent`, 0/6 -> 6/6, driven via `label.click()`/
+`button.click()` dispatch): radar-chart modal still functional (real click, real screenshot),
+desktop at 1280px visually unaffected (plain checked ring, no accent color, Rank/Score/radar all
+correct).
+
+**Still open going into any future stage-4a work**: `FEEDBACK_MS` (450), `PAUSE_MS` (150), and
+`SLIDE_MS` (280) all need Dan's live feel-confirmation — none have been adjusted from
+first-guess/brief-suggested values based on actual perceived feel, only verified to fire
+correctly. Stage 4b (sticky headers) not started.
+
+**Post-hoc audit of the `revealed` reset, requested by Dan before accepting the race fix above**:
+confirmed via code trace (not re-asserted from memory) that `setRevealed(false)`
+(`MobileRatingLayout.tsx:167`) sits inside `handlePick` itself, unconditionally, and therefore
+re-arms on *every* pick — not a one-time flip at mount that happened to already be `true` by the
+6th pick. Traced pick 6 specifically: `revealed` is `true` (left over from pick 5's own settle,
+line 177) right up until line 167 flips it `false` for pick 6's own hidden window, then line 177
+flips it back `true` at pick 6's own settle. The earlier live-verification screenshot (Rank
+#2/100%, confirmed 12s after the pick with a deliberate 4s wait) therefore did exercise a real
+`false -> true` cycle scoped to the final pick, not a no-op.
+
+One gap this trace does not close: whether that test's `refetchRatingSummary()` happened to
+resolve *before* the freeze started (line 167) or genuinely *after* the reveal (line 177) — both
+are consistent with the passing result, and only the latter actually proves the gate bridges a
+real gap rather than the refetch simply always winning the race in this dev environment. Forcing
+the slow-refetch case directly (e.g. throttling network in the browser tool) was proposed but not
+yet attempted — open follow-up if this needs a harder guarantee than "verified to behave
+correctly under normal network conditions."

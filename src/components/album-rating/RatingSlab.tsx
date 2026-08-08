@@ -5,8 +5,8 @@
 // value string (a rank "#N", a percentage, or an em dash pre-completion).
 // flex="1 1 0" gives an even 50/50 split when paired with a sibling RatingSlab (Rank/Score), or
 // fills the full row width when rendered alone (the progress variant, pre-completion) — safe
-// because this component only ever renders inside DesktopRatingLayout's Section 3 top row, not
-// as a general-purpose slab.
+// because this component only ever renders inside RatingProgressBox (used by both
+// DesktopRatingLayout's Section 3 and MobileRatingLayout), not as a general-purpose slab.
 import { Box, Text } from '@chakra-ui/react';
 import { scoreSlabBase, scoreSlabHigh } from '../../theme';
 

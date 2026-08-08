@@ -13,6 +13,31 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## A. Product features (named, not built)
 
+- **Sticky album-info (+ criterion-name row on Detail) for mobile album evaluation
+  — stage 4b of the `mobile-album-evaluation-redesign` brief, deferred, needs its
+  own branch.** Two approaches tried and reverted on that branch (not present in
+  the merge to `master`):
+  (a) internal scroll container with capped card height — rejected live, wasted
+  screen space and clipped content (confirmed via screenshot, only 4/6 criteria
+  rows visible before hitting an untuned `maxH` budget);
+  (b) page-level sticky — technically simpler and preferred, but
+  `MobileScreenTransition`'s horizontal slide uses `transform: translateX`,
+  which creates a new containing block for descendants and is a known
+  Safari/WebKit trouble spot for `position: sticky` (inconsistent — sometimes
+  doesn't stick at all). Known fix if revisited: switch the track's horizontal
+  animation from `x`/transform to `marginLeft` (0 -> -50%), which removes the
+  containing-block effect; would need re-verification that this doesn't
+  introduce jank (layout-property animation reflows every frame, unlike
+  transform's GPU-composited path) and that sticky then works reliably in real
+  Safari/iOS testing (emulated mobile viewports in Chrome DevTools don't
+  exercise WebKit and don't prove anything here — this was tested for real in
+  Safari desktop, not assumed).
+  Also found and **not yet fixed**: `MobileScreenTransition`'s track is a flex
+  row that sizes to its tallest child regardless of which panel is active — any
+  future sticky work should keep the height-follows-active-panel fix
+  (`animate={{ height }}` alongside `x`) that was part of this investigation,
+  it's independent of the sticky question and still correct/needed.
+  `album-rating-page.md` (stage 4a entries, same branch/file).
 - **Retrofit the new `PageBreadcrumb` component onto other pages** — built reusable
   (`{label, to?}[]` API, `components/ui/breadcrumb.tsx`) during the AlbumRatingPage desktop
   redesign (2026-08-05) but only wired up there this session, per the brief's explicit scope
@@ -114,6 +139,21 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **`MobileRatingLayout`'s `revealed` gate race fix — not tested under a forced
+  slow refetch.** Stage 4a revision 4 (2026-08-08, `mobile-album-evaluation-redesign`
+  branch, `album-rating-page.md`'s dated stage-4a revision-4 entry) fixed a real bug
+  where `RatingProgressBox`'s Rank/Score could permanently stick at "—" after the
+  6th/final pick, by replacing a one-shot snapshot sync with a `revealed` boolean
+  gate that re-arms on every pick (traced and confirmed at Dan's request:
+  `setRevealed(false)` at `MobileRatingLayout.tsx:167` sits inside `handlePick`
+  itself, not a one-time mount flip). Live-verified end to end against real
+  Supabase data (0/6 -> 6/6, deliberate post-settle wait, Rank/Score correctly
+  appeared) — but that test's `refetchRatingSummary()` may simply have resolved
+  fast enough that the gate never had to bridge an actual gap; both a
+  same-instant resolve and a genuinely-late resolve are consistent with the
+  passing result. Proposed but not attempted: throttle network in the browser
+  tool (if available) to force the refetch to resolve *after* the slide settles,
+  to get a harder guarantee than "verified under normal network conditions."
 - **`skipped_posts.url` has no index.** Surfaced 2026-08-07 while adding the
   `filterAlreadySkipped` safety-net check (see `roundup-skip-fix.md`'s stale-deploy
   addendum). The new bulk check does one full-table `select('url')` per ingest run rather
