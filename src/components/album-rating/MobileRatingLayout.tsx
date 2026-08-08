@@ -292,7 +292,7 @@ export function MobileRatingLayout({
               align="center"
               gap={3}
               px={4}
-              py={4}
+              py={5}
               borderBottom={isLast ? 'none' : '1px solid'}
               borderColor="sand.600"
               // Revision 2 made this border-only, not a background fill — `accent.border`

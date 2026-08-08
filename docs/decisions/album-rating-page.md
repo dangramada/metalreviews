@@ -1469,3 +1469,28 @@ immediately) was added, live-checked at 375px and 1280px via the browser tool �
 computed `paddingTop`/`paddingBottom` both confirmed correct (8px/8px mobile, 16px/12px
 desktop) — then removed before finishing, leaving no trace in `main.tsx` or the tree.
 `tsc --noEmit` clean, `npx vitest run` 222/222.
+
+## 2026-08-08 — Mobile criteria row vertical padding increase
+
+**Diagnostic (Step 1)**: the mobile Screen 1 (Overview) criteria rows have no dedicated named
+component — each row is inline JSX (`Flex as="button"`, `MobileRatingLayout.tsx:288-347`) inside
+the `order.map(...)` loop in `overviewPanel`. Not a component previously documented — noted here
+for future reference. Confirmed via grep it is not shared with
+`DesktopRatingLayout.tsx`'s own criteria row (a separate inline `Flex`, `DesktopRatingLayout.tsx:
+175-176`) — the two happened to already use identical `px={4} py={4}` values, but as
+independent, unconnected JSX blocks, so editing one doesn't risk the other.
+
+**Change**: `py={4}` (16px) → `py={5}` (20px) on the mobile row only (`MobileRatingLayout.tsx:295`).
+`px={4}` and every other prop on the row (border, box-shadow highlight ring, hover background,
+icon, text) untouched. Chakra scale token used, consistent with the component's existing
+token-first pattern (no literal px strings on this row previously, so no inconsistency
+introduced). Desktop's row is unaffected.
+
+**Verification**: no test account credentials were available, so a temporary
+`/dev-mobile-rating-preview` route + `DevMobileRatingPreview.tsx` harness (same pattern as the
+above entries) rendered `MobileRatingLayout` directly with a mock catalog and three ratings
+presets (empty / partial / full) toggled via on-page buttons. Live-checked at 375px: unrated rows
+("NOT EVALUATED" badge) and rated rows (colored level badge) both showed the larger padding with
+correct icon/text vertical centering and no row-height reflow issues. Removed before finishing —
+no trace left in `main.tsx` or the tree. `tsc --noEmit` clean, `npx vitest run` 222/222 (32 test
+files).
