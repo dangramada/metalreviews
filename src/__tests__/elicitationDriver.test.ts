@@ -6,6 +6,7 @@ import {
   enumerateCriterionPairs,
   coldStartProfilesForPair,
   buildCanonicalDegree2Pairs,
+  generateCandidatesForSubset,
   nextAction,
 } from '../lib/criteria-calibration/elicitationDriver';
 import {
@@ -42,6 +43,60 @@ describe('coldStartProfilesForPair', () => {
 describe('buildCanonicalDegree2Pairs', () => {
   it('produces one comparison per pair, matching enumerateCriterionPairs count', () => {
     expect(buildCanonicalDegree2Pairs([5, 5, 5, 5, 5, 5])).toHaveLength(15);
+  });
+});
+
+function isDominatedOrTied(profileA: Profile, profileB: Profile): boolean {
+  const keys = Object.keys(profileA).map(Number);
+  let sawAGreater = false;
+  let sawBGreater = false;
+  for (const idx of keys) {
+    if (profileA[idx] > profileB[idx]) sawAGreater = true;
+    if (profileB[idx] > profileA[idx]) sawBGreater = true;
+  }
+  return !(sawAGreater && sawBGreater);
+}
+
+describe('generateCandidatesForSubset — dominance filter', () => {
+  it('never emits a dominated or tied pair, across many subsets/degrees', () => {
+    const levelsPerCriterion = [5, 5, 5, 5, 5, 5];
+    const subsets: number[][] = [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+      [0, 5],
+      [0, 1, 2],
+      [1, 2, 3],
+      [2, 3, 4],
+      [0, 2, 4],
+      [0, 1, 2, 3],
+      [2, 3, 4, 5],
+    ];
+    let totalCandidates = 0;
+    for (const subset of subsets) {
+      const candidates = generateCandidatesForSubset(subset, levelsPerCriterion);
+      totalCandidates += candidates.length;
+      for (const { profileA, profileB } of candidates) {
+        expect(isDominatedOrTied(profileA, profileB)).toBe(false);
+      }
+    }
+    // Sanity check the assertion loop actually exercised real candidates, not empty pools.
+    expect(totalCandidates).toBeGreaterThan(subsets.length * 3);
+  });
+
+  it('still fills up to CANDIDATES_PER_SUBSET candidates per subset despite the filter', () => {
+    const levelsPerCriterion = [5, 5, 5, 5, 5, 5];
+    for (const subset of [
+      [0, 1],
+      [2, 3],
+      [0, 1, 2],
+      [3, 4, 5],
+    ]) {
+      const candidates = generateCandidatesForSubset(subset, levelsPerCriterion);
+      expect(candidates.length).toBe(6);
+    }
   });
 });
 
@@ -238,5 +293,28 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
     const earlyGain = accuracyAtCoverage - accuracyAtStart;
     const lateGain = accuracyAtEnd - accuracyAtCoverage;
     expect(Math.abs(lateGain)).toBeLessThan(Math.abs(earlyGain));
+  }, 30_000);
+
+  it('never asks a dominated or tied pair across a full driver-paced run (regression for the dominance filter)', () => {
+    const session = new CalibrationSession();
+    let action = nextAction(session, levelsPerCriterion, 2);
+    let currentDegree = 2;
+    let asked = 0;
+
+    while (asked < 59) {
+      if (action.type === 'ask') {
+        expect(isDominatedOrTied(action.profileA, action.profileB)).toBe(false);
+        session.recordAnswer(
+          action.profileA,
+          action.profileB,
+          oracleAnswer(action.profileA, action.profileB)
+        );
+        asked++;
+      } else {
+        if (!action.canEscalate) break;
+        currentDegree = action.nextDegree!;
+      }
+      action = nextAction(session, levelsPerCriterion, currentDegree);
+    }
   }, 30_000);
 });

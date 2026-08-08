@@ -156,7 +156,32 @@ function createSeededRng(seed: number): () => number {
 
 const CANDIDATES_PER_SUBSET = 6;
 
-function generateCandidatesForSubset(
+/**
+ * True if, restricted to `subset`, one profile is weakly >= the other on every criterion
+ * and strictly > on at least one — i.e. the pair offers no real trade-off. PAPRIKA's own
+ * method only elicits undominated ("ambiguous") pairs; a dominated pair has an obvious
+ * answer and wastes a question. Both profiles are always defined over exactly the same
+ * `subset` here (see call site), so a single pass tracking which side ever strictly leads
+ * is sufficient: both sides leading somewhere means genuinely incomparable (keep), only one
+ * side ever leading means dominated (reject). The full-tie case (neither side ever leads)
+ * is already caught by the caller's `keyA === keyB` check before this runs.
+ */
+function isDominatedPair(
+  profileA: Record<number, number>,
+  profileB: Record<number, number>,
+  subset: number[]
+): boolean {
+  let sawAStrictlyGreater = false;
+  let sawBStrictlyGreater = false;
+  for (const idx of subset) {
+    if (profileA[idx] > profileB[idx]) sawAStrictlyGreater = true;
+    if (profileB[idx] > profileA[idx]) sawBStrictlyGreater = true;
+  }
+  return sawAStrictlyGreater !== sawBStrictlyGreater;
+}
+
+/** Exported for direct testing of the dominance filter — not used outside this module. */
+export function generateCandidatesForSubset(
   subset: number[],
   levelsPerCriterion: number[]
 ): CandidatePair[] {
@@ -178,6 +203,7 @@ function generateCandidatesForSubset(
     const keyA = profileKey(profileA);
     const keyB = profileKey(profileB);
     if (keyA === keyB) continue;
+    if (isDominatedPair(profileA, profileB, subset)) continue;
     const pairKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
     if (seenPairKeys.has(pairKey)) continue;
     seenPairKeys.add(pairKey);
