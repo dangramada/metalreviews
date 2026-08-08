@@ -1187,3 +1187,98 @@ didn't move).
 **What did not change:** `DesktopRatingLayout.tsx`, `RatingProgressBox.tsx`, `RatingRadarChart.tsx`,
 the radar-chart modal (stage 2, entirely inside `MobileRatingLayout.tsx`), any
 screen-transition/selection-feedback behavior (stage 4, not started).
+
+## Stage 4a (2026-08-08) — selection feedback + screen transitions, two revisions
+
+First live testing of the mobile-album-evaluation-redesign branch (prior stages were
+DOM-scan/mock-data verified only, never a real logged-in click-through) surfaced real problems
+in the first attempt, leading to a second revision. Both are recorded here since revision 1's
+mistakes are exactly why revision 2 looks the way it does.
+
+**Revision 1.** Replaced the flat `AUTO_RETURN_MS` (1750ms) delay-then-snap with: save → scale +
+checkmark + dim feedback on the picked `RadioCardItem` (`FEEDBACK_MS`) → a directional
+`AnimatePresence`/`mode="popLayout"` slide back to Screen 1 (`SLIDE_MS`) → row highlight once
+settled. `RatingProgressBox` was hoisted above the `AnimatePresence` block and toggled via CSS
+`display` (not unmounted) specifically so its own crossfade — previously never able to play on
+mobile at all, since the box used to live *inside* the per-screen branch and so unmounted on
+every screen switch — could survive the switch. A `progressSnapshot` state, synced from the live
+`ratings`/`ratingSummary` props only inside the "slide settled" callback, gated when the box
+was allowed to see the new `ratedCount` at all, so the crossfade would play at arrival instead of
+mid-slide.
+
+Dan's live testing (real Supabase account, real clicks) found this genuinely felt "greoaie/
+sacadată" (heavy/jerky), and diagnosed why precisely: `RatingProgressBox`, hoisted outside the
+`AnimatePresence` block, wasn't part of what actually slid — it popped via `display` toggle at
+its own independent moment while the criteria list slid as a separate, uncoordinated animation.
+Two treatments on what should read as one panel.
+
+**Revision 2 — structural fix.** Root-caused (not guessed) two more issues at the same time:
+
+- **Border bug**: the album-info→content divider used `borderTop` on `Flex`/`VStack` elements,
+  one of them (`Flex as="button"`, the detail screen's back row) without an explicit `w="100%"`
+  — a `Flex` rendered `as="button"` can pick up a native `<button>`'s intrinsic sizing behavior
+  on some mobile engines even with `display:flex` applied. Per Dan's screenshot, that border
+  visibly stopped short of the card's right edge. Fixed by using one dedicated `Box` divider
+  with an explicit `w="100%"` in both panels, rather than relying on ambient block-width
+  behavior on a `Flex`/`VStack`.
+- **Dim-affects-selected-card bug**: Chakra's radio-card recipe bakes in `_disabled: {opacity:
+  0.5}` on the item slot. `disabled` was set to `true` for *every* `RadioCardItem` during the
+  feedback window (to block re-taps), including the selected one — so even though the custom
+  per-item dim logic correctly excluded the selected card, Chakra's own disabled-opacity still
+  applied to it (opacities compound: 1 × 0.5 = 0.5). Fixed with a per-item `_disabled={{opacity:
+  isFeedbackTarget ? 1 : 0.5}}` override.
+
+Structural fix: `MobileScreenTransition.tsx` (new) — owns *only* the slide mechanics, decoupled
+on purpose from feedback/highlight/snapshot state (so a future switch to e.g. a bottom-sheet
+reveal only touches this file). A two-panel flex track (`width: 200%`, each panel `50%`/
+`flexShrink: 0`), both panels *always* mounted side by side, with a single `translateX` on the
+shared track (`x: 0%` for overview, `x: -50%` for detail) driving visibility — no
+`AnimatePresence`, no enter/exit variant pair, one transform serves both directions.
+`MobileRatingLayout.tsx` was rebuilt around it: `albumInfo` is no longer hoisted/deduplicated
+above the sliding content — each screen is now a fully self-contained panel (album info +
+progress box + list, or album info + back row + picker), so *everything* in a panel moves
+together as MobileScreenTransition slides it. `detailCriterionId` no longer resets to `null` on
+return (defaults to `order[0]`, never null) — since both panels are permanently mounted,
+including while the detail panel is still visible mid-slide-back, a null-guarded panel would
+flash blank instead of showing the just-rated criterion underneath.
+
+`progressSnapshot` (the delayed-sync mechanism) was **kept**, not dropped, despite the panel
+now being permanently mounted — flagged explicitly by Dan before implementation: "always
+mounted" only fixes state loss on remount, it doesn't stop the *live* `ratings`/`ratingSummary`
+props from updating (and `RatingProgressBox` reacting to them) the instant the save resolves,
+well before the feedback+slide sequence finishes, while the panel may still be translated
+off-screen. Without the snapshot, the crossfade would play and finish while invisible — the
+exact "pop instead of crossfade" bug this mechanism exists to prevent, reintroduced via a
+different path. `progressSnapshot` still only syncs from live props inside the same
+"slide settled" `setTimeout` as before; only the CSS-`display` toggle was dropped (no longer
+needed once the panel is naturally always-mounted rather than hoisted-and-toggled).
+
+**Other revision-2 fixes**, both in `CriterionLevelPicker.tsx`: removed the checkmark-over-
+indicator overlay entirely (visually clashed with Ark UI's own `_checked` state) — feedback is
+scale-up only now. Row highlight (`MobileRatingLayout.tsx`, arrival) and the selection-feedback
+ring (`CriterionLevelPicker.tsx`, mid-pick) both switched from a `bg` fill to a `border`, same
+`accent.border` token in both places — the arrival highlight's `accent.ink` text-color swap was
+also dropped (it existed only for contrast against the now-removed fill).
+
+**Timing**: `FEEDBACK_MS` (450) and `SLIDE_MS` (280) carried over unchanged from revision 1 —
+revision 1's "snappier, not sluggish" read was against the disjointed two-treatment slide, not
+the unified one, so per the brief these values are flagged as still needing a live-feel
+re-confirmation post-restructure rather than assumed correct.
+
+**Verification**: `tsc --noEmit` clean, `npx vitest run` 222/222, both revisions. Live-tested
+against real Supabase data (Dan directly, plus tool-driven verification via
+`label.click()`/`button.click()` dispatch — the browser tool's coordinate-based `left_click`
+was unreliable across both sessions, consistent with the flakiness noted in the stage-3 entry
+above, so verification routed around it the same way). Confirmed end-to-end: progress increments
+correctly across 4 sequential picks (3/6 → 6/6) on a real album, the 6th pick correctly shows
+the crossfaded Rank/Score (not a stuck pending state), both panel dividers span the full card
+width, the radar-chart modal still opens correctly post-restructure (real click, real screenshot
+with rendered hexagon), and `DesktopRatingLayout` at 1280px is visually unaffected (own
+`CriterionLevelPicker` usage never passes `pendingLevel`, so `feedbackActive` is always `false`
+there — same checked-ring styling as before this stage). Not captured: a mid-slide screenshot
+proving `RatingProgressBox` hasn't reached its final state while still transitioning into
+view — the tool's round-trip latency consistently exceeded the ~730ms total animation window
+across repeated attempts in both sessions, so that specific proof relies on Dan's own live
+observation (he reached 6/6 on a separate album, Ænigmatum, independently during this stage).
+Stage 4b (sticky headers) not started; selection/transition animation for stage 4 is otherwise
+functionally complete pending Dan's feel-confirmation on the two timing values above.

@@ -66,9 +66,14 @@ dialog; `RatingProgressBox.tsx`/`DesktopRatingLayout.tsx` both zero-diff. Stage 
 complete (2026-08-08): removed the "View Your Evaluation" button and the page-level `DialogRoot`
 + `RatingSummaryView` render (button lived in `MobileRatingLayout.tsx`, but its dialog state and
 render were in `AlbumRatingPage.tsx`, not co-located as might be assumed); `RatingSummaryView.tsx`
-deleted outright (no other references anywhere in the repo, confirmed via `git grep`). Stage 4
-(selection/transition animation) not started. Full detail: `docs/decisions/album-rating-page.md`'s
-2026-08-07/08 dated entries.
+deleted outright (no other references anywhere in the repo, confirmed via `git grep`). Stage 4a
+(selection feedback + screen transitions) functionally complete (2026-08-08) after a live-tested
+revision: new `MobileScreenTransition` component owns a unified two-panel slide (fixes a
+disjointed-animation bug from the first attempt), `progressSnapshot` delay mechanism kept,
+checkmark overlay removed, highlight switched from fill to border. `FEEDBACK_MS`/`SLIDE_MS`
+timing not yet feel-confirmed by Dan post-restructure. Stage 4b (sticky headers) not started.
+Full detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08 dated entries, esp. the
+Stage 4a entry.
 
 `favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
 branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
