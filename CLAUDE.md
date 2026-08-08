@@ -51,6 +51,22 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`criteria-calibration-medium-gate-redesign` merged to `master` on 2026-08-09 via merge
+commit `5555b7e` (rollback tag `pre-merge-criteria-calibration-medium-gate-redesign` on the
+prior tip) — branch retained per convention, not deleted. Redefines Medium tier:
+`isMediumTierReached` no longer checks exhaustive canonical degree-2 pair coverage
+(measured bookkeeping, not model determinacy — one production account reached old-Medium
+at 0.60 solver accuracy with levels 2-4 fully unconstrained for every criterion); it's now
+`computeSolverAccuracy(result) >= MEDIUM_ACCURACY_THRESHOLD` (0.85, explicitly provisional,
+same unvalidated status as the 0.92/0.97 High/Very High thresholds — final calibration
+deferred to a planned future real-calibration session). `MAX_AMBIGUOUS_GAP` decoupled from
+gating (UX pacing only now). Migration: the one production account previously at Medium
+(`eec42cd4-...`) re-gated to `'none'` via a direct Supabase write, `accuracy_value` (0.599)
+left untouched as an accurate record under the new rule. Fixture re-check against the real
+31-answer historical session: new gate first fires at answer 19 (accuracy 0.8715), close to
+the real session's own ~20-answer degree-2 milestone. Full detail:
+`docs/decisions/criteria-calibration-medium-gate-redesign.md`.
+
 `album-eval-rank-score-reorder` merged to `master` on 2026-08-08 via merge commit `8781e3b` —
 branch retained per convention, not deleted. Swaps the Rank/Score block's DOM order (Score/
 light-bg first, Rank/ember-bg second) and tightens mobile-only vertical padding on both slabs to
