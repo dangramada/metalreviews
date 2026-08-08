@@ -49,8 +49,8 @@ export function RatingProgressBox({ ratedCount, totalCount, ratingSummary }: Rat
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
           <Flex gap={0}>
-            <RatingSlab label="Rank" value={rankValue} variant="high" />
             <RatingSlab label="Score" value={scoreValue} variant="base" />
+            <RatingSlab label="Rank" value={rankValue} variant="high" />
           </Flex>
         </motion.div>
       )}

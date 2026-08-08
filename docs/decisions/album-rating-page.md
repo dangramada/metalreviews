@@ -1436,3 +1436,36 @@ real gap rather than the refetch simply always winning the race in this dev envi
 the slow-refetch case directly (e.g. throttling network in the browser tool) was proposed but not
 yet attempted — open follow-up if this needs a harder guarantee than "verified to behave
 correctly under normal network conditions."
+
+## 2026-08-08 — Rank/Score block reorder + mobile padding tighten
+
+**Diagnostic (Step 1, before any code changed)**: confirmed the completed-state Rank/Score row
+is composed by a single shared component, `RatingProgressBox.tsx`, consumed by both
+`DesktopRatingLayout` and `MobileRatingLayout` — not two independent implementations. Mobile and
+desktop aren't switched via a JS breakpoint hook; `AlbumRatingPage.tsx` mounts both layouts
+simultaneously, each wrapped in a `Box` that CSS-hides itself past the opposite side of the
+768px split (`@media (max-width: 47.9375em)` / `@media (min-width: 48em)`), same pattern used
+elsewhere in this file. DOM order was Rank first, Score second, matching the brief's
+expectation. The `pt="16px" pb="12px"` override on `RatingSlab.tsx` (originally added to
+override `scoreSlabBase`'s own 8px/4px) was confirmed to be a single hardcoded value, identical
+on both breakpoints — but it sits on the one `Box` shared by all three `RatingSlab` variants
+(`base`/`high`/`score`+`rank`, and `progress`), not scoped to just Rank/Score. Flagged to Dan per
+the brief's own stop condition; Dan chose to apply the change to all variants rather than adding
+a variant-scoped exception.
+
+**Change**: swapped the two `RatingSlab` children in `RatingProgressBox.tsx` so Score (light/bone
+bg) renders first and Rank (ember bg) second, on both breakpoints — pure JSX reorder, no style
+changes to either slab. `RatingSlab.tsx`'s `pt`/`pb` became responsive
+(`{ base: 2, md: '16px' }` / `{ base: 2, md: '12px' }`, `md` = the same 768px split used
+elsewhere), tightening mobile to a uniform 8px/8px while leaving desktop's 16px/12px unchanged.
+`space.2` (Chakra's default scale, unmodified in `theme.ts`) resolves to 8px, matching the
+project's 4px grid, so the mobile value uses the token rather than a literal string; desktop kept
+the pre-existing literal px strings since those aren't on the grid.
+
+**Verification**: no test account credentials were available in this session, so a temporary
+`/dev-rating-preview` route (same pattern as the 2026-08-06 motion-pass harness, this time
+rendering both layouts with all 6 criteria pre-rated so the completed Rank/Score row shows
+immediately) was added, live-checked at 375px and 1280px via the browser tool — DOM order and
+computed `paddingTop`/`paddingBottom` both confirmed correct (8px/8px mobile, 16px/12px
+desktop) — then removed before finishing, leaving no trace in `main.tsx` or the tree.
+`tsc --noEmit` clean, `npx vitest run` 222/222.
