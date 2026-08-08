@@ -31,13 +31,24 @@ import { secondaryButton } from '../../theme';
 
 // Stage 4a re-sequencing: a pick used to fire a single flat AUTO_RETURN_MS delay before
 // snapping back with no intermediate feedback ("very poor" per the brief). Now: save -> the
-// selected RadioCard's scale feedback plays (FEEDBACK_MS) -> a slide transition back to Screen 1
-// plays (SLIDE_MS, see MobileScreenTransition) -> only once that settles does the row highlight
-// (and, on the 6th/final pick, the RatingProgressBox crossfade) begin. Revision 2 (see the dated
-// stage-4a entries in docs/decisions/album-rating-page.md): these two values are still under
-// live evaluation post-restructure — the original revision's "snappier, not sluggish" read was
-// against the disjointed two-treatment slide, not the unified one, so it needs re-confirming.
+// selected RadioCard's scale feedback plays (FEEDBACK_MS) -> a short pause (PAUSE_MS, revision 4)
+// -> a slide transition back to Screen 1 plays (SLIDE_MS, see MobileScreenTransition) -> only
+// once that settles does the row highlight (and, on the 6th/final pick, the RatingProgressBox
+// crossfade) begin. Revision 2 (see the dated stage-4a entries in
+// docs/decisions/album-rating-page.md): these values are still under live evaluation
+// post-restructure — the original revision's "snappier, not sluggish" read was against the
+// disjointed two-treatment slide, not the unified one, so it needs re-confirming.
 const FEEDBACK_MS = 450;
+// Revision 4: a beat between the feedback animation settling and the slide starting — without
+// it, the slide began the instant the scale/dim animation finished, which read as the two
+// blurring into one motion rather than two distinct, readable steps. 150ms — the middle of the
+// brief's suggested 100-250ms range, and its own starting point — chosen without a live feel-test
+// of the other values: this tool can verify the mechanism fires correctly (confirmed via
+// monitoring the slide transform, which only starts moving ~600ms after a pick, matching
+// FEEDBACK_MS+PAUSE_MS), but can't perceive subjective "does this feel right" the way a human
+// watching it can. Flagged for Dan the same way SLIDE_MS/FEEDBACK_MS already are — a value worth
+// confirming or nudging by feel, not one this session can close out on its own.
+const PAUSE_MS = 150;
 const SLIDE_MS = 280;
 // How long the just-arrived-at row stays highlighted before settling to its normal completed
 // appearance — unchanged from stage 1's "use your judgment" value, only its trigger moved (now
@@ -95,37 +106,43 @@ export function MobileRatingLayout({
   // card, dim on the rest — see CriterionLevelPicker) before the slide-back to Screen 1 starts.
   // `null` once idle/settled.
   const [pendingLevel, setPendingLevel] = useState<number | null>(null);
-  // Delayed snapshot RatingProgressBox actually renders from — see the dated stage-4a entry in
-  // docs/decisions/album-rating-page.md for why this exists: `ratings`/`ratingSummary` (props,
-  // below) update the instant the save resolves, but the box itself must not visibly react
-  // until the slide-back transition has fully settled, so its own crossfade (untouched,
-  // RatingProgressBox.tsx) plays at arrival rather than mid-slide or while still on Screen 2.
-  // Desktop's RatingProgressBox usage (DesktopRatingLayout.tsx) is unaffected — it reads the
-  // live props directly, no snapshot involved.
+  // `revealed` gates WHEN RatingProgressBox is allowed to react to live `ratings`/`ratingSummary`
+  // props, not WHAT it shows once allowed — see `progressSnapshot` below for the fixed value it
+  // falls back to while hidden. `false` for the whole feedback+slide window (so the box's own
+  // crossfade, untouched in RatingProgressBox.tsx, plays at arrival rather than mid-slide or
+  // while still on Screen 2), `true` from the moment the slide settles onward. Desktop's
+  // RatingProgressBox usage (DesktopRatingLayout.tsx) is unaffected — it reads live props
+  // directly, unconditionally, always.
+  //
+  // Revision 4: this used to be a one-shot sync (`progressSnapshot` captured once, at settle,
+  // from a ref tracking the latest props) instead of a boolean gate. That broke on the 6th/final
+  // pick specifically: `AlbumRatingPage.tsx`'s `refetchRatingSummary()` after the save is fired
+  // without awaiting it, so `ratingSummary` can still be stale at the exact instant the one-shot
+  // sync ran, if the refetch simply hadn't resolved yet — a real race, confirmed by Dan hitting it
+  // live (Rank/Score never appearing) even though earlier testing this session happened not to
+  // hit it. Once one-shot-synced stale, nothing re-triggered a second sync while staying on
+  // Overview, so it stayed permanently stuck. A boolean gate has no such single-shot window: once
+  // `revealed` is `true`, the box reads live props on every render, so a late-arriving refetch
+  // still lands correctly whenever it actually resolves.
+  const [revealed, setRevealed] = useState(true);
+  // The fixed value shown while `!revealed` — captured directly in `handlePick`, right as
+  // `revealed` flips to `false` (not via a `useEffect` mirroring live props: that ran into
+  // React's "don't setState synchronously inside an effect" cascading-render warning, and isn't
+  // needed anyway — `handlePick`'s own closure already has the exact "last known before this
+  // pick" values, which is precisely what should stay on screen for the hidden window).
   const [progressSnapshot, setProgressSnapshot] = useState(() => ({
     ratedCount: ratings.size,
     ratingSummary,
   }));
   const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Kept in sync every render so the settle callback (fired from inside a setTimeout closure
-  // created back when the pick started) can read the *current* ratings/summary rather than the
-  // stale values captured at that render — `ratings`/`ratingSummary` themselves update via the
-  // parent (AlbumRatingPage.tsx) well before the settle callback fires.
-  const latestRatedCountRef = useRef(ratings.size);
-  const latestRatingSummaryRef = useRef(ratingSummary);
-
-  useEffect(() => {
-    latestRatedCountRef.current = ratings.size;
-  }, [ratings]);
-  useEffect(() => {
-    latestRatingSummaryRef.current = ratingSummary;
-  }, [ratingSummary]);
 
   useEffect(() => {
     return () => {
       if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
+      if (pauseTimeout.current) clearTimeout(pauseTimeout.current);
       if (slideTimeout.current) clearTimeout(slideTimeout.current);
       if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
     };
@@ -142,20 +159,29 @@ export function MobileRatingLayout({
 
   async function handlePick(criterionId: number, level: number) {
     await onPick(criterionId, level);
+    // Freeze on "last known before this pick" — this closure's `ratings`/`ratingSummary` are
+    // exactly the values that were live the last time `revealed` was `true`, which is precisely
+    // what should stay on screen for the hidden window about to start.
+    setProgressSnapshot({ ratedCount: ratings.size, ratingSummary });
     setPendingLevel(level);
+    setRevealed(false);
     feedbackTimeout.current = setTimeout(() => {
       setPendingLevel(null);
-      returnToOverview();
-      slideTimeout.current = setTimeout(() => {
-        // Slide fully settled — arrival reveals: sync the progress box's snapshot (triggers its
-        // crossfade only now, on the 6th/final pick) and start the row highlight, together.
-        setProgressSnapshot({
-          ratedCount: latestRatedCountRef.current,
-          ratingSummary: latestRatingSummaryRef.current,
-        });
-        setHighlightedCriterionId(criterionId);
-        fadeTimeout.current = setTimeout(() => setHighlightedCriterionId(null), HIGHLIGHT_FADE_MS);
-      }, SLIDE_MS);
+      pauseTimeout.current = setTimeout(() => {
+        returnToOverview();
+        slideTimeout.current = setTimeout(() => {
+          // Slide fully settled — arrival reveals: let the progress box track live props again
+          // (triggers its crossfade only now, on the 6th/final pick — see `revealed` above for why
+          // this is a gate rather than a one-shot value copy) and start the row highlight,
+          // together.
+          setRevealed(true);
+          setHighlightedCriterionId(criterionId);
+          fadeTimeout.current = setTimeout(
+            () => setHighlightedCriterionId(null),
+            HIGHLIGHT_FADE_MS
+          );
+        }, SLIDE_MS);
+      }, PAUSE_MS);
     }, FEEDBACK_MS);
   }
 
@@ -233,18 +259,17 @@ export function MobileRatingLayout({
         px={0}
         py={0}
       >
-        {/* Reads from the delayed snapshot, not the live `ratings`/`ratingSummary` props — kept
-            from the previous revision (still needed even though this panel is now permanently
-            mounted): the save resolves, and `ratedCount` updates, well before the feedback +
-            slide sequence finishes, while this panel may still be off-screen mid-transition.
-            Without the delay, the 6th/final pick's crossfade would play (and finish) while
-            invisible, so arrival would show the already-settled final state — the same "pop
-            instead of crossfade" bug this mechanism exists to prevent, just via live props
-            leaking through a permanently-mounted panel instead of via remounting. */}
+        {/* While hidden (`!revealed`), shows the fixed `progressSnapshot` rather than live props
+            — the save resolves, and `ratedCount` updates, well before the feedback+pause+slide
+            sequence finishes, while this panel may still be off-screen mid-transition; without
+            gating, the 6th/final pick's crossfade would play (and finish) while invisible, so
+            arrival would show the already-settled final state instead of animating into it. Once
+            `revealed`, reads live props directly and keeps doing so — see `revealed`'s
+            declaration above for why this must be a persistent gate, not a one-shot copy. */}
         <RatingProgressBox
-          ratedCount={progressSnapshot.ratedCount}
+          ratedCount={revealed ? ratings.size : progressSnapshot.ratedCount}
           totalCount={order.length}
-          ratingSummary={progressSnapshot.ratingSummary}
+          ratingSummary={revealed ? ratingSummary : progressSnapshot.ratingSummary}
         />
       </Box>
       <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">

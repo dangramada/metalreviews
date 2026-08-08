@@ -102,26 +102,16 @@ export function CriterionLevelPicker({
                   // covers its fill dot — both driven by `colorPalette.solid`/`.contrast` in the
                   // recipe otherwise.
                   //
-                  // Stage 4a: on mobile (`feedbackActive`, i.e. whenever MobileRatingLayout passes
-                  // `pendingLevel` at all — desktop never does), every checked item uses the same
-                  // accent color MobileRatingLayout's arrival row-highlight uses (`accent.border`)
-                  // — a border, not a fill, matching the "highlight = border, never background"
-                  // rule applied consistently across both feedback moments. Revision 3: this is
-                  // unconditional on `feedbackActive`, not scoped to `isFeedbackTarget` — opening
-                  // the Detail screen for an *already*-rated criterion should show the same accent
-                  // border on that saved level immediately, not only during the transient
-                  // just-picked window, so "already selected" and "just now selected" read as the
-                  // same state. Desktop (`feedbackActive` always false, since it never passes
-                  // `pendingLevel`) keeps the original plain sand.200 ring — zero-diff preserved.
-                  _checked={
-                    feedbackActive
-                      ? {
-                          borderColor: 'accent.border',
-                          boxShadowColor: 'accent.border',
-                          cursor: 'default',
-                        }
-                      : { borderColor: 'sand.200', boxShadowColor: 'sand.200', cursor: 'default' }
-                  }
+                  // Stage 4a revisions 2/3 tried an accent-colored `_checked` ring here (both
+                  // persistent and feedback-moment) — reverted per Dan's request: back to the
+                  // plain, unconditional sand.200 ring, byte-identical to desktop's untouched
+                  // style. The scale-up + dim/fade feedback below (motion.div, `_disabled`) is
+                  // unaffected — only this border-color layer was reverted.
+                  _checked={{
+                    borderColor: 'sand.200',
+                    boxShadowColor: 'sand.200',
+                    cursor: 'default',
+                  }}
                   // Chakra's radio-card recipe bakes in `_disabled: { opacity: 0.5 }` on the item
                   // slot. MobileRatingLayout disables every item for the whole feedback window (to
                   // block re-taps mid-animation), so without this override the recipe's own
