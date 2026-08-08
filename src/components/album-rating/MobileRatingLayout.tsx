@@ -21,6 +21,7 @@ import { CloseButton } from '../ui/close-button';
 import { AlbumArtwork } from './AlbumArtwork';
 import { AlbumMetaBlock } from './AlbumMetaBlock';
 import { CriterionLevelPicker } from './CriterionLevelPicker';
+import { MobileScreenTransition } from './MobileScreenTransition';
 import { RatingProgressBox } from './RatingProgressBox';
 import { RatingRadarChart } from './RatingRadarChart';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
@@ -28,10 +29,19 @@ import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
 import type { CriterionLevelWeight } from './RatingRadarChart';
 import { secondaryButton } from '../../theme';
 
-// Auto-return delay after a pick, then how long the just-updated row stays highlighted before
-// settling to its normal completed appearance — both "use your judgment" per the brief, not
-// precisely specified.
-const AUTO_RETURN_MS = 1750;
+// Stage 4a re-sequencing: a pick used to fire a single flat AUTO_RETURN_MS delay before
+// snapping back with no intermediate feedback ("very poor" per the brief). Now: save -> the
+// selected RadioCard's scale feedback plays (FEEDBACK_MS) -> a slide transition back to Screen 1
+// plays (SLIDE_MS, see MobileScreenTransition) -> only once that settles does the row highlight
+// (and, on the 6th/final pick, the RatingProgressBox crossfade) begin. Revision 2 (see the dated
+// stage-4a entries in docs/decisions/album-rating-page.md): these two values are still under
+// live evaluation post-restructure — the original revision's "snappier, not sluggish" read was
+// against the disjointed two-treatment slide, not the unified one, so it needs re-confirming.
+const FEEDBACK_MS = 450;
+const SLIDE_MS = 280;
+// How long the just-arrived-at row stays highlighted before settling to its normal completed
+// appearance — unchanged from stage 1's "use your judgment" value, only its trigger moved (now
+// gated on the slide transition settling, not a flat post-pick delay).
 const HIGHLIGHT_FADE_MS = 2500;
 
 interface MobileRatingLayoutProps {
@@ -64,29 +74,84 @@ export function MobileRatingLayout({
   savingCriterionId,
 }: MobileRatingLayoutProps) {
   const [screen, setScreen] = useState<'overview' | 'detail'>('overview');
-  const [detailCriterionId, setDetailCriterionId] = useState<number | null>(null);
+  // Defaults to the first criterion (not null) so the detail panel always has real content to
+  // render — MobileScreenTransition keeps both panels mounted side by side at all times (see
+  // that component), including during the slide-back transition where the detail panel is still
+  // partway into view; a null/blank panel would flash empty mid-slide instead of showing the
+  // just-rated criterion underneath. Purely which criterion's levels the (currently offscreen or
+  // mid-transition) detail panel shows — not a saved rating.
+  const [detailCriterionId, setDetailCriterionId] = useState<number>(order[0]);
   const [highlightedCriterionId, setHighlightedCriterionId] = useState<number | null>(null);
   const [radarOpen, setRadarOpen] = useState(false);
-  const returnTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Selection-feedback state: the level just picked, mid-animation (scale-up on the selected
+  // card, dim on the rest — see CriterionLevelPicker) before the slide-back to Screen 1 starts.
+  // `null` once idle/settled.
+  const [pendingLevel, setPendingLevel] = useState<number | null>(null);
+  // Delayed snapshot RatingProgressBox actually renders from — see the dated stage-4a entry in
+  // docs/decisions/album-rating-page.md for why this exists: `ratings`/`ratingSummary` (props,
+  // below) update the instant the save resolves, but the box itself must not visibly react
+  // until the slide-back transition has fully settled, so its own crossfade (untouched,
+  // RatingProgressBox.tsx) plays at arrival rather than mid-slide or while still on Screen 2.
+  // Desktop's RatingProgressBox usage (DesktopRatingLayout.tsx) is unaffected — it reads the
+  // live props directly, no snapshot involved.
+  const [progressSnapshot, setProgressSnapshot] = useState(() => ({
+    ratedCount: ratings.size,
+    ratingSummary,
+  }));
+  const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Kept in sync every render so the settle callback (fired from inside a setTimeout closure
+  // created back when the pick started) can read the *current* ratings/summary rather than the
+  // stale values captured at that render — `ratings`/`ratingSummary` themselves update via the
+  // parent (AlbumRatingPage.tsx) well before the settle callback fires.
+  const latestRatedCountRef = useRef(ratings.size);
+  const latestRatingSummaryRef = useRef(ratingSummary);
+
+  useEffect(() => {
+    latestRatedCountRef.current = ratings.size;
+  }, [ratings]);
+  useEffect(() => {
+    latestRatingSummaryRef.current = ratingSummary;
+  }, [ratingSummary]);
 
   useEffect(() => {
     return () => {
-      if (returnTimeout.current) clearTimeout(returnTimeout.current);
+      if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current);
+      if (slideTimeout.current) clearTimeout(slideTimeout.current);
       if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
     };
   }, []);
 
-  async function handlePick(criterionId: number, level: number) {
-    await onPick(criterionId, level);
-    returnTimeout.current = setTimeout(() => {
-      setScreen('overview');
-      setHighlightedCriterionId(criterionId);
-      fadeTimeout.current = setTimeout(() => setHighlightedCriterionId(null), HIGHLIGHT_FADE_MS);
-    }, AUTO_RETURN_MS);
+  function openDetail(criterionId: number) {
+    setDetailCriterionId(criterionId);
+    setScreen('detail');
   }
 
-  const detailEntry = detailCriterionId !== null ? catalog?.entries[detailCriterionId] : undefined;
+  function returnToOverview() {
+    setScreen('overview');
+  }
+
+  async function handlePick(criterionId: number, level: number) {
+    await onPick(criterionId, level);
+    setPendingLevel(level);
+    feedbackTimeout.current = setTimeout(() => {
+      setPendingLevel(null);
+      returnToOverview();
+      slideTimeout.current = setTimeout(() => {
+        // Slide fully settled — arrival reveals: sync the progress box's snapshot (triggers its
+        // crossfade only now, on the 6th/final pick) and start the row highlight, together.
+        setProgressSnapshot({
+          ratedCount: latestRatedCountRef.current,
+          ratingSummary: latestRatingSummaryRef.current,
+        });
+        setHighlightedCriterionId(criterionId);
+        fadeTimeout.current = setTimeout(() => setHighlightedCriterionId(null), HIGHLIGHT_FADE_MS);
+      }, SLIDE_MS);
+    }, FEEDBACK_MS);
+  }
+
+  const detailEntry = catalog?.entries[detailCriterionId];
 
   // Zone 1 — artwork-left/meta-right, reimplemented locally from FavoriteListItemRow's desktop
   // tree (FavoritesPage.tsx, the >=768px `Flex` there) rather than shared/extracted this pass —
@@ -116,127 +181,176 @@ export function MobileRatingLayout({
     </Flex>
   );
 
-  return (
-    <>
-    <Box bg="surface.ratingCardFill" border="2px solid" borderColor="border.ruleStrong" borderRadius="none">
-      {screen === 'overview' ? (
-        <VStack align="stretch" gap={0}>
-          {albumInfo}
-          {/* px/py 0 (Stage 1 retouch) — this wrapper's own padding, not anything owned by
-              RatingProgressBox or shared with DesktopRatingLayout (that layout wraps the same
-              component in a bare VStack with no px/py of its own either) — see the dated
-              stage-1-retouch entry in docs/decisions/album-rating-page.md.
+  // A dedicated, explicitly full-width divider — stage 4a revision 2's border-bug fix. The
+  // previous structure hung dividers off `borderTop`/`borderBottom` on `Flex`/`VStack` elements
+  // (some `as="button"`) without an explicit `w="100%"`; those aren't guaranteed block-level-full
+  // width in every engine (a `Flex` rendered `as="button"` in particular can inherit a native
+  // `<button>`'s intrinsic sizing behavior on some mobile browsers even with `display:flex`
+  // applied). Per Dan's live testing, exactly one of the two dividers that used to exist here
+  // (the overview one, on a plain `Box` with explicit `w="100%"`) rendered correctly, while the
+  // other (the detail back-row `Flex`, no explicit width) visibly stopped short of the card's
+  // right edge — a plain `Box` with an explicit width sidesteps the whole bug class rather than
+  // special-casing the one spot that broke.
+  const divider = <Box w="100%" borderTop="1px solid" borderColor="border.ruleStrong" />;
 
-              Stage 2: an interactive wrapper *around* RatingProgressBox opens the radar-chart
-              modal — RatingProgressBox itself gets no onClick/prop change so desktop's usage
-              (DesktopRatingLayout.tsx) stays byte-for-byte unaffected. */}
-          <Box
-            as="button"
-            type="button"
-            onClick={() => setRadarOpen(true)}
-            aria-label="View radar chart"
-            w="100%"
-            textAlign="left"
-            cursor="pointer"
-            borderTop="1px solid"
-            borderColor="border.ruleStrong"
-            px={0}
-            py={0}
-          >
-            <RatingProgressBox ratedCount={ratings.size} totalCount={order.length} ratingSummary={ratingSummary} />
-          </Box>
-          <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">
-            {order.map((id, index) => {
-              const entry = catalog?.entries[id];
-              const level = ratings.get(id);
-              const isRated = level !== undefined;
-              const isLast = index === order.length - 1;
-              const highlighted = highlightedCriterionId === id;
-              // Same inline format as DesktopRatingLayout's criteria-row badge — no shared
-              // helper exists yet to call instead (confirmed via grep), so this replicates the
-              // exact expression rather than inventing a new one.
-              const statusLabel = isRated && entry ? `${level}–${entry.levels[level]?.label}` : 'NOT EVALUATED';
-              return (
-                <Flex
-                  key={id}
-                  as="button"
-                  onClick={() => {
-                    setDetailCriterionId(id);
-                    setScreen('detail');
-                  }}
-                  align="center"
-                  gap={3}
-                  px={4}
-                  py={4}
-                  borderBottom={isLast ? 'none' : '1px solid'}
-                  borderColor="sand.600"
-                  bg={highlighted ? 'accent.border' : undefined}
-                  _hover={{ bg: highlighted ? 'accent.border' : 'surface.criterionHover' }}
-                >
-                  <Text
-                    flex={1}
-                    textAlign="left"
-                    fontWeight="semibold"
-                    fontSize="sm"
-                    textTransform="uppercase"
-                    color={highlighted ? 'accent.ink' : 'text.primary'}
-                  >
-                    {entry?.name}
-                  </Text>
-                  <Text
-                    as="span"
-                    fontFamily="mono"
-                    fontSize="11px"
-                    fontWeight="600"
-                    textTransform="uppercase"
-                    letterSpacing="0.06em"
-                    px="8px"
-                    py="4px"
-                    bg={isRated ? 'accent.border' : 'sand.700'}
-                    color={isRated ? 'accent.ink' : 'text.primary'}
-                  >
-                    {statusLabel}
-                  </Text>
-                  <Icon as={LuChevronRight} color={highlighted ? 'accent.ink' : 'text.dim'} />
-                </Flex>
-              );
-            })}
-          </VStack>
-        </VStack>
-      ) : (
-        detailEntry && (
-          <VStack align="stretch" gap={0}>
-            {albumInfo}
+  // Screen 1, fully self-contained: album info + progress/rank+score box + criteria list, all
+  // one panel so MobileScreenTransition slides them together as a single unit — no more hoisting
+  // RatingProgressBox out to a separately CSS-toggled position (that was the previous attempt's
+  // "disjointed slide" bug: the box popped independently of the list instead of moving with it).
+  const overviewPanel = (
+    <VStack align="stretch" gap={0}>
+      {albumInfo}
+      {divider}
+      {/* px/py 0 (Stage 1 retouch) — this wrapper's own padding, not anything owned by
+          RatingProgressBox or shared with DesktopRatingLayout (that layout wraps the same
+          component in a bare VStack with no px/py of its own either) — see the dated
+          stage-1-retouch entry in docs/decisions/album-rating-page.md.
+
+          Stage 2: an interactive wrapper *around* RatingProgressBox opens the radar-chart
+          modal — RatingProgressBox itself gets no onClick/prop change so desktop's usage
+          (DesktopRatingLayout.tsx) stays byte-for-byte unaffected. */}
+      <Box
+        as="button"
+        type="button"
+        onClick={() => setRadarOpen(true)}
+        aria-label="View radar chart"
+        w="100%"
+        textAlign="left"
+        cursor="pointer"
+        px={0}
+        py={0}
+      >
+        {/* Reads from the delayed snapshot, not the live `ratings`/`ratingSummary` props — kept
+            from the previous revision (still needed even though this panel is now permanently
+            mounted): the save resolves, and `ratedCount` updates, well before the feedback +
+            slide sequence finishes, while this panel may still be off-screen mid-transition.
+            Without the delay, the 6th/final pick's crossfade would play (and finish) while
+            invisible, so arrival would show the already-settled final state — the same "pop
+            instead of crossfade" bug this mechanism exists to prevent, just via live props
+            leaking through a permanently-mounted panel instead of via remounting. */}
+        <RatingProgressBox
+          ratedCount={progressSnapshot.ratedCount}
+          totalCount={order.length}
+          ratingSummary={progressSnapshot.ratingSummary}
+        />
+      </Box>
+      <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">
+        {order.map((id, index) => {
+          const entry = catalog?.entries[id];
+          const level = ratings.get(id);
+          const isRated = level !== undefined;
+          const isLast = index === order.length - 1;
+          const highlighted = highlightedCriterionId === id;
+          // Same inline format as DesktopRatingLayout's criteria-row badge — no shared
+          // helper exists yet to call instead (confirmed via grep), so this replicates the
+          // exact expression rather than inventing a new one.
+          const statusLabel =
+            isRated && entry ? `${level}–${entry.levels[level]?.label}` : 'NOT EVALUATED';
+          return (
             <Flex
+              key={id}
               as="button"
-              onClick={() => setScreen('overview')}
+              onClick={() => openDetail(id)}
               align="center"
-              gap={2}
+              gap={3}
               px={4}
               py={4}
-              borderTop="1px solid"
-              borderColor="border.ruleStrong"
-              color="text.dim"
-              _hover={{ color: 'text.primary' }}
+              borderBottom={isLast ? 'none' : '1px solid'}
+              borderColor="sand.600"
+              // Revision 2: highlight is border-only, not a background fill — `accent.border`
+              // (ember.500) is the same token/color the selection-feedback ring in
+              // CriterionLevelPicker now uses, so arrival and mid-pick feedback read as the same
+              // "just touched this" treatment. No more `accent.ink` text-color swap either — that
+              // existed only for contrast against the (now-removed) fill.
+              border={highlighted ? '2px solid' : undefined}
+              borderColor={highlighted ? 'accent.border' : 'sand.600'}
+              _hover={{
+                borderColor: highlighted ? 'accent.border' : undefined,
+                bg: highlighted ? undefined : 'surface.criterionHover',
+              }}
             >
-              <Icon as={LuArrowLeft} />
-              <Text fontWeight="semibold" fontSize="sm" textTransform="uppercase">
-                {detailEntry.name}
+              <Text
+                flex={1}
+                textAlign="left"
+                fontWeight="semibold"
+                fontSize="sm"
+                textTransform="uppercase"
+              >
+                {entry?.name}
               </Text>
+              <Text
+                as="span"
+                fontFamily="mono"
+                fontSize="11px"
+                fontWeight="600"
+                textTransform="uppercase"
+                letterSpacing="0.06em"
+                px="8px"
+                py="4px"
+                bg={isRated ? 'accent.border' : 'sand.700'}
+                color={isRated ? 'accent.ink' : 'text.primary'}
+              >
+                {statusLabel}
+              </Text>
+              <Icon as={LuChevronRight} color="text.dim" />
             </Flex>
-            <Box px={4} pb={4}>
-              <CriterionLevelPicker
-                entry={detailEntry}
-                selectedLevel={ratings.get(detailEntry.index)}
-                onPick={(level) => handlePick(detailEntry.index, level)}
-                disabled={savingCriterionId !== null}
-                showTitle={false}
-              />
-            </Box>
-          </VStack>
-        )
-      )}
-    </Box>
+          );
+        })}
+      </VStack>
+    </VStack>
+  );
+
+  // Screen 2, equally self-contained. `detailEntry` always resolves once `catalog` has loaded
+  // (see `detailCriterionId`'s initializer above) — this panel is permanently mounted by
+  // MobileScreenTransition, including while off-screen, so it never needs a null/undefined guard.
+  const detailPanel = detailEntry && (
+    <VStack align="stretch" gap={0}>
+      {albumInfo}
+      {divider}
+      <Flex
+        as="button"
+        onClick={returnToOverview}
+        align="center"
+        gap={2}
+        px={4}
+        py={4}
+        color="text.dim"
+        _hover={{ color: 'text.primary' }}
+      >
+        <Icon as={LuArrowLeft} />
+        <Text fontWeight="semibold" fontSize="sm" textTransform="uppercase">
+          {detailEntry.name}
+        </Text>
+      </Flex>
+      <Box px={4} pb={4}>
+        <CriterionLevelPicker
+          entry={detailEntry}
+          selectedLevel={ratings.get(detailEntry.index)}
+          onPick={(level) => handlePick(detailEntry.index, level)}
+          disabled={savingCriterionId !== null || pendingLevel !== null}
+          showTitle={false}
+          pendingLevel={pendingLevel}
+          feedbackDurationMs={FEEDBACK_MS}
+        />
+      </Box>
+    </VStack>
+  );
+
+  return (
+    <>
+      <Box
+        bg="surface.ratingCardFill"
+        border="2px solid"
+        borderColor="border.ruleStrong"
+        borderRadius="none"
+      >
+        <MobileScreenTransition
+          screen={screen}
+          overview={overviewPanel}
+          detail={detailPanel}
+          durationMs={SLIDE_MS}
+        />
+      </Box>
 
       {/* Radar-chart modal, added stage 2. Same DialogRoot structure/tokens as the page-level
           dialog pattern (AlbumRatingPage.tsx) for a consistent close pattern (X button,
@@ -260,7 +374,13 @@ export function MobileRatingLayout({
             </DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
+            <RatingRadarChart
+              catalog={catalog}
+              ratings={ratings}
+              order={order}
+              weights={weights}
+              size="full"
+            />
           </DialogBody>
           <DialogFooter>
             <Button {...secondaryButton} variant="outline" onClick={() => setRadarOpen(false)}>
