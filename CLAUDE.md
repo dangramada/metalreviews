@@ -51,13 +51,13 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`album-eval-rank-score-reorder` — not yet merged, open on 2026-08-08. Swaps the Rank/Score
-block's DOM order (Score/light-bg first, Rank/ember-bg second) and tightens mobile-only vertical
-padding on both slabs to a uniform 8px (desktop unchanged at 16px/12px), across the shared
-`RatingProgressBox`/`RatingSlab` used by both `DesktopRatingLayout` and `MobileRatingLayout`.
-Live-verified via a temporary `/dev-rating-preview` route (no test credentials available this
-session), removed before finishing. Full detail: `docs/decisions/album-rating-page.md`'s
-2026-08-08 entry.
+`album-eval-rank-score-reorder` merged to `master` on 2026-08-08 via merge commit `8781e3b` —
+branch retained per convention, not deleted. Swaps the Rank/Score block's DOM order (Score/
+light-bg first, Rank/ember-bg second) and tightens mobile-only vertical padding on both slabs to
+a uniform 8px (desktop unchanged at 16px/12px), across the shared `RatingProgressBox`/
+`RatingSlab` used by both `DesktopRatingLayout` and `MobileRatingLayout`. Live-verified via a
+temporary `/dev-rating-preview` route (no test credentials available this session), removed
+before finishing. Full detail: `docs/decisions/album-rating-page.md`'s 2026-08-08 entry.
 
 `mobile-album-evaluation-redesign` merged to `master` on 2026-08-08 via merge commit `9db9464`
 (rollback tag `pre-merge-mobile-album-evaluation-redesign` on the prior tip) — branch retained
