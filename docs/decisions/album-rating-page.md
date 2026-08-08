@@ -1282,3 +1282,65 @@ across repeated attempts in both sessions, so that specific proof relies on Dan'
 observation (he reached 6/6 on a separate album, Ænigmatum, independently during this stage).
 Stage 4b (sticky headers) not started; selection/transition animation for stage 4 is otherwise
 functionally complete pending Dan's feel-confirmation on the two timing values above.
+
+## Stage 4a revision 3 (2026-08-08) — three more live-testing fixes
+
+Three issues from Dan's continued live testing of revision 2, addressed together.
+
+**Album info no longer duplicated per-panel.** `albumInfo` was identical on both screens and,
+per Dan's review, was never actually implicated in the original disjointed-slide bug (that was
+specifically `RatingProgressBox` popping independently of the sliding list) — so it didn't
+belong inside `MobileScreenTransition`'s per-panel content at all. Pulled out to render once,
+statically, above the sliding track in `MobileRatingLayout.tsx`, with a single divider below it
+instead of one copy per panel. `MobileScreenTransition`'s two panels now hold only
+screen-specific content: overview = progress box + criteria list, detail = back-row + picker.
+Sets up cleanly for stage 4b's sticky-header work too (nothing to keep in sync between two
+divider instances anymore).
+
+**Arrival-highlight layout shift and wrong color, root-caused.** The row highlight (added
+revision 2) toggled `border` presence outright (`undefined` -> `"2px solid"`). Confirmed via
+Chakra's global reset (Panda's Preflight, `box-sizing: border-box` on `*`) that box-sizing
+wasn't the cause — the real mechanism: this row has no fixed height, so adding a border still
+grows its *total* rendered height regardless of box-sizing (border-box only keeps
+padding+border+content within an *explicit* size; with `height: auto` there's nothing to keep
+them within). Also very likely explained the wrong-color report: `border="2px solid"` (shorthand)
+and a separate `borderColor` prop both emit border-color declarations, with no guaranteed
+precedence between them in the generated CSS.
+
+Fixed by switching to an inset `boxShadow` instead of a real border: same 2px ring shape in both
+states, only the color value ever changes (`accent.border` <-> `transparent`), and box-shadow
+never participates in layout at all — a stronger guarantee than "should be fine because
+box-sizing is border-box," since it holds regardless of the row's height being fixed or auto.
+
+That surfaced a second, genuinely separate bug during live verification: the color itself was
+written as `'inset 0 0 0 2px {colors.accent.border}'`, using Panda CSS's `{colors.x.y}`
+brace-interpolation token syntax embedded in a compound string. That syntax is a *build-time*
+token-extraction feature; live-tested via computed style and confirmed it produced an
+inconsistent/absent box-shadow at runtime rather than the intended color (polled
+`getComputedStyle(row).boxShadow` for 6-9 seconds after a pick across several attempts — the
+inset shadow was present with the correct *shape* but stuck at a transparent color the entire
+time). Fixed with Chakra's own `useToken('colors', 'accent.border')` hook, which resolves to the
+real CSS color value (confirmed live: `rgb(255, 106, 26)`) — a documented runtime API, not a
+build-time-only string convention. Re-verified live end to end after the `useToken` fix: the
+highlight now renders with the correct accent color and the expected ~1.2s-to-trigger,
+~2.5s-duration timing, with no visible layout shift (row height/spacing identical to unhighlighted
+siblings in a before/after screenshot).
+
+**Already-selected level now shows a persistent accent border.** `CriterionLevelPicker`'s
+`_checked` styling previously only used the accent color while `isFeedbackTarget` (the transient
+just-picked window); opening the Detail screen for an already-rated criterion showed the old
+plain `sand.200` ring instead. Changed the condition from `isFeedbackTarget` to `feedbackActive`
+(true for any mobile-mounted picker, regardless of whether a pick is transiently in progress) —
+so every checked item shows the accent border on mobile, matching "already selected" and "just
+now selected" visually. Desktop (`feedbackActive` always `false`, since `DesktopRatingLayout`
+never passes `pendingLevel`) is unaffected — verified at 1280px, checked ring still plain
+`sand.200`.
+
+**Verification:** `tsc --noEmit` clean, `npx vitest run` 222/222. Live-verified against real
+Supabase data (`REZN — Cycles In The Infinite Dream`, driven via `label.click()`/`button.click()`
+dispatch — the browser tool's coordinate-based `left_click` remains unreliable this session):
+static album info confirmed via screenshot to not move between screens, single full-width divider
+on both screens, persistent accent border on an already-rated level shown immediately on Detail
+open (screenshot), arrival highlight confirmed with the correct resolved color and no layout
+shift (screenshot + computed-style polling), radar-chart modal still functional (real click, real
+screenshot), desktop at 1280px visually unaffected.

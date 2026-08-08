@@ -67,13 +67,17 @@ complete (2026-08-08): removed the "View Your Evaluation" button and the page-le
 + `RatingSummaryView` render (button lived in `MobileRatingLayout.tsx`, but its dialog state and
 render were in `AlbumRatingPage.tsx`, not co-located as might be assumed); `RatingSummaryView.tsx`
 deleted outright (no other references anywhere in the repo, confirmed via `git grep`). Stage 4a
-(selection feedback + screen transitions) functionally complete (2026-08-08) after a live-tested
-revision: new `MobileScreenTransition` component owns a unified two-panel slide (fixes a
-disjointed-animation bug from the first attempt), `progressSnapshot` delay mechanism kept,
-checkmark overlay removed, highlight switched from fill to border. `FEEDBACK_MS`/`SLIDE_MS`
-timing not yet feel-confirmed by Dan post-restructure. Stage 4b (sticky headers) not started.
-Full detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08 dated entries, esp. the
-Stage 4a entry.
+(selection feedback + screen transitions) functionally complete (2026-08-08) after three rounds
+of live testing: `MobileScreenTransition` component owns a unified two-panel slide holding only
+screen-specific content (album info now renders once, statically, above it — never was part of
+the slide bug); row highlight uses an inset `boxShadow` (never affects layout) with its color
+resolved via `useToken` rather than an embedded Panda build-time token string (the latter
+produced an absent/wrong-color highlight at runtime, confirmed live); already-selected levels
+show a persistent accent border on Detail-screen open, not just during the transient just-picked
+window. `progressSnapshot` delay mechanism kept throughout, unchanged in principle.
+`FEEDBACK_MS`/`SLIDE_MS` timing not yet feel-confirmed by Dan post-restructure. Stage 4b (sticky
+headers) not started. Full detail: `docs/decisions/album-rating-page.md`'s 2026-08-07/08 dated
+entries, esp. the Stage 4a revision-2 and revision-3 entries.
 
 `favorites-row-mobile-layout` merged to `master` on 2026-08-07 via merge commit `2a90198` —
 branch retained per convention, not deleted. Mobile layout for `FavoriteListItemRow`, completing
