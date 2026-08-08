@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { PreferenceGraph, profileFromNotation } from '../lib/criteria-calibration/preferenceGraph';
 import {
   isMediumTierReached,
   computeSolverAccuracy,
   solverAccuracyTier,
+  MEDIUM_ACCURACY_THRESHOLD,
   HIGH_ACCURACY_THRESHOLD,
   VERY_HIGH_ACCURACY_THRESHOLD,
-  type ComparisonPair,
 } from '../lib/criteria-calibration/accuracyTiers';
 import { solveValues } from '../lib/criteria-calibration/solver';
 import {
@@ -14,34 +13,21 @@ import {
   REAL_SESSION_LEVELS_PER_CRITERION,
 } from '../lib/criteria-calibration/fixtures';
 
-describe('isMediumTierReached (Part C — Medium)', () => {
-  it('is false until every degree-2 pair is resolved', () => {
-    const graph = new PreferenceGraph();
-    const pairs: ComparisonPair[] = [
-      { profileA: profileFromNotation('1-5---'), profileB: profileFromNotation('3-3---') },
-      { profileA: profileFromNotation('2-4---'), profileB: profileFromNotation('4-2---') },
-    ];
-
-    expect(isMediumTierReached(graph, pairs)).toBe(false);
-
-    graph.insertAnswer(pairs[0].profileA, pairs[0].profileB, 'A');
-    expect(isMediumTierReached(graph, pairs)).toBe(false); // second pair still unresolved
-
-    graph.insertAnswer(pairs[1].profileA, pairs[1].profileB, 'equal');
-    expect(isMediumTierReached(graph, pairs)).toBe(true);
+// 2026-08-08: Medium tier's definition changed from "every canonical degree-2 pair
+// resolved via the strict graph's closure" to a solver-accuracy threshold — see
+// docs/decisions/criteria-calibration-medium-gate-redesign.md. The old pair-coverage
+// definition measured bookkeeping, not actual model determinacy: a real production
+// account reached the old Medium at 0.60 solver accuracy with levels 2-4 completely
+// unconstrained for every criterion.
+describe('isMediumTierReached (Part C — Medium, redefined 2026-08-08)', () => {
+  it('respects the documented threshold boundary', () => {
+    expect(isMediumTierReached(MEDIUM_ACCURACY_THRESHOLD)).toBe(true);
+    expect(isMediumTierReached(MEDIUM_ACCURACY_THRESHOLD - 0.01)).toBe(false);
   });
 
-  it('counts a pair resolved via isImplied (closure), not just a direct answer', () => {
-    const graph = new PreferenceGraph();
-    const a = profileFromNotation('5-5---');
-    const b = profileFromNotation('3-3---');
-    const c = profileFromNotation('1-1---');
-
-    graph.insertAnswer(a, b, 'A');
-    graph.insertAnswer(b, c, 'A');
-
-    // A vs C was never directly answered, only implied by the chain.
-    expect(isMediumTierReached(graph, [{ profileA: a, profileB: c }])).toBe(true);
+  it('is false for low accuracy and true for high accuracy', () => {
+    expect(isMediumTierReached(0)).toBe(false);
+    expect(isMediumTierReached(1)).toBe(true);
   });
 });
 

@@ -5,18 +5,21 @@ import {
   buildCanonicalDegree2Pairs,
   coldStartProfilesForPair,
 } from '../lib/criteria-calibration/elicitationDriver';
-import { isMediumTierReached } from '../lib/criteria-calibration/accuracyTiers';
 import { degree2CoveragePercent } from '../lib/criteria-calibration/sessionProgress';
 import type { ComparisonResult, Profile } from '../lib/criteria-calibration/preferenceGraph';
 
 // Mirrors elicitationDriver.test.ts's "cold-start coverage" fixture and answering strategy
-// exactly (same N=3, C(3,2)=3 pairs, same globally-consistent lowest-index-wins answer rule)
-// so this test exercises the same session shape that file already established reaches
-// Medium — the addition here is the explicit cross-check requested: don't rely on
-// degree2CoveragePercent and isMediumTierReached being derived from the same canonical pair
-// list as proof they'll agree once coverage claims 100%. Verify it directly, same as the
-// driver's own coverage tracking is cross-checked there.
-describe('degree2CoveragePercent vs isMediumTierReached (cross-check, not assumed)', () => {
+// exactly (same N=3, C(3,2)=3 pairs, same globally-consistent lowest-index-wins answer rule).
+//
+// As of 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md),
+// degree2CoveragePercent and isMediumTierReached are no longer expected to agree at
+// 100%/true — Medium is now a solver-accuracy threshold, independent of pair coverage
+// (buildCanonicalDegree2Pairs still backs degree2CoveragePercent's progress display only).
+// This file therefore only tests degree2CoveragePercent's own coverage-tracking
+// correctness; the former cross-check against isMediumTierReached was removed since its
+// premise (the two are derived from the same canonical pair list) no longer holds — see
+// elicitationDriver.test.ts / accuracyTiers.test.ts for isMediumTierReached's own coverage.
+describe('degree2CoveragePercent', () => {
   const levelsPerCriterion = [4, 4, 4];
 
   function answerByLowestIndex(profileA: Profile, profileB: Profile): ComparisonResult {
@@ -28,13 +31,11 @@ describe('degree2CoveragePercent vs isMediumTierReached (cross-check, not assume
     return 'equal';
   }
 
-  it('reaching 100% coverage implies isMediumTierReached is independently true on the same session state', () => {
+  it('reaches 100% exactly when every canonical pair has been directly answered', () => {
     const session = new CalibrationSession();
     const canonicalPairs = buildCanonicalDegree2Pairs(levelsPerCriterion);
 
-    // Before any answers, neither should claim coverage/Medium.
     expect(degree2CoveragePercent(session.graph, canonicalPairs)).toBe(0);
-    expect(isMediumTierReached(session.graph, canonicalPairs)).toBe(false);
 
     let action = nextAction(session, levelsPerCriterion, 2);
     let guard = 0;
@@ -45,12 +46,7 @@ describe('degree2CoveragePercent vs isMediumTierReached (cross-check, not assume
       guard++;
     }
 
-    const percent = degree2CoveragePercent(session.graph, canonicalPairs);
-    expect(percent).toBe(100);
-
-    // The explicit cross-check: verify isMediumTierReached agrees, independently, right at
-    // the moment coverage claims 100% — not assumed from how the two were constructed.
-    expect(isMediumTierReached(session.graph, canonicalPairs)).toBe(true);
+    expect(degree2CoveragePercent(session.graph, canonicalPairs)).toBe(100);
   });
 
   it('sanity check: coldStartProfilesForPair-built pairs are exactly what buildCanonicalDegree2Pairs uses', () => {

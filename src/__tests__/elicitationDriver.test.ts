@@ -11,6 +11,7 @@ import {
 import {
   isMediumTierReached,
   computeSolverAccuracy,
+  MEDIUM_ACCURACY_THRESHOLD,
 } from '../lib/criteria-calibration/accuracyTiers';
 import { solveValues } from '../lib/criteria-calibration/solver';
 import {
@@ -76,7 +77,7 @@ describe('nextAction — driver states on a small hand-built session', () => {
     return 'equal';
   }
 
-  it('asks cold-start coverage first, covers all pairs, and agrees with isMediumTierReached (cross-checked, not assumed)', () => {
+  it('asks cold-start coverage first and covers all pairs (coverage itself no longer implies Medium — see isMediumTierReached below)', () => {
     const session = new CalibrationSession();
 
     const first = nextAction(session, levelsPerCriterion, 2);
@@ -97,11 +98,19 @@ describe('nextAction — driver states on a small hand-built session', () => {
     }
     expect(coveredCount).toBe(3); // C(3,2)
 
-    // The explicit cross-check: don't assume the driver's own coverage tracking and
-    // isMediumTierReached's isImplied-based check agree just because of how
-    // buildCanonicalDegree2Pairs is constructed — verify it directly.
-    const canonicalPairs = buildCanonicalDegree2Pairs(levelsPerCriterion);
-    expect(isMediumTierReached(session.graph, canonicalPairs)).toBe(true);
+    // Medium is now a solver-accuracy threshold (2026-08-08), not derived from
+    // buildCanonicalDegree2Pairs/pair-coverage at all — verify isMediumTierReached
+    // matches the actual solved accuracy at this point, whatever it is.
+    const solved = solveValues({
+      levelsPerCriterion,
+      answers: session.fullLog.map((e) => ({
+        profileA: e.profileA,
+        profileB: e.profileB,
+        result: e.result,
+      })),
+    });
+    const accuracy = computeSolverAccuracy(solved);
+    expect(isMediumTierReached(accuracy)).toBe(accuracy >= MEDIUM_ACCURACY_THRESHOLD);
   });
 
   it('signals degree-exhausted (a distinct status, not silence) once nothing at the current degree is worth asking, with escalation info', () => {
@@ -175,13 +184,13 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
     // Structurally guaranteed: exactly one cold-start question per pair, no waste.
     expect(coverageQuestionCount).toBe(enumerateCriterionPairs(numCriteria).length); // C(5,2) = 10
 
-    // The explicit cross-check requested: verify isMediumTierReached agrees with the
-    // driver's own coverage tracking on THIS session state, right at the coverage
-    // boundary — not assumed from how the two were constructed.
-    const canonicalPairs = buildCanonicalDegree2Pairs(levelsPerCriterion);
-    expect(isMediumTierReached(session.graph, canonicalPairs)).toBe(true);
-
     const accuracyAtCoverage = currentAccuracy(session);
+
+    // Medium is now a solver-accuracy threshold (2026-08-08), not pair-coverage — verify
+    // isMediumTierReached matches the actual accuracy reached at minimum coverage.
+    expect(isMediumTierReached(accuracyAtCoverage)).toBe(
+      accuracyAtCoverage >= MEDIUM_ACCURACY_THRESHOLD
+    );
 
     // --- Phase 2: continue adaptively — refinement at degree 2, then escalate through
     // higher degrees as each is signaled exhausted, for a bounded number of further steps.
