@@ -51,6 +51,20 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`criteria-calibration-dominance-filter` merged to `master` on 2026-08-09 via merge
+commit `bcfbeed` (rollback tag `pre-merge-dominance-filter` on the prior tip) — branch
+retained per convention, not deleted. `generateCandidatesForSubset` now rejects dominated
+candidate pairs (one profile weakly >= the other on every varied criterion, strictly >
+on at least one) via a new `isDominatedPair` check, alongside the existing full-tie
+guard — such pairs offer no real trade-off and previously could be asked/ranked
+high-priority. Repro: 12 dominated/tied pairs across 59 simulated questions pre-fix, 0
+across 47 post-fix (post-fix run naturally exhausts sooner — dominance pressure shrank
+candidate pools, not a separate effect). Retry-attempt margin against the existing
+120-attempt cap: worst case (degree 2) averages 16.5 attempts, ~5x headroom. No change to
+the real 31-answer historical session's Medium-threshold crossing point (still answer
+19) — that replay never calls the candidate generator. `tsc`/lint/vitest all clean
+post-merge (223/223 tests). Full detail: `docs/decisions/criteria-calibration-dominance-filter.md`.
+
 `criteria-calibration-progress-ring-accuracy` merged to `master` on 2026-08-09 via merge
 commit `8efa3ac` (rollback tag `pre-merge-progress-ring-accuracy` on the prior tip) —
 branch retained per convention, not deleted. Fixes a live contradiction Dan hit
