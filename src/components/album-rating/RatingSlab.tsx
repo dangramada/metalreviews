@@ -43,9 +43,11 @@ export function RatingSlab({
       // objects in theme.ts are untouched since the review card's own ScoreSlab still uses them.
       border="none"
       // Overrides scoreSlabBase's pt/pb (8px/4px) for this component's own usage only — same
-      // reasoning as the border override above.
-      pt="16px"
-      pb="12px"
+      // reasoning as the border override above. Mobile (<768px, the same split
+      // AlbumRatingPage.tsx uses to choose Mobile/DesktopRatingLayout) tightens to a uniform
+      // 8px/8px per Dan's request; desktop keeps the original 16px/12px.
+      pt={{ base: 2, md: '16px' }}
+      pb={{ base: 2, md: '12px' }}
       flex="1 1 0"
       display="flex"
       flexDirection="column"
