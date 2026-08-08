@@ -69,10 +69,14 @@ export function coldStartProfilesForPair(
 
 /**
  * One canonical comparison per criteria pair — exactly what the cold-start rule asks
- * first for each pair. No longer consumed by accuracyTiers.ts's `isMediumTierReached`
- * (which reads solver accuracy directly as of 2026-08-08); still used by
- * sessionProgress.ts's `degree2CoveragePercent` to drive the UI's progress display, which
- * is unchanged by this pass.
+ * first for each pair (`isPairCovered`/`nextAction` below track this coverage directly via
+ * `coldStartProfilesForPair`, not through this function). No longer consumed by
+ * accuracyTiers.ts's `isMediumTierReached` (which reads solver accuracy directly as of
+ * 2026-08-08) or by the UI's progress display (which also reads solver accuracy directly
+ * as of 2026-08-09, see docs/decisions/criteria-calibration-medium-gate-redesign.md's
+ * progress-ring-accuracy entry — the standalone `degree2CoveragePercent`/
+ * `sessionProgress.ts` module it used to back was deleted then). Exported for
+ * elicitationDriver.test.ts's own coverage-count assertions only at this point.
  */
 export function buildCanonicalDegree2Pairs(levelsPerCriterion: number[]): CandidatePair[] {
   return enumerateCriterionPairs(levelsPerCriterion.length).map(([a, b]) =>
