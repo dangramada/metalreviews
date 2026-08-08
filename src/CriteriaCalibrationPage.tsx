@@ -14,16 +14,12 @@ import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { useAuth } from './AuthContext';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CalibrationSession } from './lib/criteria-calibration/calibrationSession';
-import {
-  nextAction,
-  buildCanonicalDegree2Pairs,
-} from './lib/criteria-calibration/elicitationDriver';
+import { nextAction } from './lib/criteria-calibration/elicitationDriver';
 import {
   isMediumTierReached,
   computeSolverAccuracy,
 } from './lib/criteria-calibration/accuracyTiers';
 import { solveValues } from './lib/criteria-calibration/solver';
-import { degree2CoveragePercent } from './lib/criteria-calibration/sessionProgress';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
   insertAnswer,
@@ -163,22 +159,25 @@ export function CriteriaCalibrationPage() {
 
   const action = catalog ? nextAction(session, catalog.levelsPerCriterion, degree) : null;
 
-  const canonicalPairs = useMemo(
-    () => (catalog ? buildCanonicalDegree2Pairs(catalog.levelsPerCriterion) : []),
-    [catalog]
-  );
-  // Medium tier is now a solver-accuracy threshold (see accuracyTiers.ts), so it needs a
-  // live solve of the current answer log rather than the strict graph's closure —
-  // `canonicalPairs`/`session.graph` remain in use below only for the progress display.
-  const mediumReached = useMemo(() => {
-    if (!catalog) return false;
+  // Single live solve of the current answer log drives both the Progress ring and the
+  // Accuracy label/number — previously these were two different metrics (canonical
+  // degree-2 pair coverage for the ring vs. solver accuracy for the label), which could
+  // show the ring at 100% while Accuracy still read "Low" once cold-start coverage was
+  // done but the model wasn't actually determinate yet. See
+  // docs/decisions/criteria-calibration-medium-gate-redesign.md's progress-ring-accuracy
+  // entry for the full history.
+  const { progressPercent, mediumReached } = useMemo(() => {
+    if (!catalog) return { progressPercent: 0, mediumReached: false };
     const solved = solveValues({
       levelsPerCriterion: catalog.levelsPerCriterion,
       answers,
     });
-    return isMediumTierReached(computeSolverAccuracy(solved));
+    const accuracy = computeSolverAccuracy(solved);
+    return {
+      progressPercent: Math.round(accuracy * 100),
+      mediumReached: isMediumTierReached(accuracy),
+    };
   }, [catalog, answers]);
-  const progressPercent = catalog ? degree2CoveragePercent(session.graph, canonicalPairs) : 0;
 
   const interactionDisabled = phase !== 'idle' || stopped;
   const round = answers.length + 1;
@@ -385,8 +384,8 @@ export function CriteriaCalibrationPage() {
         <VStack gap={10} align="stretch">
           {/* Static sibling of the fading region below — never fades itself; only its own
             numeric/text values update, instantly, via prop changes. Progress and Accuracy
-            both drive off the same real degree-2 coverage number for this pass — Accuracy's
-            level is never anything beyond 'Low'/'Medium' (no High/Very High claim). */}
+            both drive off the same live solver-accuracy number — Accuracy's level is never
+            anything beyond 'Low'/'Medium' (no High/Very High claim). */}
           <ProgressHeader
             round={round}
             progressPercent={progressPercent}

@@ -150,3 +150,79 @@ at the very end. For reference, full-session (31 answers) accuracy is 0.9237.
 ### Out of scope, not touched this pass
 
 `computeSolverAccuracy`'s degree-3+ blindness (tracked separately); `HIGH_ACCURACY_THRESHOLD`/`VERY_HIGH_ACCURACY_THRESHOLD` values; any UI/`CriteriaCalibrationPage` visual or interaction changes; question generation beyond degree-2.
+
+## 2026-08-09 — Progress ring shows real accuracy, not canonical-pair coverage
+
+Branch: `criteria-calibration-progress-ring-accuracy`, off `master`.
+
+### Diagnostic (prior session)
+
+Dan started a real calibration session against the merged redesign above and hit a live
+contradiction at round 16: the Progress ring read 100% while the Accuracy label
+simultaneously read "Low." Traced with code evidence:
+
+- The ring (`ProgressCircleRoot value={progressPercent}` in `RoundGaugeGroup.tsx`) was
+  driven by `degree2CoveragePercent(session.graph, canonicalPairs)`
+  (`sessionProgress.ts`) — canonical-degree-2-pair-coverage bookkeeping, the exact
+  concept this redesign replaced Medium's gate with above. That module was untouched by
+  the redesign session (`git log` shows its only commit is the original part-5a wiring)
+  — a pre-existing display wired to a now-superseded concept, not a regression.
+- Worse: `accuracyPercent={progressPercent}` in `CriteriaCalibrationPage.tsx` meant the
+  *number* next to "Accuracy: Low/Medium" was never actually `computeSolverAccuracy`'s
+  output either — it was the same coverage number, reused. Only the qualitative
+  Low/Medium label read the real metric (via `mediumReached`, added by the redesign
+  above).
+- Result: the ring could legitimately hit 100% as soon as cold-start finished covering
+  all `C(6,2)=15` canonical pairs (~round 15-20), then sit there for the rest of the
+  session regardless of actual solver accuracy — exactly what Dan saw.
+
+### Decision (Dan, confirmed)
+
+Retire coverage-based progress from this display entirely — the ring and the Accuracy
+label/number both now read the same live `computeSolverAccuracy` result. This is a
+**deliberate reversal** of the original 28 July design (Criteria Calibration UI, part
+5a), which chose to keep Progress (coverage-based, "how far through the session") and
+Accuracy (solver-based, "how determinate is the model") as two visually distinct metrics
+on purpose. That separation is precisely what produced the ring-vs-label contradiction:
+coverage and accuracy diverge exactly when cold-start finishes but refinement hasn't
+caught the model up yet, which is a real, expected state — not an edge case. Collapsing
+them to one number removes the contradiction at the cost of losing "how far through the
+session" as a separate signal; Dan judged the correctness of what's shown to outweigh
+that. The round counter ("Round N") is untouched — it already correctly shows session
+position and isn't affected by this change.
+
+### Implementation
+
+- `CriteriaCalibrationPage.tsx`: `mediumReached` and `progressPercent` merged into one
+  `useMemo` that runs `solveValues` once per answers-change and derives
+  `progressPercent = Math.round(computeSolverAccuracy(solved) * 100)` (bound to both the
+  `progressPercent` and `accuracyPercent` props) and `mediumReached =
+  isMediumTierReached(accuracy)` from the same solve — previously two separate
+  computations (one live-solving, one graph-coverage-based) that could diverge.
+  `canonicalPairs`/`buildCanonicalDegree2Pairs` import removed from this file (no longer
+  consumed here).
+- `sessionProgress.ts` and its test deleted outright — `degree2CoveragePercent` had no
+  other consumer in the app after the above change (confirmed via repo-wide grep).
+  `buildCanonicalDegree2Pairs` itself stays in `elicitationDriver.ts` (still exported,
+  still exercised by `elicitationDriver.test.ts`), but is now exported for that test
+  only — `isPairCovered`/`nextAction`'s own cold-start-coverage tracking uses
+  `coldStartProfilesForPair` directly, not this function.
+- Stale comments claiming `degree2CoveragePercent`/`sessionProgress.ts` still back the
+  UI's progress display fixed in `accuracyTiers.ts` and `elicitationDriver.ts`.
+- Live-verified without Supabase test credentials (same constraint as the
+  `album-eval-rank-score-reorder` session): a temporary dev-only route
+  (`DevProgressRingPreview.tsx` + `/dev-progress-ring-preview` in `main.tsx`) rendered
+  `ProgressHeader` directly at the real accuracy checkpoints computed from
+  `fixtures.ts`'s `REAL_SESSION_*` 31-answer session (0%, 30%, 53%, 55%, 87%, 88%, 90%,
+  92%) — confirmed ring fill, numeric %, and Low/Medium label all agree and climb
+  gradually instead of jumping to 100% after cold-start. Harness removed before this
+  commit; not present on the branch.
+- `tsc --noEmit` clean, `eslint` clean on touched files, `npx vitest run` — 31 test
+  files, 220 tests, all pass (222 minus the 2 removed `sessionProgress.test.ts` cases).
+
+### Out of scope, not touched this pass
+
+Issue 2 from the same diagnostic (dominated/tied refinement pairs reaching the user,
+e.g. Groundbreaking/Groundbreaking + Skilled/Excellent) — separate brief/branch, per
+Dan's explicit instruction; `elicitationDriver.ts` candidate generation untouched here.
+Any broader progress-UI redesign (round-number prominence, layout).

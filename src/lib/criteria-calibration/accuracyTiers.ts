@@ -11,10 +11,15 @@
 // production account reached the old Medium at 0.60 solver accuracy with levels 2-4
 // completely unconstrained for every criterion, while a real reference session (see
 // fixtures.ts's REAL_SESSION_* export) reached 0.88+ accuracy while never once touching
-// one of its 10 possible degree-2 pairs. `ComparisonPair`/ `PreferenceGraph.isImplied`
-// are no longer involved in the Medium decision; they're still used by
-// sessionProgress.ts's `degree2CoveragePercent` for the UI's progress display, which is
-// unchanged.
+// one of its 10 possible degree-2 pairs. `ComparisonPair`/`PreferenceGraph.isImplied`
+// are no longer involved in the Medium decision. As of 2026-08-09 (see
+// docs/decisions/criteria-calibration-medium-gate-redesign.md's progress-ring-accuracy
+// entry) the UI's progress display no longer uses them either — it now reads the same
+// solver accuracy this file computes, reversing the original design's deliberate
+// separation between progress (coverage) and accuracy, which is exactly what produced a
+// ring-shows-100%-while-Accuracy-reads-Low contradiction in a live session. The
+// `degree2CoveragePercent`/`sessionProgress.ts` module that used to back the ring was
+// deleted in that pass.
 
 import type { Profile } from './preferenceGraph.js';
 import type { ValueSolverResult } from './solver.js';
