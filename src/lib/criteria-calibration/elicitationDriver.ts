@@ -180,10 +180,64 @@ function isDominatedPair(
   return sawAStrictlyGreater !== sawBStrictlyGreater;
 }
 
+/**
+ * Per-criterion, per-level count of how many times that (criterion, level) combination has
+ * appeared in any logged answer so far (either side, any degree). Derived fresh from
+ * `session.fullLog` on every call — same pattern as `isPairCovered`/`hasBeenAsked` above, no
+ * new persisted state. Feeds `generateCandidatesForSubset`'s weighted level draw so
+ * degree-2+ refinement pools stop sampling levels uniformly (which was landing most
+ * candidates in the flat middle-level region after a cold start that only ever touches
+ * level 1 and each criterion's max — see
+ * docs/decisions/criteria-calibration-coverage-weighted-candidates.md).
+ */
+function computeTouchCounts(session: CalibrationSession, levelsPerCriterion: number[]): number[][] {
+  const counts = levelsPerCriterion.map((max) => new Array<number>(max + 1).fill(0));
+  for (const entry of session.fullLog) {
+    for (const profile of [entry.profileA, entry.profileB]) {
+      for (const key of Object.keys(profile)) {
+        const idx = Number(key);
+        const level = profile[idx];
+        counts[idx][level]++;
+      }
+    }
+  }
+  return counts;
+}
+
+/**
+ * Draws a weighted-random level in `1..max` for criterion `idx`, biased toward levels with
+ * lower touch counts (`weight = 1 / (1 + touchCount)`). Falls back to a uniform draw when
+ * `touchCounts` is omitted, so callers that don't care about coverage weighting (and the
+ * existing dominance-filter tests) see unchanged behavior.
+ */
+function drawLevel(
+  rng: () => number,
+  idx: number,
+  max: number,
+  touchCounts: number[][] | undefined
+): number {
+  if (!touchCounts) return 1 + Math.floor(rng() * max);
+
+  const weights: number[] = [];
+  let totalWeight = 0;
+  for (let level = 1; level <= max; level++) {
+    const w = 1 / (1 + touchCounts[idx][level]);
+    weights.push(w);
+    totalWeight += w;
+  }
+  let draw = rng() * totalWeight;
+  for (let level = 1; level <= max; level++) {
+    draw -= weights[level - 1];
+    if (draw <= 0) return level;
+  }
+  return max; // floating-point fallback, should be unreachable
+}
+
 /** Exported for direct testing of the dominance filter — not used outside this module. */
 export function generateCandidatesForSubset(
   subset: number[],
-  levelsPerCriterion: number[]
+  levelsPerCriterion: number[],
+  touchCounts?: number[][]
 ): CandidatePair[] {
   const seed = subset.reduce((acc, idx) => acc * 31 + idx + 1, 7);
   const rng = createSeededRng(seed);
@@ -197,8 +251,8 @@ export function generateCandidatesForSubset(
     const profileB: Record<number, number> = {};
     for (const idx of subset) {
       const max = levelsPerCriterion[idx];
-      profileA[idx] = 1 + Math.floor(rng() * max);
-      profileB[idx] = 1 + Math.floor(rng() * max);
+      profileA[idx] = drawLevel(rng, idx, max, touchCounts);
+      profileB[idx] = drawLevel(rng, idx, max, touchCounts);
     }
     const keyA = profileKey(profileA);
     const keyB = profileKey(profileB);
@@ -218,9 +272,10 @@ function buildRefinementCandidatePool(
   degree: number
 ): CandidatePair[] {
   const subsets = enumerateCriterionSubsets(levelsPerCriterion.length, degree);
+  const touchCounts = computeTouchCounts(session, levelsPerCriterion);
   const pool: CandidatePair[] = [];
   for (const subset of subsets) {
-    for (const candidate of generateCandidatesForSubset(subset, levelsPerCriterion)) {
+    for (const candidate of generateCandidatesForSubset(subset, levelsPerCriterion, touchCounts)) {
       if (hasBeenAsked(session, candidate.profileA, candidate.profileB)) continue;
       if (session.graph.isImplied(candidate.profileA, candidate.profileB).implied) continue;
       pool.push(candidate);

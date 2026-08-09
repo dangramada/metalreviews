@@ -139,6 +139,26 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **Degree-2 flatness / degree-3-escalation stall confirmed to originate in
+  `solveValues`' point-estimate assignment, not in candidate selection — open,
+  2026-08-09.** `criteria-calibration-coverage-weighted-candidates` branch (merged)
+  weighted degree-2+ refinement candidate sampling toward under-covered
+  criterion/level combinations, on the hypothesis that uniform sampling was landing
+  most candidates in a flat, uninformative region. Shipped (real, independent
+  improvement — diversifies which combinations get asked about) but a read-only
+  trace against Dan's real 33-answer production session confirmed it does **not**
+  resolve the underlying stall: the solver's own `.point` values are already flat
+  across levels 2-5 within a criterion regardless of which specific combination
+  gets compared (e.g. criterion 0: `[0, 0.4995, 0.4996, 0.4996, 0.4996]` — one big
+  jump 1->2, then flat). Weighting the draw away from level 1/max (already
+  well-touched by cold start) pushes it toward levels 2-5 — precisely the region
+  the solver already treats as flat — so the weighted pool samples *more* into the
+  flat region, not less. Fixing this requires changing how `solveValues` assigns
+  point estimates within a criterion, not how candidates are chosen. **New finding
+  surfaced by the same trace, possibly relevant to that upcoming solver-design
+  decision:** criterion 5 received a solved weight of essentially zero across all 5
+  levels (`[0, 0, 0, 0, 0]`) on this real session — flat at zero, not just flat
+  among levels 2-5. Full trace output and reasoning: `docs/decisions/criteria-calibration-coverage-weighted-candidates.md`.
 - **`MobileRatingLayout`'s `revealed` gate race fix — not tested under a forced
   slow refetch.** Stage 4a revision 4 (2026-08-08, `mobile-album-evaluation-redesign`
   branch, `album-rating-page.md`'s dated stage-4a revision-4 entry) fixed a real bug
