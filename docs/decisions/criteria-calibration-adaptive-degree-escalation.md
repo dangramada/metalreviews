@@ -1,7 +1,14 @@
 # Criteria Calibration: adaptive/automatic degree escalation — design checkpoint
 
-No branch. Nothing implemented. This doc exists so today's reasoning chain survives
-between sessions — it is explicitly a checkpoint, not a finalized design ready to build.
+**IMPLEMENTED 2026-08-10** on top of this checkpoint's "Current state of the design"
+section below — see `deferred-work.md`'s "Automatic degree escalation" entry for the
+shipped summary and verification. This doc's own reasoning chain (below) is kept as the
+historical record of how the coverage-based rule was arrived at; nothing here was
+retroactively edited to match the implementation.
+
+This doc exists so that reasoning chain survives between sessions — it was written as a
+checkpoint, not a finalized design ready to build, but the design it landed on was then
+built as-is.
 
 ## 2026-08-09 — Reasoning chain, in order
 

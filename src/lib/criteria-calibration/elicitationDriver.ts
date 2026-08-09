@@ -23,7 +23,7 @@
 
 import { profileKey, type Profile } from './preferenceGraph.js';
 import type { CalibrationSession } from './calibrationSession.js';
-import { solveValues, scoreProfile, type SolverAnswer } from './solver.js';
+import { solveValues, type LevelValue, type SolverAnswer } from './solver.js';
 import { rankCandidatesByAmbiguity, type CandidatePair } from './questionOrdering.js';
 
 export type DriverAction =
@@ -34,7 +34,13 @@ export type DriverAction =
       degree: number;
       reason: 'cold-start-coverage' | 'ambiguity-refinement';
     }
-  | { type: 'degree-exhausted'; degree: number; canEscalate: boolean; nextDegree: number | null };
+  | {
+      type: 'degree-exhausted';
+      degree: number;
+      canEscalate: boolean;
+      nextDegree: number | null;
+      reason: 'pool-empty' | 'coverage-complete';
+    };
 
 /** All C(N,2) criteria-index pairs, generic over N. */
 export function enumerateCriterionPairs(numCriteria: number): [number, number][] {
@@ -269,10 +275,10 @@ export function generateCandidatesForSubset(
 function buildRefinementCandidatePool(
   session: CalibrationSession,
   levelsPerCriterion: number[],
-  degree: number
+  degree: number,
+  touchCounts: number[][]
 ): CandidatePair[] {
   const subsets = enumerateCriterionSubsets(levelsPerCriterion.length, degree);
-  const touchCounts = computeTouchCounts(session, levelsPerCriterion);
   const pool: CandidatePair[] = [];
   for (const subset of subsets) {
     for (const candidate of generateCandidatesForSubset(subset, levelsPerCriterion, touchCounts)) {
@@ -285,24 +291,49 @@ function buildRefinementCandidatePool(
 }
 
 /**
- * `rankCandidatesByAmbiguity` sorts smallest-gap (most ambiguous, most worth asking)
- * first. Exhaustion means even the BEST remaining candidate isn't ambiguous anymore — its
- * estimated gap exceeds this ceiling, on the normalized 0..1 value scale. Calibrated by
- * inspecting the actual gap distribution of a real candidate pool mid-simulation: gaps
- * cluster near-zero (genuinely ambiguous) and then jump to ~0.1+ (clearly resolved), with
- * little in between — 0.05 sits cleanly in that gap. Proposed judgment call, same status
- * as accuracyTiers.ts's tier thresholds: a reasonable, empirically-grounded default, not
- * independently validated against a second real session.
- *
- * Scope, as of 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md):
- * this constant governs UX pacing only — when `nextAction` stops *offering* further
- * refinement questions at the current degree. It has no bearing on whether Medium tier is
- * granted; that's decided solely by `accuracyTiers.ts`'s `isMediumTierReached` against
- * live solver accuracy. Deliberately decoupled: this driver can legitimately decide
- * there's nothing left worth asking (every remaining candidate looks resolved) at a point
- * where solver accuracy still sits below the Medium threshold, and vice versa.
+ * PROVISIONAL — same unvalidated-constant status as accuracyTiers.ts's SCORE_SPREAD_*
+ * thresholds (see docs/decisions/deferred-work.md's "Score-spread accuracy thresholds"
+ * entry, extended 2026-08-10 to cover this constant too). Calibrated against the
+ * 2026-08-09 oracle-simulation trace: 0.3 was measured to cut off a real, still-substantial
+ * accuracy gain (18% relative improvement between n=47 and n=63); 0.2 captures that gain;
+ * nothing tighter (0.15/0.1/0.05) fired at all within 65 oracle steps, too conservative
+ * given this LP's achievable precision. Do not tighten or loosen without the same planned
+ * recalibration session.
  */
-const MAX_AMBIGUOUS_GAP = 0.05;
+const MAX_VALUE_RANGE_FOR_COVERAGE = 0.2;
+
+/**
+ * A degree is exhausted (nothing left worth asking) once every free `(criterion, level)`
+ * variable in the FULL model — not scoped to the current degree's criterion subsets — has
+ * both been touched by at least one logged answer (`touchCounts[c][level] > 0`) and has a
+ * narrow feasible range (`.max - .min < MAX_VALUE_RANGE_FOR_COVERAGE`). Scoped to the whole
+ * model deliberately: a variable can go untouched or stay wide regardless of which degree
+ * is currently active (subsets at every degree can touch it), so checking only the current
+ * degree's own subsets would miss a variable a different degree already covers, or wrongly
+ * credit one only some other degree happens to touch. Replaces the old gap-based
+ * `MAX_AMBIGUOUS_GAP` check (2026-08-09 design checkpoint, see
+ * docs/decisions/criteria-calibration-adaptive-degree-escalation.md): that rule inferred
+ * "nothing left to learn" from candidate-pair score gaps, which stayed near-zero by
+ * construction in real sessions regardless of whether the underlying variables were
+ * actually determined — measured on both an oracle trace and a real 33-answer production
+ * session to correctly track true information gain where the gap-based rule didn't.
+ * Values/touchCounts are both computed fresh from `session.fullLog` on every call — no
+ * state to keep in sync.
+ */
+function isDegreeCoverageComplete(
+  levelsPerCriterion: number[],
+  values: LevelValue[][],
+  touchCounts: number[][]
+): boolean {
+  for (let c = 0; c < levelsPerCriterion.length; c++) {
+    for (let level = 2; level <= levelsPerCriterion[c]; level++) {
+      if (touchCounts[c][level] === 0) return false;
+      const v = values[c][level];
+      if (v.max - v.min >= MAX_VALUE_RANGE_FOR_COVERAGE) return false;
+    }
+  }
+  return true;
+}
 
 function toSolverAnswers(session: CalibrationSession): SolverAnswer[] {
   return session.fullLog.map((entry) => ({
@@ -335,7 +366,8 @@ export function nextAction(
     }
   }
 
-  const pool = buildRefinementCandidatePool(session, levelsPerCriterion, currentDegree);
+  const touchCounts = computeTouchCounts(session, levelsPerCriterion);
+  const pool = buildRefinementCandidatePool(session, levelsPerCriterion, currentDegree, touchCounts);
   const nextDegree = currentDegree + 1;
   const canEscalate = nextDegree <= numCriteria;
 
@@ -345,24 +377,24 @@ export function nextAction(
       degree: currentDegree,
       canEscalate,
       nextDegree: canEscalate ? nextDegree : null,
+      reason: 'pool-empty',
     };
   }
 
   const solved = solveValues({ levelsPerCriterion, answers: toSolverAnswers(session) });
-  const ranked = rankCandidatesByAmbiguity(pool, solved.values);
-  const top = ranked[0];
-  const gap = Math.abs(
-    scoreProfile(top.profileA, solved.values) - scoreProfile(top.profileB, solved.values)
-  );
 
-  if (gap > MAX_AMBIGUOUS_GAP) {
+  if (isDegreeCoverageComplete(levelsPerCriterion, solved.values, touchCounts)) {
     return {
       type: 'degree-exhausted',
       degree: currentDegree,
       canEscalate,
       nextDegree: canEscalate ? nextDegree : null,
+      reason: 'coverage-complete',
     };
   }
+
+  const ranked = rankCandidatesByAmbiguity(pool, solved.values);
+  const top = ranked[0];
 
   return {
     type: 'ask',
