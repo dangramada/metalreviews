@@ -28,6 +28,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - File order matters: operationally-relevant content (conventions, commands, active branch
   state) comes first, since every session reads it. Historical completion narratives and the
   Past-decisions index go last — reference material, read only when the task at hand needs it.
+- **Branch lifecycle**: a merged branch (`--no-ff`) may be deleted, local + remote, once
+  >=14 days have passed since its merge date — safety rests on the merge commit's first
+  parent (always the pre-merge rollback point) plus the `docs/decisions/branch-log.md`
+  entry as the durable record, not on keeping the ref. Review cadence: folded into the
+  existing roughly-monthly `deferred-work.md` review — same session, check
+  `branch-log.md` for anything >=14 days past merge, delete what qualifies. Exception: a
+  branch ref confirmed stale (behind master — master has commits not reachable from the
+  branch) is deleted regardless of age, since a stale ref is actively misleading rather
+  than "not yet due." Branches that were never merged (rejected/abandoned work) are
+  **not** covered by this automatic policy — deleting them loses code that exists
+  nowhere else, so each such branch is a separate, explicit decision. On deletion,
+  append a note to the branch's `branch-log.md` line rather than removing the line.
 
 ## Commands
 

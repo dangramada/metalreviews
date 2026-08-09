@@ -14,12 +14,12 @@ decision doc, not here. Newest merge first.
 - `favorites-row-mobile-layout` — merged to master `2a90198`, 2026-08-07 — full detail: `docs/decisions/favorites-row-mobile-layout.md`
 - `favorites-row-desktop-redesign` — merged to master `5055ba7`, 2026-08-07 — full detail: `docs/decisions/favorites-row-desktop-redesign.md`
 - `album-rating-page-desktop-redesign` — merged to master `c316da6`, 2026-08-06 — full detail: `docs/decisions/album-rating-page.md` (2026-08-05/06 entries)
-- `album-rating-page` — merged to master `523d059`, 2026-08-03; ref stale, 3 commits behind master (missing post-merge polish `5e6f8af` and docs commit `4b92722`) — full detail: `docs/decisions/album-rating-page.md`
-- `album-rating-modal` — rejected, not merged — full detail: see `album-rating-page` entry in `docs/decisions/album-rating-page.md` (superseded-by note)
+- `album-rating-page` — merged to master `523d059`, 2026-08-03; ref stale, 3 commits behind master (missing post-merge polish `5e6f8af` and docs commit `4b92722`) — full detail: `docs/decisions/album-rating-page.md` — branch deleted 2026-08-09 (stale-ref exception)
+- `album-rating-modal` — rejected, not merged — full detail: see `album-rating-page` entry in `docs/decisions/album-rating-page.md` (superseded-by note) — branch deleted 2026-08-09 (explicit confirmed exception, not automatic policy)
 - `album-rating-drawer` — merged to master `aeb3f3f`, 2026-07-30 — full detail: `docs/decisions/album-rating-drawer.md`
 - `criteria-calibration-update` — merged to master `35c470e`, 2026-07-30 — full detail: `docs/decisions/architecture.md` (page-shell pattern)
 - `criteria-calibration-wiring` — merged to master `fa03134`, 2026-07-30 — full detail: `docs/decisions/criteria-calibration-wiring.md`
 - `criteria-calibration-ui` — merged to master `d87220e`, 2026-07-30 — full detail: `docs/decisions/criteria-calibration-ui.md`
 - `criteria-calibration-engine` — merged to master `f3b7705`, 2026-07-30 — full detail: `docs/decisions/criteria-calibration-engine.md`
-- `design-system-slant-take` — merged to master `a3eeb88`, 2026-07-25 — full detail: `docs/decisions/slant-take-design-system.md`
-- `album-identity-migration` — merged to master `e205d5d`, 2026-07-15 — full detail: `docs/decisions/album-identity-migration.md`
+- `design-system-slant-take` — merged to master `a3eeb88`, 2026-07-25 — full detail: `docs/decisions/slant-take-design-system.md` — branch deleted 2026-08-09 (14-day rule)
+- `album-identity-migration` — merged to master `e205d5d`, 2026-07-15 — full detail: `docs/decisions/album-identity-migration.md` — branch deleted 2026-08-09 (14-day rule)
