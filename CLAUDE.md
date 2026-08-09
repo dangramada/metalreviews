@@ -51,6 +51,19 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`criteria-calibration-joint-point-estimate` — not yet merged, currently checked out.
+Replaces `solver.ts`'s independent-axis point estimate (midpoint of each value's
+separately-solved min/max range) with a single joint Chebyshev-center LP solve, fixing a
+confirmed live bug where reported values didn't sum to 1 as claimed (1.308 on a real
+production account). `computeSolverAccuracy` deliberately left unchanged per Dan's
+explicit scope call (range-width method, not redefined around the new joint point) — only
+`LevelValue.point` (feeding album scores and candidate-ambiguity ranking) changed. Verified
+exact normalization on both the 5-criterion historical fixture and a newly-embedded real
+6-criteria/33-answer production fixture (1.308 → 1.0 exactly). Measured (not assumed): does
+**not** move the degree-3 escalation point on real data — the separate levels-2–5 flatness
+issue is unaffected. `tsc`/lint/vitest clean (224/224 tests). Full detail:
+`docs/decisions/criteria-calibration-joint-point-estimate.md`.
+
 `criteria-calibration-dominance-filter` merged to `master` on 2026-08-09 via merge
 commit `bcfbeed` (rollback tag `pre-merge-dominance-filter` on the prior tip) — branch
 retained per convention, not deleted. `generateCandidatesForSubset` now rejects dominated

@@ -388,29 +388,18 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   index line to say "historical, feature removed" — not done in this session,
   intentionally out of scope per the brief that surfaced it.
 
-- **Solver point-estimate normalization doesn't jointly hold — confirmed live,
-  2026-07-30, display-clamped as a stopgap.** `solver.ts`'s header comment claims
-  "the best-level values across all criteria sum to exactly 1," but each
-  `LevelValue.point` is the midpoint of an independently-solved min/max range —
-  normalization is enforced within each individual LP solve, not jointly across
-  the resulting midpoints. Verified against a real account's Medium-tier
-  `user_criterion_weights`: level-5 values summed to 1.308, not 1, producing a raw
-  album score of 122%. The album rating drawer (part 6) clamps the *displayed*
-  percentage to 100 as a stopgap; ranking is unaffected (relative order still
-  holds within a year), but the clamp itself introduces a second, narrower
-  distortion — two albums whose raw scores both exceed 100% now display
-  identically as "100%", compressing a real quality difference at exactly the
-  high-scoring end. **Same root methodology as `criteria-calibration-engine.md`'s
-  "Part 4 finding"** (solving each free (criterion, level) variable via its own
-  separate LP rather than jointly) but a different downstream consumer — Part 4 is
-  about `computeSolverAccuracy`'s independent feasible-*range widths* (feeding the
-  accuracy-tier display), this is about the independent range *midpoints*
-  (`LevelValue.point`, feeding the score). Cross-referenced so a future session
-  doesn't re-investigate the same under-determination a third time. A real fix —
-  jointly re-normalizing the point estimates, or reporting the phase-1 solution
-  instead of independent per-value midpoints — needs its own session; `solver.ts`
-  is a locked engine file, out of scope for the session that found this.
-  `album-rating-drawer.md`.
+- **Solver point-estimate normalization doesn't jointly hold — fixed 2026-08-09.**
+  Originally confirmed live 2026-07-30 (1.308 normalization sum on a real account, raw
+  score 122%, display-clamped to 100% as a stopgap). Fixed on the
+  `criteria-calibration-joint-point-estimate` branch: `LevelValue.point` now comes from a
+  single joint Chebyshev-center LP solve rather than independent per-variable midpoints,
+  so normalization holds exactly by construction (verified: real production account
+  1.3077509833333332 → 1.0000000000000002). `computeSolverAccuracy` deliberately left
+  unchanged (range-width method, per Dan's explicit scope call) — only the point used for
+  scoring/ranking/candidate-ambiguity changed. Measured, not assumed: this fix does
+  **not** move `nextAction`'s degree-3 escalation point on the same real data (top
+  candidate gap ~0 either way) — the separate levels-2–5 flatness issue below is
+  unaffected. Full detail: `criteria-calibration-joint-point-estimate.md`.
 - **Medium tier can't distinguish middle levels — real ties, not a rare edge
   case.** Also found live 2026-07-30: Medium tier's degree-2 questions only ever
   compare each criterion's *extreme* levels (1 vs 5), so levels 2–4 are never
@@ -423,6 +412,42 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   until a user answers degree-3+ questions. Not a bug (consistent with the
   engine's already-documented under-determination scope), but worth knowing
   before any UI presents rank as a meaningful signal on its own. `album-rating-drawer.md`.
+
+- **Degree-2 refinement candidates rarely differentiate levels 2–5 — real
+  session diagnosed 2026-08-09.** Read-only diagnostic (not fixed this session)
+  of Dan's real 33-answer degree-2 session (`eec42cd4-...`) traced why
+  `nextAction()` never reports `degree-exhausted`: after the 15-pair cold start
+  (extreme 1-vs-5 probes per criterion), the solved model has learned "level 1
+  is worse" per criterion but almost nothing distinguishing levels 2–5 from each
+  other (solved step sizes ~0.0001–0.0002 between levels 2→3→4→5, vs.
+  ~0.08–0.50 for the 1→2 step). Refinement candidates draw levels uniformly
+  across 1–5, so most drawn pairs land in this flat, undifferentiated region and
+  read as maximally ambiguous (gap ≈ 0), keeping `nextAction()` stuck offering
+  more degree-2 questions instead of ever reporting the pool empty or a gap
+  above `MAX_AMBIGUOUS_GAP`. Confirmed not a bug in the 2026-08-09 dominance
+  filter (`criteria-calibration-dominance-filter.md`) — that filter changes
+  candidate composition but doesn't cause or fix this; `totalSlack = 0`
+  throughout confirms Dan's real answers are internally consistent, so this is
+  under-determination, not noisy input. A synthetic continuation suggests
+  several dozen to 70+ more real answers before this resolves on its own at
+  Dan's observed (slow) convergence rate. Open question for a future session:
+  should refinement candidate generation preferentially probe mid-levels
+  (2–4) once the extremes are pinned, rather than drawing uniformly across
+  1–5? No fix attempted this session (diagnostic was explicitly read-only).
+- **`MAX_AMBIGUOUS_GAP = 0.05` (`elicitationDriver.ts`) may need to scale with
+  criteria count — open question, not resolved.** Same 2026-08-09 diagnostic:
+  under the additive model's normalization (best-level values summing to ~1
+  across criteria), each criterion's average "budget" shrinks as criteria count
+  grows (0.20 at 5 criteria vs. 0.167 at 6), so a genuine, resolved trade-off
+  gap between two criteria is plausibly smaller on average at 6 criteria than
+  at 5 — meaning a fixed 0.05 threshold could be effectively stricter (harder
+  to clear) as criteria count increases. Dan's 6-criterion session data
+  couldn't cleanly isolate this from the levels 2–5 flatness issue above (both
+  push gaps toward 0 for unrelated reasons), so this remains unverified,
+  provisional — same status as the other unvalidated accuracy thresholds in
+  `accuracyTiers.ts`. Worth revisiting once a real 6-criterion session reaches
+  much higher accuracy and the flatness issue above is no longer confounding
+  the gap signal.
 
 ## C. Design/branding (open)
 
