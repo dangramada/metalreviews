@@ -83,6 +83,34 @@ repo-wide prettier drift, ~3280 problems on `master` before this branch, confirm
 224 tests, all pass (no existing test exercised the gate-blocked path, so no test
 updates were required by the behavior change itself).
 
+## Follow-up pass (same day, 2026-08-09) — badge restyle + Cancel button
+
+Two revisions requested by Dan after reviewing the first pass:
+
+1. **Warning badge, not an abbreviation strip.** The original design showed a compact
+   `L`/`M`/`H`/`VH` abbreviation for all four tiers, top-right corner of the artwork.
+   Replaced with a single red-on-black `!` glyph, shown **only for tier `'none'`** — the
+   only case that actually warrants a warning — positioned directly beside
+   `rankOverlayBadge` (same bottom-left corner, same row) rather than a separate corner,
+   sized to match it (`px`/`py`/`fontSize` identical to `rankOverlayBadge`). New theme
+   token `confidenceWarningBadge` replaces the removed `confidenceBadge`: `bg: 'black'`,
+   `color: 'red.400'`, sharp square corners (no radius, consistent with every other badge
+   in this design system), `cursor: 'pointer'` + `_hover` for real hover affordance since
+   its only content is one glyph. `confidenceAbbreviation()` (and the now-unused `passed`
+   field on `useCalibrationGate`'s return) removed as dead code — nothing calls either
+   anymore.
+2. **Cancel button on the nudge dialog.** Added as a third `DialogFooter` button
+   (`secondaryButton` + `variant="outline"`, leftmost), alongside the existing "Rate
+   anyway" (solid secondary) and "Go to calibration" (primary) — closes the dialog
+   without navigating anywhere, restoring an explicit no-op path the outline styling
+   (rather than solid, to read as the least-committal of the three) distinguishes from
+   "Rate anyway."
+
+Live-verified via the same temporary-dev-route pattern (harness re-created, screenshotted
+against all four tiers + the dialog's three-button footer, removed before committing —
+not present on the branch). `tsc --noEmit` clean, zero new lint violations on touched
+files, `npx vitest run` 224/224 still passing.
+
 ## Out of scope, not touched this pass
 
 `computeSolverAccuracy`, `accuracyTiers.ts` thresholds, `solver.ts`,

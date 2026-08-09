@@ -20,22 +20,9 @@ export function confidenceLabel(tier: CalibrationTier): string {
   return CONFIDENCE_LABELS[tier];
 }
 
-// Abbreviated form for the compact Favorites-row badge, where "Score confidence: Medium"
-// doesn't fit — full text still reaches the user via this badge's tooltip.
-const CONFIDENCE_ABBREVIATIONS: Record<CalibrationTier, string> = {
-  none: 'L',
-  medium: 'M',
-  high: 'H',
-  very_high: 'VH',
-};
-
-export function confidenceAbbreviation(tier: CalibrationTier): string {
-  return CONFIDENCE_ABBREVIATIONS[tier];
-}
-
 // Fetches the current user's user_calibration_status row (mirrors useFavoritesList.ts's fetch
 // convention). No row yet (never started calibration) is treated the same as tier === 'none'
-// — both fail the gate for the rating drawer (part 6, Part A).
+// — both surface the same low-confidence badge/nudge (album-rating-soft-gate).
 export function useCalibrationGate() {
   const { user } = useAuth();
   const [tier, setTier] = useState<CalibrationTier>('none');
@@ -68,7 +55,5 @@ export function useCalibrationGate() {
     };
   }, [user]);
 
-  const passed = tier !== 'none';
-
-  return { tier, passed, loading };
+  return { tier, loading };
 }

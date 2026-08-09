@@ -53,11 +53,7 @@ import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { useFavoritesList } from './hooks/useFavoritesList';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
-import {
-  confidenceAbbreviation,
-  confidenceLabel,
-  useCalibrationGate,
-} from './hooks/useCalibrationGate';
+import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
 import type { CalibrationTier } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
@@ -65,7 +61,7 @@ import { getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { confidenceBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import { confidenceWarningBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
@@ -150,22 +146,22 @@ export function FavoriteListItemRow({
                 </Text>
               </Flex>
             )}
-            {/* Rank overlay — flush bottom-left corner, same technique as the home page's
-                sourceBadge/scoreSlab overlays (position="absolute" + bottom={0}/left={0}, not
-                an inset offset — that was tried on other badges and rejected since partial
-                borders only read correctly flush into the corner). Only rendered when this
-                album has a rank; no placeholder otherwise. */}
+            {/* Rank overlay (+ low-confidence warning, when applicable) — flush bottom-left
+                corner, same technique as the home page's sourceBadge/scoreSlab overlays
+                (position="absolute" + bottom={0}/left={0}, not an inset offset — that was
+                tried on other badges and rejected since partial borders only read correctly
+                flush into the corner). Only rendered when this album has a rank; no
+                placeholder otherwise. The warning badge sits directly beside it (not a
+                separate corner) so both read as one strip. */}
             {ratingSummary && (
-              <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
-                #{ratingSummary.rank}
-              </Box>
-            )}
-            {ratingSummary && confidenceTier && (
-              <Tooltip content={`Score confidence: ${confidenceLabel(confidenceTier)}`}>
-                <Box {...confidenceBadge} position="absolute" top={0} right={0}>
-                  {confidenceAbbreviation(confidenceTier)}
-                </Box>
-              </Tooltip>
+              <Flex position="absolute" bottom={0} left={0} gap="2px">
+                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                {confidenceTier === 'none' && (
+                  <Tooltip content={`Score confidence: ${confidenceLabel(confidenceTier)}`}>
+                    <Box {...confidenceWarningBadge}>!</Box>
+                  </Tooltip>
+                )}
+              </Flex>
             )}
           </Box>
 
@@ -250,23 +246,22 @@ export function FavoriteListItemRow({
               </Flex>
             )}
             {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
-                layout-agnostic (favorites-row-desktop-redesign). */}
+                layout-agnostic (favorites-row-desktop-redesign). Warning badge uses a plain
+                title/aria-label instead of Tooltip — touch has no hover state, same
+                reasoning as the Rate/Remove buttons below. */}
             {ratingSummary && (
-              <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
-                #{ratingSummary.rank}
-              </Box>
-            )}
-            {ratingSummary && confidenceTier && (
-              <Box
-                {...confidenceBadge}
-                position="absolute"
-                top={0}
-                right={0}
-                aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-                title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-              >
-                {confidenceAbbreviation(confidenceTier)}
-              </Box>
+              <Flex position="absolute" bottom={0} left={0} gap="2px">
+                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                {confidenceTier === 'none' && (
+                  <Box
+                    {...confidenceWarningBadge}
+                    aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                    title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                  >
+                    !
+                  </Box>
+                )}
+              </Flex>
             )}
           </Box>
 
@@ -1180,6 +1175,9 @@ export function FavoritesPage() {
             later, or answer a few comparison questions first for a more accurate score.
           </DialogBody>
           <DialogFooter gap={3}>
+            <Button {...secondaryButton} variant="outline" onClick={() => setGateNudgeOpen(false)}>
+              Cancel
+            </Button>
             <Button
               {...secondaryButton}
               variant="solid"

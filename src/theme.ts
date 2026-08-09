@@ -387,24 +387,27 @@ export const rankOverlayBadge = {
   py: '4px',
 } as const;
 
-// Confidence badge — flush top-right of the favorites-row artwork (rankOverlayBadge already
-// owns bottom-left). Deliberately muted (not accent-filled like rankOverlayBadge): this is a
-// secondary caveat about the score, not a primary result, so it shouldn't compete visually
-// with the rank badge. Modeled on sourceBadge's flush-corner treatment.
-export const confidenceBadge = {
-  bg: 'surface.page',
-  color: 'text.dim',
-  borderBottom: '2px solid',
-  borderBottomColor: 'border.rule',
-  borderLeft: '2px solid',
-  borderLeftColor: 'border.rule',
+// Low-confidence warning badge — sits directly beside rankOverlayBadge (same corner, same
+// row), not a separate corner: this only ever appears for tier 'none', so it needs to read
+// as "pay attention to this score" at a glance, not as a fourth data point among several.
+// Same footprint as rankOverlayBadge (px/py/fontSize) so the two badges look like one
+// contiguous strip — red-on-black rather than the accent fill, and sharp/square like every
+// other badge in this design system (no radius). cursor+_hover give it real hover affordance
+// since its only content is a single glyph.
+export const confidenceWarningBadge = {
+  bg: 'black',
+  color: 'red.400',
+  borderTop: '2px solid',
+  borderTopColor: 'red.900',
   borderRadius: '0',
-  fontFamily: 'mono',
-  fontSize: '11px',
-  fontWeight: '500',
-  letterSpacing: '0.08em',
+  fontFamily: 'heading',
+  fontSize: '14px',
+  fontWeight: 700,
+  cursor: 'pointer',
   px: '8px',
   py: '4px',
+  transition: 'background-color 0.15s',
+  _hover: { bg: 'red.950' },
 } as const;
 
 // Band/album title typography — shared source of truth (design-system-audit-2026-08.md).
