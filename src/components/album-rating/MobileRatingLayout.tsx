@@ -26,6 +26,7 @@ import { RatingProgressBox } from './RatingProgressBox';
 import { RatingRadarChart } from './RatingRadarChart';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
+import type { CalibrationTier } from '../../hooks/useCalibrationGate';
 import type { CriterionLevelWeight } from './RatingRadarChart';
 import { secondaryButton } from '../../theme';
 
@@ -66,6 +67,7 @@ interface MobileRatingLayoutProps {
   ratings: Map<number, number>;
   weights: CriterionLevelWeight[];
   ratingSummary: AlbumRatingSummary | undefined;
+  confidenceTier: CalibrationTier;
   onPick: (criterionId: number, level: number) => Promise<void>;
   savingCriterionId: number | null;
 }
@@ -81,6 +83,7 @@ export function MobileRatingLayout({
   ratings,
   weights,
   ratingSummary,
+  confidenceTier,
   onPick,
   savingCriterionId,
 }: MobileRatingLayoutProps) {
@@ -270,6 +273,7 @@ export function MobileRatingLayout({
           ratedCount={revealed ? ratings.size : progressSnapshot.ratedCount}
           totalCount={order.length}
           ratingSummary={revealed ? ratingSummary : progressSnapshot.ratingSummary}
+          confidenceTier={confidenceTier}
         />
       </Box>
       <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">

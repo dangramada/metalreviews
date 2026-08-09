@@ -51,6 +51,17 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+`album-rating-soft-gate` — not yet merged (2026-08-09), tsc/lint/vitest clean (224/224
+tests), awaiting Dan's review. Removes the hard calibration-tier block on album rating
+(`useCalibrationGate`/`FavoritesPage.tsx`'s `handleRate`) — an explicit reversal of the
+30 July gating decision, prompted by Dan hitting the block himself right after this
+morning's gate-redesign migration correctly re-graded his account below Medium. Rating
+is now always reachable; a dismissible (non-blocking) nudge dialog still offers
+calibration first, and a new "Score confidence: {tier}" indicator (reusing the existing
+Low/Medium/High/Very-High tiers, no new accuracy math) appears on both the
+`AlbumRatingPage` score display and a compact badge on Favorites rank badges. Full
+detail: `docs/decisions/album-rating-soft-gate.md`.
+
 `criteria-calibration-joint-point-estimate` merged to `master` on 2026-08-09 via merge
 commit `ecefcc7` (rollback tag `pre-merge-joint-point-estimate` on the prior tip) —
 branch retained per convention, not deleted. Replaces `solver.ts`'s independent-axis

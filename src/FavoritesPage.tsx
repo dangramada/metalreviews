@@ -53,14 +53,15 @@ import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { useFavoritesList } from './hooks/useFavoritesList';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
-import { useCalibrationGate } from './hooks/useCalibrationGate';
+import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
+import type { CalibrationTier } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
 import { getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import { confidenceWarningBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
@@ -74,6 +75,7 @@ export function FavoriteListItemRow({
   removing = false,
   ratingSummary,
   onRate,
+  confidenceTier,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -81,9 +83,14 @@ export function FavoriteListItemRow({
   // Present only when this album is fully rated (all 6 criteria) — see
   // useAlbumRatingsSummary. Undefined for previews (AddAlbumDrawer) and unrated albums.
   ratingSummary?: AlbumRatingSummary;
-  // Opens the rating drawer (behind the calibration gate) for this item. Omitted in the
-  // AddAlbumDrawer preview context, where rating doesn't apply yet.
+  // Opens the rating page for this item. No longer gated behind calibration tier
+  // (album-rating-soft-gate) — always navigates; below-Medium users see a dismissible nudge
+  // first instead of a block.
   onRate?: () => void;
+  // Same tier for every row on the page (one account, one calibration status) — only
+  // rendered alongside a rank badge, since an unrated album has no score to be confident
+  // about yet. Omitted in the AddAlbumDrawer preview context.
+  confidenceTier?: CalibrationTier;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [mobileImgFailed, setMobileImgFailed] = useState(false);
@@ -139,14 +146,27 @@ export function FavoriteListItemRow({
                 </Text>
               </Flex>
             )}
-            {/* Rank overlay — flush bottom-left corner, same technique as the home page's
-                sourceBadge/scoreSlab overlays (position="absolute" + bottom={0}/left={0}, not
-                an inset offset — that was tried on other badges and rejected since partial
-                borders only read correctly flush into the corner). Only rendered when this
-                album has a rank; no placeholder otherwise. */}
+            {/* Rank overlay (+ low-confidence warning, when applicable) — flush bottom-left
+                corner, same technique as the home page's sourceBadge/scoreSlab overlays
+                (position="absolute" + bottom={0}/left={0}, not an inset offset — that was
+                tried on other badges and rejected since partial borders only read correctly
+                flush into the corner). Only rendered when this album has a rank; no
+                placeholder otherwise. The warning badge sits directly beside it (not a
+                separate corner) so both read as one strip. */}
+            {/* display="grid" + gridAutoFlow="column" (not Flex/row) is load-bearing: a plain
+                flex row's default `align-items: stretch` matches the warning badge's *height*
+                to its taller rankOverlayBadge sibling, but its `aspectRatio: 1/1` (see
+                confidenceWarningBadge) is ignored for the *width* — confirmed live, the badge
+                rendered ~7px wide against the rank badge's ~31px. CSS Grid's track-sizing
+                algorithm honors aspect-ratio against the stretched cross size correctly. */}
             {ratingSummary && (
-              <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
-                #{ratingSummary.rank}
+              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                {confidenceTier === 'none' && (
+                  <Tooltip content={`Score confidence: ${confidenceLabel(confidenceTier)}`}>
+                    <Box {...confidenceWarningBadge}>!</Box>
+                  </Tooltip>
+                )}
               </Box>
             )}
           </Box>
@@ -232,10 +252,23 @@ export function FavoriteListItemRow({
               </Flex>
             )}
             {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
-                layout-agnostic (favorites-row-desktop-redesign). */}
+                layout-agnostic (favorites-row-desktop-redesign). Warning badge uses a plain
+                title/aria-label instead of Tooltip — touch has no hover state, same
+                reasoning as the Rate/Remove buttons below. Grid, not Flex — see the desktop
+                block's comment above for why (aspectRatio is ignored on a flex row's cross-
+                stretched item, but honored by CSS Grid's track sizing). */}
             {ratingSummary && (
-              <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
-                #{ratingSummary.rank}
+              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                {confidenceTier === 'none' && (
+                  <Box
+                    {...confidenceWarningBadge}
+                    aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                    title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                  >
+                    !
+                  </Box>
+                )}
               </Box>
             )}
           </Box>
@@ -978,16 +1011,22 @@ export function FavoritesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  // Criteria Calibration part 6: gate + score/rank display. The rating UI itself is the
-  // dedicated /rate/:albumId page (album-rating-page) — see docs/decisions/album-rating-page.md.
-  const { passed: gatePassed, loading: gateLoading } = useCalibrationGate();
+  // Criteria Calibration part 6/album-rating-soft-gate: score/rank display + a dismissible
+  // calibration nudge. The rating UI itself is the dedicated /rate/:albumId page
+  // (album-rating-page) — see docs/decisions/album-rating-page.md. Rating is no longer
+  // blocked below Medium tier (album-rating-soft-gate, reversing the original 30 July
+  // gating decision) — `tier` still drives the nudge dialog and the confidence badge, but
+  // `handleRate` always reaches the rating page one way or another.
+  const { tier: calibrationTier, loading: gateLoading } = useCalibrationGate();
   const { summary: ratingSummary } = useAlbumRatingsSummary();
-  const [gateBlockedOpen, setGateBlockedOpen] = useState(false);
+  const [gateNudgeOpen, setGateNudgeOpen] = useState(false);
+  const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
   function handleRate(item: FavoriteListItem) {
     if (gateLoading) return;
-    if (!gatePassed) {
-      setGateBlockedOpen(true);
+    if (calibrationTier === 'none') {
+      setPendingRateAlbumId(item.albumId);
+      setGateNudgeOpen(true);
       return;
     }
     navigate(`/rate/${item.albumId}?from=favorites`);
@@ -1111,6 +1150,7 @@ export function FavoritesPage() {
                   removing={removingId === item.albumId}
                   ratingSummary={ratingSummary.get(item.albumId)}
                   onRate={() => handleRate(item)}
+                  confidenceTier={calibrationTier}
                 />
               ))}
             </VStack>
@@ -1132,23 +1172,34 @@ export function FavoritesPage() {
         favoritedAlbumIds={favoritedAlbumIds}
       />
 
-      <DialogRoot open={gateBlockedOpen} onOpenChange={({ open }) => setGateBlockedOpen(open)}>
+      <DialogRoot open={gateNudgeOpen} onOpenChange={({ open }) => setGateNudgeOpen(open)}>
         <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
           <DialogHeader>
-            <DialogTitle fontWeight="semibold">Calibrate your criteria first</DialogTitle>
+            <DialogTitle fontWeight="semibold">Calibrate your criteria first?</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            Rating albums uses your personal criteria weights, which aren&apos;t set up yet. Answer
-            a few comparison questions to get started.
+            Rating albums uses your personal criteria weights, which aren&apos;t set up yet — your
+            score will show as low confidence until you calibrate. You can rate now and calibrate
+            later, or answer a few comparison questions first for a more accurate score.
           </DialogBody>
           <DialogFooter gap={3}>
-            <Button {...secondaryButton} variant="solid" onClick={() => setGateBlockedOpen(false)}>
-              Not now
+            <Button {...secondaryButton} variant="outline" onClick={() => setGateNudgeOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              {...secondaryButton}
+              variant="solid"
+              onClick={() => {
+                setGateNudgeOpen(false);
+                if (pendingRateAlbumId) navigate(`/rate/${pendingRateAlbumId}?from=favorites`);
+              }}
+            >
+              Rate anyway
             </Button>
             <Button
               {...primaryButton}
               onClick={() => {
-                setGateBlockedOpen(false);
+                setGateNudgeOpen(false);
                 navigate('/criteria-calibration');
               }}
             >

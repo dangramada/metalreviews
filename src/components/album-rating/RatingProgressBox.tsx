@@ -4,15 +4,17 @@
 // visual output and AnimatePresence crossfade as before extraction — see
 // docs/decisions/album-rating-page.md for why `mode="wait"` was chosen over a simultaneous
 // crossfade (the pending->final swap changes child count, not just content).
-import { Flex } from '@chakra-ui/react';
+import { Flex, Text, VStack } from '@chakra-ui/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RatingSlab } from './RatingSlab';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
+import { confidenceLabel, type CalibrationTier } from '../../hooks/useCalibrationGate';
 
 interface RatingProgressBoxProps {
   ratedCount: number;
   totalCount: number;
   ratingSummary: AlbumRatingSummary | undefined;
+  confidenceTier: CalibrationTier;
 }
 
 // Solver point estimates now come from a single jointly-solved feasible point (see
@@ -28,6 +30,7 @@ export function RatingProgressBox({
   ratedCount,
   totalCount,
   ratingSummary,
+  confidenceTier,
 }: RatingProgressBoxProps) {
   // Pending on ratedCount alone, not on ratingSummary's presence — ratingSummary refetches
   // asynchronously after the last save, so gating on it instead would leave a stale "—" flash
@@ -68,10 +71,25 @@ export function RatingProgressBox({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
         >
-          <Flex gap={0}>
-            <RatingSlab label="Score" value={scoreValue} variant="base" />
-            <RatingSlab label="Rank" value={rankValue} variant="high" />
-          </Flex>
+          <VStack align="stretch" gap={2}>
+            <Flex gap={0}>
+              <RatingSlab label="Score" value={scoreValue} variant="base" />
+              <RatingSlab label="Rank" value={rankValue} variant="high" />
+            </Flex>
+            {/* album-rating-soft-gate: v1, plain text label — no tooltip/explanation copy,
+                reusing the same tier already computed for the (now non-blocking) calibration
+                nudge rather than a new scale. Ship and evaluate before building further. */}
+            <Text
+              fontFamily="mono"
+              fontSize="12px"
+              fontWeight="500"
+              textTransform="uppercase"
+              letterSpacing="0.06em"
+              color="text.muted"
+            >
+              Score confidence: {confidenceLabel(confidenceTier)}
+            </Text>
+          </VStack>
         </motion.div>
       )}
     </AnimatePresence>

@@ -387,6 +387,32 @@ export const rankOverlayBadge = {
   py: '4px',
 } as const;
 
+// Low-confidence warning badge — flush against rankOverlayBadge (same corner, same row, no
+// gap between them: they read as one contiguous strip), not a separate corner. Only ever
+// appears for tier 'none'. Square with equal sides: no fixed px/py, instead `aspectRatio:
+// '1/1'` + flex centering, so its width self-matches whatever height the row's own flex
+// stretch (the parent Flex's default align-items) gives it from the taller rankOverlayBadge
+// sibling — deliberately not hardcoded, since rankOverlayBadge's own height isn't fixed
+// either. `cursor: 'help'`, not `pointer` — this badge isn't clickable, only hoverable for
+// its tooltip/title, so no hover background change either.
+export const confidenceWarningBadge = {
+  bg: 'black',
+  color: 'red.400',
+  borderLeft: '2px solid',
+  borderLeftColor: 'red.900',
+  borderTop: '2px solid',
+  borderTopColor: 'red.900',
+  borderRadius: '0',
+  fontFamily: 'heading',
+  fontSize: '14px',
+  fontWeight: 700,
+  cursor: 'help',
+  aspectRatio: '1 / 1',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+} as const;
+
 // Band/album title typography — shared source of truth (design-system-audit-2026-08.md).
 // Review card and AlbumRatingPage desktop already matched byte-for-byte before this token
 // existed; FavoriteListItemRow desktop/mobile previously used their own smaller literal
