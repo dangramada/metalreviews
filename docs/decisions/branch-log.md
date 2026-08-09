@@ -4,6 +4,7 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `criteria-calibration-coverage-weighted-candidates` — merged to master `b8733c6`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-coverage-weighted-candidates.md`
 - `album-rating-soft-gate` — merged to master `e3d5d64`, 2026-08-09 — full detail: `docs/decisions/album-rating-soft-gate.md`
 - `criteria-calibration-joint-point-estimate` — merged to master `ecefcc7`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-joint-point-estimate.md`
 - `criteria-calibration-dominance-filter` — merged to master `bcfbeed`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-dominance-filter.md`
