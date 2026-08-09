@@ -497,6 +497,17 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   point values in the sane `[0, 0.5]` range instead of ~1e14. Full detail:
   `two-phase-simplex-rewrite.md`.
 
+- **Automatic degree escalation (replace manual gap-based `degree-exhausted` trigger)
+  — design checkpoint only, 2026-08-09, nothing implemented.** Full reasoning chain
+  (fixed-window plateau proposal measured then rejected — punctuated accuracy gains
+  make it false-positive-prone; Dan's correction that the right rule is coverage-based
+  via `computeTouchCounts`/`.min`/`.max` range, not elapsed-answer-count; external
+  validation from 1000minds' per-level Lower/Upper UI) and the open design questions
+  left for a future session: `criteria-calibration-adaptive-degree-escalation.md`.
+  Also surfaced there: the LP solver throws "infeasible even with slack" after enough
+  forced/synthetic answers past what's normally exercised (n=70 oracle trace / n=55
+  real-session-extended trace) — unfixed, caps how far any escalation design can push
+  before the solver needs its own hardening pass.
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the
