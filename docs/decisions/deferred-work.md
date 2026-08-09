@@ -497,6 +497,22 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   point values in the sane `[0, 0.5]` range instead of ~1e14. Full detail:
   `two-phase-simplex-rewrite.md`.
 
+- **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
+  `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
+  `accuracyTiers.ts`) are provisional — same unresolved status as the
+  `computeSolverAccuracy`-era thresholds they replace.** Calibrated only against the
+  2026-08-09 oracle-simulation trace (5-criterion synthetic ground truth) and Dan's
+  real 6-criteria/33-answer production session (no ground truth there — checked only
+  for "moves sensibly, doesn't saturate"). These numbers, and whether the score-spread
+  metric itself needs further tuning (sample size, aggregation formula), should be
+  revisited together with the already-flagged need for a second real calibration
+  session on the current 6-criteria/5-level production model (see
+  `criteria-calibration-engine.md`'s "Accuracy thresholds — explicitly not validated"
+  section and the matching comment in `accuracyTiers.ts`) — one recalibration pass
+  covering both, not two separate follow-ups. Do not tighten or loosen these
+  constants without that session's data. Full detail:
+  `criteria-calibration-score-spread-accuracy.md`.
+
 ## C. Design/branding (open)
 
 - **Criteria Calibration header layout** — needs a dedicated reorganization pass.
