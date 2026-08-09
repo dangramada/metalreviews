@@ -51,8 +51,10 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`criteria-calibration-joint-point-estimate` — not yet merged, currently checked out.
-Replaces `solver.ts`'s independent-axis point estimate (midpoint of each value's
+`criteria-calibration-joint-point-estimate` merged to `master` on 2026-08-09 via merge
+commit `ecefcc7` (rollback tag `pre-merge-joint-point-estimate` on the prior tip) —
+branch retained per convention, not deleted. Replaces `solver.ts`'s independent-axis
+point estimate (midpoint of each value's
 separately-solved min/max range) with a single joint Chebyshev-center LP solve, fixing a
 confirmed live bug where reported values didn't sum to 1 as claimed (1.308 on a real
 production account). `computeSolverAccuracy` deliberately left unchanged per Dan's
