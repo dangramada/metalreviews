@@ -11,6 +11,7 @@ import { RatingProgressBox } from './RatingProgressBox';
 import { RatingRadarChart, type CriterionLevelWeight } from './RatingRadarChart';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
+import type { CalibrationTier } from '../../hooks/useCalibrationGate';
 
 interface DesktopRatingLayoutProps {
   artworkUrl: string | null;
@@ -27,6 +28,7 @@ interface DesktopRatingLayoutProps {
   onPick: (criterionId: number, level: number) => void;
   savingCriterionId: number | null;
   ratingSummary: AlbumRatingSummary | undefined;
+  confidenceTier: CalibrationTier;
 }
 
 export function DesktopRatingLayout({
@@ -44,6 +46,7 @@ export function DesktopRatingLayout({
   onPick,
   savingCriterionId,
   ratingSummary,
+  confidenceTier,
 }: DesktopRatingLayoutProps) {
   const selectedEntry = catalog?.entries[selectedCriterionId];
 
@@ -269,7 +272,12 @@ export function DesktopRatingLayout({
         {/* Section 3: rank/score slabs + radar chart. bg="surface.card" — same third-pass fill
             as the other two sections. */}
         <VStack gridArea="score" align="stretch" gap={4} bg="surface.card" minW={0}>
-          <RatingProgressBox ratedCount={ratings.size} totalCount={order.length} ratingSummary={ratingSummary} />
+          <RatingProgressBox
+            ratedCount={ratings.size}
+            totalCount={order.length}
+            ratingSummary={ratingSummary}
+            confidenceTier={confidenceTier}
+          />
           <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
         </VStack>
     </Box>

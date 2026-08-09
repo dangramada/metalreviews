@@ -387,6 +387,26 @@ export const rankOverlayBadge = {
   py: '4px',
 } as const;
 
+// Confidence badge — flush top-right of the favorites-row artwork (rankOverlayBadge already
+// owns bottom-left). Deliberately muted (not accent-filled like rankOverlayBadge): this is a
+// secondary caveat about the score, not a primary result, so it shouldn't compete visually
+// with the rank badge. Modeled on sourceBadge's flush-corner treatment.
+export const confidenceBadge = {
+  bg: 'surface.page',
+  color: 'text.dim',
+  borderBottom: '2px solid',
+  borderBottomColor: 'border.rule',
+  borderLeft: '2px solid',
+  borderLeftColor: 'border.rule',
+  borderRadius: '0',
+  fontFamily: 'mono',
+  fontSize: '11px',
+  fontWeight: '500',
+  letterSpacing: '0.08em',
+  px: '8px',
+  py: '4px',
+} as const;
+
 // Band/album title typography — shared source of truth (design-system-audit-2026-08.md).
 // Review card and AlbumRatingPage desktop already matched byte-for-byte before this token
 // existed; FavoriteListItemRow desktop/mobile previously used their own smaller literal

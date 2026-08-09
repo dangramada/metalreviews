@@ -53,14 +53,19 @@ import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { useFavoritesList } from './hooks/useFavoritesList';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
-import { useCalibrationGate } from './hooks/useCalibrationGate';
+import {
+  confidenceAbbreviation,
+  confidenceLabel,
+  useCalibrationGate,
+} from './hooks/useCalibrationGate';
+import type { CalibrationTier } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
 import { getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import { confidenceBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
@@ -74,6 +79,7 @@ export function FavoriteListItemRow({
   removing = false,
   ratingSummary,
   onRate,
+  confidenceTier,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -81,9 +87,14 @@ export function FavoriteListItemRow({
   // Present only when this album is fully rated (all 6 criteria) — see
   // useAlbumRatingsSummary. Undefined for previews (AddAlbumDrawer) and unrated albums.
   ratingSummary?: AlbumRatingSummary;
-  // Opens the rating drawer (behind the calibration gate) for this item. Omitted in the
-  // AddAlbumDrawer preview context, where rating doesn't apply yet.
+  // Opens the rating page for this item. No longer gated behind calibration tier
+  // (album-rating-soft-gate) — always navigates; below-Medium users see a dismissible nudge
+  // first instead of a block.
   onRate?: () => void;
+  // Same tier for every row on the page (one account, one calibration status) — only
+  // rendered alongside a rank badge, since an unrated album has no score to be confident
+  // about yet. Omitted in the AddAlbumDrawer preview context.
+  confidenceTier?: CalibrationTier;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [mobileImgFailed, setMobileImgFailed] = useState(false);
@@ -148,6 +159,13 @@ export function FavoriteListItemRow({
               <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
                 #{ratingSummary.rank}
               </Box>
+            )}
+            {ratingSummary && confidenceTier && (
+              <Tooltip content={`Score confidence: ${confidenceLabel(confidenceTier)}`}>
+                <Box {...confidenceBadge} position="absolute" top={0} right={0}>
+                  {confidenceAbbreviation(confidenceTier)}
+                </Box>
+              </Tooltip>
             )}
           </Box>
 
@@ -236,6 +254,18 @@ export function FavoriteListItemRow({
             {ratingSummary && (
               <Box {...rankOverlayBadge} position="absolute" bottom={0} left={0}>
                 #{ratingSummary.rank}
+              </Box>
+            )}
+            {ratingSummary && confidenceTier && (
+              <Box
+                {...confidenceBadge}
+                position="absolute"
+                top={0}
+                right={0}
+                aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+              >
+                {confidenceAbbreviation(confidenceTier)}
               </Box>
             )}
           </Box>
@@ -978,16 +1008,22 @@ export function FavoritesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  // Criteria Calibration part 6: gate + score/rank display. The rating UI itself is the
-  // dedicated /rate/:albumId page (album-rating-page) — see docs/decisions/album-rating-page.md.
-  const { passed: gatePassed, loading: gateLoading } = useCalibrationGate();
+  // Criteria Calibration part 6/album-rating-soft-gate: score/rank display + a dismissible
+  // calibration nudge. The rating UI itself is the dedicated /rate/:albumId page
+  // (album-rating-page) — see docs/decisions/album-rating-page.md. Rating is no longer
+  // blocked below Medium tier (album-rating-soft-gate, reversing the original 30 July
+  // gating decision) — `tier` still drives the nudge dialog and the confidence badge, but
+  // `handleRate` always reaches the rating page one way or another.
+  const { tier: calibrationTier, loading: gateLoading } = useCalibrationGate();
   const { summary: ratingSummary } = useAlbumRatingsSummary();
-  const [gateBlockedOpen, setGateBlockedOpen] = useState(false);
+  const [gateNudgeOpen, setGateNudgeOpen] = useState(false);
+  const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
   function handleRate(item: FavoriteListItem) {
     if (gateLoading) return;
-    if (!gatePassed) {
-      setGateBlockedOpen(true);
+    if (calibrationTier === 'none') {
+      setPendingRateAlbumId(item.albumId);
+      setGateNudgeOpen(true);
       return;
     }
     navigate(`/rate/${item.albumId}?from=favorites`);
@@ -1111,6 +1147,7 @@ export function FavoritesPage() {
                   removing={removingId === item.albumId}
                   ratingSummary={ratingSummary.get(item.albumId)}
                   onRate={() => handleRate(item)}
+                  confidenceTier={calibrationTier}
                 />
               ))}
             </VStack>
@@ -1132,23 +1169,31 @@ export function FavoritesPage() {
         favoritedAlbumIds={favoritedAlbumIds}
       />
 
-      <DialogRoot open={gateBlockedOpen} onOpenChange={({ open }) => setGateBlockedOpen(open)}>
+      <DialogRoot open={gateNudgeOpen} onOpenChange={({ open }) => setGateNudgeOpen(open)}>
         <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
           <DialogHeader>
-            <DialogTitle fontWeight="semibold">Calibrate your criteria first</DialogTitle>
+            <DialogTitle fontWeight="semibold">Calibrate your criteria first?</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            Rating albums uses your personal criteria weights, which aren&apos;t set up yet. Answer
-            a few comparison questions to get started.
+            Rating albums uses your personal criteria weights, which aren&apos;t set up yet — your
+            score will show as low confidence until you calibrate. You can rate now and calibrate
+            later, or answer a few comparison questions first for a more accurate score.
           </DialogBody>
           <DialogFooter gap={3}>
-            <Button {...secondaryButton} variant="solid" onClick={() => setGateBlockedOpen(false)}>
-              Not now
+            <Button
+              {...secondaryButton}
+              variant="solid"
+              onClick={() => {
+                setGateNudgeOpen(false);
+                if (pendingRateAlbumId) navigate(`/rate/${pendingRateAlbumId}?from=favorites`);
+              }}
+            >
+              Rate anyway
             </Button>
             <Button
               {...primaryButton}
               onClick={() => {
-                setGateBlockedOpen(false);
+                setGateNudgeOpen(false);
                 navigate('/criteria-calibration');
               }}
             >

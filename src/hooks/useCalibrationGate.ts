@@ -4,6 +4,35 @@ import { useAuth } from '../AuthContext';
 
 export type CalibrationTier = 'none' | 'medium' | 'high' | 'very_high';
 
+// Display labels for the rating page's score-confidence indicator (album-rating-soft-gate).
+// Reuses the same tier already computed and stored server-side by
+// persistence.ts's computeTier — no separate accuracy scale, just a label for the existing
+// one. 'none' reads as "Low" here rather than "None": the user has a score on screen, so
+// "no confidence" would read as broken rather than as "not yet calibrated".
+const CONFIDENCE_LABELS: Record<CalibrationTier, string> = {
+  none: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  very_high: 'Very High',
+};
+
+export function confidenceLabel(tier: CalibrationTier): string {
+  return CONFIDENCE_LABELS[tier];
+}
+
+// Abbreviated form for the compact Favorites-row badge, where "Score confidence: Medium"
+// doesn't fit — full text still reaches the user via this badge's tooltip.
+const CONFIDENCE_ABBREVIATIONS: Record<CalibrationTier, string> = {
+  none: 'L',
+  medium: 'M',
+  high: 'H',
+  very_high: 'VH',
+};
+
+export function confidenceAbbreviation(tier: CalibrationTier): string {
+  return CONFIDENCE_ABBREVIATIONS[tier];
+}
+
 // Fetches the current user's user_calibration_status row (mirrors useFavoritesList.ts's fetch
 // convention). No row yet (never started calibration) is treated the same as tier === 'none'
 // — both fail the gate for the rating drawer (part 6, Part A).

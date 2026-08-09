@@ -8,6 +8,7 @@ import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
+import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { supabase } from './supabaseClient';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { FIXED_CRITERION_ORDER } from './lib/album-rating/criterionOrder';
@@ -48,6 +49,10 @@ export function AlbumRatingPage() {
   const { user } = useAuth();
   const { catalog, loading: catalogLoading } = useCriteriaCatalog();
   const { summary: ratingSummary, refetch: refetchRatingSummary } = useAlbumRatingsSummary();
+  // album-rating-soft-gate: no longer used to block this page (it never gated it in the
+  // first place — see the diagnostic that preceded this branch), only to label score
+  // confidence next to Score/Rank.
+  const { tier: confidenceTier } = useCalibrationGate();
   const { showError } = useFeedbackToast();
 
   const [albumInfo, setAlbumInfo] = useState<AlbumRow | null>(null);
@@ -184,6 +189,7 @@ export function AlbumRatingPage() {
                   onPick={handlePick}
                   savingCriterionId={savingCriterionId}
                   ratingSummary={ratingSummary.get(albumInfo.id)}
+                  confidenceTier={confidenceTier}
                 />
               </Box>
 
@@ -200,6 +206,7 @@ export function AlbumRatingPage() {
                   ratings={ratings}
                   weights={weights}
                   ratingSummary={ratingSummary.get(albumInfo.id)}
+                  confidenceTier={confidenceTier}
                   onPick={handlePick}
                   savingCriterionId={savingCriterionId}
                 />
