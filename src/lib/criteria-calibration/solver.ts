@@ -66,6 +66,30 @@ export interface ValueSolverResult {
 const DEFAULT_MARGIN = 1e-4;
 const SLACK_CAP_TOLERANCE = 1e-6;
 
+/**
+ * Everything needed to run further LP solves (min/max of any linear combination of value
+ * variables) against the same feasible region `solveValues` itself reports its point
+ * estimate/ranges against. Extracted out of `solveValues` so other consumers — currently
+ * `scoreSpreadAccuracy.ts`, which needs to solve max/min of `scoreProfile(A) -
+ * scoreProfile(B)` for sampled profile pairs, a linear combination `solveValues` never
+ * itself constructs — build against the identical constraint set (monotonicity + per-answer
+ * slack rows + normalization + slack cap) rather than a second, possibly-drifting copy of
+ * the same logic.
+ */
+export interface BuiltValueLP {
+  totalVars: number;
+  numValueVars: number;
+  varIndex: Map<string, number>;
+  /** Phase-1 (slack-minimizing) constraints, plus the slack-cap row — the region every
+   *  further LP solve (Chebyshev center, per-value ranges, score-spread) is solved against. */
+  constraintsWithSlackCap: Constraint[];
+  /** Phase-1 objective value: total slack absorbed across all answers. */
+  totalSlack: number;
+  /** The phase-1 (slack-minimizing) solution itself — `x[numValueVars + k]` is answer `k`'s
+   *  absorbed slack. Exposed so `solveValues` can report `perAnswerSlack` without re-solving. */
+  phase1Solution: number[];
+}
+
 function buildVariableIndex(levelsPerCriterion: number[]): {
   index: Map<string, number>;
   count: number;
@@ -80,7 +104,13 @@ function buildVariableIndex(levelsPerCriterion: number[]): {
   return { index, count: cursor };
 }
 
-function profileCoeffs(
+/**
+ * Coefficient row for a profile's `scoreProfile` expression over the value-solver's
+ * variable indexing — exported so `scoreSpreadAccuracy.ts` can build the
+ * `scoreProfile(A) - scoreProfile(B)` objective it solves max/min of without re-deriving
+ * this indexing scheme itself.
+ */
+export function profileCoeffs(
   profile: Profile,
   varIndex: Map<string, number>,
   totalVars: number
@@ -102,47 +132,12 @@ function profileCoeffs(
 }
 
 /**
- * Chebyshev center: the point maximally interior to a polytope, found via one extra LP
- * variable `r` (the inscribed radius) and widening every inequality row by
- * `r * ||row.coeffs||` so `r` gets squeezed by whichever constraint face is closest.
- * Equality rows (here, just normalization) are copied through unchanged — no `r` term —
- * since they must hold exactly, not just "with room to spare"; this is what makes the
- * result satisfy normalization exactly rather than approximately. `boundedVarCount` value
- * variables (indices [0, boundedVarCount)) additionally get an explicit `x_j - r >= 0` row
- * so the center also sits away from the x >= 0 boundary on those variables — slack
- * variables are deliberately excluded from this (sitting at slack = 0 is desirable, not
- * something to widen away from).
+ * Builds the full constraint set (monotonicity, per-answer slack rows, normalization,
+ * slack cap) and returns everything needed to solve further LPs against it. Throws if the
+ * phase-1 (slack-minimizing) LP is infeasible — same as `solveValues`, since monotonicity +
+ * normalization are always jointly satisfiable regardless of answer content.
  */
-function computeChebyshevCenter(
-  constraints: Constraint[],
-  totalVars: number,
-  boundedVarCount: number
-): number[] {
-  const rIndex = totalVars;
-  const widened: Constraint[] = constraints.map((c) => {
-    const norm = Math.sqrt(c.coeffs.reduce((sum, v) => sum + v * v, 0));
-    const coeffs = [...c.coeffs, 0];
-    if (c.type === 'le') coeffs[rIndex] = norm;
-    else if (c.type === 'ge') coeffs[rIndex] = -norm;
-    // 'eq' rows: leave the r coefficient at 0 — must hold exactly.
-    return { coeffs, type: c.type, rhs: c.rhs };
-  });
-
-  for (let j = 0; j < boundedVarCount; j++) {
-    const coeffs = new Array(totalVars + 1).fill(0);
-    coeffs[j] = 1;
-    coeffs[rIndex] = -1;
-    widened.push({ coeffs, type: 'ge', rhs: 0 });
-  }
-
-  const objective = new Array(totalVars + 1).fill(0);
-  objective[rIndex] = -1; // maximize r == minimize -r
-
-  const result = solveLP({ numVars: totalVars + 1, objective, constraints: widened });
-  return result.feasible ? result.x.slice(0, totalVars) : new Array(totalVars).fill(0);
-}
-
-export function solveValues(input: ValueSolverInput): ValueSolverResult {
+export function buildValueLP(input: ValueSolverInput): BuiltValueLP {
   const { levelsPerCriterion, answers } = input;
   const margin = input.margin ?? DEFAULT_MARGIN;
 
@@ -210,6 +205,63 @@ export function solveValues(input: ValueSolverInput): ValueSolverResult {
     { coeffs: slackCapCoeffs, type: 'le', rhs: totalSlack + SLACK_CAP_TOLERANCE },
   ];
 
+  return {
+    totalVars,
+    numValueVars,
+    varIndex,
+    constraintsWithSlackCap,
+    totalSlack,
+    phase1Solution: phase1.x,
+  };
+}
+
+/**
+ * Chebyshev center: the point maximally interior to a polytope, found via one extra LP
+ * variable `r` (the inscribed radius) and widening every inequality row by
+ * `r * ||row.coeffs||` so `r` gets squeezed by whichever constraint face is closest.
+ * Equality rows (here, just normalization) are copied through unchanged — no `r` term —
+ * since they must hold exactly, not just "with room to spare"; this is what makes the
+ * result satisfy normalization exactly rather than approximately. `boundedVarCount` value
+ * variables (indices [0, boundedVarCount)) additionally get an explicit `x_j - r >= 0` row
+ * so the center also sits away from the x >= 0 boundary on those variables — slack
+ * variables are deliberately excluded from this (sitting at slack = 0 is desirable, not
+ * something to widen away from).
+ */
+function computeChebyshevCenter(
+  constraints: Constraint[],
+  totalVars: number,
+  boundedVarCount: number
+): number[] {
+  const rIndex = totalVars;
+  const widened: Constraint[] = constraints.map((c) => {
+    const norm = Math.sqrt(c.coeffs.reduce((sum, v) => sum + v * v, 0));
+    const coeffs = [...c.coeffs, 0];
+    if (c.type === 'le') coeffs[rIndex] = norm;
+    else if (c.type === 'ge') coeffs[rIndex] = -norm;
+    // 'eq' rows: leave the r coefficient at 0 — must hold exactly.
+    return { coeffs, type: c.type, rhs: c.rhs };
+  });
+
+  for (let j = 0; j < boundedVarCount; j++) {
+    const coeffs = new Array(totalVars + 1).fill(0);
+    coeffs[j] = 1;
+    coeffs[rIndex] = -1;
+    widened.push({ coeffs, type: 'ge', rhs: 0 });
+  }
+
+  const objective = new Array(totalVars + 1).fill(0);
+  objective[rIndex] = -1; // maximize r == minimize -r
+
+  const result = solveLP({ numVars: totalVars + 1, objective, constraints: widened });
+  return result.feasible ? result.x.slice(0, totalVars) : new Array(totalVars).fill(0);
+}
+
+export function solveValues(input: ValueSolverInput): ValueSolverResult {
+  const { levelsPerCriterion, answers } = input;
+
+  const { totalVars, numValueVars, varIndex, constraintsWithSlackCap, totalSlack, phase1Solution } =
+    buildValueLP(input);
+
   const centerPoint = computeChebyshevCenter(constraintsWithSlackCap, totalVars, numValueVars);
 
   const values: LevelValue[][] = levelsPerCriterion.map((m) => new Array(m + 1).fill(undefined));
@@ -240,7 +292,7 @@ export function solveValues(input: ValueSolverInput): ValueSolverResult {
     }
   }
 
-  const perAnswerSlack = answers.map((_, k) => phase1.x[slackIndex(k)]);
+  const perAnswerSlack = answers.map((_, k) => phase1Solution[numValueVars + k]);
 
   return { levelsPerCriterion, values, totalSlack, perAnswerSlack };
 }
