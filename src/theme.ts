@@ -387,27 +387,30 @@ export const rankOverlayBadge = {
   py: '4px',
 } as const;
 
-// Low-confidence warning badge — sits directly beside rankOverlayBadge (same corner, same
-// row), not a separate corner: this only ever appears for tier 'none', so it needs to read
-// as "pay attention to this score" at a glance, not as a fourth data point among several.
-// Same footprint as rankOverlayBadge (px/py/fontSize) so the two badges look like one
-// contiguous strip — red-on-black rather than the accent fill, and sharp/square like every
-// other badge in this design system (no radius). cursor+_hover give it real hover affordance
-// since its only content is a single glyph.
+// Low-confidence warning badge — flush against rankOverlayBadge (same corner, same row, no
+// gap between them: they read as one contiguous strip), not a separate corner. Only ever
+// appears for tier 'none'. Square with equal sides: no fixed px/py, instead `aspectRatio:
+// '1/1'` + flex centering, so its width self-matches whatever height the row's own flex
+// stretch (the parent Flex's default align-items) gives it from the taller rankOverlayBadge
+// sibling — deliberately not hardcoded, since rankOverlayBadge's own height isn't fixed
+// either. `cursor: 'help'`, not `pointer` — this badge isn't clickable, only hoverable for
+// its tooltip/title, so no hover background change either.
 export const confidenceWarningBadge = {
   bg: 'black',
   color: 'red.400',
+  borderLeft: '2px solid',
+  borderLeftColor: 'red.900',
   borderTop: '2px solid',
   borderTopColor: 'red.900',
   borderRadius: '0',
   fontFamily: 'heading',
   fontSize: '14px',
   fontWeight: 700,
-  cursor: 'pointer',
-  px: '8px',
-  py: '4px',
-  transition: 'background-color 0.15s',
-  _hover: { bg: 'red.950' },
+  cursor: 'help',
+  aspectRatio: '1 / 1',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 } as const;
 
 // Band/album title typography — shared source of truth (design-system-audit-2026-08.md).

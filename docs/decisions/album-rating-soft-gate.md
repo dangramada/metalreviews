@@ -111,6 +111,40 @@ against all four tiers + the dialog's three-button footer, removed before commit
 not present on the branch). `tsc --noEmit` clean, zero new lint violations on touched
 files, `npx vitest run` 224/224 still passing.
 
+## Follow-up pass 2 (same day, 2026-08-09) — flush square badge + help cursor
+
+Three more revisions, again from Dan reviewing the rendered result:
+
+1. **No gap between rank and warning badges** — the wrapping `Flex`'s `gap="2px"` dropped
+   to `0` so the two read as one contiguous strip, not two separate chips.
+2. **Square with equal sides, exactly matching rank badge height.** The first pass's
+   `confidenceWarningBadge` used `aspectRatio: '1/1'` inside a `Flex` row, relying on the
+   row's default `align-items: stretch` to give it rank-badge height and expecting
+   `aspectRatio` to derive a matching width. Live-measured via `getBoundingClientRect()`:
+   height *did* stretch to match (31px = 31px), but width did not — it stayed
+   content-sized at ~7px, ignoring `aspectRatio` entirely. Confirmed via an isolated
+   synthetic test that this is specific to Flexbox's cross-axis stretch not feeding back
+   into `aspect-ratio`-driven main-axis sizing in this engine; the identical markup under
+   `display: grid` + `gridAutoFlow: 'column'` (grid's default `align-items: stretch`
+   applies to both axes via track sizing) measured a true 31×31 square. Both
+   `FavoriteListItemRow` badge wrappers (desktop + mobile) changed from `<Flex>` to
+   `<Box display="grid" gridAutoFlow="column">` — no change to `confidenceWarningBadge`
+   itself, `aspectRatio: '1/1'` now actually holds.
+3. **Cursor: `help`, not `pointer`; no hover background change.** The badge isn't
+   clickable (nothing happens on click) — only hoverable, for its tooltip/title. Removed
+   `_hover`/`transition`/`cursor: 'pointer'` from `confidenceWarningBadge`, replaced with
+   `cursor: 'help'` only.
+
+Live-verified via the same temporary-dev-route pattern, this time also measuring via
+`getBoundingClientRect()`/`getComputedStyle()` rather than screenshot alone (screenshots
+can't reliably confirm exact pixel equality or confirm a hover rule is truly absent) —
+confirmed 0px gap, exact 31×31 square, `cursor: help`, and an unchanged background color
+across a dispatched `mouseover`. Harness removed before committing, not present on the
+branch. `tsc --noEmit` clean, zero new lint violations, `npx vitest run` 224/224 still
+passing — no test changes this pass (none of the three fixes touch anything a Vitest/
+jsdom test can observe: computed flex/grid layout and `:hover` pseudo-class behavior
+aren't meaningfully exercised by jsdom's layout engine, which is a no-op).
+
 ## Out of scope, not touched this pass
 
 `computeSolverAccuracy`, `accuracyTiers.ts` thresholds, `solver.ts`,

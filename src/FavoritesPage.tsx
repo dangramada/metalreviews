@@ -153,15 +153,21 @@ export function FavoriteListItemRow({
                 flush into the corner). Only rendered when this album has a rank; no
                 placeholder otherwise. The warning badge sits directly beside it (not a
                 separate corner) so both read as one strip. */}
+            {/* display="grid" + gridAutoFlow="column" (not Flex/row) is load-bearing: a plain
+                flex row's default `align-items: stretch` matches the warning badge's *height*
+                to its taller rankOverlayBadge sibling, but its `aspectRatio: 1/1` (see
+                confidenceWarningBadge) is ignored for the *width* — confirmed live, the badge
+                rendered ~7px wide against the rank badge's ~31px. CSS Grid's track-sizing
+                algorithm honors aspect-ratio against the stretched cross size correctly. */}
             {ratingSummary && (
-              <Flex position="absolute" bottom={0} left={0} gap="2px">
+              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
                 <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
                 {confidenceTier === 'none' && (
                   <Tooltip content={`Score confidence: ${confidenceLabel(confidenceTier)}`}>
                     <Box {...confidenceWarningBadge}>!</Box>
                   </Tooltip>
                 )}
-              </Flex>
+              </Box>
             )}
           </Box>
 
@@ -248,9 +254,11 @@ export function FavoriteListItemRow({
             {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
                 layout-agnostic (favorites-row-desktop-redesign). Warning badge uses a plain
                 title/aria-label instead of Tooltip — touch has no hover state, same
-                reasoning as the Rate/Remove buttons below. */}
+                reasoning as the Rate/Remove buttons below. Grid, not Flex — see the desktop
+                block's comment above for why (aspectRatio is ignored on a flex row's cross-
+                stretched item, but honored by CSS Grid's track sizing). */}
             {ratingSummary && (
-              <Flex position="absolute" bottom={0} left={0} gap="2px">
+              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
                 <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
                 {confidenceTier === 'none' && (
                   <Box
@@ -261,7 +269,7 @@ export function FavoriteListItemRow({
                     !
                   </Box>
                 )}
-              </Flex>
+              </Box>
             )}
           </Box>
 
