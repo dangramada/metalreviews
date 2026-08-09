@@ -4,6 +4,7 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `criteria-calibration-coverage-escalation` — merged to master `c06e900`, 2026-08-10 — full detail: `docs/decisions/criteria-calibration-adaptive-degree-escalation.md`, `docs/decisions/deferred-work.md` ("Automatic degree escalation" entry)
 - `criteria-calibration-score-spread-accuracy` — merged to master `c1fd2c0`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-score-spread-accuracy.md`
 - `criteria-calibration-two-phase-simplex` — merged to master `8d7f382`, 2026-08-09 — full detail: `docs/decisions/two-phase-simplex-rewrite.md`
 - `criteria-calibration-coverage-weighted-candidates` — merged to master `b8733c6`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-coverage-weighted-candidates.md`
