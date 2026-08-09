@@ -497,6 +497,29 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   point values in the sane `[0, 0.5]` range instead of ~1e14. Full detail:
   `two-phase-simplex-rewrite.md`.
 
+- ~~**Automatic degree escalation (replace manual gap-based `degree-exhausted`
+  trigger)**~~ — **DONE (2026-08-10).** `nextAction`'s old `MAX_AMBIGUOUS_GAP` gap-based
+  check (deleted, along with the constant itself — dead once its one call site was
+  removed) is replaced by `isDegreeCoverageComplete` (`elicitationDriver.ts`): a degree is
+  exhausted once every free `(criterion, level)` variable across the FULL model (not
+  scoped per degree) is both touched (`computeTouchCounts`) and narrow
+  (`.max - .min < MAX_VALUE_RANGE_FOR_COVERAGE`, provisional 0.2 — see the extended
+  entry below). `rankCandidatesByAmbiguity`/`questionOrdering.ts` unchanged — it governs
+  within-degree question ordering only, never escalation. The pre-existing pool-empty
+  trigger stays fully independent (verified by its own regression test). Verified: oracle
+  trace reaches `coverage-complete` at exactly n=63 (matches the design checkpoint's
+  measurement); Dan's real 33-answer/6-criteria session correctly does NOT escalate
+  (criteria 0-3 all still above the 0.2 width threshold, criterion-0/level-3 the single
+  worst case at touchCount=1/width~0.9986; criterion 5 fully resolved, confirming it's a
+  genuine low-weight preference, not a coverage gap, per the earlier criterion-5
+  diagnostic). `tsc --noEmit` clean, 233/233 tests passing. Full design reasoning:
+  `criteria-calibration-adaptive-degree-escalation.md`. **Still open, not resolved by this
+  pass:** whether escalation should happen automatically without the "Add more detail"
+  button click — explicitly Dan's call, deferred. Also still unfixed and unrelated: the LP
+  solver throws "infeasible even with slack" after enough forced/synthetic answers past
+  what's normally exercised (n=70 oracle trace / n=55 real-session-extended trace) — caps
+  how far any future escalation-adjacent design can push before the solver needs its own
+  hardening pass.
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the
@@ -512,6 +535,15 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   covering both, not two separate follow-ups. Do not tighten or loosen these
   constants without that session's data. Full detail:
   `criteria-calibration-score-spread-accuracy.md`.
+
+  **Extended 2026-08-10:** same provisional status applies to
+  **`MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`** (`elicitationDriver.ts`), the coverage-based
+  degree-escalation threshold that replaced the gap-based `MAX_AMBIGUOUS_GAP` check (see
+  the "Automatic degree escalation" entry above). Calibrated only against the same
+  2026-08-09 oracle trace: 0.3 was measured to cut off a real, still-substantial accuracy
+  gain (18% relative improvement between n=47 and n=63); 0.2 captures it; nothing tighter
+  (0.15/0.1/0.05) fired at all within 65 oracle steps. Not a separate follow-up — revisit
+  together with the thresholds above in the same future recalibration session.
 
 ## C. Design/branding (open)
 

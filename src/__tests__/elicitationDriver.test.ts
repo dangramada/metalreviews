@@ -17,6 +17,8 @@ import { computeScoreSpreadAccuracy } from '../lib/criteria-calibration/scoreSpr
 import {
   REAL_SESSION_EXPECTED_VALUES,
   REAL_SESSION_LEVELS_PER_CRITERION,
+  REAL_PRODUCTION_SESSION_ANSWERS,
+  REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
 } from '../lib/criteria-calibration/fixtures';
 
 describe('enumerateCriterionPairs', () => {
@@ -364,4 +366,108 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
       action = nextAction(session, levelsPerCriterion, currentDegree);
     }
   }, 30_000);
+});
+
+describe('coverage-based degree escalation (replaces the old MAX_AMBIGUOUS_GAP gap check)', () => {
+  it('reports degree-exhausted with reason "coverage-complete" at the measured oracle convergence point (n=63), not before', () => {
+    const levelsPerCriterion = REAL_SESSION_LEVELS_PER_CRITERION; // [5,5,5,5,5]
+
+    function oracleAnswer(profileA: Profile, profileB: Profile): ComparisonResult {
+      const sum = (p: Profile) =>
+        Object.keys(p).reduce(
+          (total, key) => total + REAL_SESSION_EXPECTED_VALUES[Number(key)][p[Number(key)]],
+          0
+        );
+      const diff = sum(profileA) - sum(profileB);
+      if (Math.abs(diff) < 0.005) return 'equal';
+      return diff > 0 ? 'A' : 'B';
+    }
+
+    const session = new CalibrationSession();
+    let action = nextAction(session, levelsPerCriterion, 2);
+    let currentDegree = 2;
+    let asked = 0;
+    let firstCoverageCompleteAt: number | null = null;
+
+    while (asked < 90 && firstCoverageCompleteAt === null) {
+      if (action.type === 'ask') {
+        session.recordAnswer(
+          action.profileA,
+          action.profileB,
+          oracleAnswer(action.profileA, action.profileB)
+        );
+        asked++;
+      } else {
+        if (action.reason === 'coverage-complete') {
+          firstCoverageCompleteAt = asked;
+          break;
+        }
+        if (!action.canEscalate) break; // pool-empty at the top degree — not what this test checks
+        currentDegree = action.nextDegree!;
+      }
+      action = nextAction(session, levelsPerCriterion, currentDegree);
+    }
+
+    // Measured directly against this driver + oracle (see check_oracle_escalation script run
+    // during implementation): coverage first completes at exactly n=63. A tight window
+    // rather than an exact match, since the LP solver's floating-point path is not
+    // guaranteed bit-identical across environments.
+    expect(firstCoverageCompleteAt).not.toBeNull();
+    expect(firstCoverageCompleteAt!).toBeGreaterThanOrEqual(58);
+    expect(firstCoverageCompleteAt!).toBeLessThanOrEqual(68);
+  }, 30_000);
+
+  it('does NOT report degree-exhausted on Dan\'s real 33-answer production session — criteria 0-3 stay under-covered, criterion-0/level-3 worst of all', () => {
+    // Re-verified directly against this session's real touch-count/range data (not assumed)
+    // before writing this test: every (criterion, level) variable in this session has been
+    // touched at least once (touchCounts are all >= 1, none are zero) — so touch count alone
+    // never blocks coverage here. What blocks it is range width: criteria 0-3's levels are
+    // all still far above MAX_VALUE_RANGE_FOR_COVERAGE (0.2) — e.g. criterion 0/level 3, the
+    // single sparsest-touched variable in the model (touchCount 1), has width ~0.9986,
+    // essentially the full unconstrained range. Criterion 5 (Songwriting) is fully resolved
+    // under this rule (every level's width is ~0.166, well inside the 0.2 threshold) — it is
+    // NOT a coverage gap, confirming the separate criterion-5 low-weight-preference finding
+    // from earlier diagnostics, not a re-statement of it.
+    const levelsPerCriterion = REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION; // [5,5,5,5,5,5]
+    const session = new CalibrationSession();
+    for (const round of REAL_PRODUCTION_SESSION_ANSWERS) {
+      session.recordAnswer(round.profileA, round.profileB, round.result);
+    }
+
+    const action = nextAction(session, levelsPerCriterion, 2);
+    expect(action.type).toBe('ask');
+  });
+
+  it('keeps pool-empty and coverage-complete as independent triggers', () => {
+    // A single-subset degree (e.g. degree 3 on a 3-criterion model) exhausts its candidate
+    // pool quickly regardless of whether every (criterion, level) variable is narrowly
+    // pinned yet — pool-empty must still fire on its own, not wait on coverage.
+    const levelsPerCriterion = [4, 4, 4];
+    function answerByLowestIndex(profileA: Profile, profileB: Profile): ComparisonResult {
+      const lowestIndex = Object.keys(profileA)
+        .map(Number)
+        .sort((a, b) => a - b)[0];
+      if (profileA[lowestIndex] > profileB[lowestIndex]) return 'A';
+      if (profileB[lowestIndex] > profileA[lowestIndex]) return 'B';
+      return 'equal';
+    }
+
+    const session = new CalibrationSession();
+    let action = nextAction(session, levelsPerCriterion, 3);
+    let guard = 0;
+    while (action.type === 'ask' && guard < 200) {
+      session.recordAnswer(
+        action.profileA,
+        action.profileB,
+        answerByLowestIndex(action.profileA, action.profileB)
+      );
+      action = nextAction(session, levelsPerCriterion, 3);
+      guard++;
+    }
+
+    expect(action.type).toBe('degree-exhausted');
+    if (action.type === 'degree-exhausted') {
+      expect(action.reason).toBe('pool-empty');
+    }
+  });
 });
