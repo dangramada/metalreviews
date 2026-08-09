@@ -7,6 +7,8 @@ import {
   REAL_SESSION_LEVELS_PER_CRITERION,
   REAL_SESSION_EXPECTED_VALUES,
   REAL_SESSION_ALBUMS,
+  REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
+  REAL_PRODUCTION_SESSION_ANSWERS,
 } from '../lib/criteria-calibration/fixtures';
 import type { Profile } from '../lib/criteria-calibration/preferenceGraph';
 
@@ -72,7 +74,7 @@ describe('solveValues — real historical acceptance test', () => {
     }
   });
 
-  it('produces a structurally valid solved model (monotonic, near-normalized)', () => {
+  it('produces a structurally valid solved model (monotonic, exactly normalized)', () => {
     for (let c = 0; c < 5; c++) {
       expect(result.values[c][1].point).toBe(0);
       for (let level = 2; level <= 5; level++) {
@@ -81,17 +83,20 @@ describe('solveValues — real historical acceptance test', () => {
         );
       }
     }
-    // Each reported point is the midpoint of that single variable's independently-solved
-    // min/max range — a legitimate estimate, but since the min and max legs are optimized
-    // on different axes (not jointly), their midpoints don't necessarily land exactly on
-    // the normalization hyperplane the way a single feasible LP solution would. A small
-    // deviation here is expected; it's not a sign the constraint itself is wrong (the
-    // exact-LHS check in the previous test confirms the underlying LP does enforce it).
+    // Each reported point now comes from a single joint Chebyshev-center LP solve (see
+    // solver.ts's computeChebyshevCenter), not independent per-variable midpoints — so it
+    // IS one feasible point of the constraint model, and the normalization equality
+    // constraint (an 'eq' row, never widened by the Chebyshev radius) holds on it exactly,
+    // not just approximately. Tightened from toBeCloseTo(1, 2) after the joint-point-
+    // estimate fix (docs/decisions/criteria-calibration-joint-point-estimate.md) — the old
+    // independent-midpoint method could only guarantee ~1.3 orders of magnitude less
+    // precision here, and on sparse real data (6-criteria/33-answer production account)
+    // was off by as much as 1.308 vs. the expected 1.0.
     const normalizationSum = result.values.reduce(
       (sum, criterionValues) => sum + criterionValues[5].point,
       0
     );
-    expect(normalizationSum).toBeCloseTo(1, 2);
+    expect(normalizationSum).toBeCloseTo(1, 6);
   });
 
   it('reproduces the album score summation exactly using the reference values (arithmetic check)', () => {
@@ -115,6 +120,29 @@ describe('solveValues — real historical acceptance test', () => {
       result.values
     ); // Pillars of Cacophony, expected lowest
     expect(best).toBeGreaterThan(worst);
+  });
+});
+
+describe('solveValues — real production session (joint-point-estimate fix)', () => {
+  // Regression test for the confirmed live bug (docs/decisions/deferred-work.md,
+  // docs/decisions/criteria-calibration-joint-point-estimate.md): this exact sparse
+  // 6-criteria/33-answer session, solved with the pre-fix independent-midpoint method,
+  // produced level-5 values summing to 1.3077509833333332 (not 1) and zero total slack
+  // (the answers are internally consistent — the bug was purely in how the point estimate
+  // was derived, not the data). The joint Chebyshev-center point fixes this by construction.
+  it('is fully consistent (zero slack) and normalizes to exactly 1, not 1.308', () => {
+    const result = solveValues({
+      levelsPerCriterion: REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
+      answers: REAL_PRODUCTION_SESSION_ANSWERS,
+    });
+
+    expect(result.totalSlack).toBeLessThan(1e-6);
+
+    const normalizationSum = result.values.reduce(
+      (sum, criterionValues) => sum + criterionValues[5].point,
+      0
+    );
+    expect(normalizationSum).toBeCloseTo(1, 6);
   });
 });
 

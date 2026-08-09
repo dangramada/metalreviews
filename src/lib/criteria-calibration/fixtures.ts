@@ -255,3 +255,51 @@ export const REAL_SESSION_ALBUMS: RealSessionAlbum[] = [
     expectedScore: 0.2655291,
   },
 ];
+
+// ---------------------------------------------------------------------------------------
+// Real production session (joint-point-estimate fix, 2026-08-09) — Dan's own account
+// (eec42cd4-e714-46a2-ad9c-35714a1d3a2c), pulled read-only from user_calibration_answers on
+// the current 6-criteria/5-level production model. This is the sparse 33-answer session
+// documented in docs/decisions/deferred-work.md (the levels-2-5-flatness diagnostic) and in
+// docs/decisions/criteria-calibration-joint-point-estimate.md (the 1.308 normalization-sum
+// bug this fixture regression-tests). Single-user project, Dan's own data — fine to embed
+// directly per his explicit sign-off, no separate anonymization needed.
+// ---------------------------------------------------------------------------------------
+
+export const REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];
+
+export const REAL_PRODUCTION_SESSION_ANSWERS: RealSessionRound[] = [
+  { profileA: { 0: 5, 1: 1 }, profileB: { 0: 1, 1: 5 }, result: 'A' },
+  { profileA: { 0: 5, 2: 1 }, profileB: { 0: 1, 2: 5 }, result: 'A' },
+  { profileA: { 0: 5, 3: 1 }, profileB: { 0: 1, 3: 5 }, result: 'A' },
+  { profileA: { 0: 5, 4: 1 }, profileB: { 0: 1, 4: 5 }, result: 'A' },
+  { profileA: { 0: 5, 5: 1 }, profileB: { 0: 1, 5: 5 }, result: 'A' },
+  { profileA: { 1: 5, 2: 1 }, profileB: { 1: 1, 2: 5 }, result: 'A' },
+  { profileA: { 1: 5, 3: 1 }, profileB: { 1: 1, 3: 5 }, result: 'A' },
+  { profileA: { 1: 5, 4: 1 }, profileB: { 1: 1, 4: 5 }, result: 'A' },
+  { profileA: { 1: 5, 5: 1 }, profileB: { 1: 1, 5: 5 }, result: 'A' },
+  { profileA: { 2: 5, 3: 1 }, profileB: { 2: 1, 3: 5 }, result: 'A' },
+  { profileA: { 2: 5, 4: 1 }, profileB: { 2: 1, 4: 5 }, result: 'A' },
+  { profileA: { 2: 5, 5: 1 }, profileB: { 2: 1, 5: 5 }, result: 'A' },
+  { profileA: { 3: 5, 4: 1 }, profileB: { 3: 1, 4: 5 }, result: 'A' },
+  { profileA: { 3: 5, 5: 1 }, profileB: { 3: 1, 5: 5 }, result: 'A' },
+  { profileA: { 4: 5, 5: 1 }, profileB: { 4: 1, 5: 5 }, result: 'A' },
+  { profileA: { 0: 4, 4: 3 }, profileB: { 0: 2, 4: 3 }, result: 'A' },
+  { profileA: { 0: 5, 2: 3 }, profileB: { 0: 5, 2: 4 }, result: 'B' },
+  { profileA: { 0: 4, 3: 4 }, profileB: { 0: 2, 3: 5 }, result: 'A' },
+  { profileA: { 1: 4, 5: 3 }, profileB: { 1: 2, 5: 5 }, result: 'A' },
+  { profileA: { 3: 2, 5: 5 }, profileB: { 3: 4, 5: 4 }, result: 'B' },
+  { profileA: { 0: 3, 3: 2 }, profileB: { 0: 2, 3: 3 }, result: 'B' },
+  { profileA: { 0: 4, 3: 2 }, profileB: { 0: 2, 3: 4 }, result: 'B' },
+  { profileA: { 1: 2, 4: 5 }, profileB: { 1: 3, 4: 3 }, result: 'B' },
+  { profileA: { 1: 3, 2: 2 }, profileB: { 1: 2, 2: 4 }, result: 'B' },
+  { profileA: { 1: 5, 2: 2 }, profileB: { 1: 3, 2: 4 }, result: 'A' },
+  { profileA: { 0: 2, 3: 3 }, profileB: { 0: 4, 3: 2 }, result: 'A' },
+  { profileA: { 3: 3, 4: 3 }, profileB: { 3: 5, 4: 2 }, result: 'A' },
+  { profileA: { 3: 5, 5: 4 }, profileB: { 3: 3, 5: 5 }, result: 'A' },
+  { profileA: { 1: 4, 4: 3 }, profileB: { 1: 5, 4: 2 }, result: 'A' },
+  { profileA: { 1: 3, 2: 5 }, profileB: { 1: 4, 2: 2 }, result: 'B' },
+  { profileA: { 2: 3, 4: 4 }, profileB: { 2: 4, 4: 2 }, result: 'A' },
+  { profileA: { 1: 2, 5: 5 }, profileB: { 1: 3, 5: 4 }, result: 'B' },
+  { profileA: { 0: 2, 5: 5 }, profileB: { 0: 4, 5: 2 }, result: 'B' },
+];

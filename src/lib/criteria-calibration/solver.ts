@@ -15,12 +15,21 @@
 // the strict graph and this solver serve different purposes (question-skipping vs.
 // deriving values) and are allowed to disagree on a given answer.
 //
-// Two solve passes:
+// Three solve passes:
 //   1. Minimize total slack across all answers — the best-fit solution given the data.
 //   2. For every free (criterion, level) value, solve for its min and max while holding
 //      total slack near that phase-1 optimum — this is the "feasible range" per value,
-//      used both as the reported point estimate (its midpoint) and as the raw signal
-//      accuracy tiers are computed from (see accuracyTiers.ts).
+//      the raw signal accuracy tiers are computed from (see accuracyTiers.ts).
+//   3. Solve a single joint Chebyshev center (see computeChebyshevCenter below) over the
+//      same slack-capped feasible region — this is the reported point estimate. A jointly
+//      solved point (as opposed to per-variable independent midpoints) is required for the
+//      normalization constraint to hold on the reported values themselves: pass 2's ranges
+//      are each optimized on a different axis, so their midpoints don't generally land on
+//      the same feasible point, let alone the normalization hyperplane (confirmed live,
+//      2026-07-30: real production data produced level-5 values summing to 1.308, not 1 —
+//      see docs/decisions/deferred-work.md and the joint-point-estimate decision doc this
+//      fix shipped under). The Chebyshev center is an actual feasible point of the LP, so
+//      by construction it satisfies normalization exactly (up to LP solver float epsilon).
 
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
 import { solveLP, type Constraint } from './simplex.js';
@@ -92,6 +101,47 @@ function profileCoeffs(
   return coeffs;
 }
 
+/**
+ * Chebyshev center: the point maximally interior to a polytope, found via one extra LP
+ * variable `r` (the inscribed radius) and widening every inequality row by
+ * `r * ||row.coeffs||` so `r` gets squeezed by whichever constraint face is closest.
+ * Equality rows (here, just normalization) are copied through unchanged — no `r` term —
+ * since they must hold exactly, not just "with room to spare"; this is what makes the
+ * result satisfy normalization exactly rather than approximately. `boundedVarCount` value
+ * variables (indices [0, boundedVarCount)) additionally get an explicit `x_j - r >= 0` row
+ * so the center also sits away from the x >= 0 boundary on those variables — slack
+ * variables are deliberately excluded from this (sitting at slack = 0 is desirable, not
+ * something to widen away from).
+ */
+function computeChebyshevCenter(
+  constraints: Constraint[],
+  totalVars: number,
+  boundedVarCount: number
+): number[] {
+  const rIndex = totalVars;
+  const widened: Constraint[] = constraints.map((c) => {
+    const norm = Math.sqrt(c.coeffs.reduce((sum, v) => sum + v * v, 0));
+    const coeffs = [...c.coeffs, 0];
+    if (c.type === 'le') coeffs[rIndex] = norm;
+    else if (c.type === 'ge') coeffs[rIndex] = -norm;
+    // 'eq' rows: leave the r coefficient at 0 — must hold exactly.
+    return { coeffs, type: c.type, rhs: c.rhs };
+  });
+
+  for (let j = 0; j < boundedVarCount; j++) {
+    const coeffs = new Array(totalVars + 1).fill(0);
+    coeffs[j] = 1;
+    coeffs[rIndex] = -1;
+    widened.push({ coeffs, type: 'ge', rhs: 0 });
+  }
+
+  const objective = new Array(totalVars + 1).fill(0);
+  objective[rIndex] = -1; // maximize r == minimize -r
+
+  const result = solveLP({ numVars: totalVars + 1, objective, constraints: widened });
+  return result.feasible ? result.x.slice(0, totalVars) : new Array(totalVars).fill(0);
+}
+
 export function solveValues(input: ValueSolverInput): ValueSolverResult {
   const { levelsPerCriterion, answers } = input;
   const margin = input.margin ?? DEFAULT_MARGIN;
@@ -160,6 +210,8 @@ export function solveValues(input: ValueSolverInput): ValueSolverResult {
     { coeffs: slackCapCoeffs, type: 'le', rhs: totalSlack + SLACK_CAP_TOLERANCE },
   ];
 
+  const centerPoint = computeChebyshevCenter(constraintsWithSlackCap, totalVars, numValueVars);
+
   const values: LevelValue[][] = levelsPerCriterion.map((m) => new Array(m + 1).fill(undefined));
   for (let c = 0; c < levelsPerCriterion.length; c++) {
     values[c][1] = { point: 0, min: 0, max: 0 };
@@ -184,7 +236,7 @@ export function solveValues(input: ValueSolverInput): ValueSolverResult {
 
       const minVal = minResult.feasible ? minResult.x[idx] : 0;
       const maxVal = maxResult.feasible ? maxResult.x[idx] : minVal;
-      values[c][level] = { point: (minVal + maxVal) / 2, min: minVal, max: maxVal };
+      values[c][level] = { point: centerPoint[idx], min: minVal, max: maxVal };
     }
   }
 

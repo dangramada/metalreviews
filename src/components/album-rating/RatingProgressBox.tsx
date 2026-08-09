@@ -15,13 +15,33 @@ interface RatingProgressBoxProps {
   ratingSummary: AlbumRatingSummary | undefined;
 }
 
-export function RatingProgressBox({ ratedCount, totalCount, ratingSummary }: RatingProgressBoxProps) {
+// Solver point estimates now come from a single jointly-solved feasible point (see
+// solver.ts's computeChebyshevCenter), so a fully-rated profile's score is <= 1 by
+// construction, not just in the common case — the old independent-midpoint method could
+// overshoot (confirmed live: 1.308 on real production data, see
+// docs/decisions/criteria-calibration-joint-point-estimate.md). SCORE_OVERFLOW_EPSILON
+// tolerates only LP solver float noise; anything past it means the fix isn't holding for
+// some reason and is worth knowing about, not silently clamping away again.
+const SCORE_OVERFLOW_EPSILON = 1e-4;
+
+export function RatingProgressBox({
+  ratedCount,
+  totalCount,
+  ratingSummary,
+}: RatingProgressBoxProps) {
   // Pending on ratedCount alone, not on ratingSummary's presence — ratingSummary refetches
   // asynchronously after the last save, so gating on it instead would leave a stale "—" flash
   // between the final pick and the refetch resolving.
   const isPending = ratedCount < totalCount;
   const rankValue = ratingSummary ? `#${ratingSummary.rank}` : '—';
-  const scoreValue = ratingSummary ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%` : '—';
+  if (ratingSummary && ratingSummary.score > 1 + SCORE_OVERFLOW_EPSILON) {
+    console.warn(
+      `RatingProgressBox: score ${ratingSummary.score} exceeds the expected <= 1 bound — the joint-point-estimate normalization fix may not be holding for this account.`
+    );
+  }
+  const scoreValue = ratingSummary
+    ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%`
+    : '—';
 
   return (
     <AnimatePresence mode="wait" initial={false}>
