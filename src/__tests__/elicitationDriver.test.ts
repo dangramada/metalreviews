@@ -100,6 +100,51 @@ describe('generateCandidatesForSubset — dominance filter', () => {
   });
 });
 
+describe('generateCandidatesForSubset — coverage-weighted sampling', () => {
+  it('avoids a level whose touch count is saturated relative to the rest, favoring untouched levels', () => {
+    const levelsPerCriterion = [5, 5, 5, 5, 5, 5];
+    const subset = [0, 1];
+    // Criterion 0's levels 1..5 are heavily touched except level 3, which is untouched;
+    // criterion 1 is untouched everywhere. With this skew the weighted draw should favor
+    // level 3 for criterion 0 far more often than a uniform draw (1-in-5) would.
+    const touchCounts: number[][] = levelsPerCriterion.map(() => [0, 0, 0, 0, 0, 0]);
+    touchCounts[0] = [0, 50, 50, 0, 50, 50];
+
+    const candidates = generateCandidatesForSubset(subset, levelsPerCriterion, touchCounts);
+    let level3Count = 0;
+    for (const { profileA, profileB } of candidates) {
+      if (profileA[0] === 3) level3Count++;
+      if (profileB[0] === 3) level3Count++;
+    }
+
+    // Uniform sampling would put ~1/5 of criterion-0 draws on each level; heavy weighting
+    // toward the untouched level 3 should push its share well above that baseline across
+    // the pool's up-to-12 criterion-0 draws (6 candidates x 2 sides).
+    expect(candidates.length).toBeGreaterThan(0);
+    const observedLevel3Share = level3Count / (candidates.length * 2);
+    expect(observedLevel3Share).toBeGreaterThan(0.4); // well above uniform's 0.2
+  });
+
+  it('falls back to uniform-equivalent behavior when touchCounts is omitted (existing dominance tests keep passing)', () => {
+    const levelsPerCriterion = [5, 5, 5, 5, 5, 5];
+    const withoutCounts = generateCandidatesForSubset([0, 1], levelsPerCriterion);
+    const withUniformCounts = generateCandidatesForSubset(
+      [0, 1],
+      levelsPerCriterion,
+      levelsPerCriterion.map((max) => new Array(max + 1).fill(0))
+    );
+    // All-zero touch counts give every level equal weight (1/(1+0) for all), which is
+    // mathematically equivalent to a uniform draw but not bit-identical to
+    // Math.floor(rng()*max) since the weighted draw consumes the rng differently — so
+    // just assert both produce a full, valid candidate set rather than identical output.
+    expect(withoutCounts.length).toBe(6);
+    expect(withUniformCounts.length).toBe(6);
+    for (const { profileA, profileB } of withUniformCounts) {
+      expect(isDominatedOrTied(profileA, profileB)).toBe(false);
+    }
+  });
+});
+
 describe('closure does not bridge across criteria pairs (structural assumption behind coverage)', () => {
   it('never implies a relationship for a pair with zero direct answers, even with lots of same-degree answers elsewhere', () => {
     const graph = new PreferenceGraph();
