@@ -469,6 +469,34 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   much higher accuracy and the flatness issue above is no longer confounding
   the gap signal.
 
+- **`simplex.ts`'s LP solver could silently return garbage values on degenerate
+  input — fixed 2026-08-09.** Discovered live via a diagnostic that drove
+  `nextAction` for 42 rounds against the `REAL_SESSION_*` (5-criterion) oracle:
+  the pre-fix Big-M solver returned `feasible: true` with `values[c][level].point`
+  up to ~1.16e14, despite `totalSlack === 0` (the data was fully consistent — a
+  purely numerical failure, not a real infeasibility). Root cause: Big-M mixed a
+  `1e7` penalty coefficient into the same objective row as the real O(1) costs,
+  which wrecked the tableau's conditioning on this problem's highly degenerate
+  constraint shape (many monotonicity/answer rows sharing structure); separately,
+  the old feasibility check only verified artificials were out of the basis, never
+  that the simplex loop actually reached optimality rather than exhausting
+  `MAX_ITERATIONS`. Fixed by rewriting `solveLP` as two-phase simplex (Phase 1
+  minimizes only the sum of artificials to establish feasibility, no Big-M
+  anywhere; Phase 2 optimizes the real objective from that feasible basis), with
+  both phases now propagating a `converged` flag so a run that hits the iteration
+  cap without reaching optimality is reported `feasible: false` instead of
+  silently returned as a solution. Bland's rule (already in place for
+  anti-cycling) carried through unchanged into both phases. `solveLP`'s public
+  signature/return shape is unchanged — `solveValues`/`computeChebyshevCenter`
+  (its only callers, both in `solver.ts`) needed no changes. Verified: all 226
+  pre-existing tests pass unchanged plus one new permanent regression test
+  (`solver.test.ts`'s "n=42 numerical-blowup regression" block, fixture
+  `N42_REPRO_ANSWERS` in `fixtures.ts`, regenerated deterministically the same way
+  the diagnostic found it — driving `nextAction` against the `REAL_SESSION_*`
+  oracle for 42 rounds); the same input now produces monotonic, exactly-normalized
+  point values in the sane `[0, 0.5]` range instead of ~1e14. Full detail:
+  `two-phase-simplex-rewrite.md`.
+
 ## C. Design/branding (open)
 
 - **Criteria Calibration header layout** — needs a dedicated reorganization pass.

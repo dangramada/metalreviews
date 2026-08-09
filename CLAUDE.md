@@ -136,3 +136,4 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
+- `two-phase-simplex-rewrite.md` — `simplex.ts`'s LP solver rewritten Big-M -> two-phase; fixes a numerical blowup (~1e14 garbage values silently reported as `feasible: true`) found via a 42-answer oracle-driven diagnostic; branch merged to `master` 2026-08-09
