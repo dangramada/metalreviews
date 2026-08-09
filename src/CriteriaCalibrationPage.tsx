@@ -15,11 +15,8 @@ import { useAuth } from './AuthContext';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CalibrationSession } from './lib/criteria-calibration/calibrationSession';
 import { nextAction } from './lib/criteria-calibration/elicitationDriver';
-import {
-  isMediumTierReached,
-  computeSolverAccuracy,
-} from './lib/criteria-calibration/accuracyTiers';
-import { solveValues } from './lib/criteria-calibration/solver';
+import { isMediumTierReached } from './lib/criteria-calibration/accuracyTiers';
+import { computeScoreSpreadAccuracy } from './lib/criteria-calibration/scoreSpreadAccuracy';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
   insertAnswer,
@@ -159,24 +156,32 @@ export function CriteriaCalibrationPage() {
 
   const action = catalog ? nextAction(session, catalog.levelsPerCriterion, degree) : null;
 
-  // Single live solve of the current answer log drives both the Progress ring and the
-  // Accuracy label/number — previously these were two different metrics (canonical
-  // degree-2 pair coverage for the ring vs. solver accuracy for the label), which could
-  // show the ring at 100% while Accuracy still read "Low" once cold-start coverage was
-  // done but the model wasn't actually determinate yet. See
-  // docs/decisions/criteria-calibration-medium-gate-redesign.md's progress-ring-accuracy
-  // entry for the full history.
-  const { progressPercent, mediumReached } = useMemo(() => {
-    if (!catalog) return { progressPercent: 0, mediumReached: false };
-    const solved = solveValues({
-      levelsPerCriterion: catalog.levelsPerCriterion,
-      answers,
-    });
-    const accuracy = computeSolverAccuracy(solved);
-    return {
-      progressPercent: Math.round(accuracy * 100),
-      mediumReached: isMediumTierReached(accuracy),
-    };
+  // Single live accuracy value drives both the Progress ring and the Accuracy label/number
+  // — previously these were two different metrics (canonical degree-2 pair coverage for the
+  // ring vs. solver accuracy for the label), which could show the ring at 100% while
+  // Accuracy still read "Low" once cold-start coverage was done but the model wasn't
+  // actually determinate yet. See docs/decisions/criteria-calibration-medium-gate-redesign.md's
+  // progress-ring-accuracy entry for the full history.
+  //
+  // computeScoreSpreadAccuracy (2026-08-09, superseding computeSolverAccuracy — see
+  // scoreSpreadAccuracy.ts's header) costs ~100 LP solves against the default sample, not
+  // the handful the old per-value-range metric needed — too expensive to run inline in this
+  // memo on every answer/undo/redo. Debounced instead: recomputed ~400ms after `answers`
+  // settles, showing the last-known value in the meantime rather than blocking the ring on
+  // every interaction.
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [mediumReached, setMediumReached] = useState(false);
+  useEffect(() => {
+    if (!catalog) return;
+    const timer = setTimeout(() => {
+      const accuracy = computeScoreSpreadAccuracy({
+        levelsPerCriterion: catalog.levelsPerCriterion,
+        answers,
+      });
+      setProgressPercent(Math.round(accuracy * 100));
+      setMediumReached(isMediumTierReached(accuracy));
+    }, 400);
+    return () => clearTimeout(timer);
   }, [catalog, answers]);
 
   const interactionDisabled = phase !== 'idle' || stopped;

@@ -11,10 +11,9 @@ import {
 } from '../lib/criteria-calibration/elicitationDriver';
 import {
   isMediumTierReached,
-  computeSolverAccuracy,
-  MEDIUM_ACCURACY_THRESHOLD,
+  SCORE_SPREAD_MEDIUM_THRESHOLD,
 } from '../lib/criteria-calibration/accuracyTiers';
-import { solveValues } from '../lib/criteria-calibration/solver';
+import { computeScoreSpreadAccuracy } from '../lib/criteria-calibration/scoreSpreadAccuracy';
 import {
   REAL_SESSION_EXPECTED_VALUES,
   REAL_SESSION_LEVELS_PER_CRITERION,
@@ -200,8 +199,8 @@ describe('nextAction — driver states on a small hand-built session', () => {
 
     // Medium is now a solver-accuracy threshold (2026-08-08), not derived from
     // buildCanonicalDegree2Pairs/pair-coverage at all — verify isMediumTierReached
-    // matches the actual solved accuracy at this point, whatever it is.
-    const solved = solveValues({
+    // matches the actual accuracy at this point, whatever it is.
+    const accuracy = computeScoreSpreadAccuracy({
       levelsPerCriterion,
       answers: session.fullLog.map((e) => ({
         profileA: e.profileA,
@@ -209,8 +208,7 @@ describe('nextAction — driver states on a small hand-built session', () => {
         result: e.result,
       })),
     });
-    const accuracy = computeSolverAccuracy(solved);
-    expect(isMediumTierReached(accuracy)).toBe(accuracy >= MEDIUM_ACCURACY_THRESHOLD);
+    expect(isMediumTierReached(accuracy)).toBe(accuracy >= SCORE_SPREAD_MEDIUM_THRESHOLD);
   });
 
   it('signals degree-exhausted (a distinct status, not silence) once nothing at the current degree is worth asking, with escalation info', () => {
@@ -253,7 +251,7 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
   }
 
   function currentAccuracy(session: CalibrationSession): number {
-    const solved = solveValues({
+    return computeScoreSpreadAccuracy({
       levelsPerCriterion,
       answers: session.fullLog.map((e) => ({
         profileA: e.profileA,
@@ -261,12 +259,14 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
         result: e.result,
       })),
     });
-    return computeSolverAccuracy(solved);
   }
 
-  it('reaches full degree-2 coverage in the same rough ballpark as the real session (20), tapers across degrees, and shows diminishing accuracy returns', () => {
+  it('reaches full degree-2 coverage in the same rough ballpark as the real session (20), tapers across degrees, and shows meaningful accuracy improvement', () => {
     const session = new CalibrationSession();
-    const accuracyAtStart = currentAccuracy(session); // 1 (no answers yet: zero-width trivial ranges)
+    const accuracyAtStart = currentAccuracy(session); // low: with zero answers, sampled score
+    // pairs are maximally undetermined against the feasible region (score-spread accuracy,
+    // unlike the old per-axis metric, doesn't report a trivial 1 here — see
+    // scoreSpreadAccuracy.ts's header).
 
     // --- Phase 1: cold-start coverage only, until the driver itself stops offering it.
     let action = nextAction(session, levelsPerCriterion, 2);
@@ -289,7 +289,7 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
     // Medium is now a solver-accuracy threshold (2026-08-08), not pair-coverage — verify
     // isMediumTierReached matches the actual accuracy reached at minimum coverage.
     expect(isMediumTierReached(accuracyAtCoverage)).toBe(
-      accuracyAtCoverage >= MEDIUM_ACCURACY_THRESHOLD
+      accuracyAtCoverage >= SCORE_SPREAD_MEDIUM_THRESHOLD
     );
 
     // --- Phase 2: continue adaptively — refinement at degree 2, then escalate through
@@ -332,12 +332,14 @@ describe('oracle-based simulation (real 5-criterion value table as complete grou
       expect(asksByDegree[degreesAsked[i]]).toBeLessThanOrEqual(asksByDegree[degreesAsked[i - 1]]);
     }
 
-    // --- Accuracy is already meaningfully high right at minimum coverage, and further
-    // questions show diminishing (not linear/unbounded) improvement.
-    expect(accuracyAtCoverage).toBeGreaterThan(0.5);
-    const earlyGain = accuracyAtCoverage - accuracyAtStart;
-    const lateGain = accuracyAtEnd - accuracyAtCoverage;
-    expect(Math.abs(lateGain)).toBeLessThan(Math.abs(earlyGain));
+    // --- Accuracy improves monotonically as the driver progresses from zero answers, to
+    // minimum coverage, to the end of the bounded refinement run. This is a loose sanity
+    // check on the driver/metric interaction only — the metric's own detailed shape
+    // (magnitude of improvement, no early collapse) is covered by
+    // scoreSpreadAccuracy.test.ts's dedicated oracle-milestone tests, not duplicated here.
+    expect(accuracyAtCoverage).toBeGreaterThan(accuracyAtStart);
+    expect(accuracyAtEnd).toBeGreaterThan(accuracyAtCoverage);
+    expect(accuracyAtEnd).toBeLessThanOrEqual(1);
   }, 30_000);
 
   it('never asks a dominated or tied pair across a full driver-paced run (regression for the dominance filter)', () => {

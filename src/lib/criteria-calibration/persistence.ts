@@ -1,22 +1,29 @@
 // Supabase persistence for Criteria Calibration (part 5b). Consumes the engine's public
-// exports (solveValues / isMediumTierReached / computeSolverAccuracy / solverAccuracyTier)
-// but doesn't modify any of the locked engine modules or the schema (part 3).
+// exports (solveValues / isMediumTierReached / computeScoreSpreadAccuracy /
+// solverAccuracyTier) but doesn't modify any of the locked engine modules or the schema
+// (part 3). Accuracy source switched 2026-08-09 from computeSolverAccuracy to
+// computeScoreSpreadAccuracy (scoreSpreadAccuracy.ts) — see that module's header and
+// docs/decisions/criteria-calibration-engine.md's "Part 4 finding" for why. Already async
+// and off the interactive render path (runs once per committed answer, not per keystroke),
+// so the extra LP solves the new metric needs are swapped in directly here, no debounce
+// needed (contrast CriteriaCalibrationPage.tsx's progress ring, which does debounce).
 //
 // Combined tier rule (per user_calibration_status.sql's own documented gap): 'high'/
 // 'very_high' require isMediumTierReached() to ALSO be true, not solverAccuracyTier() alone.
 // As of 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md) both
-// checks read the same `accuracy` value against different thresholds (Medium >= 0.85,
-// High/Very High >= 0.92/0.97), so this is now structurally always true — a solverTier of
-// 'high' or 'veryHigh' necessarily implies accuracy >= 0.85, hence Medium. The combined
-// check is kept as-is (harmless, and keeps `computeTier` correct if Medium's threshold
-// and High's threshold are ever independently retuned to no longer nest). Storing a
-// 'high'/'very_high' value is harmless even though the UI (5a, unchanged here) never
-// displays anything beyond Medium/not-Medium.
+// checks read the same `accuracy` value against different thresholds (Medium >=
+// SCORE_SPREAD_MEDIUM_THRESHOLD, High/Very High >= SCORE_SPREAD_HIGH/VERY_HIGH_THRESHOLD),
+// so this is now structurally always true as long as those three constants stay nested in
+// ascending order. The combined check is kept as-is (harmless, and keeps `computeTier`
+// correct if Medium's threshold and High's threshold are ever independently retuned to no
+// longer nest). Storing a 'high'/'very_high' value is harmless even though the UI (5a,
+// unchanged here) never displays anything beyond Medium/not-Medium.
 
 import { supabase } from '../../supabaseClient.js';
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
 import { solveValues, type SolverAnswer } from './solver.js';
-import { isMediumTierReached, computeSolverAccuracy, solverAccuracyTier } from './accuracyTiers.js';
+import { isMediumTierReached, solverAccuracyTier } from './accuracyTiers.js';
+import { computeScoreSpreadAccuracy } from './scoreSpreadAccuracy.js';
 import type { CriteriaCatalog } from './criteriaCatalog.js';
 
 export type DbResult = 'a_preferred' | 'b_preferred' | 'equal';
@@ -106,7 +113,10 @@ export async function upsertWeightsAndStatus(
   answers: readonly SolverAnswer[]
 ): Promise<void> {
   const solved = solveValues({ levelsPerCriterion: catalog.levelsPerCriterion, answers });
-  const accuracy = computeSolverAccuracy(solved);
+  const accuracy = computeScoreSpreadAccuracy({
+    levelsPerCriterion: catalog.levelsPerCriterion,
+    answers,
+  });
   const mediumReached = isMediumTierReached(accuracy);
 
   const weightRows = catalog.entries.flatMap((entry) =>
