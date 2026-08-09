@@ -194,6 +194,67 @@ const REAL_SESSION_RAW: [string, string, '>' | '<' | '='][] = [
   ['55115', '33331', '<'],
 ];
 
+// ---------------------------------------------------------------------------------------
+// n=42 numerical-blowup regression fixture (Big-M -> two-phase simplex rewrite, 2026-08-09,
+// see docs/decisions/two-phase-simplex-rewrite.md). Regenerated deterministically by
+// driving `nextAction` for 42 rounds against the REAL_SESSION_* value table as a
+// complete-ground-truth oracle (identical method to elicitationDriver.test.ts's
+// "oracle-based simulation" describe block) — NOT hand-authored, NOT the 31-answer
+// REAL_SESSION_RAW sequence. Confirmed (before the two-phase rewrite) to reproduce the
+// diagnostic's failure: totalSlack === 0 (fully consistent, so genuinely feasible) but
+// computeChebyshevCenter's Big-M solveLP call returned `feasible: true` with `point`
+// values up to ~1.16e14 — garbage silently reported as valid. Uses
+// REAL_SESSION_LEVELS_PER_CRITERION (5 criteria, 5 levels each) since it was generated
+// against that fixture's oracle.
+// ---------------------------------------------------------------------------------------
+
+export const N42_REPRO_LEVELS_PER_CRITERION = REAL_SESSION_LEVELS_PER_CRITERION;
+
+export const N42_REPRO_ANSWERS: RealSessionRound[] = [
+  { profileA: { 0: 5, 1: 1 }, profileB: { 0: 1, 1: 5 }, result: 'B' },
+  { profileA: { 0: 5, 2: 1 }, profileB: { 0: 1, 2: 5 }, result: 'A' },
+  { profileA: { 0: 5, 3: 1 }, profileB: { 0: 1, 3: 5 }, result: 'equal' },
+  { profileA: { 0: 5, 4: 1 }, profileB: { 0: 1, 4: 5 }, result: 'B' },
+  { profileA: { 1: 5, 2: 1 }, profileB: { 1: 1, 2: 5 }, result: 'A' },
+  { profileA: { 1: 5, 3: 1 }, profileB: { 1: 1, 3: 5 }, result: 'A' },
+  { profileA: { 1: 5, 4: 1 }, profileB: { 1: 1, 4: 5 }, result: 'equal' },
+  { profileA: { 2: 5, 3: 1 }, profileB: { 2: 1, 3: 5 }, result: 'B' },
+  { profileA: { 2: 5, 4: 1 }, profileB: { 2: 1, 4: 5 }, result: 'B' },
+  { profileA: { 3: 5, 4: 1 }, profileB: { 3: 1, 4: 5 }, result: 'B' },
+  { profileA: { 1: 3, 4: 3 }, profileB: { 1: 2, 4: 4 }, result: 'A' },
+  { profileA: { 0: 4, 4: 2 }, profileB: { 0: 3, 4: 3 }, result: 'B' },
+  { profileA: { 1: 4, 4: 3 }, profileB: { 1: 3, 4: 4 }, result: 'A' },
+  { profileA: { 0: 3, 1: 4 }, profileB: { 0: 2, 1: 5 }, result: 'A' },
+  { profileA: { 0: 3, 3: 3 }, profileB: { 0: 4, 3: 2 }, result: 'A' },
+  { profileA: { 3: 4, 4: 4 }, profileB: { 3: 3, 4: 5 }, result: 'A' },
+  { profileA: { 0: 4, 3: 4 }, profileB: { 0: 3, 3: 5 }, result: 'equal' },
+  { profileA: { 0: 4, 2: 5 }, profileB: { 0: 5, 2: 4 }, result: 'equal' },
+  { profileA: { 0: 3, 2: 5 }, profileB: { 0: 4, 2: 4 }, result: 'B' },
+  { profileA: { 1: 4, 4: 2 }, profileB: { 1: 2, 4: 4 }, result: 'A' },
+  { profileA: { 0: 5, 2: 2 }, profileB: { 0: 4, 2: 3 }, result: 'B' },
+  { profileA: { 0: 2, 2: 1 }, profileB: { 0: 1, 2: 2 }, result: 'A' },
+  { profileA: { 0: 3, 4: 1 }, profileB: { 0: 2, 4: 2 }, result: 'B' },
+  { profileA: { 1: 4, 4: 4 }, profileB: { 1: 5, 4: 3 }, result: 'B' },
+  { profileA: { 0: 4, 3: 2 }, profileB: { 0: 2, 3: 4 }, result: 'B' },
+  { profileA: { 1: 1, 3: 4 }, profileB: { 1: 2, 3: 3 }, result: 'B' },
+  { profileA: { 0: 3, 3: 2 }, profileB: { 0: 1, 3: 4 }, result: 'A' },
+  { profileA: { 0: 2, 3: 3 }, profileB: { 0: 4, 3: 2 }, result: 'B' },
+  { profileA: { 1: 3, 2: 2 }, profileB: { 1: 2, 2: 4 }, result: 'equal' },
+  { profileA: { 2: 2, 4: 3 }, profileB: { 2: 1, 4: 4 }, result: 'A' },
+  { profileA: { 0: 4, 1: 1 }, profileB: { 0: 1, 1: 4 }, result: 'B' },
+  { profileA: { 0: 5, 3: 4 }, profileB: { 0: 3, 3: 5 }, result: 'equal' },
+  { profileA: { 0: 3, 3: 1 }, profileB: { 0: 1, 3: 4 }, result: 'equal' },
+  { profileA: { 0: 5, 2: 2 }, profileB: { 0: 3, 2: 5 }, result: 'B' },
+  { profileA: { 1: 2, 3: 5 }, profileB: { 1: 4, 3: 3 }, result: 'B' },
+  { profileA: { 0: 4, 2: 1 }, profileB: { 0: 2, 2: 4 }, result: 'B' },
+  { profileA: { 2: 3, 4: 2 }, profileB: { 2: 1, 4: 3 }, result: 'A' },
+  { profileA: { 1: 2, 2: 3 }, profileB: { 1: 3, 2: 2 }, result: 'B' },
+  { profileA: { 1: 2, 4: 4 }, profileB: { 1: 3, 4: 2 }, result: 'A' },
+  { profileA: { 0: 2, 4: 5 }, profileB: { 0: 4, 4: 2 }, result: 'A' },
+  { profileA: { 1: 4, 3: 2 }, profileB: { 1: 5, 3: 1 }, result: 'A' },
+  { profileA: { 2: 1, 3: 4 }, profileB: { 2: 3, 3: 2 }, result: 'B' },
+];
+
 export function buildRealSessionAnswers(): RealSessionRound[] {
   return REAL_SESSION_RAW.map(([leftNotation, rightNotation, op]) => {
     const profileA = profileFromNotation(leftNotation);

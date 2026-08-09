@@ -9,6 +9,8 @@ import {
   REAL_SESSION_ALBUMS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
   REAL_PRODUCTION_SESSION_ANSWERS,
+  N42_REPRO_LEVELS_PER_CRITERION,
+  N42_REPRO_ANSWERS,
 } from '../lib/criteria-calibration/fixtures';
 import type { Profile } from '../lib/criteria-calibration/preferenceGraph';
 
@@ -140,6 +142,40 @@ describe('solveValues — real production session (joint-point-estimate fix)', (
 
     const normalizationSum = result.values.reduce(
       (sum, criterionValues) => sum + criterionValues[5].point,
+      0
+    );
+    expect(normalizationSum).toBeCloseTo(1, 6);
+  });
+});
+
+describe('solveValues — n=42 numerical-blowup regression (two-phase simplex rewrite)', () => {
+  // Permanent regression test for the Big-M blowup found 2026-08-09 (see
+  // docs/decisions/two-phase-simplex-rewrite.md): on this exact 42-answer sequence, the
+  // pre-rewrite Big-M solveLP returned `feasible: true` with `values[c][level].point` up to
+  // ~1.16e14 (garbage) despite `totalSlack` being 0 (the data is fully consistent — this was
+  // a purely numerical failure of the LP solver, not a real infeasibility). Asserts the
+  // fixed solver now produces a sane, monotonicity/normalization-respecting result instead.
+  it('produces sane, monotonic, exactly-normalized point values (not a numerical blowup)', () => {
+    const result = solveValues({
+      levelsPerCriterion: N42_REPRO_LEVELS_PER_CRITERION,
+      answers: N42_REPRO_ANSWERS,
+    });
+
+    expect(result.totalSlack).toBeLessThan(1e-6); // fully consistent oracle data
+
+    for (const criterionValues of result.values) {
+      expect(criterionValues[1].point).toBe(0);
+      for (let level = 2; level < criterionValues.length; level++) {
+        const point = criterionValues[level].point;
+        expect(Number.isFinite(point)).toBe(true);
+        expect(point).toBeGreaterThanOrEqual(-1e-9);
+        expect(point).toBeLessThanOrEqual(1 + 1e-9); // sane range: no criterion can exceed the full normalization budget
+        expect(point).toBeGreaterThanOrEqual(criterionValues[level - 1].point - 1e-9); // monotonic
+      }
+    }
+
+    const normalizationSum = result.values.reduce(
+      (sum, criterionValues) => sum + criterionValues[criterionValues.length - 1].point,
       0
     );
     expect(normalizationSum).toBeCloseTo(1, 6);
