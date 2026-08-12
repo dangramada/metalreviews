@@ -21,10 +21,9 @@
 
 import { supabase } from '../../supabaseClient.js';
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
-import { solveValues, type SolverAnswer } from './solver.js';
-import { isMediumTierReached, solverAccuracyTier } from './accuracyTiers.js';
-import { computeScoreSpreadAccuracy } from './scoreSpreadAccuracy.js';
+import { solverAccuracyTier } from './accuracyTiers.js';
 import type { CriteriaCatalog } from './criteriaCatalog.js';
+import type { CommitComputation } from './commitComputation.js';
 
 export type DbResult = 'a_preferred' | 'b_preferred' | 'equal';
 export type StatusTier = 'none' | 'medium' | 'high' | 'very_high';
@@ -102,22 +101,20 @@ function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
 }
 
 /**
- * Re-runs the solver against the full given answer log and upserts both
- * user_criterion_weights (one row per criterion x level) and user_calibration_status
- * (tier + raw accuracy value, combined-rule gated). Answers are the caller's current
- * in-memory log — already 1:1 with what's persisted, so no separate re-fetch is needed.
+ * Upserts both user_criterion_weights (one row per criterion x level) and
+ * user_calibration_status (tier + raw accuracy value, combined-rule gated) from an
+ * already-solved computation. The caller (CriteriaCalibrationPage) computes solveValues +
+ * computeScoreSpreadAccuracy exactly once per commit via computeCommitState and shares that
+ * result across every consumer — this function no longer re-solves them itself (see
+ * commitComputation.ts for why: three independent recomputes of the same LP was the direct
+ * cause of the round-50+ UI blocking).
  */
 export async function upsertWeightsAndStatus(
   userId: string,
   catalog: CriteriaCatalog,
-  answers: readonly SolverAnswer[]
+  computation: CommitComputation
 ): Promise<void> {
-  const solved = solveValues({ levelsPerCriterion: catalog.levelsPerCriterion, answers });
-  const accuracy = computeScoreSpreadAccuracy({
-    levelsPerCriterion: catalog.levelsPerCriterion,
-    answers,
-  });
-  const mediumReached = isMediumTierReached(accuracy);
+  const { solved, accuracy, mediumReached } = computation;
 
   const weightRows = catalog.entries.flatMap((entry) =>
     Object.keys(entry.levels)

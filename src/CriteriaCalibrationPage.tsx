@@ -10,19 +10,20 @@ import { Footer } from './Footer';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
 import { useCalibrationResume } from './hooks/useCalibrationResume';
+import { usePendingWritesGuard } from './hooks/usePendingWritesGuard';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { useAuth } from './AuthContext';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CalibrationSession } from './lib/criteria-calibration/calibrationSession';
 import { nextAction } from './lib/criteria-calibration/elicitationDriver';
-import { isMediumTierReached } from './lib/criteria-calibration/accuracyTiers';
-import { computeScoreSpreadAccuracy } from './lib/criteria-calibration/scoreSpreadAccuracy';
+import { computeCommitState } from './lib/criteria-calibration/commitComputation';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
   insertAnswer,
   deleteAnswer,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
+import { maybeLogSnapshot } from './lib/criteria-calibration/rankingStabilityLog';
 import type { ComparisonResult, Profile } from './lib/criteria-calibration/preferenceGraph';
 
 // ---------------------------------------------------------------------------
@@ -164,25 +165,31 @@ export function CriteriaCalibrationPage() {
   // progress-ring-accuracy entry for the full history.
   //
   // computeScoreSpreadAccuracy (2026-08-09, superseding computeSolverAccuracy — see
-  // scoreSpreadAccuracy.ts's header) costs ~100 LP solves against the default sample, not
-  // the handful the old per-value-range metric needed — too expensive to run inline in this
-  // memo on every answer/undo/redo. Debounced instead: recomputed ~400ms after `answers`
-  // settles, showing the last-known value in the meantime rather than blocking the ring on
-  // every interaction.
+  // scoreSpreadAccuracy.ts's header) costs ~100 LP solves against the default sample — too
+  // expensive to run more than once per state transition. It used to run on its own 400ms
+  // debounce here AND again inside upsertWeightsAndStatus AND a third time (every 3rd
+  // commit) inside the ranking-stability logging hook — three independent recomputes of the
+  // same LP per commit, which is what made the UI block outright once answer count (and
+  // constraint count) grew past ~50 rounds. Fixed by computeCommitState (commitComputation.ts):
+  // every action handler below computes it exactly once and shares the result with
+  // upsertWeightsAndStatus and maybeLogSnapshot directly, no debounce needed since there's
+  // no redundant work left to throttle. The one exception is initial load (seeding from a
+  // resumed session isn't a "commit"), handled by the one-time effect just below.
   const [progressPercent, setProgressPercent] = useState(0);
   const [mediumReached, setMediumReached] = useState(false);
+
+  // Computes progress/accuracy exactly once, the first time both the catalog and the
+  // resumed answer log are ready — covers page load, independent of which of the two
+  // finishes loading first. Every subsequent update comes from applyCommitComputation below,
+  // triggered explicitly by a real commit/undo/redo, not from this effect re-running.
+  const initialAccuracyComputedRef = useRef(false);
   useEffect(() => {
-    if (!catalog) return;
-    const timer = setTimeout(() => {
-      const accuracy = computeScoreSpreadAccuracy({
-        levelsPerCriterion: catalog.levelsPerCriterion,
-        answers,
-      });
-      setProgressPercent(Math.round(accuracy * 100));
-      setMediumReached(isMediumTierReached(accuracy));
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [catalog, answers]);
+    if (!catalog || !seeded || initialAccuracyComputedRef.current) return;
+    initialAccuracyComputedRef.current = true;
+    const { accuracy, mediumReached } = computeCommitState(catalog, answers);
+    setProgressPercent(Math.round(accuracy * 100));
+    setMediumReached(mediumReached);
+  }, [catalog, seeded, answers]);
 
   const interactionDisabled = phase !== 'idle' || stopped;
   const round = answers.length + 1;
@@ -203,8 +210,13 @@ export function CriteriaCalibrationPage() {
     persistFailingRef.current = false;
   }
 
+  // See usePendingWritesGuard.ts for why this is a visibility guard (beforeunload prompt),
+  // not an await-before-next-interaction serialization.
+  const { beginWrite, endWrite, hasPendingWrites } = usePendingWritesGuard();
+
   async function persistNewAnswer(entry: AnswerEntry) {
     if (!user) return;
+    beginWrite();
     try {
       const dbId = await insertAnswer(user.id, entry.profileA, entry.profileB, entry.result);
       notifyPersistRecovered();
@@ -219,6 +231,8 @@ export function CriteriaCalibrationPage() {
     } catch (e) {
       console.warn('Failed to save calibration answer', e);
       notifyPersistFailure();
+    } finally {
+      endWrite();
     }
   }
 
@@ -228,19 +242,37 @@ export function CriteriaCalibrationPage() {
   // landing after a newer one (both requests are already sent); that's self-correcting on
   // the next answer, per the brief, so not solved here.
   const weightsGenRef = useRef(0);
-  function recomputeWeightsAndStatus(nextAnswers: AnswerEntry[]) {
-    if (!user || !catalog) return;
-    const myGen = ++weightsGenRef.current;
-    upsertWeightsAndStatus(user.id, catalog, nextAnswers)
-      .then(() => {
-        if (myGen !== weightsGenRef.current) return;
-        notifyPersistRecovered();
-      })
-      .catch((e) => {
-        if (myGen !== weightsGenRef.current) return;
-        console.warn('Failed to update calibration weights/status', e);
-        notifyPersistFailure();
-      });
+
+  // Computes solveValues + computeScoreSpreadAccuracy exactly once for `nextAnswers` and
+  // shares the result across the progress ring, the weights/status upsert, and (for real
+  // commits, not undo) the ranking-stability logging hook — see commitComputation.ts's
+  // header for why this replaced three independent recomputes per commit.
+  function applyCommitComputation(nextAnswers: AnswerEntry[], options: { log: boolean }) {
+    if (!catalog) return;
+    const computation = computeCommitState(catalog, nextAnswers);
+    setProgressPercent(Math.round(computation.accuracy * 100));
+    setMediumReached(computation.mediumReached);
+
+    if (user) {
+      const myGen = ++weightsGenRef.current;
+      beginWrite();
+      upsertWeightsAndStatus(user.id, catalog, computation)
+        .then(() => {
+          if (myGen !== weightsGenRef.current) return;
+          notifyPersistRecovered();
+        })
+        .catch((e) => {
+          if (myGen !== weightsGenRef.current) return;
+          console.warn('Failed to update calibration weights/status', e);
+          notifyPersistFailure();
+        })
+        .finally(endWrite);
+    }
+
+    if (options.log) {
+      // TEMPORARY — ranking-stability diagnostic (Brief 2), see rankingStabilityLog.ts.
+      maybeLogSnapshot(nextAnswers, catalog, computation);
+    }
   }
 
   function commitAdvance(result: ComparisonResult) {
@@ -256,7 +288,7 @@ export function CriteriaCalibrationPage() {
     setRedoBuffer([]);
     setSelectedSide(null);
     persistNewAnswer(entry);
-    recomputeWeightsAndStatus(nextAnswers);
+    applyCommitComputation(nextAnswers, { log: true });
   }
 
   // Selection -> Hold -> Transition sequence, unchanged from the mock pass. "Equal" runs the
@@ -294,17 +326,19 @@ export function CriteriaCalibrationPage() {
     setSelectedSide(null);
 
     if (last.dbId) {
+      beginWrite();
       deleteAnswer(last.dbId)
         .then(notifyPersistRecovered)
         .catch((e) => {
           console.warn('Failed to delete undone calibration answer', e);
           notifyPersistFailure();
-        });
+        })
+        .finally(endWrite);
     }
     // If last.dbId isn't set yet, its insert is still in flight (or already failed) —
     // persistNewAnswer's own race check will notice the localId is gone and delete the
     // row itself once that insert resolves.
-    recomputeWeightsAndStatus(nextAnswers);
+    applyCommitComputation(nextAnswers, { log: false });
   }
 
   function handleRedo() {
@@ -323,7 +357,9 @@ export function CriteriaCalibrationPage() {
     setAnswers(nextAnswers);
     setSelectedSide(null);
     persistNewAnswer(entry);
-    recomputeWeightsAndStatus(nextAnswers);
+    // Redo is a second real commit point alongside commitAdvance — both create a new answer,
+    // so both log (see rankingStabilityLog.ts: commitAdvance is NOT the sole commit point).
+    applyCommitComputation(nextAnswers, { log: true });
   }
 
   function handleEscalate() {
@@ -398,6 +434,14 @@ export function CriteriaCalibrationPage() {
             accuracyLevel={mediumReached ? 'Medium' : 'Low'}
             onExit={handleExit}
           />
+          {hasPendingWrites && (
+            // Visible pending-save signal, paired with the beforeunload guard above — a
+            // refresh while this is showing will trigger the browser's native "leave site?"
+            // confirmation rather than silently dropping the in-flight write.
+            <Text textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
+              Saving…
+            </Text>
+          )}
 
           {stopped ? (
             <Text textAlign="center" color="text.dim">
