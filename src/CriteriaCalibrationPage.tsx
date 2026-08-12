@@ -23,7 +23,6 @@ import {
   deleteAnswer,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
-import { maybeLogSnapshot } from './lib/criteria-calibration/rankingStabilityLog';
 import type { ComparisonResult, Profile } from './lib/criteria-calibration/preferenceGraph';
 
 // ---------------------------------------------------------------------------
@@ -168,13 +167,13 @@ export function CriteriaCalibrationPage() {
   // scoreSpreadAccuracy.ts's header) costs ~100 LP solves against the default sample — too
   // expensive to run more than once per state transition. It used to run on its own 400ms
   // debounce here AND again inside upsertWeightsAndStatus AND a third time (every 3rd
-  // commit) inside the ranking-stability logging hook — three independent recomputes of the
-  // same LP per commit, which is what made the UI block outright once answer count (and
-  // constraint count) grew past ~50 rounds. Fixed by computeCommitState (commitComputation.ts):
-  // every action handler below computes it exactly once and shares the result with
-  // upsertWeightsAndStatus and maybeLogSnapshot directly, no debounce needed since there's
-  // no redundant work left to throttle. The one exception is initial load (seeding from a
-  // resumed session isn't a "commit"), handled by the one-time effect just below.
+  // commit) inside the now-removed ranking-stability logging hook — three independent
+  // recomputes of the same LP per commit, which is what made the UI block outright once
+  // answer count (and constraint count) grew past ~50 rounds. Fixed by computeCommitState
+  // (commitComputation.ts): every action handler below computes it exactly once and shares
+  // the result with upsertWeightsAndStatus, no debounce needed since there's no redundant
+  // work left to throttle. The one exception is initial load (seeding from a resumed session
+  // isn't a "commit"), handled by the one-time effect just below.
   const [progressPercent, setProgressPercent] = useState(0);
   const [mediumReached, setMediumReached] = useState(false);
 
@@ -239,15 +238,16 @@ export function CriteriaCalibrationPage() {
   // Cheap staleness guard: if a newer recompute has started by the time this one resolves,
   // skip its success/failure notification — the newer call's own write already reflects a
   // more current answers snapshot. This doesn't stop an in-flight older call's write from
-  // landing after a newer one (both requests are already sent); that's self-correcting on
-  // the next answer, per the brief, so not solved here.
+  // landing after a newer one (both requests are already sent) — confirmed as a real,
+  // unfixed write-race (not self-correcting in practice): see
+  // docs/decisions/criteria-calibration-weights-write-race.md.
   const weightsGenRef = useRef(0);
 
   // Computes solveValues + computeScoreSpreadAccuracy exactly once for `nextAnswers` and
-  // shares the result across the progress ring, the weights/status upsert, and (for real
-  // commits, not undo) the ranking-stability logging hook — see commitComputation.ts's
-  // header for why this replaced three independent recomputes per commit.
-  function applyCommitComputation(nextAnswers: AnswerEntry[], options: { log: boolean }) {
+  // shares the result across the progress ring and the weights/status upsert — see
+  // commitComputation.ts's header for why this replaced three independent recomputes per
+  // commit.
+  function applyCommitComputation(nextAnswers: AnswerEntry[]) {
     if (!catalog) return;
     const computation = computeCommitState(catalog, nextAnswers);
     setProgressPercent(Math.round(computation.accuracy * 100));
@@ -268,11 +268,6 @@ export function CriteriaCalibrationPage() {
         })
         .finally(endWrite);
     }
-
-    if (options.log) {
-      // TEMPORARY — ranking-stability diagnostic (Brief 2), see rankingStabilityLog.ts.
-      maybeLogSnapshot(nextAnswers, catalog, computation);
-    }
   }
 
   function commitAdvance(result: ComparisonResult) {
@@ -288,7 +283,7 @@ export function CriteriaCalibrationPage() {
     setRedoBuffer([]);
     setSelectedSide(null);
     persistNewAnswer(entry);
-    applyCommitComputation(nextAnswers, { log: true });
+    applyCommitComputation(nextAnswers);
   }
 
   // Selection -> Hold -> Transition sequence, unchanged from the mock pass. "Equal" runs the
@@ -338,7 +333,7 @@ export function CriteriaCalibrationPage() {
     // If last.dbId isn't set yet, its insert is still in flight (or already failed) —
     // persistNewAnswer's own race check will notice the localId is gone and delete the
     // row itself once that insert resolves.
-    applyCommitComputation(nextAnswers, { log: false });
+    applyCommitComputation(nextAnswers);
   }
 
   function handleRedo() {
@@ -357,9 +352,8 @@ export function CriteriaCalibrationPage() {
     setAnswers(nextAnswers);
     setSelectedSide(null);
     persistNewAnswer(entry);
-    // Redo is a second real commit point alongside commitAdvance — both create a new answer,
-    // so both log (see rankingStabilityLog.ts: commitAdvance is NOT the sole commit point).
-    applyCommitComputation(nextAnswers, { log: true });
+    // Redo is a second real commit point alongside commitAdvance — both create a new answer.
+    applyCommitComputation(nextAnswers);
   }
 
   function handleEscalate() {

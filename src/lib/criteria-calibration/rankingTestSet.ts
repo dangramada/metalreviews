@@ -6,10 +6,11 @@
 // fixtures.ts. Single-user project, Dan's own data, embedded directly per the same prior
 // sign-off basis as that fixture.
 //
-// Used only by rankingStabilityLog.ts, a temporary diagnostic instrument for validating
-// MEDIUM_ACCURACY_THRESHOLD as an auto-stop point (see
-// docs/decisions/criteria-calibration-adaptive-degree-escalation.md and its follow-ups) — not
-// consumed by any production code path.
+// Was used by rankingStabilityLog.ts (now removed — its diagnostic session is complete) to
+// validate MEDIUM_ACCURACY_THRESHOLD as an auto-stop point. Kept as historical evidence: the
+// snapshots it produced are the basis for
+// docs/decisions/criteria-calibration-ranking-stability-analysis.md. Not consumed by any
+// production code path.
 // ---------------------------------------------------------------------------------------
 
 export interface RankingTestAlbum {
