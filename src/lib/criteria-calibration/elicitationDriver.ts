@@ -187,6 +187,29 @@ function isDominatedPair(
 }
 
 /**
+ * True if ANY criterion in `subset` has the same level on both sides — a "partial tie"
+ * (some but not all criteria match) when the pair isn't already a full tie. Confirmed
+ * mathematically (see docs/decisions/criteria-calibration-partial-tie-fix.md,
+ * solver.ts:162-181): a tied criterion's coefficient cancels exactly to zero in the LP's
+ * `diff = coeffsA - coeffsB` row, so that criterion contributes nothing to the constraint —
+ * the comparison is informationally equivalent to a lower-degree one over just the criteria
+ * that actually differ, despite being logged and touch-counted as the full subset's degree.
+ * A full tie (every criterion matches) is already rejected separately via the `keyA ===
+ * keyB` check at this function's one call site — this catches the partial case that check
+ * doesn't.
+ */
+function hasAnyTiedCriterion(
+  profileA: Record<number, number>,
+  profileB: Record<number, number>,
+  subset: number[]
+): boolean {
+  for (const idx of subset) {
+    if (profileA[idx] === profileB[idx]) return true;
+  }
+  return false;
+}
+
+/**
  * Per-criterion, per-level count of how many times that (criterion, level) combination has
  * appeared in any logged answer so far (either side, any degree). Derived fresh from
  * `session.fullLog` on every call — same pattern as `isPairCovered`/`hasBeenAsked` above, no
@@ -199,6 +222,31 @@ function isDominatedPair(
 function computeTouchCounts(session: CalibrationSession, levelsPerCriterion: number[]): number[][] {
   const counts = levelsPerCriterion.map((max) => new Array<number>(max + 1).fill(0));
   for (const entry of session.fullLog) {
+    for (const profile of [entry.profileA, entry.profileB]) {
+      for (const key of Object.keys(profile)) {
+        const idx = Number(key);
+        const level = profile[idx];
+        counts[idx][level]++;
+      }
+    }
+  }
+  return counts;
+}
+
+/**
+ * Same shape as computeTouchCounts, but counts only answers actually logged AT `degree` —
+ * used exclusively by isDegreeCoverageComplete's gate (see that function's comment for why
+ * this differs from the global touchCounts used for candidate-weighting/hasBeenAsked
+ * purposes elsewhere in this module, which stay degree-agnostic on purpose).
+ */
+function computeTouchCountsForDegree(
+  session: CalibrationSession,
+  levelsPerCriterion: number[],
+  degree: number
+): number[][] {
+  const counts = levelsPerCriterion.map((max) => new Array<number>(max + 1).fill(0));
+  for (const entry of session.fullLog) {
+    if (entry.degree !== degree) continue;
     for (const profile of [entry.profileA, entry.profileB]) {
       for (const key of Object.keys(profile)) {
         const idx = Number(key);
@@ -239,6 +287,17 @@ function drawLevel(
   return max; // floating-point fallback, should be unreachable
 }
 
+// Retry budget per subset. Was `CANDIDATES_PER_SUBSET * 20` (120 attempts) before the
+// partial-tie rejection below was added; measured empirically (see
+// docs/decisions/criteria-calibration-partial-tie-fix.md) that rejecting partial ties on top
+// of the existing full-tie/dominance/dedup filters raises the overall reject rate enough
+// that 120 attempts occasionally under-fills a subset's candidate quota at degree 3+ (most
+// visible for subsets whose touch-count weighting has already concentrated onto very few
+// levels). Bumped to `* 60` (360 attempts) — confirmed empirically to reliably reach
+// CANDIDATES_PER_SUBSET across every degree-3 subset tested against both a synthetic run and
+// Dan's real touch-count state, with attempts to spare.
+const MAX_GENERATION_ATTEMPTS_PER_SUBSET = CANDIDATES_PER_SUBSET * 60;
+
 /** Exported for direct testing of the dominance filter — not used outside this module. */
 export function generateCandidatesForSubset(
   subset: number[],
@@ -251,7 +310,7 @@ export function generateCandidatesForSubset(
   const seenPairKeys = new Set<string>();
   let attempts = 0;
 
-  while (candidates.length < CANDIDATES_PER_SUBSET && attempts < CANDIDATES_PER_SUBSET * 20) {
+  while (candidates.length < CANDIDATES_PER_SUBSET && attempts < MAX_GENERATION_ATTEMPTS_PER_SUBSET) {
     attempts++;
     const profileA: Record<number, number> = {};
     const profileB: Record<number, number> = {};
@@ -263,6 +322,12 @@ export function generateCandidatesForSubset(
     const keyA = profileKey(profileA);
     const keyB = profileKey(profileB);
     if (keyA === keyB) continue;
+    // Partial-tie rejection: same treatment tier as the full-tie/dominance/dedup checks
+    // around it, not a separate filter mechanism — see hasAnyTiedCriterion's comment for why
+    // this matters (a tied criterion contributes zero LP information, per solver.ts).
+    // Subsumes the full-tie case above for subset.length > 1, but that check stays first
+    // since it's cheaper and subset.length === 1 has no "partial" tie to speak of.
+    if (hasAnyTiedCriterion(profileA, profileB, subset)) continue;
     if (isDominatedPair(profileA, profileB, subset)) continue;
     const pairKey = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
     if (seenPairKeys.has(pairKey)) continue;
@@ -303,22 +368,41 @@ function buildRefinementCandidatePool(
 const MAX_VALUE_RANGE_FOR_COVERAGE = 0.2;
 
 /**
- * A degree is exhausted (nothing left worth asking) once every free `(criterion, level)`
- * variable in the FULL model — not scoped to the current degree's criterion subsets — has
- * both been touched by at least one logged answer (`touchCounts[c][level] > 0`) and has a
- * narrow feasible range (`.max - .min < MAX_VALUE_RANGE_FOR_COVERAGE`). Scoped to the whole
- * model deliberately: a variable can go untouched or stay wide regardless of which degree
- * is currently active (subsets at every degree can touch it), so checking only the current
- * degree's own subsets would miss a variable a different degree already covers, or wrongly
- * credit one only some other degree happens to touch. Replaces the old gap-based
- * `MAX_AMBIGUOUS_GAP` check (2026-08-09 design checkpoint, see
+ * A degree is exhausted (nothing left worth asking AT THIS DEGREE) once every free
+ * `(criterion, level)` variable has both been touched by a logged answer OF THIS DEGREE
+ * (`touchCounts[c][level] > 0`, where `touchCounts` here is degree-scoped — see
+ * `computeTouchCountsForDegree`) and has a narrow feasible range (`.max - .min <
+ * MAX_VALUE_RANGE_FOR_COVERAGE`, computed globally across the whole answer log regardless
+ * of degree, since range-narrowing IS genuinely informative cross-degree evidence, unlike
+ * the touch-count gate below).
+ *
+ * CHANGED 2026-08-11 (see docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md):
+ * touchCounts used to be computed globally too, on the reasoning that "a variable can go
+ * untouched or stay wide regardless of which degree is currently active, so checking only
+ * the current degree's own subsets would miss a variable a different degree already
+ * covers." That reasoning is still correct for an ADDITIVE value model with no free
+ * parameters beyond the 30 (criterion, level) values themselves — once those are all
+ * pinned, no degree can add real information, full stop. But it had a live consequence:
+ * once the whole model converged from degree-2 answers alone, EVERY degree from 2 up to N
+ * self-reported "coverage-complete" simultaneously the moment it was checked, so
+ * `nextAction` never asked a single real degree-3+ question — "Add more detail" just
+ * incremented `degree` through a run of identical-looking exhausted screens (confirmed via
+ * a live diagnostic on Dan's real 32-answer session, see the decision doc above). Deliberate
+ * tradeoff, confirmed with Dan before implementing: touchCounts is now scoped to only
+ * answers actually given AT the degree being checked, so a never-before-visited degree
+ * always asks at least one real question there before it can be declared exhausted — at
+ * the cost of possibly asking some informationally-redundant questions at higher degrees
+ * once the model has already converged from lower-degree evidence. The alternative (leave
+ * this function alone, fix only the UI) was explicitly offered and declined.
+ *
+ * Replaces the old gap-based `MAX_AMBIGUOUS_GAP` check (2026-08-09 design checkpoint, see
  * docs/decisions/criteria-calibration-adaptive-degree-escalation.md): that rule inferred
  * "nothing left to learn" from candidate-pair score gaps, which stayed near-zero by
  * construction in real sessions regardless of whether the underlying variables were
  * actually determined — measured on both an oracle trace and a real 33-answer production
  * session to correctly track true information gain where the gap-based rule didn't.
- * Values/touchCounts are both computed fresh from `session.fullLog` on every call — no
- * state to keep in sync.
+ * `values` and `touchCounts` are both computed fresh from `session.fullLog` on every call —
+ * no state to keep in sync.
  */
 function isDegreeCoverageComplete(
   levelsPerCriterion: number[],
@@ -383,7 +467,12 @@ export function nextAction(
 
   const solved = solveValues({ levelsPerCriterion, answers: toSolverAnswers(session) });
 
-  if (isDegreeCoverageComplete(levelsPerCriterion, solved.values, touchCounts)) {
+  // Degree-scoped touch counts for the coverage gate specifically — NOT the same
+  // `touchCounts` used above for candidate weighting, which stays degree-agnostic on
+  // purpose (see computeTouchCountsForDegree's and isDegreeCoverageComplete's comments).
+  const touchCountsForDegree = computeTouchCountsForDegree(session, levelsPerCriterion, currentDegree);
+
+  if (isDegreeCoverageComplete(levelsPerCriterion, solved.values, touchCountsForDegree)) {
     return {
       type: 'degree-exhausted',
       degree: currentDegree,

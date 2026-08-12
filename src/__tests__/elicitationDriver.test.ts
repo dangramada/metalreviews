@@ -19,6 +19,8 @@ import {
   REAL_SESSION_LEVELS_PER_CRITERION,
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
+  DEGREE_ANOMALY_SESSION_ANSWERS,
+  DEGREE_ANOMALY_SESSION_LEVELS_PER_CRITERION,
 } from '../lib/criteria-calibration/fixtures';
 
 describe('enumerateCriterionPairs', () => {
@@ -96,6 +98,84 @@ describe('generateCandidatesForSubset — dominance filter', () => {
       [3, 4, 5],
     ]) {
       const candidates = generateCandidatesForSubset(subset, levelsPerCriterion);
+      expect(candidates.length).toBe(6);
+    }
+  });
+});
+
+function hasAnyTiedCriterionInSubset(
+  profileA: Profile,
+  profileB: Profile,
+  subset: number[]
+): boolean {
+  return subset.some((idx) => profileA[idx] === profileB[idx]);
+}
+
+describe('generateCandidatesForSubset — partial-tie rejection', () => {
+  it('never emits a candidate with a partial tie (some but not all criteria matching), across degrees 2-6 and varied touch-count states', () => {
+    const levelsPerCriterion = [5, 5, 5, 5, 5, 5];
+    const subsets: number[][] = [
+      [0, 1],
+      [2, 3],
+      [0, 1, 2],
+      [1, 3, 5],
+      [0, 1, 2, 3],
+      [2, 3, 4, 5],
+      [0, 1, 2, 3, 4],
+      [0, 1, 2, 3, 4, 5],
+    ];
+    // Several representative touch-count states: none, uniform, and skewed (mirrors the
+    // "coverage-weighted sampling" tests below, since skewed weighting is exactly the
+    // condition under which partial-tie collisions were most likely pre-fix).
+    const touchCountStates: (number[][] | undefined)[] = [
+      undefined,
+      levelsPerCriterion.map((max) => new Array(max + 1).fill(0)),
+      levelsPerCriterion.map((max, i) => {
+        const row = new Array(max + 1).fill(10);
+        row[((i % max) + 1)] = 0; // one under-touched level per criterion, rest saturated
+        return row;
+      }),
+    ];
+
+    let totalCandidates = 0;
+    for (const touchCounts of touchCountStates) {
+      for (const subset of subsets) {
+        const candidates = generateCandidatesForSubset(subset, levelsPerCriterion, touchCounts);
+        totalCandidates += candidates.length;
+        for (const { profileA, profileB } of candidates) {
+          expect(hasAnyTiedCriterionInSubset(profileA, profileB, subset)).toBe(false);
+        }
+      }
+    }
+    expect(totalCandidates).toBeGreaterThan(0);
+  });
+
+  it('still reliably fills CANDIDATES_PER_SUBSET (6) candidates per subset at degree 3+ despite the added rejection, under a representative skewed touch-count state', () => {
+    const levelsPerCriterion = [5, 5, 5, 5, 5, 5];
+    // One under-touched level per criterion (varying per criterion, not identical across
+    // all of them) — the shape real touch-count states actually take, since each
+    // criterion's counts evolve independently based on which questions were actually asked.
+    // Confirmed separately against Dan's real round-45 touch-count state (not identical to
+    // this synthetic one, but the same "one or two open levels per criterion" shape): 0/20
+    // degree-3 subsets under-filled with this same MAX_GENERATION_ATTEMPTS_PER_SUBSET cap.
+    // (An adversarial state where every criterion is restricted to the exact same 2 of 5
+    // levels simultaneously — tested separately, not included here — can still underfill;
+    // that shape doesn't arise from real independent per-criterion touch accumulation.)
+    const touchCounts: number[][] = levelsPerCriterion.map((max, c) => {
+      const row = new Array(max + 1).fill(10);
+      row[(c % max) + 1] = 0;
+      row[((c + 2) % max) + 1] = 0;
+      return row;
+    });
+    for (const subset of [
+      [0, 1, 2],
+      [1, 2, 3],
+      [2, 3, 4],
+      [3, 4, 5],
+      [0, 2, 4],
+      [1, 3, 5],
+    ]) {
+      const candidates = generateCandidatesForSubset(subset, levelsPerCriterion, touchCounts);
       expect(candidates.length).toBe(6);
     }
   });
@@ -469,5 +549,86 @@ describe('coverage-based degree escalation (replaces the old MAX_AMBIGUOUS_GAP g
     if (action.type === 'degree-exhausted') {
       expect(action.reason).toBe('pool-empty');
     }
+  });
+
+  it('scopes coverage-complete to the degree being checked, not the whole model (regression for the degree-jump anomaly)', () => {
+    // DEGREE_ANOMALY_SESSION_ANSWERS is Dan's real, live session (31 answers) frozen at the
+    // exact state it's in right now — this test does not touch Supabase. One supplemental
+    // answer is added on top, using the driver's own real next degree-2 question at that
+    // state (not fabricated), to reach the 32-answer moment that triggered the bug.
+    const levelsPerCriterion = DEGREE_ANOMALY_SESSION_LEVELS_PER_CRITERION;
+    const session = new CalibrationSession();
+    for (const round of DEGREE_ANOMALY_SESSION_ANSWERS) {
+      session.recordAnswer(round.profileA, round.profileB, round.result);
+    }
+
+    const nextQuestion = nextAction(session, levelsPerCriterion, 2);
+    expect(nextQuestion.type).toBe('ask');
+    if (nextQuestion.type !== 'ask') return;
+    session.recordAnswer(nextQuestion.profileA, nextQuestion.profileB, 'A');
+    expect(session.fullLog).toHaveLength(32);
+
+    // Degree 2 is genuinely coverage-complete at this state — unchanged by the fix, since
+    // every one of these 32 answers IS a degree-2 answer (degree-scoped touch counts equal
+    // the global ones here).
+    const atDegree2 = nextAction(session, levelsPerCriterion, 2);
+    expect(atDegree2.type).toBe('degree-exhausted');
+    if (atDegree2.type === 'degree-exhausted') {
+      expect(atDegree2.reason).toBe('coverage-complete');
+      expect(atDegree2.canEscalate).toBe(true);
+    }
+
+    // Pre-fix, degree 3 (never visited before) ALSO reported coverage-complete immediately
+    // — confirmed via a live diagnostic replay of this exact fixture (not asserted here,
+    // since the buggy code path no longer exists to call). Post-fix: degree 3 has zero
+    // degree-3-scoped touch counts, so it must ask a real question instead.
+    const atDegree3 = nextAction(session, levelsPerCriterion, 3);
+    expect(atDegree3.type).toBe('ask');
+    if (atDegree3.type === 'ask') {
+      expect(Object.keys(atDegree3.profileA)).toHaveLength(3);
+      expect(atDegree3.degree).toBe(3);
+    }
+
+    // Same for every higher degree that's never been visited — none should falsely report
+    // coverage-complete just because the whole model happens to already be converged.
+    for (const degree of [4, 5, 6]) {
+      const action = nextAction(session, levelsPerCriterion, degree);
+      expect(action.type).toBe('ask');
+    }
+  });
+});
+
+describe('degree-3 partial-tie collision fix — regression against real session data', () => {
+  it('drops the selected-question collision rate from the pre-fix ~55-61% observed rate to 0, using DEGREE_ANOMALY_SESSION_ANSWERS extended with simulated degree-3 rounds', () => {
+    // DEGREE_ANOMALY_SESSION_ANSWERS is Dan's real, frozen 31-answer session (all degree 2).
+    // Extending it with simulated degree-3 rounds here (alternating A/B answers, same
+    // approach used in the collision diagnostic) reproduces the exact touch-count state a
+    // real degree-3 stretch would build on top of this real data, without needing a second
+    // live Supabase fetch — the diagnostic already established the pre-fix collision rate
+    // empirically against this same account; this test only needs to confirm the fix holds.
+    const levelsPerCriterion = DEGREE_ANOMALY_SESSION_LEVELS_PER_CRITERION;
+    const session = new CalibrationSession();
+    for (const round of DEGREE_ANOMALY_SESSION_ANSWERS) {
+      session.recordAnswer(round.profileA, round.profileB, round.result);
+    }
+
+    function hasCollision(profileA: Profile, profileB: Profile): boolean {
+      return Object.keys(profileA).some((key) => profileA[Number(key)] === profileB[Number(key)]);
+    }
+
+    let selected = 0;
+    let collisions = 0;
+    let i = 0;
+    while (selected < 15 && i < 100) {
+      const action = nextAction(session, levelsPerCriterion, 3);
+      if (action.type !== 'ask') break; // degree-3 pool exhausted for this session — stop, not a failure
+      selected++;
+      if (hasCollision(action.profileA, action.profileB)) collisions++;
+      session.recordAnswer(action.profileA, action.profileB, i % 2 === 0 ? 'A' : 'B');
+      i++;
+    }
+
+    expect(selected).toBeGreaterThan(0); // sanity: the loop actually exercised real questions
+    expect(collisions).toBe(0);
   });
 });

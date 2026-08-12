@@ -364,3 +364,54 @@ export const REAL_PRODUCTION_SESSION_ANSWERS: RealSessionRound[] = [
   { profileA: { 1: 2, 5: 5 }, profileB: { 1: 3, 5: 4 }, result: 'B' },
   { profileA: { 0: 2, 5: 5 }, profileB: { 0: 4, 5: 2 }, result: 'B' },
 ];
+
+// ---------------------------------------------------------------------------------------
+// Degree-escalation anomaly regression fixture (2026-08-11) — Dan's own account
+// (eec42cd4-e714-46a2-ad9c-35714a1d3a2c), pulled read-only from user_calibration_answers:
+// the live, active ranking-stability test session (post-Brief-1-reset, in progress). Frozen
+// snapshot at 31 answers, matching the session's state after Dan's Undo — same convention as
+// REAL_PRODUCTION_SESSION_ANSWERS above (hardcoded, not regenerated). This is the session
+// that surfaced the isDegreeCoverageComplete degree-scoping bug: elicitationDriver.test.ts's
+// degree-escalation regression test adds ONE supplemental answer on top of this fixture (the
+// actual next degree-2 question the driver itself offers at this state — not fabricated) to
+// reach the 32-answer coverage-complete moment Dan actually hit. Pre-fix, that moment made
+// nextAction report degree-exhausted/coverage-complete simultaneously at every degree from 2
+// through 6 (confirmed via a live diagnostic replay, not asserted); the fix scopes touch
+// counts to the degree being checked — see docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md.
+// ---------------------------------------------------------------------------------------
+
+export const DEGREE_ANOMALY_SESSION_LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];
+
+export const DEGREE_ANOMALY_SESSION_ANSWERS: RealSessionRound[] = [
+  { profileA: { 0: 5, 1: 1 }, profileB: { 0: 1, 1: 5 }, result: 'B' },
+  { profileA: { 0: 5, 2: 1 }, profileB: { 0: 1, 2: 5 }, result: 'equal' },
+  { profileA: { 0: 5, 3: 1 }, profileB: { 0: 1, 3: 5 }, result: 'A' },
+  { profileA: { 0: 5, 4: 1 }, profileB: { 0: 1, 4: 5 }, result: 'equal' },
+  { profileA: { 0: 5, 5: 1 }, profileB: { 0: 1, 5: 5 }, result: 'A' },
+  { profileA: { 1: 5, 2: 1 }, profileB: { 1: 1, 2: 5 }, result: 'A' },
+  { profileA: { 1: 5, 3: 1 }, profileB: { 1: 1, 3: 5 }, result: 'A' },
+  { profileA: { 1: 5, 4: 1 }, profileB: { 1: 1, 4: 5 }, result: 'equal' },
+  { profileA: { 1: 5, 5: 1 }, profileB: { 1: 1, 5: 5 }, result: 'B' },
+  { profileA: { 2: 5, 3: 1 }, profileB: { 2: 1, 3: 5 }, result: 'A' },
+  { profileA: { 2: 5, 4: 1 }, profileB: { 2: 1, 4: 5 }, result: 'B' },
+  { profileA: { 2: 5, 5: 1 }, profileB: { 2: 1, 5: 5 }, result: 'equal' },
+  { profileA: { 3: 5, 4: 1 }, profileB: { 3: 1, 4: 5 }, result: 'B' },
+  { profileA: { 3: 5, 5: 1 }, profileB: { 3: 1, 5: 5 }, result: 'B' },
+  { profileA: { 4: 5, 5: 1 }, profileB: { 4: 1, 5: 5 }, result: 'B' },
+  { profileA: { 1: 4, 5: 3 }, profileB: { 1: 3, 5: 4 }, result: 'A' },
+  { profileA: { 4: 4, 5: 2 }, profileB: { 4: 2, 5: 4 }, result: 'B' },
+  { profileA: { 4: 3, 5: 2 }, profileB: { 4: 2, 5: 3 }, result: 'equal' },
+  { profileA: { 2: 3, 4: 4 }, profileB: { 2: 4, 4: 3 }, result: 'B' },
+  { profileA: { 0: 3, 3: 3 }, profileB: { 0: 4, 3: 2 }, result: 'B' },
+  { profileA: { 1: 2, 5: 5 }, profileB: { 1: 3, 5: 4 }, result: 'B' },
+  { profileA: { 0: 3, 1: 4 }, profileB: { 0: 2, 1: 5 }, result: 'A' },
+  { profileA: { 0: 3, 2: 3 }, profileB: { 0: 2, 2: 4 }, result: 'A' },
+  { profileA: { 0: 4, 1: 2 }, profileB: { 0: 2, 1: 4 }, result: 'B' },
+  { profileA: { 4: 4, 5: 1 }, profileB: { 4: 2, 5: 3 }, result: 'B' },
+  { profileA: { 1: 2, 2: 1 }, profileB: { 1: 1, 2: 2 }, result: 'B' },
+  { profileA: { 1: 1, 5: 5 }, profileB: { 1: 4, 5: 2 }, result: 'B' },
+  { profileA: { 4: 2, 5: 4 }, profileB: { 4: 1, 5: 5 }, result: 'A' },
+  { profileA: { 2: 4, 4: 4 }, profileB: { 2: 5, 4: 3 }, result: 'A' },
+  { profileA: { 0: 4, 4: 2 }, profileB: { 0: 3, 4: 3 }, result: 'A' },
+  { profileA: { 2: 2, 3: 2 }, profileB: { 2: 1, 3: 3 }, result: 'A' },
+];
