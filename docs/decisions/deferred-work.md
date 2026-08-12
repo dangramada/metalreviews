@@ -159,6 +159,18 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   decision:** criterion 5 received a solved weight of essentially zero across all 5
   levels (`[0, 0, 0, 0, 0]`) on this real session — flat at zero, not just flat
   among levels 2-5. Full trace output and reasoning: `docs/decisions/criteria-calibration-coverage-weighted-candidates.md`.
+- **Criteria Calibration UI never displays the current `degree` anywhere —
+  flagged 2026-08-11, not fixed.** Surfaced while diagnosing/fixing the
+  degree-jump anomaly (`docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md`):
+  `ProgressHeader`/`RoundGaugeGroup` show round/progress/accuracy only. This is
+  why repeated "you've resolved everything at this level of detail" screens
+  during degree escalation were indistinguishable to Dan even after the
+  underlying `isDegreeCoverageComplete` bug is fixed — clicking "Add more
+  detail" now always asks a real question at a never-before-visited degree,
+  but there's still no visible signal of which degree is currently active.
+  Explicitly Dan's call whether/how to surface it (e.g. a small "Degree N"
+  label near the round gauge) — not implemented, deferred per his own
+  instruction when the fix brief was scoped.
 - **`MobileRatingLayout`'s `revealed` gate race fix — not tested under a forced
   slow refetch.** Stage 4a revision 4 (2026-08-08, `mobile-album-evaluation-redesign`
   branch, `album-rating-page.md`'s dated stage-4a revision-4 entry) fixed a real bug
@@ -519,7 +531,34 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   solver throws "infeasible even with slack" after enough forced/synthetic answers past
   what's normally exercised (n=70 oracle trace / n=55 real-session-extended trace) — caps
   how far any future escalation-adjacent design can push before the solver needs its own
-  hardening pass.
+  hardening pass. **Root-caused 2026-08-12** — see the Dantzig stress-test entry below.
+- **LP solver hardening — diagnosed 2026-08-12, implementation still outstanding.**
+  Two read-only diagnostic passes established that the "infeasible even with slack" crash is
+  numerical amplification from `simplex.ts`'s Bland's-rule pivoting selecting near-zero pivot
+  elements, and that switching to Dantzig's rule eliminates it on all realistic data
+  (0 failures across ~4000 solves, n=20…300, three data tracks; Bland fails 44/120 at n=59
+  and 30/30 at n=150). Verdict was **GO** for a production implementation brief. Outstanding
+  items, in priority order:
+  1. **Implement pure Dantzig in `simplex.ts`** (the actual fix; not yet written — the
+     2026-08-12 pass was confidence-building only, and touched no production file).
+  2. **Bland silently returns wrong weights today, at the production iteration cap** — 2/120
+     real answer orderings at n=59 return `feasible: true` with a weight vector that violates
+     its own constraints (one contains a *negative* value variable) while reporting an
+     objective identical to the correct answer, so no downstream metric flags it. Item 1
+     removes this on realistic data; a post-solve feasibility check on `x` would remove the
+     bug class outright.
+  3. **Dantzig is a mitigation, not a cure.** The root cause is the `EPS = 1e-9` ratio-test
+     threshold admitting near-singular pivots; the smallest pivot element used is a perfect
+     predictor of failure across every case tested. A pivot-element magnitude guard attacks
+     the real mechanism. Dantzig still degrades on pathological inputs (majority-'equal'
+     sequences at n≥100, or >30% self-contradictory answers at n≥300) — far outside Dan's
+     real session's 12%-equal/low-contradiction profile, but relevant if sessions grow.
+  4. **`MAX_ITERATIONS = 2000` is safe now and not forever** — Dantzig first exceeds it at
+     n≈300 and routinely by n≈400–600. Revisit alongside any auto-escalation work that
+     lengthens sessions.
+  A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
+  recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
+  `criteria-calibration-dantzig-stress-test.md`.
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the
@@ -544,6 +583,26 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   gain (18% relative improvement between n=47 and n=63); 0.2 captures it; nothing tighter
   (0.15/0.1/0.05) fired at all within 65 oracle steps. Not a separate follow-up — revisit
   together with the thresholds above in the same future recalibration session.
+- **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
+  algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
+  round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).
+  That pass collapsed 2-3 redundant per-commit calls down to 1 (~54% reduction measured), but
+  even a single call is ~2.2-2.35s at n=59 (synthetic 6-criterion fixture) — measured growth
+  10→50ms, 20→187ms, 30→436ms, 40→844ms, 50→1.35s, 59→2.2s, far worse than the "16-120ms"
+  figure in `scoreSpreadAccuracy.ts`'s own header (evidently measured at a much lower n). Dan
+  should expect continued, worsening sluggishness even after the redundancy fix. Explicitly
+  out of scope for that pass (forbidden from touching `solver.ts`/`scoreSpreadAccuracy.ts`'s
+  actual LP logic) — candidates for a dedicated follow-up: investigate why the ~210
+  per-call `solveLP` invocations don't benefit from warm-starting between them, and/or move
+  the computation off the main thread (Web Worker) so a slow solve degrades to a delayed
+  number instead of a frozen UI.
+- **Refresh-during-write data loss is mitigated, not eliminated.** Same session/doc as above.
+  `usePendingWritesGuard.ts`'s `beforeunload` warning only helps if the browser actually
+  shows the native confirmation and the user heeds it — a forced close, crash, or a dismissed
+  prompt can still silently drop an in-flight answer insert. Full elimination would need the
+  `keepalive` fetch flag threaded through the Supabase client (non-trivial — no per-call fetch
+  override currently exists in `supabaseClient.ts`), deferred as not urgent enough to justify
+  that plumbing on top of the same pass's other fixes.
 
 ## C. Design/branding (open)
 
