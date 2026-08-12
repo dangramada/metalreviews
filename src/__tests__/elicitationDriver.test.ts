@@ -562,16 +562,26 @@ describe('coverage-based degree escalation (replaces the old MAX_AMBIGUOUS_GAP g
       session.recordAnswer(round.profileA, round.profileB, round.result);
     }
 
-    const nextQuestion = nextAction(session, levelsPerCriterion, 2);
-    expect(nextQuestion.type).toBe('ask');
-    if (nextQuestion.type !== 'ask') return;
-    session.recordAnswer(nextQuestion.profileA, nextQuestion.profileB, 'A');
-    expect(session.fullLog).toHaveLength(32);
+    // Answer the driver's own degree-2 questions until it declares degree 2 done. How MANY
+    // that takes is deliberately not asserted: which candidate the driver offers depends on
+    // rankCandidatesByAmbiguity, which reads solver point estimates, and those legitimately
+    // shifted when simplex.ts moved from Bland's rule to Dantzig's (the Chebyshev-center LP
+    // is under-determined here, so both rules return equally optimal but different centers —
+    // see docs/decisions/criteria-calibration-dantzig-fix.md). This test is about the
+    // degree-SCOPING rule, not about the exact question sequence, so it drives to the
+    // coverage-complete state rather than assuming it lands at a specific answer count.
+    let atDegree2 = nextAction(session, levelsPerCriterion, 2);
+    expect(atDegree2.type).toBe('ask'); // not already exhausted at the fixture's 31 answers
+    let guard = 0;
+    while (atDegree2.type === 'ask' && guard < 50) {
+      session.recordAnswer(atDegree2.profileA, atDegree2.profileB, 'A');
+      atDegree2 = nextAction(session, levelsPerCriterion, 2);
+      guard++;
+    }
 
-    // Degree 2 is genuinely coverage-complete at this state — unchanged by the fix, since
-    // every one of these 32 answers IS a degree-2 answer (degree-scoped touch counts equal
-    // the global ones here).
-    const atDegree2 = nextAction(session, levelsPerCriterion, 2);
+    // Degree 2 is genuinely coverage-complete once its own degree-scoped touch counts are
+    // filled — every answer in this session IS a degree-2 answer, so the degree-scoped counts
+    // equal the global ones here.
     expect(atDegree2.type).toBe('degree-exhausted');
     if (atDegree2.type === 'degree-exhausted') {
       expect(atDegree2.reason).toBe('coverage-complete');
