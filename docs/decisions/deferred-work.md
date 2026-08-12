@@ -539,26 +539,42 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   (0 failures across ~4000 solves, n=20…300, three data tracks; Bland fails 44/120 at n=59
   and 30/30 at n=150). Verdict was **GO** for a production implementation brief. Outstanding
   items, in priority order:
-  1. **Implement pure Dantzig in `simplex.ts`** (the actual fix; not yet written — the
-     2026-08-12 pass was confidence-building only, and touched no production file).
-  2. **Bland silently returns wrong weights today, at the production iteration cap** — 2/120
-     real answer orderings at n=59 return `feasible: true` with a weight vector that violates
-     its own constraints (one contains a *negative* value variable) while reporting an
-     objective identical to the correct answer, so no downstream metric flags it. Item 1
-     removes this on realistic data; a post-solve feasibility check on `x` would remove the
-     bug class outright.
-  3. **Dantzig is a mitigation, not a cure.** The root cause is the `EPS = 1e-9` ratio-test
-     threshold admitting near-singular pivots; the smallest pivot element used is a perfect
-     predictor of failure across every case tested. A pivot-element magnitude guard attacks
-     the real mechanism. Dantzig still degrades on pathological inputs (majority-'equal'
-     sequences at n≥100, or >30% self-contradictory answers at n≥300) — far outside Dan's
-     real session's 12%-equal/low-contradiction profile, but relevant if sessions grow.
-  4. **`MAX_ITERATIONS = 2000` is safe now and not forever** — Dantzig first exceeds it at
-     n≈300 and routinely by n≈400–600. Revisit alongside any auto-escalation work that
-     lengthens sessions.
+  Items 1 and 2 below **shipped 2026-08-12** on `criteria-calibration-dantzig-fix` (see
+  `criteria-calibration-dantzig-fix.md`); items 3 and 4 remain open.
+  1. ~~Implement pure Dantzig in `simplex.ts`~~ — **done 2026-08-12.** Both phases, plus the
+     phase-1→phase-2 artificial cleanup switched to largest-magnitude selection.
+  2. ~~Bland silently returning wrong weights~~ — **done 2026-08-12**, and it was worse than
+     the 2/120 constraint-violating case originally flagged: confirmed read-only against the
+     live DB that Dan's `user_criterion_weights` held **30 rows, all zero** (sum 0, not 1),
+     because a failed Chebyshev-center solve was being swallowed into an all-zero point
+     estimate and persisted. Closed by a post-solve feasibility guard in `solveLP` plus
+     making the Chebyshev failure throw instead of degrading to zeros.
+  3. **Still open — Dantzig is a mitigation, not a cure.** The root cause is the
+     `EPS = 1e-9` ratio-test threshold admitting near-singular pivots; the smallest pivot
+     element used is a perfect predictor of failure across every case tested. The 2026-08-12
+     pass added detection (`nearSingularPivot` in `LPSolution.diagnostics`) but deliberately
+     did NOT change the ratio test — the real fix is a Harris ratio test or periodic
+     refactorization. See the separate all-'equal' entry below for what remains reachable.
+  4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
+     exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
+     n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
+     a test. Revisit alongside any auto-escalation work that lengthens sessions.
   A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
   recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
   `criteria-calibration-dantzig-stress-test.md`.
+- **All-'equal'-heavy answer logs at high n can still fail the LP — NOT fixed, deliberately
+  out of scope of the 2026-08-12 Dantzig pass.** On pathologically degenerate inputs — answer
+  logs that are majority `'equal'` at n >= 100, or >30% self-contradictory at n >= 300 —
+  Dantzig degrades the same way Bland did, via the same near-singular-pivot mechanism. What
+  the Dantzig pass changed is that these now fail **loudly** (a thrown error naming the
+  numerical cause) instead of returning silently-wrong weights, which was the bar that pass
+  targeted. Making them not fail at all requires fixing item 3 above — the `EPS = 1e-9`
+  admission itself — which is substantially larger work (Harris ratio test / refactorization)
+  and needs its own brief. Practical exposure is low: Dan's real session runs ~12% `'equal'`
+  with a low contradiction rate, and the measured breakdown boundary is around a 70% equal
+  share at n=150. Relevant if auto-escalation ever pushes sessions into the hundreds, or if a
+  user answers 'equal' very frequently. Measurements and the variable-separation sweep that
+  established the boundary: `criteria-calibration-dantzig-stress-test.md`.
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the

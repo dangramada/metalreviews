@@ -32,7 +32,29 @@
 //      by construction it satisfies normalization exactly (up to LP solver float epsilon).
 
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
-import { solveLP, type Constraint } from './simplex.js';
+import { solveLP, type Constraint, type LPSolution } from './simplex.js';
+
+/**
+ * Renders simplex.ts's diagnostics into an actionable error message. The distinction that
+ * matters to whoever reads the thrown error: `post-solve-infeasible` (or any failure with
+ * `nearSingularPivot`) means the solver broke down numerically on a degenerate answer log —
+ * not that the answers are genuinely contradictory, which the slack variables are there to
+ * absorb and which therefore cannot make this LP infeasible. See
+ * docs/decisions/criteria-calibration-dantzig-fix.md.
+ */
+function describeLPFailure(solution: LPSolution): string {
+  const d = solution.diagnostics;
+  const parts = [
+    `reason=${d.reason ?? 'unknown'}`,
+    `maxViolation=${d.maxViolation}`,
+    `minPivotMagnitude=${d.minPivotMagnitude}`,
+    `totalPivots=${d.totalPivots}`,
+  ];
+  const hint = d.nearSingularPivot
+    ? ' A near-singular pivot element was used, so this is a numerical breakdown on a degenerate answer log, not a genuine contradiction in the answers.'
+    : '';
+  return `LP diagnostics: ${parts.join(' ')}.${hint}`;
+}
 
 export interface SolverAnswer {
   profileA: Profile;
@@ -193,7 +215,7 @@ export function buildValueLP(input: ValueSolverInput): BuiltValueLP {
   const phase1 = solveLP({ numVars: totalVars, objective: phase1Objective, constraints });
   if (!phase1.feasible) {
     throw new Error(
-      'Preference value LP was infeasible even with slack — this should not happen given monotonicity + normalization are always satisfiable; check the solver construction.'
+      `Preference value LP was infeasible even with slack — this should not happen given monotonicity + normalization are always satisfiable. ${describeLPFailure(phase1)}`
     );
   }
   const totalSlack = phase1.objectiveValue;
@@ -253,7 +275,18 @@ function computeChebyshevCenter(
   objective[rIndex] = -1; // maximize r == minimize -r
 
   const result = solveLP({ numVars: totalVars + 1, objective, constraints: widened });
-  return result.feasible ? result.x.slice(0, totalVars) : new Array(totalVars).fill(0);
+  if (!result.feasible) {
+    // Throws rather than degrading to all-zeros (which is what this did before 2026-08-12).
+    // This solve produces the reported point estimate — i.e. the preference weights the rest
+    // of the app consumes — so silently substituting a zero vector would be a second silent-
+    // wrong-answer path of exactly the kind the post-solve guard was added to close. The
+    // widened region is non-empty whenever the phase-1 region is, so reaching here means
+    // numerical breakdown, not a genuinely empty feasible set.
+    throw new Error(
+      `Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. ${describeLPFailure(result)}`
+    );
+  }
+  return result.x.slice(0, totalVars);
 }
 
 export function solveValues(input: ValueSolverInput): ValueSolverResult {
