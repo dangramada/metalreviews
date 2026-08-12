@@ -4,7 +4,7 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
-- `criteria-calibration-dantzig-fix` — active (not yet merged), branched from master `e13460b`, 2026-08-12; rollback tag `pre-dantzig-fix` — full detail: `docs/decisions/criteria-calibration-dantzig-fix.md`
+- `criteria-calibration-dantzig-fix` — merged to master `1a2c0aa` (`--no-ff`), 2026-08-12; rollback tag `pre-dantzig-fix` — full detail: `docs/decisions/criteria-calibration-dantzig-fix.md`
 - `criteria-calibration-coverage-escalation` — merged to master `c06e900`, 2026-08-10 — full detail: `docs/decisions/criteria-calibration-adaptive-degree-escalation.md`, `docs/decisions/deferred-work.md` ("Automatic degree escalation" entry)
 - `criteria-calibration-score-spread-accuracy` — merged to master `c1fd2c0`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-score-spread-accuracy.md`
 - `criteria-calibration-two-phase-simplex` — merged to master `8d7f382`, 2026-08-09 — full detail: `docs/decisions/two-phase-simplex-rewrite.md`
