@@ -612,6 +612,15 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   per-call `solveLP` invocations don't benefit from warm-starting between them, and/or move
   the computation off the main thread (Web Worker) so a slow solve degrades to a delayed
   number instead of a frozen UI.
+- **Weights/status upsert has an unfixed write-race — diagnosed 2026-08-12, not
+  implemented.** `upsertWeightsAndStatus` calls (fired un-awaited on every commit) can resolve
+  out of order; `weightsGenRef` only gates the success/failure toast, not the write itself, so
+  an older commit's write can silently overwrite a newer one's `accuracy_value` with no
+  self-correction. Confirmed on Dan's live `user_calibration_status` row (persisted at 92.04%,
+  matching an n=69 mid-session snapshot rather than the session's actual final n=71 state).
+  Two candidate fixes identified, neither implemented: extend `weightsGenRef` to gate the
+  write itself, or move to a serialized write queue / `AbortController` pattern. Full
+  diagnosis: `criteria-calibration-weights-write-race.md`.
 - **Refresh-during-write data loss is mitigated, not eliminated.** Same session/doc as above.
   `usePendingWritesGuard.ts`'s `beforeunload` warning only helps if the browser actually
   shows the native confirmation and the user heeds it — a forced close, crash, or a dismissed
