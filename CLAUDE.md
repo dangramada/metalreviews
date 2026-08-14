@@ -66,7 +66,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-(No active branches right now — the working tree is on `master`.)
+- `criteria-calibration-auto-escalation-signal` — Brief 3: tier-gated top-10 stability
+  auto-escalation signal. Landed on the branch (pure signal + resume-safe persistence + UI
+  wiring); **not yet merged**. Before merging: 2 new SQL migrations must be run manually in
+  the Supabase SQL editor, and no live-browser verification has been done. Full detail:
+  `docs/decisions/criteria-calibration-auto-escalation-signal.md`.
 
 (Update this section, not individual decision docs, when a new branch is started or a
 branch's status changes.)
