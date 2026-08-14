@@ -117,18 +117,76 @@ session's data.
 - `persistence.test.ts`: field/column renames only, same coverage.
 - 281/281 tests pass, `tsc --noEmit` clean, lint clean.
 
+## Live verification, pass 3 (2026-08-14, after the migration was applied)
+
+Migration confirmed live: Dan ran `user_calibration_status-rename-duration-window.sql` in the
+Supabase SQL editor; read-only queries in this pass selected `last_change_answer_index`/
+`previous_last_change_answer_index` successfully (would have errored on the old column names
+otherwise) — independent confirmation the rename applied cleanly, alongside Dan's own
+confirmation.
+
+Drove a fresh, noisy live session on the disposable test account (`dgramada07@gmail.com`,
+distinct from the real-70-answer trace that informed R=12 — deliberately independent
+evidence), mixing left/right/"About equal" picks through the actual UI (24+ real answers,
+reaching degree 3).
+
+**(a) Duration signal fires and stays fired — confirmed.** Tier reached `high` at real answer
+9 (anchor). `fired` flipped true by real answer ~21 (9+12, matching R=12 exactly) — confirmed
+via direct DB read mid-session (`fired: true`, `last_change_answer_index: 9`), and the UI
+correctly showed the post-fired manual "Add more detail" gate at the next degree-2-exhaustion
+checkpoint (real answer 23). Continued driving several more real degree-3 answers afterward
+(accuracy climbed 0.76 -> 0.81) — `fired` stayed true and `last_change_answer_index` stayed
+frozen at 9 throughout (the terminal short-circuit working exactly as designed), no re-flip.
+
+**(b) Genuine no-click auto-escalation — still NOT observed, but now with a precise, structural
+reason, not just "still unlucky."** Found while checking the DB: `last_eligible_top10` was `[]`
+(an empty array), not a real 10-album set. Root cause, traced in
+`useRankingTestSetRatings.ts`: its query against `album_criteria_ratings` for
+`RANKING_TEST_SET`'s 13 hardcoded albumIds carries no explicit `user_id` filter — it relies
+entirely on that table's RLS policy (`auth.uid() = user_id`) to scope it to the CURRENT
+logged-in user. `RANKING_TEST_SET`'s 13 albumIds were frozen from **Dan's own** historical
+ratings specifically (see `rankingTestSet.ts`'s header). For any other authenticated user —
+including this disposable test account — that query returns zero rows, `ratingsByAlbum` is an
+empty `Map`, and `computeTop10Set` returns a real, non-null **empty Set** (not the defensive
+`null` a coverage gap would trigger — an empty ratings map still produces a valid, if vacuous,
+top-10 of size 0).
+
+An empty set trivially equals another empty set on every comparison, so the "has the top-10
+changed" half of the signal is **structurally vacuous for every account except Dan's own** —
+it can never register a real change, so `fired` degrades to a pure "R real answers after
+tier-eligibility" timer, completely decoupled from whether that user's own ranking has
+actually stabilized. Concretely in this trial: tier-eligibility (real answer 9) was reached
+well before degree-2's real pool exhausted (real answer 23-24) — a 14-answer gap — and because
+the vacuous match guarantees firing at exactly anchor+12, `fired` was mathematically certain to
+trip (at ~21) before the pool could run dry, regardless of any real preference data. This isn't
+an R-tuning problem — no R value can fix it, since the "does the ranking look stable" question
+this signal exists to answer is never actually being asked for non-Dan accounts.
+
+This likely also explains why the 3 *live* trials among Brief 3's original 4 (pass 2 of
+`criteria-calibration-auto-escalation-signal.md`) never observed genuine auto-escalation
+either, if any ran on a non-Dan account — a second, independent mechanism from "the additive
+model settles fast at degree 2" (that finding is unaffected — it was verified separately,
+via a direct programmatic replay of Dan's own real rated data, not a live non-Dan browser
+session). **Not fixed in this pass** — this is a design question (make `RANKING_TEST_SET`
+dynamic per-user? require it globally readable? accept that this signal is meaningful only
+for Dan's own account, consistent with this being — per numerous fixture headers throughout
+`docs/decisions/` — a single-user personal project?), not a quick patch, and needs Dan's
+direction before any code changes.
+
 ## Before merging
 
-- **New, not yet done**: run `supabase/user_calibration_status-rename-duration-window.sql`
-  against the live database (same manual step the prior two migrations needed) — the two
-  existing migrations are confirmed live, but this third one is not yet applied.
-- Live-browser re-verification on the disposable test account (or a fresh one) has NOT been
-  re-run against this new window shape — Brief 3's original pass-2 live verification (per-degree
-  clarification text, Undo, refresh-resume) covered the K=2 shape; the mechanics it touched
-  (windowHistory push/pop, resume seeding) are unchanged by this fix per the design analysis
-  above, but a live pass on the new duration-based firing behavior itself has not been done.
-- Genuine live pre-fired auto-escalation: still unobserved directly (unaffected by this fix;
-  see `criteria-calibration-additive-model-degree-sufficiency.md`).
+- Both migrations (all three now) confirmed live.
+- Duration-based firing itself (a-above) is live-verified and behaves exactly as designed.
+- **New, blocking for a meaningful understanding of the feature (not for the window-timing fix
+  itself, which is independently correct)**: the top-10-membership check `RANKING_TEST_SET`
+  drives is only ever real for Dan's own account; every other account's signal reduces to a
+  fixed R-answer timer. Needs a decision before merge: ship as-is (acceptable if this really is
+  single-user-only in practice), or address the per-user scoping gap first.
+- Genuine live pre-fired auto-escalation: still unobserved directly — now understood to be
+  structurally near-impossible to observe on any non-Dan account, not just unlucky timing (see
+  above). Whether it's observable on Dan's OWN real account remains untested live (only via the
+  read-only 70-answer replay, which predates and informed R=12's choice, so isn't independent
+  confirmation either).
 
 ## Related
 

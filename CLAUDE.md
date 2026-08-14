@@ -69,22 +69,26 @@ For the full branch history (including merged branches), see
 - `criteria-calibration-auto-escalation-signal` — Brief 3: tier-gated top-10 stability
   auto-escalation signal. **Not yet merged** — the original K=2 checkpoint-count window was
   found (fine-grained real-70-answer replay) to fire on a false positive at n=28 (real settle
-  point n=35); replaced with a duration-based window (fires after `REQUIRED_ANSWER_SPAN=12`
-  real answers with an unchanged tier-eligible top-10 set, provisional). Implementation done
-  2026-08-14: `rankingStabilitySignal.ts`/`commitComputation.ts`/`persistence.ts` updated,
-  third migration written (`user_calibration_status-rename-duration-window.sql`, in-place
-  column rename — **not yet run against the live database**, unlike the first two migrations
-  which are confirmed live), test suite replaced (not left alongside) for the new shape
-  including two tests codifying the double-Undo-after-resume proof for the new field shape.
-  281/281 tests pass, `tsc`/lint clean. Before merging: run the third migration live, and
-  re-verify live-browser behavior on the new duration-based firing (the original K=2-era live
-  pass covered Undo/resume/clarification-text mechanics, which are unaffected by this
-  fix, but not the new firing behavior itself). Genuine pre-fired auto-escalation still not
-  directly observed live (converges at degree 2 every time — see the additive-model doc
-  below for why). Full detail: `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
-  `docs/decisions/criteria-calibration-fine-grained-firing-instability.md` (the false-positive
-  finding), `docs/decisions/criteria-calibration-duration-based-window-fix.md` (the fix —
-  R-value sweep, persistence design analysis, implementation; current "Before merging"),
+  point n=35); replaced with a duration-based window (`REQUIRED_ANSWER_SPAN=12` real answers
+  with an unchanged tier-eligible top-10 set, provisional). Implementation + all three
+  migrations confirmed live (2026-08-14) + live-browser re-verification all done; duration
+  firing itself behaves exactly as designed (confirmed live: fires at anchor+12, stays fired,
+  no re-flip). **New blocker surfaced by that live pass, more fundamental than the window-timing
+  fix**: `RANKING_TEST_SET`'s top-10-membership check is only ever real for Dan's own account —
+  `useRankingTestSetRatings.ts`'s query is RLS-scoped to the current user, but the 13 albumIds
+  are frozen from Dan's own ratings specifically, so every other account (confirmed live on the
+  disposable test account) gets an empty ratings map, and the signal degrades to a bare
+  "R real answers after tier-eligibility" timer, completely decoupled from actual ranking
+  stability — not an R-tuning problem, no R fixes it. This also means genuine no-click
+  auto-escalation remains unobserved live, now for a precise structural reason (near-impossible
+  on non-Dan accounts) rather than just unlucky timing — still untested on Dan's own real
+  account. Needs a decision (ship as-is if truly single-user-only in practice, or fix the
+  per-user scoping) before merge. Full detail:
+  `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
+  `docs/decisions/criteria-calibration-fine-grained-firing-instability.md` (the K=2
+  false-positive finding), `docs/decisions/criteria-calibration-duration-based-window-fix.md`
+  (the fix, R-value sweep, persistence design analysis, implementation, AND the live
+  verification + new per-user-scoping finding — current "Before merging"),
   `docs/decisions/criteria-calibration-additive-model-degree-sufficiency.md` (why degree-2
   alone converges this model, and the standing interaction-effects limitation this implies).
 
