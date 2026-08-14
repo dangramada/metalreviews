@@ -68,9 +68,14 @@ For the full branch history (including merged branches), see
 
 - `criteria-calibration-auto-escalation-signal` — Brief 3: tier-gated top-10 stability
   auto-escalation signal. Landed on the branch (pure signal + resume-safe persistence + UI
-  wiring); **not yet merged**. Before merging: 2 new SQL migrations must be run manually in
-  the Supabase SQL editor, and no live-browser verification has been done. Full detail:
-  `docs/decisions/criteria-calibration-auto-escalation-signal.md`.
+  wiring); **not yet merged**. Both SQL migrations confirmed live on the database (schema +
+  RPC signature verified read-only). Live-browser verification done on a disposable test
+  account: clarification text, Undo, and refresh-resume all confirmed correct; genuine
+  pre-fired auto-escalation was not directly observed in 4 trials (converges at degree 2
+  every time — see the additive-model doc below for why). Full detail:
+  `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
+  `docs/decisions/criteria-calibration-additive-model-degree-sufficiency.md` (why degree-2
+  alone converges this model, and the standing interaction-effects limitation this implies).
 
 (Update this section, not individual decision docs, when a new branch is started or a
 branch's status changes.)

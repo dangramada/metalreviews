@@ -81,10 +81,11 @@ O(1) on resume:
 - Per-degree clarification text derived from `answers.filter(...).length === 0` rather than a
   separate flag, so an Undo back to a degree's first comparison naturally re-shows it.
 
-## Manual QA (no live Supabase session available from this environment)
+## Manual QA, pass 1 (synthetic only — superseded by pass 2 below)
 
 Verified via 281 automated tests (unit + integration) plus an oracle-driven synthetic
-simulation script (not committed), substituting for live E2E:
+simulation script (not committed), at a point where no live Supabase session was available
+from the working environment:
 
 - **Full 2→6 degree run-through** (ignoring the stop signal, to exercise every degree
   transition): reached true pool-empty exhaustion at degree 6 after 161 answers, tapering
@@ -93,16 +94,60 @@ simulation script (not committed), substituting for live E2E:
   shape (only the older 5-criteria model had one).
 - **Leftover questions at firing**: a separate, fully-consistent synthetic run fired at n=111,
   never having escalated past degree 2, with 9 real degree-2 questions still available. Above
-  the "2-3, no action needed" bar — flagged, not resolved. Two caveats limit how much this
-  number should be trusted: the synthetic oracle is unrealistically clean (zero noise/
-  contradiction — a real session's messier answers would likely escalate past degree 2 much
-  earlier, as Dan's real 71-answer trace did), and 9 leftover questions *at the degree already
-  in progress* reads differently under gate-only-the-jump than 9 leftover questions after a
-  forced escalation would. Not independently checked against real production data.
+  the "2-3, no action needed" bar — flagged, not resolved at the time. Caveat raised then: the
+  synthetic oracle is unrealistically clean (zero noise/contradiction), so this number's
+  trustworthiness was unclear pending real data.
+
+## Manual QA, pass 2 — live verification (2026-08-14, same day)
+
+A later session found live/browser capability, Supabase credentials, and a dev server were
+all actually available (the "no live session" limitation above did not hold — see that
+session's capability check). Verified on a disposable test account
+(`dgramada07@gmail.com`, distinct from Dan's real account, created specifically for this;
+reset to clean state after):
+
+- **Schema/RPC check**: both migrations confirmed live — all 10 expected columns select
+  successfully, and `upsert_calibration_status` confirmed to exist with the exact committed
+  10-argument signature (via a call that deliberately hit the FK constraint rather than a
+  "function not found" error — zero rows written).
+- **Per-degree clarification text**: confirmed both directions live — appears on the first
+  degree-3 comparison, gone on the second; Undo back to that first comparison correctly
+  re-shows it.
+- **Undo**: confirmed correct — `answersLength`/`windowHistoryLength` both decrement by
+  exactly 1, `fired`/`consecutiveMatchRun` correctly preserved.
+- **Refresh-resume**: confirmed correct — `fired`/`consecutiveMatchRun` survive a hard reload
+  exactly; `windowHistoryLength` correctly reseeds to 1-2 entries (not the full history, as
+  designed). `degree` came back at 2 instead of the in-memory 3 in this specific run — not a
+  bug, and not introduced by this branch: the one degree-3 answer had been Undone (and its DB
+  row deleted) just before the refresh, so the persisted log genuinely only had degree-2
+  answers; `useCalibrationResume`'s pre-existing `maxDegree` inference (unrelated to Brief 3)
+  correctly recomputed degree 2 from that real data.
+- **Genuine pre-fired auto-escalation**: **not directly observed**, across 4 independent
+  trials (1 synthetic + 3 live, with progressively more inconsistent/noisy/random answer
+  patterns). All 4 fired while still at degree 2, before the pool ever ran dry. See
+  `criteria-calibration-additive-model-degree-sufficiency.md` — this turned out to be a real,
+  reproducible property of the additive value model on this 6-criterion catalog, not a test
+  artifact: degree-2 comparisons, given adequate coverage, transitively determine the full
+  trade-off structure this model can express, so degree-3+ escalation may simply be rare for
+  real users under this model. The underlying mechanism (the effect's shared `handleEscalate`
+  code path) was confirmed working live via the manual "Add more detail" trigger; the
+  automatic branch specifically was not.
+- **Real leftover-questions-at-firing**: three real numbers, not the pass-1 synthetic "9"
+  alone — **0** (live, moderate noise, pool exhausted the same commit that fired), **7** (live,
+  higher noise), **9** (pass-1 synthetic). A real range, not a stable "2-3" — resolves pass 1's
+  open caveat: yes, it varies with answer consistency, sometimes to zero.
+- **Real 70-answer replay** (Dan's actual production answer sequence, replayed programmatically
+  against the current solver — see the additive-model doc for the full analysis): reproduces
+  the historical accuracy trajectory exactly (n=9: 0.7228, matching
+  `criteria-calibration-ranking-stability-analysis.md`'s numbers to 4 decimal places). Exact
+  real firing point: **n=28** — a correction to Pass 4's retrospective every-3rd-sample
+  estimate of n=39; the current, fixed system converges to firing faster than that estimate
+  suggested.
 
 ## Before merging
 
-- Run both SQL migrations manually in the Supabase SQL editor (not auto-applied).
-- No live-browser verification has been done — worth a real run-through before merge, ideally
-  against Dan's actual account so the leftover-questions caveat above can be resolved with
-  real data instead of a synthetic oracle.
+- Both SQL migrations confirmed **already applied and live** on the database (see pass 2's
+  schema/RPC check) — nothing further needed here.
+- Genuine live pre-fired auto-escalation remains unobserved directly (see pass 2) — not
+  blocking (the mechanism is verified correct via automated tests plus the shared manual code
+  path), but worth knowing before treating it as fully proven in the field.
