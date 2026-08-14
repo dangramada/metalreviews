@@ -13,6 +13,12 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 ## A. Product features (named, not built)
 
+- **A clear, accessible in-product explanation of how Criteria Calibration works —
+  particularly why some users may see more questions than others — is deferred.**
+  Confirmed with Dan (2026-08-13): no dedicated contradiction-detection/flagging UI is
+  planned; behavior stays implicit (more questions when answers are less internally
+  consistent, no explicit message). The explanation should cover this implicitly, without
+  needing per-contradiction UI.
 - **Sticky album-info (+ criterion-name row on Detail) for mobile album evaluation
   — stage 4b of the `mobile-album-evaluation-redesign` brief, deferred, needs its
   own branch.** Two approaches tried and reverted on that branch (not present in

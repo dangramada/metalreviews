@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Box, Container, Flex, Text, VStack, Button } from '@chakra-ui/react';
 import { ProgressHeader } from './components/criteria-calibration/ProgressHeader';
 import { QuestionPrompt } from './components/criteria-calibration/QuestionPrompt';
@@ -10,20 +10,36 @@ import { Footer } from './Footer';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
 import { useCalibrationResume } from './hooks/useCalibrationResume';
+import { useRankingTestSetRatings } from './hooks/useRankingTestSetRatings';
 import { usePendingWritesGuard } from './hooks/usePendingWritesGuard';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { useAuth } from './AuthContext';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CalibrationSession } from './lib/criteria-calibration/calibrationSession';
 import { nextAction } from './lib/criteria-calibration/elicitationDriver';
-import { computeCommitState } from './lib/criteria-calibration/commitComputation';
+import {
+  computeCommitState,
+  type CommitComputation,
+} from './lib/criteria-calibration/commitComputation';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
   insertAnswer,
   deleteAnswer,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
-import type { ComparisonResult, Profile } from './lib/criteria-calibration/preferenceGraph';
+import {
+  seedWindowHistoryOnResume,
+  popWindowHistory,
+  INITIAL_STABILITY_WINDOW_STATE,
+  INITIAL_PERSISTED_STABILITY_WINDOW,
+  type StabilityWindowState,
+  type PersistedStabilityWindow,
+} from './lib/criteria-calibration/rankingStabilitySignal';
+import {
+  profileDegree,
+  type ComparisonResult,
+  type Profile,
+} from './lib/criteria-calibration/preferenceGraph';
 
 // ---------------------------------------------------------------------------
 // Part 5a wired the UI to the real engine, in-memory only. Part 5b (this pass) adds
@@ -61,6 +77,25 @@ interface AnswerEntry {
 // there's no persisted session to resume; useCalibrationResume infers it otherwise.
 const STARTING_DEGREE = 2;
 
+// Brief 3: shown once, under QuestionPrompt's heading, on the FIRST comparison at a degree
+// above 2 — degree 2 is the starting point, not an escalation, so it gets no text. Illustrative
+// copy (Dan owns final wording); hardcoded per-degree rather than generated, matching the
+// current fixed 6-criterion production shape — a catalog with a different criteria count would
+// simply show no text for degrees beyond 6, not break.
+const DEGREE_CLARIFICATION_TEXT: Record<number, string> = {
+  3: 'Now comparing 3 criteria at once.',
+  4: '4 criteria this time.',
+  5: '5 criteria in play now.',
+  6: 'All 6 criteria at once — the most detailed comparisons.',
+};
+
+// Brief 3: post-signal copy for the degree-exhausted screen. Framed around calibration
+// confidence, never around ranking/stability directly — ProgressHeader.tsx documents the
+// same standing rule for exit copy, and it applies here too. Illustrative (Dan owns final
+// wording).
+const POST_FIRED_DEGREE_EXHAUSTED_TEXT =
+  "You've reached your highest calibration confidence — you can stop here, or keep refining for extra precision.";
+
 // Same outer chrome (Box/Container/VStack + Header/Footer) as App.tsx and FavoritesPage.tsx, so
 // every return path below (loading, error, resume-loading, main) gets the home page's margins
 // and nav — not just the happy path. The inner maxW="4xl" Container is the calibration flow's
@@ -85,6 +120,11 @@ export function CriteriaCalibrationPage() {
   const { catalog, loading, error } = useCriteriaCatalog();
   const { user } = useAuth();
   const resume = useCalibrationResume(user?.id);
+  // Brief 3: one-time fetch of RANKING_TEST_SET's 13 albums' ratings, independent of the
+  // resume fetch above — doesn't gate seeding, only gates whether a given commit can advance
+  // the stability window (see advanceWindowForCommit below; null while still loading is a
+  // safe no-op, not a block).
+  const { ratingsByAlbum } = useRankingTestSetRatings();
   const { showError } = useFeedbackToast();
 
   const [answers, setAnswers] = useState<AnswerEntry[]>([]);
@@ -93,6 +133,25 @@ export function CriteriaCalibrationPage() {
   const [stopped, setStopped] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
+
+  // Brief 3: the tier-gated K=2 stability window. `windowHistory` is one StabilityWindowState
+  // per known answer (seeded 1-2 entries on resume, pushed on every real commit/redo, popped
+  // on Undo — see rankingStabilitySignal.ts's popWindowHistory for the Undo semantics and its
+  // accepted, proven-safe gap at 2+ consecutive Undos with no intervening commit).
+  // `persistedWindow` is the fuller current/previous/lastCommitChangedWindow triple that
+  // upsertWeightsAndStatus writes and a FUTURE resume reads back — kept separately because
+  // windowHistory alone doesn't carry `previous`/`lastCommitChangedWindow`.
+  const [windowHistory, setWindowHistory] = useState<StabilityWindowState[]>([
+    INITIAL_STABILITY_WINDOW_STATE,
+  ]);
+  // Initialized to the empty window, not resume.persistedStabilityWindow — the resume fetch
+  // hasn't resolved on first render regardless, so that value would just be its own default
+  // here too. The real seed happens in seedFromResume below, once resume.loading is false.
+  const [persistedWindow, setPersistedWindow] = useState<PersistedStabilityWindow>(
+    INITIAL_PERSISTED_STABILITY_WINDOW
+  );
+  const currentWindowState =
+    windowHistory[windowHistory.length - 1] ?? INITIAL_STABILITY_WINDOW_STATE;
 
   // Seed local state from the resumed session exactly once, when the resume fetch
   // completes. `seeded` guards this so it can't re-run and clobber in-progress answers if
@@ -105,6 +164,8 @@ export function CriteriaCalibrationPage() {
     async function seedFromResume() {
       if (resume.loading || seeded) return;
       setSeeded(true);
+      setPersistedWindow(resume.persistedStabilityWindow);
+      setWindowHistory(seedWindowHistoryOnResume(resume.persistedStabilityWindow));
       setAnswers(
         resume.answers.map((a) => ({
           localId: a.localId,
@@ -193,6 +254,13 @@ export function CriteriaCalibrationPage() {
   const interactionDisabled = phase !== 'idle' || stopped;
   const round = answers.length + 1;
 
+  // Brief 3: shown once, on the FIRST comparison at a degree above 2 — derived straight from
+  // `answers` (not a separate "has this been shown" flag), so an Undo back to a degree's
+  // first comparison naturally re-shows it, which is intended behavior, not an edge case.
+  const isFirstAnswerAtDegree =
+    answers.filter((a) => profileDegree(a.profileA) === degree).length === 0;
+  const degreeClarificationText = degree > 2 ? DEGREE_CLARIFICATION_TEXT[degree] : undefined;
+
   // Shared failure indicator across every persistence call (answer insert/delete, weights/
   // status upsert) — surfaces only on the transition INTO a failing streak, not per-call, so
   // a run of failures during an outage doesn't spam toasts. Clears silently on the next
@@ -243,20 +311,23 @@ export function CriteriaCalibrationPage() {
   // docs/decisions/criteria-calibration-weights-write-race.md.
   const weightsGenRef = useRef(0);
 
-  // Computes solveValues + computeScoreSpreadAccuracy exactly once for `nextAnswers` and
-  // shares the result across the progress ring and the weights/status upsert — see
-  // commitComputation.ts's header for why this replaced three independent recomputes per
-  // commit.
-  function applyCommitComputation(nextAnswers: AnswerEntry[]) {
+  // Applies an already-computed CommitComputation: updates the displayed accuracy/progress
+  // and persists weights/status (including `windowUpdate`, the stability-window value to
+  // write). Split from the computeCommitState call itself (see commitAdvance/handleUndo/
+  // handleRedo) so each of the three callers can get exactly the CommitComputation shape it
+  // needs — with or without a stability advance — without a second LP solve either way.
+  function applyCommitComputation(
+    computation: CommitComputation,
+    windowUpdate: PersistedStabilityWindow
+  ) {
     if (!catalog) return;
-    const computation = computeCommitState(catalog, nextAnswers);
     setProgressPercent(Math.round(computation.accuracy * 100));
     setMediumReached(computation.mediumReached);
 
     if (user) {
       const myGen = ++weightsGenRef.current;
       beginWrite();
-      upsertWeightsAndStatus(user.id, catalog, computation)
+      upsertWeightsAndStatus(user.id, catalog, computation, windowUpdate)
         .then(() => {
           if (myGen !== weightsGenRef.current) return;
           notifyPersistRecovered();
@@ -270,8 +341,22 @@ export function CriteriaCalibrationPage() {
     }
   }
 
+  // Forward step only (a real commit or redo — see commitComputation.ts's header for why
+  // Undo can't go through this). Advances the window using computation.stabilityWindow
+  // (already derived from the SAME solve computeCommitState just ran — no second LP solve),
+  // updates windowHistory/persistedWindow, and returns the value to persist. When ratings
+  // haven't loaded yet, computation.stabilityWindow is undefined and the window simply
+  // doesn't move for this one commit — it catches up on the next one once ratings resolve.
+  function advanceWindowForCommit(computation: CommitComputation): PersistedStabilityWindow {
+    if (!computation.stabilityWindow) return persistedWindow;
+    const next = computation.stabilityWindow;
+    setPersistedWindow(next);
+    setWindowHistory((prev) => [...prev, next.current]);
+    return next;
+  }
+
   function commitAdvance(result: ComparisonResult) {
-    if (!action || action.type !== 'ask') return;
+    if (!action || action.type !== 'ask' || !catalog) return;
     const entry: AnswerEntry = {
       localId: crypto.randomUUID(),
       profileA: action.profileA,
@@ -283,7 +368,13 @@ export function CriteriaCalibrationPage() {
     setRedoBuffer([]);
     setSelectedSide(null);
     persistNewAnswer(entry);
-    applyCommitComputation(nextAnswers);
+
+    const computation = computeCommitState(catalog, nextAnswers, {
+      previous: persistedWindow,
+      ratingsByAlbum,
+    });
+    const windowUpdate = advanceWindowForCommit(computation);
+    applyCommitComputation(computation, windowUpdate);
   }
 
   // Selection -> Hold -> Transition sequence, unchanged from the mock pass. "Equal" runs the
@@ -313,12 +404,26 @@ export function CriteriaCalibrationPage() {
   }
 
   function handleUndo() {
-    if (interactionDisabled || answers.length === 0) return;
+    if (interactionDisabled || answers.length === 0 || !catalog) return;
     const last = answers[answers.length - 1];
     const nextAnswers = answers.slice(0, -1);
     setAnswers(nextAnswers);
     setRedoBuffer((prev) => [...prev, last]);
     setSelectedSide(null);
+
+    // Undo reverts the window to a specific, already-known prior value rather than advancing
+    // it — see commitComputation.ts's header and rankingStabilitySignal.ts's popWindowHistory
+    // for why this can't go through advanceStabilityWindow the way a real commit does.
+    // `previous`/`lastCommitChangedWindow` are deliberately left as-is (not recomputed) — the
+    // same accepted, proven-safe staleness as a resumed session's post-resume Undo, just
+    // arising from a live-session Undo instead.
+    const { next: nextWindowHistory, current: revertedCurrent } = popWindowHistory(windowHistory);
+    setWindowHistory(nextWindowHistory);
+    const revertedWindow: PersistedStabilityWindow = {
+      ...persistedWindow,
+      current: revertedCurrent,
+    };
+    setPersistedWindow(revertedWindow);
 
     if (last.dbId) {
       beginWrite();
@@ -333,11 +438,12 @@ export function CriteriaCalibrationPage() {
     // If last.dbId isn't set yet, its insert is still in flight (or already failed) —
     // persistNewAnswer's own race check will notice the localId is gone and delete the
     // row itself once that insert resolves.
-    applyCommitComputation(nextAnswers);
+    const computation = computeCommitState(catalog, nextAnswers); // no stabilityContext — accuracy/weights only
+    applyCommitComputation(computation, revertedWindow);
   }
 
   function handleRedo() {
-    if (interactionDisabled || redoBuffer.length === 0) return;
+    if (interactionDisabled || redoBuffer.length === 0 || !catalog) return;
     const restored = redoBuffer[redoBuffer.length - 1];
     // A fresh localId (and no dbId) — redo is a brand-new insert, consistent with the
     // answers table's append/insert-only convention, never a resurrection of the old row.
@@ -352,21 +458,52 @@ export function CriteriaCalibrationPage() {
     setAnswers(nextAnswers);
     setSelectedSide(null);
     persistNewAnswer(entry);
-    // Redo is a second real commit point alongside commitAdvance — both create a new answer.
-    applyCommitComputation(nextAnswers);
+
+    // Redo is a second real (forward) commit point alongside commitAdvance — both create a
+    // new answer and both advance the stability window the same way.
+    const computation = computeCommitState(catalog, nextAnswers, {
+      previous: persistedWindow,
+      ratingsByAlbum,
+    });
+    const windowUpdate = advanceWindowForCommit(computation);
+    applyCommitComputation(computation, windowUpdate);
   }
 
+  // Used both by the auto-escalation effect below (while !currentWindowState.fired) and by
+  // the manual "Add more detail" button (shown only once currentWindowState.fired is true).
   function handleEscalate() {
     if (
       !action ||
       action.type !== 'degree-exhausted' ||
       !action.canEscalate ||
-      !action.nextDegree
+      action.nextDegree === null
     ) {
       return;
     }
     setDegree(action.nextDegree);
   }
+
+  // Brief 3 — auto-escalation: while the stability signal hasn't fired yet, degree escalation
+  // happens automatically. The user never sees the "degree exhausted" screen mid-flow while
+  // !fired, only real questions — useLayoutEffect (not useEffect) specifically so this
+  // resolves before paint; an ordinary useEffect would let the browser paint the exhausted
+  // screen for one frame before flipping to the next question, a visible flash this avoids.
+  // Once currentWindowState.fired is true, this effect's condition is permanently false
+  // (fired never un-fires — see rankingStabilitySignal.ts), so escalation reverts to fully
+  // manual from that point on, via the "Add more detail" button.
+  useLayoutEffect(() => {
+    if (action?.type === 'degree-exhausted' && action.canEscalate && !currentWindowState.fired) {
+      // `degree` genuinely is React state (persisted, read by nextAction, also settable via
+      // resume-seeding and the manual "Add more detail" click below) — it can't just be
+      // computed during render the way the rule's guidance usually suggests instead. This is
+      // the same accepted pattern as App.tsx/FavoritesPage.tsx's own set-state-in-effect
+      // disables: synchronizing local state with a signal (here, the driver's own
+      // degree-exhausted report) that only becomes known once render has already happened.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      handleEscalate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [action, currentWindowState.fired]);
 
   function handleExit() {
     // No "stopped" state is persisted (per the brief) — resuming just picks up wherever the
@@ -446,6 +583,11 @@ export function CriteriaCalibrationPage() {
               <Box aria-live="polite">
                 <VStack gap={6} align="stretch">
                   <QuestionPrompt />
+                  {isFirstAnswerAtDegree && degreeClarificationText && (
+                    <Text textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
+                      {degreeClarificationText}
+                    </Text>
+                  )}
                   <ComparisonRow
                     leftCriteria={profileToCriterionData(action.profileA, catalog)}
                     rightCriteria={profileToCriterionData(action.profileB, catalog)}
@@ -465,15 +607,22 @@ export function CriteriaCalibrationPage() {
               </Box>
             </>
           ) : (
-            // degree-exhausted: never auto-escalates — continuing to the next degree is
-            // always an explicit user action, per the driver's own contract.
+            // degree-exhausted. Brief 3: while !currentWindowState.fired and canEscalate,
+            // the useLayoutEffect above escalates automatically before paint — this branch's
+            // "not fired" copy below should be effectively invisible in practice, kept only
+            // as a sane fallback for the first render/edge timing. Once fired, escalation is
+            // manual again: "Add more detail" reappears, and the copy switches to framing
+            // continuing as optional rather than required (never referencing ranking/
+            // stability directly — same standing rule as ProgressHeader's exit copy).
             <VStack gap={4} aria-live="polite">
               <Text textAlign="center" color="text.primary" fontFamily="body">
-                {action?.canEscalate
-                  ? "You've resolved everything at this level of detail."
-                  : "No more comparisons left to make — you've resolved everything this model can distinguish."}
+                {!action?.canEscalate
+                  ? "No more comparisons left to make — you've resolved everything this model can distinguish."
+                  : currentWindowState.fired
+                    ? POST_FIRED_DEGREE_EXHAUSTED_TEXT
+                    : "You've resolved everything at this level of detail."}
               </Text>
-              {action?.canEscalate && (
+              {action?.canEscalate && currentWindowState.fired && (
                 <Button colorPalette="orange" onClick={handleEscalate}>
                   Add more detail
                 </Button>
