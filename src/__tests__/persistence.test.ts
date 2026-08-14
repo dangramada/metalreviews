@@ -46,10 +46,10 @@ describe('fetchPersistedStabilityWindow', () => {
     vi.mocked(supabase.from).mockImplementation(
       makeStatusFromImpl({
         last_eligible_top10: ['album-a', 'album-b'],
-        consecutive_match_run: 2,
+        last_change_answer_index: 14,
         fired: true,
         previous_last_eligible_top10: ['album-a'],
-        previous_consecutive_match_run: 1,
+        previous_last_change_answer_index: 9,
         previous_fired: false,
         last_commit_changed_window: true,
       })
@@ -58,12 +58,12 @@ describe('fetchPersistedStabilityWindow', () => {
     expect(state).toEqual({
       current: {
         lastEligibleTop10: new Set(['album-a', 'album-b']),
-        consecutiveMatchRun: 2,
+        lastChangeAnswerIndex: 14,
         fired: true,
       },
       previous: {
         lastEligibleTop10: new Set(['album-a']),
-        consecutiveMatchRun: 1,
+        lastChangeAnswerIndex: 9,
         fired: false,
       },
       lastCommitChangedWindow: true,
@@ -74,10 +74,10 @@ describe('fetchPersistedStabilityWindow', () => {
     vi.mocked(supabase.from).mockImplementation(
       makeStatusFromImpl({
         last_eligible_top10: null,
-        consecutive_match_run: 0,
+        last_change_answer_index: 0,
         fired: false,
         previous_last_eligible_top10: null,
-        previous_consecutive_match_run: 0,
+        previous_last_change_answer_index: 0,
         previous_fired: false,
         last_commit_changed_window: false,
       })
@@ -129,10 +129,14 @@ describe('upsertWeightsAndStatus', () => {
     const windowUpdate = {
       current: {
         lastEligibleTop10: new Set(['album-a', 'album-b']),
-        consecutiveMatchRun: 2,
+        lastChangeAnswerIndex: 14,
         fired: true,
       },
-      previous: { lastEligibleTop10: new Set(['album-a']), consecutiveMatchRun: 1, fired: false },
+      previous: {
+        lastEligibleTop10: new Set(['album-a']),
+        lastChangeAnswerIndex: 9,
+        fired: false,
+      },
       lastCommitChangedWindow: true,
     };
 
@@ -143,10 +147,10 @@ describe('upsertWeightsAndStatus', () => {
       p_tier: 'very_high', // accuracy 0.9 >= SCORE_SPREAD_VERY_HIGH_THRESHOLD (0.85)
       p_accuracy_value: 0.9,
       p_last_eligible_top10: ['album-a', 'album-b'],
-      p_consecutive_match_run: 2,
+      p_last_change_answer_index: 14,
       p_fired: true,
       p_previous_last_eligible_top10: ['album-a'],
-      p_previous_consecutive_match_run: 1,
+      p_previous_last_change_answer_index: 9,
       p_previous_fired: false,
       p_last_commit_changed_window: true,
     });
@@ -170,10 +174,10 @@ describe('upsertWeightsAndStatus', () => {
       'upsert_calibration_status',
       expect.objectContaining({
         p_last_eligible_top10: null,
-        p_consecutive_match_run: 0,
+        p_last_change_answer_index: 0,
         p_fired: false,
         p_previous_last_eligible_top10: null,
-        p_previous_consecutive_match_run: 0,
+        p_previous_last_change_answer_index: 0,
         p_previous_fired: false,
         p_last_commit_changed_window: false,
       })

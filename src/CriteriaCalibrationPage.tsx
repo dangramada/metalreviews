@@ -134,7 +134,8 @@ export function CriteriaCalibrationPage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
 
-  // Brief 3: the tier-gated K=2 stability window. `windowHistory` is one StabilityWindowState
+  // Brief 3: the tier-gated duration-based stability window (minimum real-answer span with an
+  // unchanged top-10 set — see rankingStabilitySignal.ts). `windowHistory` is one StabilityWindowState
   // per known answer (seeded 1-2 entries on resume, pushed on every real commit/redo, popped
   // on Undo — see rankingStabilitySignal.ts's popWindowHistory for the Undo semantics and its
   // accepted, proven-safe gap at 2+ consecutive Undos with no intervening commit).

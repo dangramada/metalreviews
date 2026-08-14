@@ -47,17 +47,23 @@ verification ran.
 - n=29, n=30: still match n=28 (no flip yet).
 - n=31: **House Of Mirrors overtakes Yūgen** for the #10 spot (0.4166 vs 0.3334). Flip #1.
 - n=32: flips back to match n=28 (Yūgen back in). One answer of pure noise at the boundary.
-- n=33 onward, **every single checkpoint through n=70** (37 consecutive real answers) shows
+- n=33: flips again to House Of Mirrors in.
+- n=34: a THIRD distinct variant — A Tranquil Void in instead (neither n=28's nor n=33's
+  set) — further evidence this whole zone is a live multi-way near-tie, not a settled
+  ranking.
+- n=35 onward, **every single checkpoint through n=70** (36 consecutive real answers) shows
   the identical delta versus n=28: House Of Mirrors in, Yūgen out. Since the delta is
-  constant across all of n=33..70, the set itself is constant across that whole span — this
+  constant across all of n=35..70, the set itself is constant across that whole span — this
   is the genuine, robust settle point in this trace, not n=28.
-- One outlier at n=34 (A Tranquil Void transiently in instead of House Of Mirrors) — further
-  evidence the n=28-33 zone is a live three-way near-tie, not a settled ranking.
 
 **Conclusion: n=28 is a false positive.** The real, stable-to-end-of-session convergence
-point in this trace is **n=33** — 5 real answers later, and only provably robust in
-hindsight (nothing in the live signal at n=33 itself would have told you it wouldn't flip
-again at n=40 — it just happens not to, all the way to n=70, the end of the real log).
+point in this trace is **n=35** (corrected from an initial read of n=33 — a follow-up
+pairwise, checkpoint-vs-immediate-predecessor trace, done while evaluating candidate fixes,
+found the n=34 third-variant flip this doc's first pass missed by comparing only against a
+fixed n=28 reference instead of each checkpoint's immediate predecessor) — 7 real answers
+later, and only provably robust in hindsight (nothing in the live signal at n=35 itself would
+have told you it wouldn't flip again at n=40 — it just happens not to, all the way to n=70,
+the end of the real log).
 
 ## Root cause
 
@@ -92,21 +98,19 @@ what span is enough, and whether it should be a fixed answer count or itself der
 data the way the old gap-based degree-escalation heuristic was replaced by a coverage-based
 one — see `criteria-calibration-adaptive-degree-escalation.md` for that precedent).
 
-## Before merging (supersedes the prior doc's "Before merging" section)
+## Before merging — superseded
 
-- Both SQL migrations: still confirmed live, unaffected by this finding.
-- Genuine live pre-fired auto-escalation: still unobserved directly, unaffected by this
-  finding (see `criteria-calibration-additive-model-degree-sufficiency.md`).
-- **New, blocking**: the K=2 window as currently defined fires on a false positive in the
-  one real trace available (n=28 vs. the actual n=33 settle point). Do not merge until the
-  window is redefined against a minimum real-answer span rather than a checkpoint count, and
-  re-verified against this same 70-answer trace (and ideally a second real trace, since this
-  is still a single-session/single-user sample).
+The fix direction below has since been implemented — see
+`criteria-calibration-duration-based-window-fix.md` for the R-value sweep against this same
+real trace, the resume/persistence design analysis, and the implementation itself
+(duration-based window, third migration, replaced test suite). That doc's "Before merging"
+section is now the current one for this branch.
 
 ## Related
 
-- `criteria-calibration-auto-escalation-signal.md` — Brief 3 implementation this verifies;
-  its "Before merging" section is superseded by this doc's version above.
+- `criteria-calibration-auto-escalation-signal.md` — Brief 3 implementation this verifies.
+- `criteria-calibration-duration-based-window-fix.md` — the fix this finding's "Implication
+  for the proposed fix" section led to; supersedes this doc's "Before merging" section.
 - `criteria-calibration-additive-model-degree-sufficiency.md` — the degree-2-sufficiency
   finding from the same verification session, unaffected by this doc's finding.
 - `criteria-calibration-ranking-stability-analysis.md` — Pass 4's original every-3rd-sample

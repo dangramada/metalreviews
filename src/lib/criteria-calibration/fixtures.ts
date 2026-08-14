@@ -430,9 +430,15 @@ export const DEGREE_ANOMALY_SESSION_ANSWERS: RealSessionRound[] = [
 // "second discard" note; not real signal, and the bug that produced them no longer exists
 // post-Dantzig-fix (see criteria-calibration-dantzig-fix.md).
 //
-// This is the exact data backing Pass 4's result: tier-gated K=2 fires at n=39. See
-// rankingStabilitySignal.test.ts for the test that replays this sequence through
-// advanceStabilityWindow and asserts that firing point.
+// This is the exact data backing Pass 4's original result: tier-gated K=2 fired at n=39.
+// HISTORICAL ONLY as of the duration-based window replacing K=2 (see
+// docs/decisions/criteria-calibration-fine-grained-firing-instability.md) — this fixture's
+// every-3rd-sample retrospective granularity is exactly what that finding showed is
+// unreliable for verifying a firing point (Pass 4's own n=39 estimate turned out to differ
+// from the real fine-grained result), so rankingStabilitySignal.test.ts no longer asserts an
+// exact firing point against it. Kept as the evidentiary record backing
+// criteria-calibration-ranking-stability-analysis.md, same convention as
+// REAL_PRODUCTION_SESSION_ANSWERS above.
 // ---------------------------------------------------------------------------------------
 
 export interface RankingStabilityCheckpoint {

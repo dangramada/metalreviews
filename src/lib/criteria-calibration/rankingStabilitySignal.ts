@@ -2,13 +2,14 @@
 //
 // Evidentiary chain (see docs/decisions/criteria-calibration-ranking-stability-analysis.md):
 // Pass 2 (accuracy tiers alone unreliable) -> Pass 3 (top-10 SET membership stabilizes far
-// earlier and more cleanly than full ranking order) -> Pass 4 (tier-gated K-window: only
-// High/veryHigh checkpoints are eligible to participate; K=2 chosen over K=1 for structural
-// robustness against a lucky single-snapshot match). This module implements exactly the
-// signal Pass 4 validated — not a fresh design.
-//
-// This file is INERT as of this commit: computed, exported, and tested, but not called from
-// commitComputation.ts or CriteriaCalibrationPage.tsx yet. Wiring is a separate commit.
+// earlier and more cleanly than full ranking order) -> Pass 4 (tier-gated checkpoint-count
+// K=2 window, only High/veryHigh checkpoints eligible). Pass 4's K=2 design shipped first but
+// was found, via a fine-grained (every-real-answer) replay, to fire on a false positive under
+// production's real per-commit checking granularity — see
+// docs/decisions/criteria-calibration-fine-grained-firing-instability.md. The window here is
+// now duration-based (a minimum real-answer SPAN with an unchanged top-10 set, not a
+// checkpoint count) — see advanceStabilityWindow's own doc comment for the mechanism and why
+// it isn't weakened by check frequency the way the count-based design was.
 
 import {
   computeScore,
@@ -76,59 +77,62 @@ export interface StabilityWindowState {
   /** Top-10 set at the most recently seen tier-eligible checkpoint, or null before the first
    *  one. */
   lastEligibleTop10: Set<string> | null;
-  /** Length of the current run of CONSECUTIVE tier-eligible checkpoints that each matched the
-   *  top-10 set of the tier-eligible checkpoint immediately before them. This is a run of
-   *  MATCH EVENTS (checkpoint-to-predecessor comparisons), not a count of checkpoints — see
-   *  the worked example below. 0 means no run in progress. */
-  consecutiveMatchRun: number;
+  /** The real-answer index (1-based count of real answers in the session, matching
+   *  `answers.length` at commit time) at which `lastEligibleTop10` last changed — or, before
+   *  any change has happened yet, the index of the first-ever eligible checkpoint (the
+   *  anchor). 0 before any eligible checkpoint has been seen at all (dead value in that
+   *  state — see the null check below, which is what actually gates "have we anchored yet",
+   *  not this field). Monotonically non-decreasing along any real forward trajectory: a
+   *  "change" only ever sets it to the CURRENT (larger) answer index, never resets it
+   *  backward — see advancePersistedStabilityWindow's doc comment for why this matters to
+   *  the accepted Undo-clamp gap. */
+  lastChangeAnswerIndex: number;
   fired: boolean;
 }
 
 export const INITIAL_STABILITY_WINDOW_STATE: StabilityWindowState = {
   lastEligibleTop10: null,
-  consecutiveMatchRun: 0,
+  lastChangeAnswerIndex: 0,
   fired: false,
 };
 
-// K=2: Pass 4's chosen confirmation window. Chosen over K=1 for structural robustness against
-// a lucky single-snapshot match — one 71-answer trace can't prove K=1 is sufficient, even
-// though K=1 also happened to land correctly in that trace.
-const REQUIRED_CONSECUTIVE_MATCHES = 2;
+// R=12: minimum real-answer span with an unchanged tier-eligible top-10 set before firing.
+// PROVISIONAL — single-session evidence only (Dan's real 70-answer replay), same standing as
+// SCORE_SPREAD_*_THRESHOLD in accuracyTiers.ts; see deferred-work.md. Chosen for margin
+// beyond the single observed instability window in that trace (last real top-10 change at
+// n=35), not as the bare minimum that happened to clear it (R=6 also cleared the same check)
+// — see docs/decisions/criteria-calibration-fine-grained-firing-instability.md and the
+// duration-based-fix follow-up doc for the full sweep (R=3 still false-fired at n=29; R=6/9/12
+// all held through n=70).
+const REQUIRED_ANSWER_SPAN = 12;
 
 /**
- * Advances the tier-gated K=2 stability window by one commit checkpoint.
+ * Advances the tier-gated duration-based stability window by one commit checkpoint.
  *
- * Checkpoints where `tier === 'insufficient'` are skipped ENTIRELY: they don't count toward
- * the window, they never become "the previous checkpoint" for a later comparison, and they
- * don't reset an in-progress run — a dip below High and a later return to High compares
- * against whatever the last ELIGIBLE checkpoint was, as if the dip never happened. THIS
- * SPECIFIC RULE (skip for adjacency, not just for counting) is an assumption Pass 4's
- * retroactive data never actually exercised — in that trace, tier never dropped back below
- * High once reached. See rankingStabilitySignal.test.ts's synthetic
- * "drop below High then return" case for a test that at least verifies this doesn't crash or
- * misbehave, since no real trace has ever exercised it.
+ * Supersedes the original checkpoint-COUNT K=2 window (fired after 2 consecutive
+ * checkpoint-to-predecessor MATCH EVENTS). That design was found, via a fine-grained
+ * (every-real-answer) replay of Dan's real session, to fire on a false positive: under
+ * per-commit checking (production's real granularity, not Pass 4's every-3rd-sample
+ * retrospective sampling), "2 consecutive checkpoints" degrades to just 2 real answers of
+ * evidence, with no floor on how far apart those checkpoints actually are in real-answer
+ * terms — see docs/decisions/criteria-calibration-fine-grained-firing-instability.md for the
+ * full n=28-false-positive finding this replaced.
  *
- * IMPORTANT — what "2 consecutive checkpoints have an identical top-10 set" actually means:
- * it is NOT "the two most recent eligible checkpoints match each other" (that would make K=1
- * and K=2 fire at the same point, which contradicts Pass 4's own table). It means two
- * consecutive MATCH EVENTS: checkpoint N matches checkpoint N-1, AND checkpoint N-1 matches
- * checkpoint N-2 — i.e. three checkpoints, all with the identical set, confirmed via
- * transitivity. Worked example from the real Pass 4 trace (gate=High, K=2, fires at n=39):
- *   n=27 (anchor, no predecessor to compare)      -> run=0
- *   n=30 (top-10 != n=27's)                        -> run=0 (reset, not "1")
- *   n=33 (top-10 != n=30's)                        -> run=0
- *   n=36 (top-10 == n=33's)                        -> run=1 (first match event)
- *   n=39 (top-10 == n=36's)                        -> run=2 -> FIRES
- * A naive "just compare the current checkpoint to the last-seen eligible one and fire on the
- * first match" reading fires 3 answers early, at n=36 — that's actually K=1's firing point,
- * confirmed against Pass 4's own K=1 row. Verified directly against the frozen Pass 4 fixture
- * in the test file for this exact discrepancy before this implementation was finalized.
+ * This design instead measures a minimum SPAN of real answers (REQUIRED_ANSWER_SPAN) since
+ * the top-10 set last changed at a tier-eligible checkpoint — independent of how many
+ * checkpoints happen to fall in that span, so it can't be weakened by checking more often.
+ *
+ * Checkpoints where `tier === 'insufficient'` are skipped ENTIRELY: they don't update
+ * `lastEligibleTop10`/`lastChangeAnswerIndex`, and they don't reset anything — a dip below
+ * High and a later return to High compares against whatever the last ELIGIBLE checkpoint was,
+ * as if the dip never happened (same rule the old K=2 window used; unaffected by this change).
  *
  * Once `fired` is true, state is terminal — the signal does not un-fire if the top-10 set
  * later changes again (matches the brief: "fire" is a one-way transition).
  */
 export function advanceStabilityWindow(
   state: StabilityWindowState,
+  answerIndex: number,
   tier: SolverAccuracyTier,
   top10Set: Set<string>
 ): StabilityWindowState {
@@ -136,17 +140,17 @@ export function advanceStabilityWindow(
   if (tier === 'insufficient') return state;
 
   if (state.lastEligibleTop10 === null) {
-    // First-ever eligible checkpoint: nothing to compare against yet, so this cannot itself
-    // be a match event — it only seeds the anchor the next eligible checkpoint compares to.
-    return { lastEligibleTop10: top10Set, consecutiveMatchRun: 0, fired: false };
+    // First-ever eligible checkpoint: nothing to compare against yet, so this is the anchor —
+    // the span starts counting from here.
+    return { lastEligibleTop10: top10Set, lastChangeAnswerIndex: answerIndex, fired: false };
   }
 
-  const matched = setsEqual(state.lastEligibleTop10, top10Set);
-  const consecutiveMatchRun = matched ? state.consecutiveMatchRun + 1 : 0;
+  const changed = !setsEqual(state.lastEligibleTop10, top10Set);
+  const lastChangeAnswerIndex = changed ? answerIndex : state.lastChangeAnswerIndex;
   return {
     lastEligibleTop10: top10Set,
-    consecutiveMatchRun,
-    fired: consecutiveMatchRun >= REQUIRED_CONSECUTIVE_MATCHES,
+    lastChangeAnswerIndex,
+    fired: answerIndex - lastChangeAnswerIndex >= REQUIRED_ANSWER_SPAN,
   };
 }
 
@@ -212,6 +216,17 @@ export function advancePersistedStabilityWindow(
  * case this was built for is a single post-resume Undo; two or more consecutive Undos with no
  * answer in between is a rare sequence with diminishing returns past the safety already
  * proven here.
+ *
+ * Re-derived (not assumed) when the duration-based window replaced the checkpoint-count one:
+ * `lastChangeAnswerIndex` is ALSO monotonically non-decreasing along the true trajectory
+ * (every real change sets it to the current, strictly larger answer index — see
+ * advanceStabilityWindow), so the same "clamp can only be stuck at a MORE settled-looking
+ * state than the deeper truth, never a less settled one" argument applies to it directly,
+ * independent of `fired`. Concretely: a clamped value's `lastChangeAnswerIndex` can only be
+ * >= the true deeper state's — never <, which is what would be needed for the clamp to
+ * manufacture spurious extra stability. See rankingStabilitySignal.test.ts's
+ * "lastChangeAnswerIndex mismatch, safe direction" case for a concrete worked trajectory
+ * where the two values actually differ.
  */
 export function seedWindowHistoryOnResume(
   persisted: PersistedStabilityWindow

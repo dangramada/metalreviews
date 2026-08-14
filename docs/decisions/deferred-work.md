@@ -605,6 +605,16 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   gain (18% relative improvement between n=47 and n=63); 0.2 captures it; nothing tighter
   (0.15/0.1/0.05) fired at all within 65 oracle steps. Not a separate follow-up — revisit
   together with the thresholds above in the same future recalibration session.
+
+  **Extended 2026-08-14:** same provisional status applies to
+  **`REQUIRED_ANSWER_SPAN = 12`** (`rankingStabilitySignal.ts`), the Brief 3
+  auto-escalation stop signal's minimum real-answer span (replaces the original K=2
+  checkpoint-count window — see `criteria-calibration-duration-based-window-fix.md`).
+  Chosen from a 4-value sweep ({3, 6, 9, 12}) against Dan's single real 70-answer session:
+  R=3 still false-fired, R=6/9/12 all held through the end of that trace; 12 was picked for
+  margin beyond the single observed instability window, not as the bare minimum that
+  cleared it. Revisit together with the thresholds above once a second real calibration
+  session is available.
 - **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
   algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
   round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).

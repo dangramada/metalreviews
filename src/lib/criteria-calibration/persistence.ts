@@ -107,18 +107,18 @@ function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
 
 function rowToWindowState(
   top10: string[] | null,
-  consecutiveMatchRun: number | null,
+  lastChangeAnswerIndex: number | null,
   fired: boolean | null
 ): StabilityWindowState {
   return {
     lastEligibleTop10: top10 === null ? null : new Set(top10),
-    consecutiveMatchRun: consecutiveMatchRun ?? 0,
+    lastChangeAnswerIndex: lastChangeAnswerIndex ?? 0,
     fired: fired ?? false,
   };
 }
 
 /**
- * Reads back the tier-gated K=2 stability window (Brief 3) as of the last successful write,
+ * Reads back the tier-gated duration-based stability window (Brief 3) as of the last successful write,
  * so a resumed session picks up exactly where it left off instead of starting empty —
  * unlike accuracy/weights (path-independent, safe to recompute fresh from the current
  * answer list), the window is path-dependent: it needs the trajectory of past checkpoints,
@@ -141,7 +141,7 @@ export async function fetchPersistedStabilityWindow(
   const { data, error } = await supabase
     .from('user_calibration_status')
     .select(
-      'last_eligible_top10, consecutive_match_run, fired, previous_last_eligible_top10, previous_consecutive_match_run, previous_fired, last_commit_changed_window'
+      'last_eligible_top10, last_change_answer_index, fired, previous_last_eligible_top10, previous_last_change_answer_index, previous_fired, last_commit_changed_window'
     )
     .eq('user_id', userId)
     .maybeSingle();
@@ -152,12 +152,12 @@ export async function fetchPersistedStabilityWindow(
   return {
     current: rowToWindowState(
       data.last_eligible_top10 as string[] | null,
-      data.consecutive_match_run as number | null,
+      data.last_change_answer_index as number | null,
       data.fired as boolean | null
     ),
     previous: rowToWindowState(
       data.previous_last_eligible_top10 as string[] | null,
-      data.previous_consecutive_match_run as number | null,
+      data.previous_last_change_answer_index as number | null,
       data.previous_fired as boolean | null
     ),
     lastCommitChangedWindow: (data.last_commit_changed_window as boolean | null) ?? false,
@@ -174,13 +174,14 @@ export async function fetchPersistedStabilityWindow(
  * the same LP was the direct cause of the round-50+ UI blocking).
  *
  * The status write goes through the upsert_calibration_status RPC (see
- * supabase/user_calibration_status-add-stability-window.sql and
- * supabase/user_calibration_status-add-previous-window.sql), not a plain `.upsert()` —
+ * supabase/user_calibration_status-add-stability-window.sql,
+ * supabase/user_calibration_status-add-previous-window.sql, and
+ * supabase/user_calibration_status-rename-duration-window.sql), not a plain `.upsert()` —
  * `fired` needs an atomic `fired OR excluded.fired` at the database level so an
  * out-of-order write (the write-race documented in
  * docs/decisions/criteria-calibration-weights-write-race.md, still unfixed) can never
  * regress an already-fired stop signal back to unfired. Every other field here (including
- * consecutive_match_run/last_eligible_top10 and the previous_ triple / last_commit_changed_window
+ * last_change_answer_index/last_eligible_top10 and the previous_ triple / last_commit_changed_window
  * fields) still goes through that same unfixed race — only `fired`'s regression direction is
  * dangerous enough to need the guard now (see the second migration's header for why
  * previous_fired specifically doesn't need it either — it's mathematically always false).
@@ -223,12 +224,12 @@ export async function upsertWeightsAndStatus(
     p_tier: tier,
     p_accuracy_value: accuracy,
     p_last_eligible_top10: current.lastEligibleTop10 ? Array.from(current.lastEligibleTop10) : null,
-    p_consecutive_match_run: current.consecutiveMatchRun,
+    p_last_change_answer_index: current.lastChangeAnswerIndex,
     p_fired: current.fired,
     p_previous_last_eligible_top10: previous.lastEligibleTop10
       ? Array.from(previous.lastEligibleTop10)
       : null,
-    p_previous_consecutive_match_run: previous.consecutiveMatchRun,
+    p_previous_last_change_answer_index: previous.lastChangeAnswerIndex,
     p_previous_fired: previous.fired,
     p_last_commit_changed_window: lastCommitChangedWindow,
   });

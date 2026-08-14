@@ -67,21 +67,24 @@ For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
 - `criteria-calibration-auto-escalation-signal` — Brief 3: tier-gated top-10 stability
-  auto-escalation signal. Landed on the branch (pure signal + resume-safe persistence + UI
-  wiring); **not yet merged, now blocked on a confirmed false-positive finding** (see below).
-  Both SQL migrations confirmed live on the database (schema + RPC signature verified
-  read-only). Live-browser verification done on a disposable test account: clarification
-  text, Undo, and refresh-resume all confirmed correct; genuine pre-fired auto-escalation was
-  not directly observed in 4 trials (converges at degree 2 every time — see the
-  additive-model doc below for why). A fine-grained (every-real-answer) replay of Dan's real
-  70-answer session confirmed the K=2 window's n=28 firing point is a false positive — the
-  real settle point is n=33; the top-10 set flips on a near-tied boundary between n=28 and
-  n=33. Root cause: K=2 measured as "checkpoints in a row" degrades to "2 real answers apart"
-  under per-commit checking, with no floor on real-answer span. Fix direction identified
-  (redefine the window as a minimum real-answer span, not a checkpoint count) but **not yet
-  implemented**. Full detail: `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
-  `docs/decisions/criteria-calibration-fine-grained-firing-instability.md` (the blocking
-  finding + proposed fix direction — supersedes the prior doc's "Before merging" section),
+  auto-escalation signal. **Not yet merged** — the original K=2 checkpoint-count window was
+  found (fine-grained real-70-answer replay) to fire on a false positive at n=28 (real settle
+  point n=35); replaced with a duration-based window (fires after `REQUIRED_ANSWER_SPAN=12`
+  real answers with an unchanged tier-eligible top-10 set, provisional). Implementation done
+  2026-08-14: `rankingStabilitySignal.ts`/`commitComputation.ts`/`persistence.ts` updated,
+  third migration written (`user_calibration_status-rename-duration-window.sql`, in-place
+  column rename — **not yet run against the live database**, unlike the first two migrations
+  which are confirmed live), test suite replaced (not left alongside) for the new shape
+  including two tests codifying the double-Undo-after-resume proof for the new field shape.
+  281/281 tests pass, `tsc`/lint clean. Before merging: run the third migration live, and
+  re-verify live-browser behavior on the new duration-based firing (the original K=2-era live
+  pass covered Undo/resume/clarification-text mechanics, which are unaffected by this
+  fix, but not the new firing behavior itself). Genuine pre-fired auto-escalation still not
+  directly observed live (converges at degree 2 every time — see the additive-model doc
+  below for why). Full detail: `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
+  `docs/decisions/criteria-calibration-fine-grained-firing-instability.md` (the false-positive
+  finding), `docs/decisions/criteria-calibration-duration-based-window-fix.md` (the fix —
+  R-value sweep, persistence design analysis, implementation; current "Before merging"),
   `docs/decisions/criteria-calibration-additive-model-degree-sufficiency.md` (why degree-2
   alone converges this model, and the standing interaction-effects limitation this implies).
 

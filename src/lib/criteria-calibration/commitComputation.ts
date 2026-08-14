@@ -48,6 +48,7 @@ export interface StabilityWindowContext {
 }
 
 function computeStabilityWindowUpdate(
+  answerIndex: number,
   solved: ValueSolverResult,
   accuracy: number,
   context: StabilityWindowContext
@@ -57,7 +58,7 @@ function computeStabilityWindowUpdate(
   const top10 = computeTop10Set(context.ratingsByAlbum, weights);
   if (top10 === null) return undefined; // defensive — see computeTop10Set's own header
   const tier = solverAccuracyTier(accuracy);
-  const nextCurrent = advanceStabilityWindow(context.previous.current, tier, top10);
+  const nextCurrent = advanceStabilityWindow(context.previous.current, answerIndex, tier, top10);
   return advancePersistedStabilityWindow(context.previous, nextCurrent);
 }
 
@@ -74,7 +75,7 @@ export function computeCommitState(
   const mediumReached = isMediumTierReached(accuracy);
 
   const stabilityWindow = stabilityContext
-    ? computeStabilityWindowUpdate(solved, accuracy, stabilityContext)
+    ? computeStabilityWindowUpdate(answers.length, solved, accuracy, stabilityContext)
     : undefined;
 
   return { solved, accuracy, mediumReached, stabilityWindow };

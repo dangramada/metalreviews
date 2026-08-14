@@ -13,7 +13,6 @@ import {
 } from '../lib/criteria-calibration/rankingStabilitySignal';
 import type { LevelValue } from '../lib/criteria-calibration/solver';
 import type { CriterionLevelRating } from '../lib/album-rating/scoreAndRank';
-import { PASS4_RANKING_STABILITY_CHECKPOINTS } from '../lib/criteria-calibration/fixtures';
 
 describe('toFlatWeights', () => {
   it('flattens values[c][level].point into flat triples, including level 1 at value 0', () => {
@@ -82,70 +81,55 @@ describe('advanceStabilityWindow', () => {
 
   it('never fires if tier never reaches High (insufficient-only session)', () => {
     let state = INITIAL_STABILITY_WINDOW_STATE;
-    // Even a perfectly stable top-10 set across many checkpoints must not fire while every
+    // Even a perfectly stable top-10 set across many real answers must not fire while every
     // checkpoint is insufficient-tier — insufficient checkpoints are skipped entirely, never
-    // counted as eligible.
-    for (let i = 0; i < 10; i++) {
-      state = advanceStabilityWindow(state, 'insufficient', set('a', 'b', 'c'));
+    // counted as eligible, regardless of how large the real-answer span grows.
+    for (let i = 1; i <= 20; i++) {
+      state = advanceStabilityWindow(state, i, 'insufficient', set('a', 'b', 'c'));
     }
     expect(state.fired).toBe(false);
-    expect(state.consecutiveMatchRun).toBe(0);
+    expect(state.lastChangeAnswerIndex).toBe(0);
   });
 
-  it('drop-below-High-then-return: an insufficient dip is skipped, not a reset', () => {
+  it('drop-below-High-then-return: an insufficient dip is skipped, does not reset the span or become the comparison anchor', () => {
     // This exact sequence (High -> insufficient -> High) was never exercised by Pass 4's real
     // 71-answer trace — tier never dropped back below High once reached there. This test only
     // confirms the implementation behaves sensibly (matches the spec's stated rule) rather
     // than crashing or silently misbehaving on a case with no real precedent.
     let state: StabilityWindowState = INITIAL_STABILITY_WINDOW_STATE;
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c')); // anchor, run=0
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c')); // matches anchor, run=1
+    state = advanceStabilityWindow(state, 1, 'high', set('a', 'b', 'c')); // anchor
     expect(state.fired).toBe(false);
 
-    // Dip below High: skipped entirely — does not reset the run, does not become the new
-    // "previous" checkpoint.
-    state = advanceStabilityWindow(state, 'insufficient', set('x', 'y', 'z'));
-    expect(state.consecutiveMatchRun).toBe(1);
+    // Dip below High: skipped entirely — must not update lastEligibleTop10/lastChangeAnswerIndex,
+    // even with a totally different top-10 set.
+    state = advanceStabilityWindow(state, 2, 'insufficient', set('x', 'y', 'z'));
+    expect(state.lastChangeAnswerIndex).toBe(1);
     expect(state.lastEligibleTop10).toEqual(set('a', 'b', 'c'));
 
-    // Tier returns to High with the SAME set as before the dip: this must be compared against
-    // the pre-dip eligible checkpoint (not the insufficient one), completing the run.
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c'));
-    expect(state.fired).toBe(true);
+    // Tier returns to High, 12 real answers after the anchor, with the SAME set as before the
+    // dip: compared against the pre-dip eligible checkpoint (not the insufficient one) — the
+    // dip must not count toward or reset the span.
+    state = advanceStabilityWindow(state, 13, 'high', set('a', 'b', 'c'));
+    expect(state.fired).toBe(true); // 13 - 1 = 12
   });
 
-  it('drop-below-High-then-return with a CHANGED set: resets the run, does not fire', () => {
+  it('drop-below-High-then-return with a CHANGED set: registers a new change, does not fire', () => {
     let state: StabilityWindowState = INITIAL_STABILITY_WINDOW_STATE;
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c'));
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c')); // run=1
-    state = advanceStabilityWindow(state, 'insufficient', set('x', 'y', 'z')); // skipped
-    // Returns to High but with a DIFFERENT set than the pre-dip anchor — no match, run resets.
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'd'));
+    state = advanceStabilityWindow(state, 1, 'high', set('a', 'b', 'c')); // anchor
+    state = advanceStabilityWindow(state, 2, 'insufficient', set('x', 'y', 'z')); // skipped
+    // Returns to High but with a DIFFERENT set than the pre-dip anchor — a real change, even
+    // though the span since the anchor would otherwise have been enough to fire.
+    state = advanceStabilityWindow(state, 13, 'high', set('a', 'b', 'd'));
     expect(state.fired).toBe(false);
-    expect(state.consecutiveMatchRun).toBe(0);
+    expect(state.lastChangeAnswerIndex).toBe(13);
   });
 
   it('is terminal once fired: a later changed set does not un-fire it', () => {
     let state: StabilityWindowState = INITIAL_STABILITY_WINDOW_STATE;
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c')); // anchor, run=0
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c')); // matches, run=1
-    state = advanceStabilityWindow(state, 'high', set('a', 'b', 'c')); // matches, run=2 -> fires
+    state = advanceStabilityWindow(state, 1, 'high', set('a', 'b', 'c')); // anchor
+    state = advanceStabilityWindow(state, 13, 'high', set('a', 'b', 'c')); // 13-1=12 -> fires
     expect(state.fired).toBe(true);
-    state = advanceStabilityWindow(state, 'high', set('completely', 'different', 'set'));
-    expect(state.fired).toBe(true);
-  });
-
-  it('reproduces Pass 4: tier-gated K=2 fires at exactly n=39 on the real frozen trace, not before', () => {
-    let state: StabilityWindowState = INITIAL_STABILITY_WINDOW_STATE;
-    let firedAt: number | null = null;
-    for (const checkpoint of PASS4_RANKING_STABILITY_CHECKPOINTS) {
-      const wasFired = state.fired;
-      state = advanceStabilityWindow(state, checkpoint.tier, new Set(checkpoint.top10));
-      if (!wasFired && state.fired) firedAt = checkpoint.answerCount;
-    }
-    expect(firedAt).toBe(39);
-    // Once fired, stays fired through the rest of the real trace (n=42..69) — no reversal
-    // recorded in Pass 4's data.
+    state = advanceStabilityWindow(state, 14, 'high', set('completely', 'different', 'set'));
     expect(state.fired).toBe(true);
   });
 });
@@ -157,13 +141,13 @@ describe('advancePersistedStabilityWindow', () => {
 
   it('a no-op commit (insufficient tier) leaves previous untouched and marks lastCommitChangedWindow false', () => {
     const afterRealChange: PersistedStabilityWindow = {
-      current: { lastEligibleTop10: set('a'), consecutiveMatchRun: 1, fired: false },
-      previous: { lastEligibleTop10: null, consecutiveMatchRun: 0, fired: false },
+      current: { lastEligibleTop10: set('a'), lastChangeAnswerIndex: 1, fired: false },
+      previous: { lastEligibleTop10: null, lastChangeAnswerIndex: 0, fired: false },
       lastCommitChangedWindow: true,
     };
     // advanceStabilityWindow returns the SAME reference for an insufficient-tier commit —
     // exactly what a no-op commit produces in the real driver loop.
-    const noOpNext = advanceStabilityWindow(afterRealChange.current, 'insufficient', set('z'));
+    const noOpNext = advanceStabilityWindow(afterRealChange.current, 2, 'insufficient', set('z'));
     const result = advancePersistedStabilityWindow(afterRealChange, noOpNext);
 
     expect(result.current).toBe(afterRealChange.current);
@@ -173,11 +157,14 @@ describe('advancePersistedStabilityWindow', () => {
 
   it('a real change snapshots the PRIOR current into previous and marks lastCommitChangedWindow true', () => {
     const before: PersistedStabilityWindow = {
-      current: { lastEligibleTop10: set('a'), consecutiveMatchRun: 0, fired: false },
+      current: { lastEligibleTop10: set('a'), lastChangeAnswerIndex: 1, fired: false },
       previous: INITIAL_STABILITY_WINDOW_STATE,
       lastCommitChangedWindow: true,
     };
-    const nextCurrent = advanceStabilityWindow(before.current, 'high', set('a')); // matches -> run=1, real change
+    // Matches the anchor's set, so lastChangeAnswerIndex doesn't move — but advanceStabilityWindow
+    // still returns a FRESH object (see its own header), so this still counts as "changed" by
+    // advancePersistedStabilityWindow's reference-equality check.
+    const nextCurrent = advanceStabilityWindow(before.current, 2, 'high', set('a'));
     const result = advancePersistedStabilityWindow(before, nextCurrent);
 
     expect(result.current).toBe(nextCurrent);
@@ -189,8 +176,8 @@ describe('advancePersistedStabilityWindow', () => {
 describe('seedWindowHistoryOnResume', () => {
   it('seeds a single entry when the last commit did not change the window', () => {
     const persisted: PersistedStabilityWindow = {
-      current: { lastEligibleTop10: new Set(['a']), consecutiveMatchRun: 2, fired: true },
-      previous: { lastEligibleTop10: null, consecutiveMatchRun: 0, fired: false },
+      current: { lastEligibleTop10: new Set(['a']), lastChangeAnswerIndex: 1, fired: true },
+      previous: { lastEligibleTop10: null, lastChangeAnswerIndex: 0, fired: false },
       lastCommitChangedWindow: false,
     };
     expect(seedWindowHistoryOnResume(persisted)).toEqual([persisted.current]);
@@ -198,8 +185,8 @@ describe('seedWindowHistoryOnResume', () => {
 
   it('seeds two entries, oldest first, when the last commit DID change the window', () => {
     const persisted: PersistedStabilityWindow = {
-      current: { lastEligibleTop10: new Set(['a']), consecutiveMatchRun: 2, fired: true },
-      previous: { lastEligibleTop10: new Set(['a']), consecutiveMatchRun: 1, fired: false },
+      current: { lastEligibleTop10: new Set(['a']), lastChangeAnswerIndex: 1, fired: true },
+      previous: { lastEligibleTop10: new Set(['a']), lastChangeAnswerIndex: 1, fired: false },
       lastCommitChangedWindow: true,
     };
     expect(seedWindowHistoryOnResume(persisted)).toEqual([persisted.previous, persisted.current]);
@@ -209,12 +196,12 @@ describe('seedWindowHistoryOnResume', () => {
 describe('popWindowHistory', () => {
   const a: StabilityWindowState = {
     lastEligibleTop10: new Set(['a']),
-    consecutiveMatchRun: 0,
+    lastChangeAnswerIndex: 1,
     fired: false,
   };
   const b: StabilityWindowState = {
     lastEligibleTop10: new Set(['b']),
-    consecutiveMatchRun: 1,
+    lastChangeAnswerIndex: 5,
     fired: false,
   };
 
@@ -245,40 +232,43 @@ describe('resume + Undo integration', () => {
     return new Set(ids);
   }
 
+  interface Checkpoint {
+    answerIndex: number;
+    tier: 'insufficient' | 'high' | 'veryHigh';
+    top10: Set<string>;
+  }
+
   /** Replays `checkpoints` from scratch — the ground-truth value, only usable in tests since
    *  the real app can't afford to do this at resume time (see rankingStabilitySignal.ts's
    *  header on the LP-solve cost this would require in production). */
-  function trueWindowAfter(
-    checkpoints: { tier: 'insufficient' | 'high' | 'veryHigh'; top10: Set<string> }[]
-  ): StabilityWindowState {
+  function trueWindowAfter(checkpoints: Checkpoint[]): StabilityWindowState {
     let state = INITIAL_STABILITY_WINDOW_STATE;
-    for (const cp of checkpoints) state = advanceStabilityWindow(state, cp.tier, cp.top10);
+    for (const cp of checkpoints) {
+      state = advanceStabilityWindow(state, cp.answerIndex, cp.tier, cp.top10);
+    }
     return state;
   }
 
   /** Drives the full checkpoint list forward through both advanceStabilityWindow and
    *  advancePersistedStabilityWindow, returning the final PersistedStabilityWindow — what
    *  would actually get written to the DB after the real session ends. */
-  function persistThroughSession(
-    checkpoints: { tier: 'insufficient' | 'high' | 'veryHigh'; top10: Set<string> }[]
-  ): PersistedStabilityWindow {
+  function persistThroughSession(checkpoints: Checkpoint[]): PersistedStabilityWindow {
     let persisted = INITIAL_PERSISTED_STABILITY_WINDOW;
     for (const cp of checkpoints) {
-      const next = advanceStabilityWindow(persisted.current, cp.tier, cp.top10);
+      const next = advanceStabilityWindow(persisted.current, cp.answerIndex, cp.tier, cp.top10);
       persisted = advancePersistedStabilityWindow(persisted, next);
     }
     return persisted;
   }
 
   it('a single post-resume Undo is exactly correct (1-entry seed: last commit was a no-op)', () => {
-    // Fires at checkpoint 3 (0-indexed 2), then a 4th checkpoint is a genuine no-op (already
-    // fired) — realistic "gate-only-the-jump" shape: eligible commits keep happening after
-    // firing.
-    const checkpoints: { tier: 'high'; top10: Set<string> }[] = [
-      { tier: 'high', top10: set('a') }, // seed
-      { tier: 'high', top10: set('a') }, // match, run=1
-      { tier: 'high', top10: set('a') }, // match, run=2 -> FIRES
-      { tier: 'high', top10: set('z') }, // no-op (already fired) despite a different set
+    // Fires 12 real answers after the anchor, then a 3rd checkpoint is a genuine no-op
+    // (already fired) — realistic "gate-only-the-jump" shape: eligible commits keep happening
+    // after firing.
+    const checkpoints: Checkpoint[] = [
+      { answerIndex: 1, tier: 'high', top10: set('a') }, // anchor
+      { answerIndex: 13, tier: 'high', top10: set('a') }, // matches, 13-1=12 -> FIRES
+      { answerIndex: 14, tier: 'high', top10: set('z') }, // no-op (already fired) despite a different set
     ];
     const persisted = persistThroughSession(checkpoints);
     expect(persisted.lastCommitChangedWindow).toBe(false); // confirms the 1-entry-seed branch
@@ -286,16 +276,15 @@ describe('resume + Undo integration', () => {
     const seed = seedWindowHistoryOnResume(persisted);
     const { current: afterOneUndo } = popWindowHistory(seed);
 
-    const trueAtNMinus1 = trueWindowAfter(checkpoints.slice(0, 3));
+    const trueAtNMinus1 = trueWindowAfter(checkpoints.slice(0, 2));
     expect(afterOneUndo).toEqual(trueAtNMinus1);
     expect(afterOneUndo.fired).toBe(true);
   });
 
   it('a single post-resume Undo is exactly correct (2-entry seed: last commit WAS the change)', () => {
-    const checkpoints: { tier: 'high'; top10: Set<string> }[] = [
-      { tier: 'high', top10: set('a') }, // seed
-      { tier: 'high', top10: set('a') }, // match, run=1
-      { tier: 'high', top10: set('a') }, // match, run=2 -> FIRES (this is the last commit)
+    const checkpoints: Checkpoint[] = [
+      { answerIndex: 1, tier: 'high', top10: set('a') }, // anchor
+      { answerIndex: 13, tier: 'high', top10: set('a') }, // matches, 13-1=12 -> FIRES (last commit)
     ];
     const persisted = persistThroughSession(checkpoints);
     expect(persisted.lastCommitChangedWindow).toBe(true); // confirms the 2-entry-seed branch
@@ -303,36 +292,35 @@ describe('resume + Undo integration', () => {
     const seed = seedWindowHistoryOnResume(persisted);
     const { current: afterOneUndo } = popWindowHistory(seed);
 
-    const trueAtNMinus1 = trueWindowAfter(checkpoints.slice(0, 2));
+    const trueAtNMinus1 = trueWindowAfter(checkpoints.slice(0, 1));
     expect(afterOneUndo).toEqual(trueAtNMinus1);
     expect(afterOneUndo.fired).toBe(false); // correctly un-fired: we undid the exact firing commit
   });
 
   it('two consecutive Undos with zero intervening commits: fired-boolean mismatch case (accepted gap, SAFE direction)', () => {
-    // Constructed so the true trajectory fires at checkpoint 3, then checkpoint 4 is a no-op
+    // Constructed so the true trajectory fires at checkpoint 2, then checkpoint 3 is a no-op
     // (already fired) with a DIFFERENT top10 set — exactly the "gate-only-the-jump" shape
     // where firing happens and the user keeps answering afterward. Resume happens after
-    // checkpoint 4; the user immediately Undoes twice with no new answer in between.
-    const checkpoints: { tier: 'high'; top10: Set<string> }[] = [
-      { tier: 'high', top10: set('a') }, // cp1: seed, run=0
-      { tier: 'high', top10: set('a') }, // cp2: match, run=1
-      { tier: 'high', top10: set('a') }, // cp3: match, run=2 -> FIRES
-      { tier: 'high', top10: set('z') }, // cp4: no-op (already fired)
+    // checkpoint 3; the user immediately Undoes twice with no new answer in between.
+    const checkpoints: Checkpoint[] = [
+      { answerIndex: 1, tier: 'high', top10: set('a') }, // cp1: anchor
+      { answerIndex: 13, tier: 'high', top10: set('a') }, // cp2: 13-1=12 -> FIRES
+      { answerIndex: 14, tier: 'high', top10: set('z') }, // cp3: no-op (already fired)
     ];
     const persisted = persistThroughSession(checkpoints);
     expect(persisted.lastCommitChangedWindow).toBe(false); // 1-entry seed, per the case above
 
     const seed = seedWindowHistoryOnResume(persisted);
     const { next: afterFirstPop, current: afterFirstUndo } = popWindowHistory(seed);
-    // First Undo (removing cp4) is exactly correct, per the case above.
-    expect(afterFirstUndo).toEqual(trueWindowAfter(checkpoints.slice(0, 3)));
+    // First Undo (removing cp3) is exactly correct, per the case above.
+    expect(afterFirstUndo).toEqual(trueWindowAfter(checkpoints.slice(0, 2)));
     expect(afterFirstUndo.fired).toBe(true);
 
-    // Second Undo (removing cp3 too — the ACTUAL firing commit — with zero new commits since
+    // Second Undo (removing cp2 too — the ACTUAL firing commit — with zero new commits since
     // the first Undo): no third level of history exists, so this clamps rather than rolling
     // back further.
     const { current: afterSecondUndo } = popWindowHistory(afterFirstPop);
-    const trueTwoBack = trueWindowAfter(checkpoints.slice(0, 2)); // cp1, cp2 only: run=1, NOT fired
+    const trueTwoBack = trueWindowAfter(checkpoints.slice(0, 1)); // cp1 only: anchor, NOT fired
 
     // The computed value does NOT match the true two-undos-back state...
     expect(afterSecondUndo).not.toEqual(trueTwoBack);
@@ -346,34 +334,109 @@ describe('resume + Undo integration', () => {
     expect(afterSecondUndo.fired).toBe(true);
   });
 
-  it('two consecutive Undos with zero intervening commits: run-count-only mismatch case (no fired involved at all)', () => {
-    // A different shape from the case above: three REAL changes in a row (reset, build,
-    // fire), so the seed is 2 entries wide, and the second Undo's staleness shows up as an
-    // inflated consecutiveMatchRun rather than touching `fired` (both sides agree fired must
-    // still be false at 2-undos-back, since firing only just happened at the very last
-    // commit).
-    const checkpoints: { tier: 'high'; top10: Set<string> }[] = [
-      { tier: 'high', top10: set('a') }, // cp1: seed, run=0
-      { tier: 'high', top10: set('b') }, // cp2: mismatch vs a -> run=0 (still a real change: set differs)
-      { tier: 'high', top10: set('b') }, // cp3: match vs b -> run=1
-      { tier: 'high', top10: set('b') }, // cp4: match vs b -> run=2 -> FIRES
+  it('two consecutive Undos with zero intervening commits: lastChangeAnswerIndex mismatch, safe direction (re-derived for the duration-based shape, not assumed)', () => {
+    // A different shape from the fired-mismatch case above: three REAL changes in a row (each
+    // top-10 set differs from the one before it), so the seed is 2 entries wide, and the
+    // second Undo's staleness shows up as an inflated lastChangeAnswerIndex rather than
+    // touching `fired` (both sides agree fired must still be false at 2-undos-back, since
+    // firing only just happened at the very last commit).
+    //
+    // Supersedes the old K=2-shape test that exercised the equivalent gap on
+    // consecutiveMatchRun — that field always incremented by exactly 1 per additional real
+    // match, so ANY 2-undo gap necessarily showed a numeric mismatch. lastChangeAnswerIndex is
+    // "sticky" (it only moves on an ACTUAL top-10 change, not on every real answer), so proving
+    // a mismatch here needs multiple real changes close together — a genuinely different
+    // scenario, not a mechanical rename of the old one.
+    const checkpoints: Checkpoint[] = [
+      { answerIndex: 1, tier: 'high', top10: set('a') }, // cp1: anchor, lastChangeAnswerIndex=1
+      { answerIndex: 2, tier: 'high', top10: set('b') }, // cp2: mismatch vs a -> real change, index=2
+      { answerIndex: 3, tier: 'high', top10: set('c') }, // cp3: mismatch vs b -> real change, index=3
+      { answerIndex: 15, tier: 'high', top10: set('c') }, // cp4: matches c, 15-3=12 -> FIRES
     ];
     const persisted = persistThroughSession(checkpoints);
-    expect(persisted.lastCommitChangedWindow).toBe(true); // 2-entry seed
+    expect(persisted.lastCommitChangedWindow).toBe(true); // 2-entry seed (fired flipped on cp4)
 
     const seed = seedWindowHistoryOnResume(persisted);
     const { next: afterFirstPop, current: afterFirstUndo } = popWindowHistory(seed);
     expect(afterFirstUndo).toEqual(trueWindowAfter(checkpoints.slice(0, 3)));
     expect(afterFirstUndo.fired).toBe(false);
+    expect(afterFirstUndo.lastChangeAnswerIndex).toBe(3); // cp3 was itself the last real change
 
     const { current: afterSecondUndo } = popWindowHistory(afterFirstPop);
-    const trueTwoBack = trueWindowAfter(checkpoints.slice(0, 2)); // cp1, cp2: run=0, fired=false
+    const trueTwoBack = trueWindowAfter(checkpoints.slice(0, 2)); // cp1, cp2: lastChangeAnswerIndex=2
 
-    expect(afterSecondUndo).not.toEqual(trueTwoBack); // stale (run=1 vs true run=0)
+    expect(afterSecondUndo).not.toEqual(trueTwoBack); // stale: clamp is stuck at cp3's state
     expect(afterSecondUndo.fired).toBe(false);
-    expect(trueTwoBack.fired).toBe(false); // both agree on fired here — only run-count drifts
-    expect(afterSecondUndo.consecutiveMatchRun).toBeGreaterThanOrEqual(
-      trueTwoBack.consecutiveMatchRun
+    expect(trueTwoBack.fired).toBe(false); // both agree on fired here — only the index drifts
+    expect(afterSecondUndo.lastChangeAnswerIndex).not.toBe(trueTwoBack.lastChangeAnswerIndex);
+    // Safe direction, re-derived (not assumed) for this shape: lastChangeAnswerIndex is
+    // monotonically non-decreasing along the true trajectory (a real change only ever sets it
+    // to the CURRENT, strictly larger index — see advanceStabilityWindow), so the clamp can
+    // only be stuck at a state whose lastChangeAnswerIndex is >= the true deeper state's —
+    // i.e. it can only make the window look LESS recently changed than truth requires (safer),
+    // never MORE recently changed than truth (which would manufacture spurious stability).
+    expect(afterSecondUndo.lastChangeAnswerIndex).toBeGreaterThan(
+      trueTwoBack.lastChangeAnswerIndex
+    );
+  });
+
+  it('Undo removing the actual answer that caused the last change, then continuing, exactly reproduces a session that never had that answer — never manufactures an early fire', () => {
+    // "Detour" scenario: the user sits at the anchor ('a'), then answers a comparison that
+    // genuinely disrupts the top-10 set ('b' — a real, registered change), immediately regrets
+    // it and hits Undo, then answers a DIFFERENT real question that happens to land back on
+    // the anchor's set. This is exactly the case flagged as worth checking rather than assumed
+    // safe: could Undo leave `lastChangeAnswerIndex` stuck referencing the removed detour,
+    // making the window look more settled than the edited history honestly supports (a
+    // false-early fire on continued replay)?
+    const preDetour: Checkpoint[] = [{ answerIndex: 1, tier: 'high', top10: set('a') }]; // anchor
+    const detourAnswer: Checkpoint = { answerIndex: 2, tier: 'high', top10: set('b') }; // real change, soon regretted
+    const replacementAnswer: Checkpoint = { answerIndex: 2, tier: 'high', top10: set('a') }; // re-answered at the same (post-undo) index, lands back on the anchor's set
+
+    // Live session: answer #1, then the detour (#2, registers a real change to 'b'), then
+    // immediately Undo it.
+    const persistedThroughDetour = persistThroughSession([...preDetour, detourAnswer]);
+    expect(persistedThroughDetour.lastCommitChangedWindow).toBe(true); // the detour WAS the change-causing commit
+    const seed = seedWindowHistoryOnResume(persistedThroughDetour);
+    const { current: revertedCurrent } = popWindowHistory(seed);
+    // Single-Undo exactness (proven in the cases above) already guarantees this equals the
+    // pre-detour truth — confirmed concretely here too, not just relied on.
+    expect(revertedCurrent).toEqual(trueWindowAfter(preDetour));
+
+    // User answers again — a genuinely different comparison, which happens to land back on
+    // 'a'. Since the detour was fully REMOVED (not just hidden), this becomes real answer #2
+    // again, not #3.
+    const afterReplay = advanceStabilityWindow(
+      revertedCurrent,
+      replacementAnswer.answerIndex,
+      replacementAnswer.tier,
+      replacementAnswer.top10
+    );
+
+    // Ground truth: a session that never had the detour at all, going straight from #1 to this
+    // same real answer #2.
+    const cleanBaseline = trueWindowAfter([...preDetour, replacementAnswer]);
+
+    expect(afterReplay).toEqual(cleanBaseline); // byte-for-byte identical to honest history —
+    // not just "delayed", but EXACT: there is no separate stale-bookkeeping failure mode to
+    // characterize here, because the reverted state IS the true state of the edited history.
+    expect(afterReplay.lastChangeAnswerIndex).toBe(1); // NOT stuck at the undone detour's index (2)
+
+    // Contrast, to show the comparison the other direction: if the detour had instead been
+    // KEPT as real, permanent history (no Undo) and this same replacement answer arrived as a
+    // genuinely later real answer, reverting 'b' back to 'a' is ITSELF a second real change
+    // (relative to the kept 'b' checkpoint) — lastChangeAnswerIndex jumps to that later index
+    // instead of staying at 1, requiring MORE real-answer evidence before firing than the
+    // honest/undone path needs. Undo can only remove disruptive evidence the edited history no
+    // longer contains — it never invents settledness beyond what the edited log honestly shows.
+    const keptDetourState = advanceStabilityWindow(
+      trueWindowAfter([...preDetour, detourAnswer]),
+      3,
+      'high',
+      set('a') // reverts back to 'a', but relative to the KEPT 'b' checkpoint this IS a change
+    );
+    expect(keptDetourState.lastChangeAnswerIndex).toBe(3);
+    expect(keptDetourState.lastChangeAnswerIndex).toBeGreaterThan(
+      afterReplay.lastChangeAnswerIndex
     );
   });
 });
