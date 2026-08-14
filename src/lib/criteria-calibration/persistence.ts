@@ -24,6 +24,10 @@ import type { ComparisonResult, Profile } from './preferenceGraph.js';
 import { solverAccuracyTier } from './accuracyTiers.js';
 import type { CriteriaCatalog } from './criteriaCatalog.js';
 import type { CommitComputation } from './commitComputation.js';
+import {
+  INITIAL_STABILITY_WINDOW_STATE,
+  type StabilityWindowState,
+} from './rankingStabilitySignal.js';
 
 export type DbResult = 'a_preferred' | 'b_preferred' | 'equal';
 export type StatusTier = 'none' | 'medium' | 'high' | 'very_high';
@@ -101,18 +105,63 @@ function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
 }
 
 /**
- * Upserts both user_criterion_weights (one row per criterion x level) and
- * user_calibration_status (tier + raw accuracy value, combined-rule gated) from an
- * already-solved computation. The caller (CriteriaCalibrationPage) computes solveValues +
- * computeScoreSpreadAccuracy exactly once per commit via computeCommitState and shares that
- * result across every consumer — this function no longer re-solves them itself (see
- * commitComputation.ts for why: three independent recomputes of the same LP was the direct
- * cause of the round-50+ UI blocking).
+ * Reads back the tier-gated K=2 stability window (Brief 3) as of the last successful write,
+ * so a resumed session picks up exactly where it left off instead of starting empty —
+ * unlike accuracy/weights (path-independent, safe to recompute fresh from the current
+ * answer list), the window is path-dependent: it needs the trajectory of past checkpoints,
+ * not just the current state, and re-deriving that trajectory would mean re-solving the LP
+ * once per historical answer count (see rankingStabilitySignal.ts's header — not viable
+ * given the documented, still-unresolved superlinear solve cost). Persisting the compact
+ * running state itself avoids that entirely. Returns INITIAL_STABILITY_WINDOW_STATE if no
+ * row exists yet (first-ever session) or the row predates this migration (nulls).
+ */
+export async function fetchStabilityWindowState(userId: string): Promise<StabilityWindowState> {
+  const { data, error } = await supabase
+    .from('user_calibration_status')
+    .select('last_eligible_top10, consecutive_match_run, fired')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return INITIAL_STABILITY_WINDOW_STATE;
+
+  const lastEligibleTop10 = data.last_eligible_top10 as string[] | null;
+  return {
+    lastEligibleTop10: lastEligibleTop10 === null ? null : new Set(lastEligibleTop10),
+    consecutiveMatchRun: (data.consecutive_match_run as number | null) ?? 0,
+    fired: (data.fired as boolean | null) ?? false,
+  };
+}
+
+/**
+ * Upserts user_criterion_weights (one row per criterion x level), plus
+ * user_calibration_status (tier + raw accuracy value + Brief 3's stability window,
+ * combined-rule gated) from an already-solved computation. The caller (CriteriaCalibrationPage)
+ * computes solveValues + computeScoreSpreadAccuracy exactly once per commit via
+ * computeCommitState and shares that result across every consumer — this function no longer
+ * re-solves them itself (see commitComputation.ts for why: three independent recomputes of
+ * the same LP was the direct cause of the round-50+ UI blocking).
+ *
+ * The status write goes through the upsert_calibration_status RPC (see
+ * supabase/user_calibration_status-add-stability-window.sql), not a plain `.upsert()` —
+ * `fired` needs an atomic `fired OR excluded.fired` at the database level so an
+ * out-of-order write (the write-race documented in
+ * docs/decisions/criteria-calibration-weights-write-race.md, still unfixed) can never
+ * regress an already-fired stop signal back to unfired. Every other field here (including
+ * consecutive_match_run/last_eligible_top10) still goes through that same unfixed race —
+ * only `fired`'s regression direction is dangerous enough to need the guard now.
  */
 export async function upsertWeightsAndStatus(
   userId: string,
   catalog: CriteriaCatalog,
-  computation: CommitComputation
+  computation: CommitComputation,
+  // Defaults to the empty window so the pre-wiring call site (CriteriaCalibrationPage.tsx,
+  // still on 3 args as of this commit) keeps compiling without silently losing real
+  // progress: writing the empty window on every commit is safe under the OR-guard above
+  // (can never regress a real fired=true) and there's no real per-commit tracking to lose
+  // yet — this default should be removed once the UI wiring commit always passes a real,
+  // live-tracked StabilityWindowState.
+  stabilityWindow: StabilityWindowState = INITIAL_STABILITY_WINDOW_STATE
 ): Promise<void> {
   const { solved, accuracy, mediumReached } = computation;
 
@@ -134,8 +183,15 @@ export async function upsertWeightsAndStatus(
 
   const tier = computeTier(mediumReached, accuracy);
 
-  const { error: statusError } = await supabase
-    .from('user_calibration_status')
-    .upsert({ user_id: userId, tier, accuracy_value: accuracy }, { onConflict: 'user_id' });
+  const { error: statusError } = await supabase.rpc('upsert_calibration_status', {
+    p_user_id: userId,
+    p_tier: tier,
+    p_accuracy_value: accuracy,
+    p_last_eligible_top10: stabilityWindow.lastEligibleTop10
+      ? Array.from(stabilityWindow.lastEligibleTop10)
+      : null,
+    p_consecutive_match_run: stabilityWindow.consecutiveMatchRun,
+    p_fired: stabilityWindow.fired,
+  });
   if (statusError) throw statusError;
 }
