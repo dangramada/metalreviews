@@ -25,7 +25,8 @@ import { solverAccuracyTier } from './accuracyTiers.js';
 import type { CriteriaCatalog } from './criteriaCatalog.js';
 import type { CommitComputation } from './commitComputation.js';
 import {
-  INITIAL_STABILITY_WINDOW_STATE,
+  INITIAL_PERSISTED_STABILITY_WINDOW,
+  type PersistedStabilityWindow,
   type StabilityWindowState,
 } from './rankingStabilitySignal.js';
 
@@ -104,6 +105,18 @@ function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
   return 'medium';
 }
 
+function rowToWindowState(
+  top10: string[] | null,
+  consecutiveMatchRun: number | null,
+  fired: boolean | null
+): StabilityWindowState {
+  return {
+    lastEligibleTop10: top10 === null ? null : new Set(top10),
+    consecutiveMatchRun: consecutiveMatchRun ?? 0,
+    fired: fired ?? false,
+  };
+}
+
 /**
  * Reads back the tier-gated K=2 stability window (Brief 3) as of the last successful write,
  * so a resumed session picks up exactly where it left off instead of starting empty —
@@ -112,24 +125,42 @@ function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
  * not just the current state, and re-deriving that trajectory would mean re-solving the LP
  * once per historical answer count (see rankingStabilitySignal.ts's header — not viable
  * given the documented, still-unresolved superlinear solve cost). Persisting the compact
- * running state itself avoids that entirely. Returns INITIAL_STABILITY_WINDOW_STATE if no
- * row exists yet (first-ever session) or the row predates this migration (nulls).
+ * running state itself avoids that entirely.
+ *
+ * Returns both the current window AND the one-step-back `previous` snapshot plus
+ * `lastCommitChangedWindow` (see PersistedStabilityWindow) — together these let
+ * seedWindowHistoryOnResume correctly gate a single post-resume Undo instead of either always
+ * rolling back (which would wrongly un-fire a signal that fired several no-op commits ago) or
+ * never rolling back (which would keep a truly-undone firing commit's effect alive). Returns
+ * INITIAL_PERSISTED_STABILITY_WINDOW if no row exists yet (first-ever session) or the row
+ * predates this migration (nulls).
  */
-export async function fetchStabilityWindowState(userId: string): Promise<StabilityWindowState> {
+export async function fetchPersistedStabilityWindow(
+  userId: string
+): Promise<PersistedStabilityWindow> {
   const { data, error } = await supabase
     .from('user_calibration_status')
-    .select('last_eligible_top10, consecutive_match_run, fired')
+    .select(
+      'last_eligible_top10, consecutive_match_run, fired, previous_last_eligible_top10, previous_consecutive_match_run, previous_fired, last_commit_changed_window'
+    )
     .eq('user_id', userId)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) return INITIAL_STABILITY_WINDOW_STATE;
+  if (!data) return INITIAL_PERSISTED_STABILITY_WINDOW;
 
-  const lastEligibleTop10 = data.last_eligible_top10 as string[] | null;
   return {
-    lastEligibleTop10: lastEligibleTop10 === null ? null : new Set(lastEligibleTop10),
-    consecutiveMatchRun: (data.consecutive_match_run as number | null) ?? 0,
-    fired: (data.fired as boolean | null) ?? false,
+    current: rowToWindowState(
+      data.last_eligible_top10 as string[] | null,
+      data.consecutive_match_run as number | null,
+      data.fired as boolean | null
+    ),
+    previous: rowToWindowState(
+      data.previous_last_eligible_top10 as string[] | null,
+      data.previous_consecutive_match_run as number | null,
+      data.previous_fired as boolean | null
+    ),
+    lastCommitChangedWindow: (data.last_commit_changed_window as boolean | null) ?? false,
   };
 }
 
@@ -143,13 +174,16 @@ export async function fetchStabilityWindowState(userId: string): Promise<Stabili
  * the same LP was the direct cause of the round-50+ UI blocking).
  *
  * The status write goes through the upsert_calibration_status RPC (see
- * supabase/user_calibration_status-add-stability-window.sql), not a plain `.upsert()` —
+ * supabase/user_calibration_status-add-stability-window.sql and
+ * supabase/user_calibration_status-add-previous-window.sql), not a plain `.upsert()` —
  * `fired` needs an atomic `fired OR excluded.fired` at the database level so an
  * out-of-order write (the write-race documented in
  * docs/decisions/criteria-calibration-weights-write-race.md, still unfixed) can never
  * regress an already-fired stop signal back to unfired. Every other field here (including
- * consecutive_match_run/last_eligible_top10) still goes through that same unfixed race —
- * only `fired`'s regression direction is dangerous enough to need the guard now.
+ * consecutive_match_run/last_eligible_top10 and the previous_ triple / last_commit_changed_window
+ * fields) still goes through that same unfixed race — only `fired`'s regression direction is
+ * dangerous enough to need the guard now (see the second migration's header for why
+ * previous_fired specifically doesn't need it either — it's mathematically always false).
  */
 export async function upsertWeightsAndStatus(
   userId: string,
@@ -160,8 +194,8 @@ export async function upsertWeightsAndStatus(
   // progress: writing the empty window on every commit is safe under the OR-guard above
   // (can never regress a real fired=true) and there's no real per-commit tracking to lose
   // yet — this default should be removed once the UI wiring commit always passes a real,
-  // live-tracked StabilityWindowState.
-  stabilityWindow: StabilityWindowState = INITIAL_STABILITY_WINDOW_STATE
+  // live-tracked PersistedStabilityWindow.
+  windowUpdate: PersistedStabilityWindow = INITIAL_PERSISTED_STABILITY_WINDOW
 ): Promise<void> {
   const { solved, accuracy, mediumReached } = computation;
 
@@ -182,16 +216,21 @@ export async function upsertWeightsAndStatus(
   if (weightsError) throw weightsError;
 
   const tier = computeTier(mediumReached, accuracy);
+  const { current, previous, lastCommitChangedWindow } = windowUpdate;
 
   const { error: statusError } = await supabase.rpc('upsert_calibration_status', {
     p_user_id: userId,
     p_tier: tier,
     p_accuracy_value: accuracy,
-    p_last_eligible_top10: stabilityWindow.lastEligibleTop10
-      ? Array.from(stabilityWindow.lastEligibleTop10)
+    p_last_eligible_top10: current.lastEligibleTop10 ? Array.from(current.lastEligibleTop10) : null,
+    p_consecutive_match_run: current.consecutiveMatchRun,
+    p_fired: current.fired,
+    p_previous_last_eligible_top10: previous.lastEligibleTop10
+      ? Array.from(previous.lastEligibleTop10)
       : null,
-    p_consecutive_match_run: stabilityWindow.consecutiveMatchRun,
-    p_fired: stabilityWindow.fired,
+    p_previous_consecutive_match_run: previous.consecutiveMatchRun,
+    p_previous_fired: previous.fired,
+    p_last_commit_changed_window: lastCommitChangedWindow,
   });
   if (statusError) throw statusError;
 }

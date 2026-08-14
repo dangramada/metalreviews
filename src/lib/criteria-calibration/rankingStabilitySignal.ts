@@ -149,3 +149,96 @@ export function advanceStabilityWindow(
     fired: consecutiveMatchRun >= REQUIRED_CONSECUTIVE_MATCHES,
   };
 }
+
+/**
+ * What gets persisted per commit so a resumed session can seed its in-memory undo history
+ * (windowHistory, built forward from here — see CriteriaCalibrationPage.tsx) without
+ * replaying the whole answer log's LP solves. `current`/`previous` are a StabilityWindowState
+ * pair: `previous` is only re-snapshotted on a commit where advanceStabilityWindow actually
+ * produced a new state (see seedWindowHistoryOnResume for why); `lastCommitChangedWindow` is
+ * overwritten unconditionally on every commit, real change or not.
+ */
+export interface PersistedStabilityWindow {
+  current: StabilityWindowState;
+  previous: StabilityWindowState;
+  lastCommitChangedWindow: boolean;
+}
+
+export const INITIAL_PERSISTED_STABILITY_WINDOW: PersistedStabilityWindow = {
+  current: INITIAL_STABILITY_WINDOW_STATE,
+  previous: INITIAL_STABILITY_WINDOW_STATE,
+  lastCommitChangedWindow: false,
+};
+
+/**
+ * Given the previous commit's PersistedStabilityWindow and the newly-advanced state for THIS
+ * commit, produces the next PersistedStabilityWindow to write. `previous` only moves when
+ * `nextCurrent` actually differs from `prior.current` — a no-op commit (insufficient tier, or
+ * already fired) leaves `previous` exactly where it was, so it keeps pointing at "the state
+ * before the LAST real change" no matter how many no-op commits land in between.
+ */
+export function advancePersistedStabilityWindow(
+  prior: PersistedStabilityWindow,
+  nextCurrent: StabilityWindowState
+): PersistedStabilityWindow {
+  const changed = nextCurrent !== prior.current;
+  return {
+    current: nextCurrent,
+    previous: changed ? prior.current : prior.previous,
+    lastCommitChangedWindow: changed,
+  };
+}
+
+/**
+ * Seeds the in-memory windowHistory stack on resume (a plain array, Undo pops the top, new
+ * commits push — see CriteriaCalibrationPage.tsx). Returns the last 1 or 2 known window
+ * states, oldest first:
+ *   - [current] if the most recent commit did NOT itself change the window (undoing it should
+ *     leave the window untouched — it was a no-op, so window_{n-1} === window_n).
+ *   - [previous, current] if the most recent commit DID change the window (undoing it should
+ *     roll back to the pre-change state — window_{n-1} === previous, exactly).
+ *
+ * GAP, accepted as-is (see rankingStabilitySignal.test.ts's "two consecutive undos with zero
+ * intervening commits" case for the proof): a SECOND consecutive Undo before any new commit
+ * has no third level of history to fall back to — the caller clamps at the bottom of this
+ * seed (an empty-stack pop is a no-op, not a further rollback) rather than reporting an
+ * incorrect state. Proven confined to the SAFE direction only, at any further undo depth, not
+ * just the second: the clamped value always equals the TRUE window_{n-1} (this function's own
+ * output is exact for the first undo), and `fired` is monotonic along the true trajectory, so
+ * a clamped value can never show `fired: false` when a deeper true state would need `fired:
+ * true` — the reverse (clamped shows `fired: true`, "stuck" past a point where it should have
+ * un-fired) is the only possible failure mode, which never lets auto-escalation wrongly
+ * resume. Explicitly not chasing a further (third+) persisted field for this — the realistic
+ * case this was built for is a single post-resume Undo; two or more consecutive Undos with no
+ * answer in between is a rare sequence with diminishing returns past the safety already
+ * proven here.
+ */
+export function seedWindowHistoryOnResume(
+  persisted: PersistedStabilityWindow
+): StabilityWindowState[] {
+  if (persisted.lastCommitChangedWindow) {
+    return [persisted.previous, persisted.current];
+  }
+  return [persisted.current];
+}
+
+/**
+ * Undo semantics for the windowHistory stack: pops the most recent entry and reports what's
+ * now "current". A fresh (never-resumed) session's windowHistory always has exactly one entry
+ * per answer (pushed by every real commit), so this only ever pops down to a single remaining
+ * entry there — the existing `answers.length === 0` guard disables Undo before it could go
+ * further. A RESUMED session's seed (1 or 2 entries, see seedWindowHistoryOnResume) can be
+ * shorter than the true answer count, though: popping past its single remaining entry clamps
+ * instead of removing it, so `current` never becomes undefined and never reports a state with
+ * no data behind it. This clamp is exactly the accepted gap described on
+ * seedWindowHistoryOnResume — proven safe-direction only, however many times it's hit in a
+ * row.
+ */
+export function popWindowHistory(history: StabilityWindowState[]): {
+  next: StabilityWindowState[];
+  current: StabilityWindowState;
+} {
+  if (history.length <= 1) return { next: history, current: history[0] };
+  const next = history.slice(0, -1);
+  return { next, current: next[next.length - 1] };
+}

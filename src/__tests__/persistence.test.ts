@@ -10,14 +10,17 @@ vi.mock('../supabaseClient', () => ({
 
 import { supabase } from '../supabaseClient';
 import {
-  fetchStabilityWindowState,
+  fetchPersistedStabilityWindow,
   upsertWeightsAndStatus,
 } from '../lib/criteria-calibration/persistence';
-import { INITIAL_STABILITY_WINDOW_STATE } from '../lib/criteria-calibration/rankingStabilitySignal';
+import {
+  INITIAL_STABILITY_WINDOW_STATE,
+  INITIAL_PERSISTED_STABILITY_WINDOW,
+} from '../lib/criteria-calibration/rankingStabilitySignal';
 import type { CriteriaCatalog } from '../lib/criteria-calibration/criteriaCatalog';
 import type { CommitComputation } from '../lib/criteria-calibration/commitComputation';
 
-describe('fetchStabilityWindowState', () => {
+describe('fetchPersistedStabilityWindow', () => {
   beforeEach(() => vi.clearAllMocks());
 
   function makeStatusFromImpl(row: Record<string, unknown> | null) {
@@ -33,34 +36,55 @@ describe('fetchStabilityWindowState', () => {
     };
   }
 
-  it('returns INITIAL_STABILITY_WINDOW_STATE when no row exists yet', async () => {
+  it('returns INITIAL_PERSISTED_STABILITY_WINDOW when no row exists yet', async () => {
     vi.mocked(supabase.from).mockImplementation(makeStatusFromImpl(null));
-    const state = await fetchStabilityWindowState('user-1');
-    expect(state).toEqual(INITIAL_STABILITY_WINDOW_STATE);
+    const state = await fetchPersistedStabilityWindow('user-1');
+    expect(state).toEqual(INITIAL_PERSISTED_STABILITY_WINDOW);
   });
 
-  it('parses a real row back into StabilityWindowState, converting the jsonb array to a Set', async () => {
+  it('parses a real row back into current/previous/lastCommitChangedWindow, converting jsonb arrays to Sets', async () => {
     vi.mocked(supabase.from).mockImplementation(
       makeStatusFromImpl({
         last_eligible_top10: ['album-a', 'album-b'],
-        consecutive_match_run: 1,
-        fired: false,
+        consecutive_match_run: 2,
+        fired: true,
+        previous_last_eligible_top10: ['album-a'],
+        previous_consecutive_match_run: 1,
+        previous_fired: false,
+        last_commit_changed_window: true,
       })
     );
-    const state = await fetchStabilityWindowState('user-1');
+    const state = await fetchPersistedStabilityWindow('user-1');
     expect(state).toEqual({
-      lastEligibleTop10: new Set(['album-a', 'album-b']),
-      consecutiveMatchRun: 1,
-      fired: false,
+      current: {
+        lastEligibleTop10: new Set(['album-a', 'album-b']),
+        consecutiveMatchRun: 2,
+        fired: true,
+      },
+      previous: {
+        lastEligibleTop10: new Set(['album-a']),
+        consecutiveMatchRun: 1,
+        fired: false,
+      },
+      lastCommitChangedWindow: true,
     });
   });
 
-  it('treats a null last_eligible_top10 (pre-first-eligible-checkpoint) as null, not an empty set', async () => {
+  it('treats a null last_eligible_top10/previous_last_eligible_top10 as null, not an empty set', async () => {
     vi.mocked(supabase.from).mockImplementation(
-      makeStatusFromImpl({ last_eligible_top10: null, consecutive_match_run: 0, fired: false })
+      makeStatusFromImpl({
+        last_eligible_top10: null,
+        consecutive_match_run: 0,
+        fired: false,
+        previous_last_eligible_top10: null,
+        previous_consecutive_match_run: 0,
+        previous_fired: false,
+        last_commit_changed_window: false,
+      })
     );
-    const state = await fetchStabilityWindowState('user-1');
-    expect(state.lastEligibleTop10).toBeNull();
+    const state = await fetchPersistedStabilityWindow('user-1');
+    expect(state.current.lastEligibleTop10).toBeNull();
+    expect(state.previous.lastEligibleTop10).toBeNull();
   });
 });
 
@@ -102,13 +126,17 @@ describe('upsertWeightsAndStatus', () => {
     });
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never);
 
-    const stabilityWindow = {
-      lastEligibleTop10: new Set(['album-a', 'album-b']),
-      consecutiveMatchRun: 2,
-      fired: true,
+    const windowUpdate = {
+      current: {
+        lastEligibleTop10: new Set(['album-a', 'album-b']),
+        consecutiveMatchRun: 2,
+        fired: true,
+      },
+      previous: { lastEligibleTop10: new Set(['album-a']), consecutiveMatchRun: 1, fired: false },
+      lastCommitChangedWindow: true,
     };
 
-    await upsertWeightsAndStatus('user-1', catalog, computation, stabilityWindow);
+    await upsertWeightsAndStatus('user-1', catalog, computation, windowUpdate);
 
     expect(supabase.rpc).toHaveBeenCalledWith('upsert_calibration_status', {
       p_user_id: 'user-1',
@@ -117,17 +145,26 @@ describe('upsertWeightsAndStatus', () => {
       p_last_eligible_top10: ['album-a', 'album-b'],
       p_consecutive_match_run: 2,
       p_fired: true,
+      p_previous_last_eligible_top10: ['album-a'],
+      p_previous_consecutive_match_run: 1,
+      p_previous_fired: false,
+      p_last_commit_changed_window: true,
     });
   });
 
-  it('passes null for p_last_eligible_top10 when no eligible checkpoint has been seen yet', async () => {
+  it('passes null for both top10 fields when no eligible checkpoint has been seen yet', async () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'user_criterion_weights') return mockWeightsUpsert() as never;
       throw new Error(`unexpected table ${table}`);
     });
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never);
 
-    await upsertWeightsAndStatus('user-1', catalog, computation, INITIAL_STABILITY_WINDOW_STATE);
+    await upsertWeightsAndStatus(
+      'user-1',
+      catalog,
+      computation,
+      INITIAL_PERSISTED_STABILITY_WINDOW
+    );
 
     expect(supabase.rpc).toHaveBeenCalledWith(
       'upsert_calibration_status',
@@ -135,11 +172,15 @@ describe('upsertWeightsAndStatus', () => {
         p_last_eligible_top10: null,
         p_consecutive_match_run: 0,
         p_fired: false,
+        p_previous_last_eligible_top10: null,
+        p_previous_consecutive_match_run: 0,
+        p_previous_fired: false,
+        p_last_commit_changed_window: false,
       })
     );
   });
 
-  it('defaults to the empty stability window when the caller omits it (pre-wiring call site)', async () => {
+  it('defaults to the empty persisted window when the caller omits it (pre-wiring call site)', async () => {
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'user_criterion_weights') return mockWeightsUpsert() as never;
       throw new Error(`unexpected table ${table}`);
@@ -152,9 +193,20 @@ describe('upsertWeightsAndStatus', () => {
       'upsert_calibration_status',
       expect.objectContaining({
         p_last_eligible_top10: null,
-        p_consecutive_match_run: 0,
         p_fired: false,
+        p_previous_fired: false,
+        p_last_commit_changed_window: false,
       })
     );
+  });
+});
+
+// Sanity: INITIAL_STABILITY_WINDOW_STATE is still exported and used to build
+// INITIAL_PERSISTED_STABILITY_WINDOW's current/previous fields.
+describe('INITIAL_PERSISTED_STABILITY_WINDOW', () => {
+  it('is built from INITIAL_STABILITY_WINDOW_STATE for both current and previous', () => {
+    expect(INITIAL_PERSISTED_STABILITY_WINDOW.current).toEqual(INITIAL_STABILITY_WINDOW_STATE);
+    expect(INITIAL_PERSISTED_STABILITY_WINDOW.previous).toEqual(INITIAL_STABILITY_WINDOW_STATE);
+    expect(INITIAL_PERSISTED_STABILITY_WINDOW.lastCommitChangedWindow).toBe(false);
   });
 });
