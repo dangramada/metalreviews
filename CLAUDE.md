@@ -68,12 +68,20 @@ For the full branch history (including merged branches), see
 
 - `criteria-calibration-auto-escalation-signal` — Brief 3: tier-gated top-10 stability
   auto-escalation signal. Landed on the branch (pure signal + resume-safe persistence + UI
-  wiring); **not yet merged**. Both SQL migrations confirmed live on the database (schema +
-  RPC signature verified read-only). Live-browser verification done on a disposable test
-  account: clarification text, Undo, and refresh-resume all confirmed correct; genuine
-  pre-fired auto-escalation was not directly observed in 4 trials (converges at degree 2
-  every time — see the additive-model doc below for why). Full detail:
-  `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
+  wiring); **not yet merged, now blocked on a confirmed false-positive finding** (see below).
+  Both SQL migrations confirmed live on the database (schema + RPC signature verified
+  read-only). Live-browser verification done on a disposable test account: clarification
+  text, Undo, and refresh-resume all confirmed correct; genuine pre-fired auto-escalation was
+  not directly observed in 4 trials (converges at degree 2 every time — see the
+  additive-model doc below for why). A fine-grained (every-real-answer) replay of Dan's real
+  70-answer session confirmed the K=2 window's n=28 firing point is a false positive — the
+  real settle point is n=33; the top-10 set flips on a near-tied boundary between n=28 and
+  n=33. Root cause: K=2 measured as "checkpoints in a row" degrades to "2 real answers apart"
+  under per-commit checking, with no floor on real-answer span. Fix direction identified
+  (redefine the window as a minimum real-answer span, not a checkpoint count) but **not yet
+  implemented**. Full detail: `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
+  `docs/decisions/criteria-calibration-fine-grained-firing-instability.md` (the blocking
+  finding + proposed fix direction — supersedes the prior doc's "Before merging" section),
   `docs/decisions/criteria-calibration-additive-model-degree-sufficiency.md` (why degree-2
   alone converges this model, and the standing interaction-effects limitation this implies).
 
