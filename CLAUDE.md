@@ -66,22 +66,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-**Active: `criteria-calibration-lp-warm-start`** — splits `solveLP` into `prepareLP` +
-`solveFromPrepared` so the ~210 score-spread solves (and `solveValues`'s range solves) share
-one Phase 1 instead of rebuilding it per objective, and memoizes `nextAction` so the four
-animation-phase re-renders per question stop re-solving. Per-question blocking time at n=59:
-1881ms → 309ms (6.09×), output bit-for-bit identical (2314 solves compared, plus a full
-PAPRIKA before/after diff). Not yet merged. Full detail:
-`docs/decisions/criteria-calibration-lp-warm-start.md`.
+No active branches currently — most recent merge was `criteria-calibration-lp-warm-start`
+(splits `solveLP` into `prepareLP` + `solveFromPrepared` so many objectives over one
+constraint set share a single Phase 1; memoizes `nextAction` so the four animation-phase
+re-renders per question stop re-solving), merged to `master` `--no-ff` at `c2861ab` on
+2026-08-15. Rollback tag: `pre-merge-criteria-calibration-lp-warm-start`. Per-question
+blocking time at n=59: 1881ms → 309ms (6.09×), output bit-for-bit identical; live-verified
+on both real accounts. Full detail: `docs/decisions/criteria-calibration-lp-warm-start.md`.
+Deferred past this merge (all in `deferred-work.md`): the computation is still O(n²) — a
+constant factor was removed, not the complexity; the Web Worker decision is postponed, not
+rejected; `nextAction` still duplicates `computeCommitState`'s `solveValues`.
 
-Previous merge was
-`criteria-calibration-weights-write-race-fix` (guards `accuracy_value`/`tier`/`answer_count`
-in `upsert_calibration_status` against the out-of-order write race via `answer_count >=`),
-merged to `master` `--no-ff` at `3e679a7` on 2026-08-15. Rollback tag:
-`pre-merge-criteria-calibration-weights-write-race-fix`. Full detail:
-`docs/decisions/criteria-calibration-weights-write-race.md`. Two items deferred past this
-merge: `last_eligible_top10`/`last_change_answer_index` remain unguarded and can regress
-backward via the same race, a confirmed correctness risk to the already-shipped Brief 3
+Carried forward from the previous merge (`criteria-calibration-weights-write-race-fix`,
+`3e679a7`, 2026-08-15 — `docs/decisions/criteria-calibration-weights-write-race.md`):
+`last_eligible_top10`/`last_change_answer_index` remain unguarded and can regress backward
+via the same write race, a confirmed correctness risk to the already-shipped Brief 3
 auto-escalation signal (flagged, not routine — see `deferred-work.md`); `RANKING_TEST_SET`
 is also still not per-user (older, unrelated item, see `deferred-work.md`).
 
