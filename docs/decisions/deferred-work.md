@@ -615,6 +615,24 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   margin beyond the single observed instability window, not as the bare minimum that
   cleared it. Revisit together with the thresholds above once a second real calibration
   session is available.
+- **`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is
+  currently a static, hardcoded list of Dan's own 13 albumIds — not per-user.**
+  Surfaced 2026-08-14/15 while diagnosing why Brief 3's auto-escalation signal
+  degrades to a bare "R real answers after tier-eligibility" timer on any
+  account other than Dan's (`useRankingTestSetRatings.ts`'s query is correctly
+  RLS-scoped to the current user, but the 13 albumIds themselves are frozen
+  from Dan's own ratings, so every other account gets an empty ratings map —
+  confirmed live on a disposable test account). This is a deferred multi-user
+  limitation, not a permanent single-user-by-design decision — Dan confirmed
+  (2026-08-14 chat session) the product will eventually be multi-user. Before multi-user launch, this
+  needs to become per-user: each user's own already-rated albums, fetched
+  dynamically at calibration time, instead of a shared fixed list. The
+  2026-08-14 null-guard fix (`computeTop10Set` returning `null` below 10
+  ratings) already correctly models the "new user hasn't rated enough albums
+  yet" case this future design will hit constantly — no rework needed there,
+  just the source of the ratings needs to become per-user. Full context:
+  `criteria-calibration-duration-based-window-fix.md`,
+  `criteria-calibration-ranking-stability-analysis.md`.
 - **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
   algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
   round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).
