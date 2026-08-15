@@ -132,7 +132,7 @@ describe('generateCandidatesForSubset — partial-tie rejection', () => {
       levelsPerCriterion.map((max) => new Array(max + 1).fill(0)),
       levelsPerCriterion.map((max, i) => {
         const row = new Array(max + 1).fill(10);
-        row[((i % max) + 1)] = 0; // one under-touched level per criterion, rest saturated
+        row[(i % max) + 1] = 0; // one under-touched level per criterion, rest saturated
         return row;
       }),
     ];
@@ -497,7 +497,7 @@ describe('coverage-based degree escalation (replaces the old MAX_AMBIGUOUS_GAP g
     expect(firstCoverageCompleteAt!).toBeLessThanOrEqual(68);
   }, 30_000);
 
-  it('does NOT report degree-exhausted on Dan\'s real 33-answer production session — criteria 0-3 stay under-covered, criterion-0/level-3 worst of all', () => {
+  it("does NOT report degree-exhausted on Dan's real 33-answer production session — criteria 0-3 stay under-covered, criterion-0/level-3 worst of all", () => {
     // Re-verified directly against this session's real touch-count/range data (not assumed)
     // before writing this test: every (criterion, level) variable in this session has been
     // touched at least once (touchCounts are all >= 1, none are zero) — so touch count alone
@@ -640,5 +640,36 @@ describe('degree-3 partial-tie collision fix — regression against real session
 
     expect(selected).toBeGreaterThan(0); // sanity: the loop actually exercised real questions
     expect(collisions).toBe(0);
+  });
+});
+
+describe('nextAction determinism (the property CriteriaCalibrationPage memoizes on)', () => {
+  // CriteriaCalibrationPage calls nextAction inside a useMemo keyed on exactly its three
+  // arguments. That is only sound if repeated calls with unchanged arguments return the same
+  // action — otherwise memoizing would pin one of several possible questions and silently
+  // change what users see. It holds because nextAction keeps no state of its own and its only
+  // randomness is a per-subset seeded LCG, but that is a contract worth pinning rather than
+  // re-deriving from the implementation each time someone touches the driver.
+  it('returns the same action for an unchanged session, in both phases', () => {
+    const levelsPerCriterion = REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION;
+
+    // Cold-start phase: still filling in the C(N,2) coverage floor.
+    const early = new CalibrationSession();
+    for (const a of REAL_PRODUCTION_SESSION_ANSWERS.slice(0, 5)) {
+      early.recordAnswer(a.profileA, a.profileB, a.result);
+    }
+    expect(nextAction(early, levelsPerCriterion, 2)).toEqual(
+      nextAction(early, levelsPerCriterion, 2)
+    );
+
+    // Ambiguity-refinement phase: the branch that actually runs solveValues, i.e. the one
+    // the memo exists to stop repeating.
+    const full = new CalibrationSession();
+    for (const a of REAL_PRODUCTION_SESSION_ANSWERS) {
+      full.recordAnswer(a.profileA, a.profileB, a.result);
+    }
+    const first = nextAction(full, levelsPerCriterion, 2);
+    expect(nextAction(full, levelsPerCriterion, 2)).toEqual(first);
+    expect(nextAction(full, levelsPerCriterion, 2)).toEqual(first); // third call, same answer
   });
 });
