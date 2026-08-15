@@ -66,16 +66,22 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was `criteria-calibration-lp-warm-start`
-(splits `solveLP` into `prepareLP` + `solveFromPrepared` so many objectives over one
-constraint set share a single Phase 1; memoizes `nextAction` so the four animation-phase
-re-renders per question stop re-solving), merged to `master` `--no-ff` at `c2861ab` on
-2026-08-15. Rollback tag: `pre-merge-criteria-calibration-lp-warm-start`. Per-question
-blocking time at n=59: 1881ms → 309ms (6.09×), output bit-for-bit identical; live-verified
-on both real accounts. Full detail: `docs/decisions/criteria-calibration-lp-warm-start.md`.
-Deferred past this merge (all in `deferred-work.md`): the computation is still O(n²) — a
+No active branches currently — most recent merge was
+`criteria-calibration-second-session-reset` (admin/tooling + data operation: wiped Dan's
+completed 70-answer calibration session so a second validation session can be run;
+`album_criteria_ratings` untouched), merged to `master` `--no-ff` at `ea0b2a4` on 2026-08-15.
+Rollback tag: `pre-merge-criteria-calibration-second-session-reset`. Note the reset must
+DELETE, not upsert — `answer_count`/`fired` are guarded monotonic and an upsert cannot clear
+them; `archive-and-reset-calibration.ts --reset` is disabled for that reason. Full detail:
+`docs/decisions/criteria-calibration-second-session-reset.md`. Outstanding: the in-browser
+fresh-state check was not completed (page is behind auth) — worth a glance before starting
+the new session; score/rank badges stay absent app-wide until the new session's first commit.
+
+Carried forward from `criteria-calibration-lp-warm-start` (`c2861ab`, 2026-08-15 —
+`docs/decisions/criteria-calibration-lp-warm-start.md`): the computation is still O(n²) — a
 constant factor was removed, not the complexity; the Web Worker decision is postponed, not
-rejected; `nextAction` still duplicates `computeCommitState`'s `solveValues`.
+rejected; `nextAction` still duplicates `computeCommitState`'s `solveValues` (all in
+`deferred-work.md`).
 
 Carried forward from the previous merge (`criteria-calibration-weights-write-race-fix`,
 `3e679a7`, 2026-08-15 — `docs/decisions/criteria-calibration-weights-write-race.md`):
@@ -169,4 +175,5 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `criteria-calibration-dantzig-fix.md` — implemented 2026-08-12: `simplex.ts` pivoting switched Bland -> Dantzig (both phases + the artificial-cleanup handoff), plus a post-solve feasibility guard in `solveLP` and near-singular-pivot detection surfaced via a new `LPSolution.diagnostics`; `computeChebyshevCenter` now throws instead of degrading to an all-zero point estimate. Fixes the crash that stalled Dan's session at question #59 AND a live silent failure that had been persisting all-zero weights (confirmed read-only in the DB). Parity with Bland verified to <=2.9e-13 where Bland worked; `MAX_ITERATIONS` left at 2000 (>3x headroom, pinned by test). Point estimates changed materially — expected, see the doc. All-'equal'-at-high-n breakdown NOT fixed, now loud instead of silent, tracked in `deferred-work.md`; branch merged to `master` 2026-08-12
 - `criteria-calibration-weights-write-race.md` — diagnosed (not fixed) 2026-08-12: `upsertWeightsAndStatus` calls fired un-awaited on every commit can resolve out of order; `weightsGenRef` only gates the toast, not the write, so an older commit's write can silently overwrite a newer one's `accuracy_value` with no self-correction (confirmed on Dan's live `user_calibration_status` row, persisted at a stale mid-session 92.04% instead of the true final value); two candidate fixes identified, neither implemented, tracked in `deferred-work.md`
 - `criteria-calibration-lp-warm-start.md` — 2026-08-15: root-causes `computeScoreSpreadAccuracy`'s superlinear scaling to per-solve cost (call count is constant at 210) and to Phase 1 being rebuilt identically for every objective; `solveLP` split into `prepareLP`/`solveFromPrepared`, plus a `nextAction` `useMemo` fixing 4 solves per question down to 1. 1881ms → 309ms per question at n=59, bit-for-bit identical output. Also records the still-O(n²) ceiling and the deferred Web Worker decision
+- `criteria-calibration-second-session-reset.md` — 2026-08-15: data operation, wiped Dan's completed 70-answer session (answers + weights + status) so a second validation session can be run; `album_criteria_ratings` untouched. Records why the reset must DELETE rather than upsert (`answer_count`/`fired` are guarded monotonic, so `archive-and-reset-calibration.ts --reset` is now disabled and throws), and retracts an over-stated audit claim about `useRankingTestSetRatings`'s missing `user_id` filter (RLS already scopes it; the real corollary is that service-key scripts bypass RLS)
 - `criteria-calibration-ranking-stability-analysis.md` — evidentiary doc for Brief 3, 2026-08-10 through 2026-08-12: both the original pass (n=57 all-zero-weights anomaly, later explained by the Dantzig fix) and the Dantzig-corrected re-analysis (71-answer session, 13-album `RANKING_TEST_SET`); verdict is that none of Medium/High/Very-High cleanly separates "ranking settled" from "still moving" — evidence against Medium (0.55) as a safe auto-stop point, not proof of the correct threshold; single-session/single-user caveat applies. The temporary `rankingStabilityLog.ts` instrument that produced this data (and its `server.ts` route) was removed once the analysis was written; `rankingTestSet.ts` kept as historical evidence backing this doc
