@@ -4,7 +4,18 @@
 // and the follow-up briefs it references). Not wired into package.json or CI — run manually:
 //
 //   npx tsx scripts/archive-and-reset-calibration.ts --export-only   (steps 1-3, safe, no writes)
-//   npx tsx scripts/archive-and-reset-calibration.ts --reset         (step 4+5, after go-ahead)
+//   npx tsx scripts/archive-and-reset-calibration.ts --reset         (DISABLED — see below)
+//
+// !! --reset IS DISABLED as of 2026-08-15. Use scripts/reset-calibration-2026-08-15.ts. !!
+// Its resetCalibration() below upserts user_calibration_status to {tier:'none',
+// accuracy_value:0}, which was a complete reset when written but is NOT anymore: the
+// upsert_calibration_status guard added in
+// supabase/user_calibration_status-add-answer-count-guard.sql made answer_count monotonic
+// (`greatest(existing, excluded)`) and `fired` sticky (`existing or excluded`), so neither
+// can be cleared through an upsert. Running it now would leave a half-reset row — a stale
+// answer_count/fired surviving into what looks like a fresh session — and silently corrupt
+// the very stability-window signal a fresh validation session exists to measure. The
+// replacement DELETEs the row instead. --export-only remains safe and is left enabled.
 //
 // Scoped to a single hardcoded user_id (Dan's own account, single-user project) — never touches
 // any other user's rows. Deliberately does not touch engine/schema/fixture files.
@@ -84,7 +95,9 @@ async function verifyOtherUsersUnchanged(
 ): Promise<void> {
   const after = await countByUser(table);
   let mismatches = 0;
-  const otherUserIds = new Set([...before.keys(), ...after.keys()].filter((id) => id !== DAN_USER_ID));
+  const otherUserIds = new Set(
+    [...before.keys(), ...after.keys()].filter((id) => id !== DAN_USER_ID)
+  );
   for (const uid of otherUserIds) {
     const b = before.get(uid) ?? 0;
     const a = after.get(uid) ?? 0;
@@ -93,9 +106,7 @@ async function verifyOtherUsersUnchanged(
       console.error(`  MISMATCH for user ${uid} in ${table}: before=${b} after=${a}`);
     }
   }
-  console.log(
-    `  ${table}: ${otherUserIds.size} other user(s) checked, ${mismatches} mismatch(es)`
-  );
+  console.log(`  ${table}: ${otherUserIds.size} other user(s) checked, ${mismatches} mismatch(es)`);
 }
 
 async function resetCalibration(): Promise<void> {
@@ -124,7 +135,7 @@ async function resetCalibration(): Promise<void> {
     .upsert({ user_id: DAN_USER_ID, tier: 'none', accuracy_value: 0 }, { onConflict: 'user_id' });
   if (statusErr) throw new Error(`Failed to upsert status: ${statusErr.message}`);
 
-  console.log('\nVerifying Dan\'s reset state...');
+  console.log("\nVerifying Dan's reset state...");
   const [answersAfter, weightsAfter, statusAfter] = await Promise.all([
     fetchAll('user_calibration_answers', DAN_USER_ID),
     fetchAll('user_criterion_weights', DAN_USER_ID),
@@ -152,15 +163,28 @@ async function main() {
   }
 
   if (mode === '--reset') {
-    console.log('Running export as part of --reset (archive-before-write safety)...');
-    await exportArchive();
-    console.log('\nProceeding to reset (writes)...\n');
-    await resetCalibration();
-    console.log('\nReset complete.');
-    return;
+    // Fail loudly rather than perform a partial reset — see this file's header for the full
+    // mechanism. Throws before touching anything, so an accidental invocation is a no-op.
+    throw new Error(
+      '--reset is DISABLED as of 2026-08-15 and would leave a HALF-RESET status row.\n' +
+        '\n' +
+        "  Cause: this script's resetCalibration() upserts user_calibration_status, but\n" +
+        '  supabase/user_calibration_status-add-answer-count-guard.sql made answer_count\n' +
+        '  monotonic (greatest()) and `fired` sticky (OR) — an upsert CANNOT clear either.\n' +
+        '  A stale answer_count/fired would survive into an apparently fresh session and\n' +
+        '  corrupt the stability-window signal.\n' +
+        '\n' +
+        '  Use instead:  npx tsx scripts/reset-calibration-2026-08-15.ts\n' +
+        '  (DELETEs the rows, which is the only way to clear the guarded fields.)\n' +
+        '\n' +
+        '  --export-only is unaffected and still safe to run.'
+    );
   }
 
-  console.error('Usage: npx tsx scripts/archive-and-reset-calibration.ts --export-only | --reset');
+  console.error(
+    'Usage: npx tsx scripts/archive-and-reset-calibration.ts --export-only\n' +
+      '  (--reset is DISABLED — use scripts/reset-calibration-2026-08-15.ts)'
+  );
   process.exit(1);
 }
 
