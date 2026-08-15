@@ -82,3 +82,99 @@ Neither is implemented. Tracked as an open follow-up in `deferred-work.md`.
   the write-race behavior, only collapsed redundant LP solves.
 - `criteria-calibration-ranking-stability-analysis.md` — the diagnostic log used as
   cross-reference evidence here.
+
+## 2026-08-15 correction — the specific 92.04%/n=69 incident is not confirmed as an observed race
+
+Re-verification this date, live-querying Dan's account directly and recomputing
+`computeScoreSpreadAccuracy` fresh over the current answer log, found:
+
+- The account currently holds **70** answers, not 71. `user_calibration_status.updated_at`
+  is `2026-08-12T17:32:07Z` and has not changed since — no write, and no answer insert/
+  delete, has touched this account since the original diagnosis session ended.
+- A fresh recomputation over the live 70-answer log produces `0.920422402480693` — an
+  **exact match** (diff = 0) to the stored `accuracy_value`. The full n=1→70 trajectory
+  never exceeds ~0.9204 anywhere; there is no execution path through this data that
+  produces anything near the 0.99999 figure logged in `deferred-work.md` on 2026-08-15 as a
+  same-day, unexplained discrepancy against this same doc's evidence.
+- The three ranking-stability-log files (`answerCount` 3 through 69, every 3rd real commit,
+  spanning 2026-08-10 through 2026-08-12) are strictly monotonically non-decreasing
+  throughout, with zero evidence of an Undo at any logged checkpoint.
+- The original "71 answers total" figure (repeated in
+  `criteria-calibration-ranking-stability-analysis.md`) cannot be independently verified
+  against the log: the log only records every 3rd commit, and n=69 is the last multiple of
+  3 below both 70 and 71, so the log reads identically either way. There is also no
+  delete-audit trail in this schema (`user_calibration_answers` is a hard-delete table, no
+  soft-delete/tombstone) — so whether a genuine mid-session Undo took the count from 71 down
+  to 70 before the final write, versus "71" simply being a miscount, cannot be forensically
+  distinguished after the fact. Definitively ruled out: any deletion happening *after* the
+  original diagnosis session closed (`updated_at` unchanged since).
+
+Net effect: this account currently shows no live evidence of a persisted write-race
+outcome — the stored value is exactly what a fresh, correct final-state computation
+produces over the data that exists today. **The specific 92.04%/n=69 incident used as
+motivating evidence for this doc should not be treated as a confirmed observed race** —
+retracting that specific claim.
+
+This does **not** change the underlying structural finding: `upsert_calibration_status`'s
+conflict clause still unconditionally overwrites `accuracy_value`/`tier`/
+`last_eligible_top10`/`last_change_answer_index` with `excluded.*` on every write, with no
+ordering guard beyond `fired`'s existing OR-guard. That gap is real and independent of
+whether it has visibly bitten this account — it remains the justification for the
+`criteria-calibration-weights-write-race-fix` branch (adds an `answer_count`-gated guard on
+`accuracy_value`/`tier`; see `user_calibration_status-add-answer-count-guard.sql`).
+
+## Fix implemented (2026-08-15, branch `criteria-calibration-weights-write-race-fix`)
+
+Chose option (a) from the original three candidates: a DB-level monotonic guard, extending
+`upsert_calibration_status` rather than touching the client. Rejected (b) (gate the write
+*start* via `weightsGenRef`) because it provably can't close a last-instant race between two
+already-in-flight requests. Rejected (c) (serialized write queue / `AbortController`)
+because it touches `persistFailingRef`'s resolve/reject assumption for no extra benefit over
+(a), which was explicitly out of scope.
+
+**Schema**: `supabase/user_calibration_status-add-answer-count-guard.sql` adds an
+`answer_count` column (the `answers.length` a write was computed against) and rewrites
+`upsert_calibration_status`'s conflict clause so `accuracy_value`/`tier`/`answer_count` are
+only adopted from an incoming write when `excluded.answer_count >= user_calibration_status.answer_count`
+— **`>=`, not `>`**: a real current flow (Undo immediately followed by Redo landing back on
+the same answer_count, with the async `RANKING_TEST_SET` ratings fetch resolving in
+between — see `computeStabilityWindowUpdate`'s ratings-null skip in `commitComputation.ts`)
+can legitimately re-fire a write at an unchanged answer_count carrying a more complete
+stability-window payload than the first write at that count did; strict `>` would silently
+drop it. `fired`'s existing OR-guard is unchanged. `last_eligible_top10`/
+`last_change_answer_index`/the `previous_*` triple stay on plain `excluded.*` overwrites,
+deliberately — their staleness is already documented (in the two prior migrations' headers)
+as safe-direction/delay-only, not a correctness risk, so widening the guard to them was kept
+out of scope. Migration is idempotent (`add column if not exists`, `create or replace
+function`, an extra `drop function if exists` covering both the old and new signatures) —
+needed in practice, since the first apply attempt hit a stale partial-application state from
+an earlier try and had to be re-run.
+
+**App code**: `commitComputation.ts`'s `CommitComputation` now carries `answerCount:
+answers.length`, computed once alongside `solved`/`accuracy` inside `computeCommitState` (no
+new plumbing needed at the three call sites — `commitAdvance`/`handleUndo`/`handleRedo` all
+already had `nextAnswers` in scope, but reading it off the shared computation result keeps
+`applyCommitComputation`'s signature unchanged). `persistence.ts`'s `upsertWeightsAndStatus`
+passes it through as the new `p_answer_count` RPC argument. `weightsGenRef`'s toast-gating
+logic was not touched, per the brief.
+
+**Verification**:
+- Deliberate two-write race test against the RPC directly (disposable QA test account, no
+  existing row there beforehand — confirmed clean slate, restored to empty afterward): a
+  newer write (`answer_count=10`, accuracy 0.92/`high`) followed by a stale write
+  (`answer_count=9`, accuracy 0.70/`medium`) — the stale write was correctly rejected in
+  full (`accuracy_value`/`tier`/`answer_count` all stayed at the newer write's values). A
+  control case (a genuinely newer `answer_count=11` write afterward) applied correctly, and
+  a tied-`answer_count=11` write also applied correctly (confirming `>=` behavior, not
+  silently dropped).
+- Re-ran the Step 0 cross-check on Dan's live account post-migration: `answer_count`
+  backfilled to `70` (matching the live answer table exactly), `accuracy_value` unchanged at
+  `0.920422402480693`, and a fresh `computeScoreSpreadAccuracy` recompute over the live
+  70-answer log still matches it exactly (diff = 0) — the fix didn't disturb the already-
+  correct stored state.
+- `tsc --noEmit` clean. Full suite 288/288 (286 pre-existing + 2 new: `commitComputation.ts`
+  answerCount coverage in `commitComputation.test.ts`; the `persistence.test.ts` RPC-args
+  assertion was tightened to explicitly assert `p_answer_count`, since the pre-fix mock
+  fixture didn't set `answerCount` and the exact-match assertion was passing only because
+  `toHaveBeenCalledWith` treats an explicit `undefined` value as equal to an absent key —
+  not real coverage of the new field).

@@ -633,13 +633,13 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   just the source of the ratings needs to become per-user. Full context:
   `criteria-calibration-duration-based-window-fix.md`,
   `criteria-calibration-ranking-stability-analysis.md`.
-- **Unresolved: `accuracy_value` persisted in `user_calibration_status` for Dan's real
-  account disagrees significantly with a fresh `computeScoreSpreadAccuracy` recomputation
-  over the identical 70-answer log (0.9204 stored vs 0.99999 fresh, same code, same input —
-  found 2026-08-15, flagged but not chased further in that session).** Confirmed NOT present
-  on the disposable test account's parallel session (stored/fresh matched to 8+ decimals
-  there), so this is specific to Dan's real account/data, not a general bug in the metric.
-  Needs its own diagnostic session.
+- ~~**`accuracy_value`/fresh-recompute discrepancy on Dan's real account**~~ — **NOT
+  CONFIRMED, retracted.** Re-verified 2026-08-15 (`criteria-calibration-weights-write-race.md`'s
+  dated correction section): a fresh `computeScoreSpreadAccuracy` recompute over the live
+  70-answer log exactly matches (diff = 0) the stored `accuracy_value`, and no write or
+  answer mutation has touched the account since the original 92.04% reading. The 0.99999
+  figure doesn't reproduce and was most likely a bug in that session's own ad hoc check, not
+  a real stored/fresh mismatch.
 - **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
   algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
   round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).
@@ -653,15 +653,19 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   per-call `solveLP` invocations don't benefit from warm-starting between them, and/or move
   the computation off the main thread (Web Worker) so a slow solve degrades to a delayed
   number instead of a frozen UI.
-- **Weights/status upsert has an unfixed write-race — diagnosed 2026-08-12, not
-  implemented.** `upsertWeightsAndStatus` calls (fired un-awaited on every commit) can resolve
-  out of order; `weightsGenRef` only gates the success/failure toast, not the write itself, so
-  an older commit's write can silently overwrite a newer one's `accuracy_value` with no
-  self-correction. Confirmed on Dan's live `user_calibration_status` row (persisted at 92.04%,
-  matching an n=69 mid-session snapshot rather than the session's actual final n=71 state).
-  Two candidate fixes identified, neither implemented: extend `weightsGenRef` to gate the
-  write itself, or move to a serialized write queue / `AbortController` pattern. Full
-  diagnosis: `criteria-calibration-weights-write-race.md`.
+- ~~**Weights/status upsert had an unfixed write-race**~~ — **DONE**, fixed 2026-08-15 on
+  `criteria-calibration-weights-write-race-fix`. `upsert_calibration_status`'s conflict
+  clause now only adopts `accuracy_value`/`tier`/`answer_count` from a write whose
+  `answer_count` is `>=` the row's current value (see
+  `supabase/user_calibration_status-add-answer-count-guard.sql`), verified with a deliberate
+  two-write race test. Note: the account-level 92.04%/n=69 "evidence" that originally
+  motivated this diagnosis did not hold up under re-verification (see the item above and
+  `criteria-calibration-weights-write-race.md`'s dated correction) — the fix ships anyway
+  because the RPC's structural lack of a guard was real and independently confirmed by
+  reading its code, regardless of that one account never having visibly hit it.
+  `last_eligible_top10`/`last_change_answer_index`/the `previous_*` triple remain
+  unguarded, deliberately (their staleness is documented as safe-direction/delay-only).
+  Full detail: `criteria-calibration-weights-write-race.md`.
 - **Refresh-during-write data loss is mitigated, not eliminated.** Same session/doc as above.
   `usePendingWritesGuard.ts`'s `beforeunload` warning only helps if the browser actually
   shows the native confirmation and the user heeds it — a forced close, crash, or a dismissed
