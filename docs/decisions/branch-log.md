@@ -4,6 +4,8 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `criteria-calibration-weights-write-race-fix` — merged to master `3e679a7` (`--no-ff`), 2026-08-15; rollback tag `pre-merge-criteria-calibration-weights-write-race-fix` — full detail: `docs/decisions/criteria-calibration-weights-write-race.md`
+- `criteria-calibration-auto-escalation-signal` — merged to master `58cb51e` (`--no-ff`), 2026-08-15; rollback tag `pre-merge-criteria-calibration-auto-escalation-signal` — full detail: `docs/decisions/criteria-calibration-auto-escalation-signal.md`, `docs/decisions/criteria-calibration-duration-based-window-fix.md` (backfilled into this log 2026-08-15, was previously tracked only in CLAUDE.md's active-branches section)
 - `criteria-calibration-dantzig-fix` — merged to master `1a2c0aa` (`--no-ff`), 2026-08-12; rollback tag `pre-dantzig-fix` — full detail: `docs/decisions/criteria-calibration-dantzig-fix.md`
 - `criteria-calibration-coverage-escalation` — merged to master `c06e900`, 2026-08-10 — full detail: `docs/decisions/criteria-calibration-adaptive-degree-escalation.md`, `docs/decisions/deferred-work.md` ("Automatic degree escalation" entry)
 - `criteria-calibration-score-spread-accuracy` — merged to master `c1fd2c0`, 2026-08-09 — full detail: `docs/decisions/criteria-calibration-score-spread-accuracy.md`

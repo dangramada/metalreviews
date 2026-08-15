@@ -67,12 +67,15 @@ For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
 No active branches currently — most recent merge was
-`criteria-calibration-auto-escalation-signal` (Brief 3: duration-based top-10 stability
-auto-escalation signal, `REQUIRED_ANSWER_SPAN=12`), merged to `master` `--no-ff` at `58cb51e`
-on 2026-08-15. Rollback tag: `pre-merge-criteria-calibration-auto-escalation-signal`. Full
-detail: `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
-`docs/decisions/criteria-calibration-duration-based-window-fix.md`. One item deferred past
-this merge (`RANKING_TEST_SET` is not yet per-user — see `deferred-work.md`).
+`criteria-calibration-weights-write-race-fix` (guards `accuracy_value`/`tier`/`answer_count`
+in `upsert_calibration_status` against the out-of-order write race via `answer_count >=`),
+merged to `master` `--no-ff` at `3e679a7` on 2026-08-15. Rollback tag:
+`pre-merge-criteria-calibration-weights-write-race-fix`. Full detail:
+`docs/decisions/criteria-calibration-weights-write-race.md`. Two items deferred past this
+merge: `last_eligible_top10`/`last_change_answer_index` remain unguarded and can regress
+backward via the same race, a confirmed correctness risk to the already-shipped Brief 3
+auto-escalation signal (flagged, not routine — see `deferred-work.md`); `RANKING_TEST_SET`
+is also still not per-user (older, unrelated item, see `deferred-work.md`).
 
 (Update this section, not individual decision docs, when a new branch is started or a
 branch's status changes.)
