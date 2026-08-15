@@ -32,7 +32,7 @@
 // alone — identical and cacheable across every session with the same criteria shape.
 
 import { profileKey, type Profile } from './preferenceGraph.js';
-import { solveLP } from './simplex.js';
+import { prepareLP, solveFromPrepared, type PreparedLP } from './simplex.js';
 import { buildValueLP, profileCoeffs, type ValueSolverInput } from './solver.js';
 
 const SAMPLE_POOL_SIZE = 15;
@@ -112,9 +112,10 @@ export function defaultSamplePairs(levelsPerCriterion: number[]): [Profile, Prof
 }
 
 /** Max - min of `scoreProfile(A) - scoreProfile(B)` over the LP's feasible region — two
- *  `solveLP` calls, sharing the constraint set built once by the caller. */
+ *  Phase 2 solves against the constraint set the caller already prepared once. */
 function scoreDiffRangeWidth(
   lp: ReturnType<typeof buildValueLP>,
+  prep: PreparedLP,
   profileA: Profile,
   profileB: Profile
 ): number {
@@ -122,16 +123,11 @@ function scoreDiffRangeWidth(
   const coeffsB = profileCoeffs(profileB, lp.varIndex, lp.totalVars);
   const diff = coeffsA.map((v, i) => v - coeffsB[i]);
 
-  const maxResult = solveLP({
-    numVars: lp.totalVars,
-    objective: diff.map((v) => -v), // maximize diff == minimize -diff
-    constraints: lp.constraintsWithSlackCap,
-  });
-  const minResult = solveLP({
-    numVars: lp.totalVars,
-    objective: diff,
-    constraints: lp.constraintsWithSlackCap,
-  });
+  const maxResult = solveFromPrepared(
+    prep,
+    diff.map((v) => -v) // maximize diff == minimize -diff
+  );
+  const minResult = solveFromPrepared(prep, diff);
 
   // Both solves are against the same always-feasible region buildValueLP already
   // established (see its own infeasibility check) — a solve failing here would indicate a
@@ -149,10 +145,16 @@ function scoreDiffRangeWidth(
  * though the two aren't numerically comparable value-for-value (see module header).
  *
  * `samplePairs` defaults to `defaultSamplePairs(input.levelsPerCriterion)` — the fixed
- * seeded pool, not session-adaptive. Cost is `2 * samplePairs.length` LP solves plus the
- * one `buildValueLP` phase-1 solve; at the default 105 pairs this is ~16-120ms depending on
- * answer count (measured 2026-08-09) — cheap enough for an async/debounced recompute, not
- * for every render (see accuracyTiers.ts callers' recompute strategy).
+ * seeded pool, not session-adaptive. Cost is `2 * samplePairs.length` Phase 2 solves, plus
+ * `buildValueLP`'s phase-1 solve and one `prepareLP` over the resulting constraint set.
+ *
+ * All `2 * samplePairs.length` solves share one constraint set and differ only in objective,
+ * so Phase 1 is prepared ONCE here and reused (see simplex.ts's `PreparedLP`). Before that
+ * (2026-08-15) each solve redid it, which was ~79% of the work and made this scale ~O(n^2)
+ * in answer count. Measured at the default 105 pairs on a 6x5 catalog: 23ms at n=10 and
+ * 872ms at n=59 before, 6ms and 197ms after — superseding the "~16-120ms" figure this
+ * comment used to quote, which was measured 2026-08-09 at much lower answer counts and had
+ * become badly stale. Still a per-commit computation, not a per-render one.
  */
 export function computeScoreSpreadAccuracy(
   input: ValueSolverInput,
@@ -162,7 +164,8 @@ export function computeScoreSpreadAccuracy(
   if (pairs.length === 0) return 1;
 
   const lp = buildValueLP(input);
-  const widths = pairs.map(([a, b]) => scoreDiffRangeWidth(lp, a, b));
+  const prep = prepareLP(lp.totalVars, lp.constraintsWithSlackCap);
+  const widths = pairs.map(([a, b]) => scoreDiffRangeWidth(lp, prep, a, b));
   const avgWidth = widths.reduce((sum, w) => sum + w, 0) / widths.length;
   return Math.max(0, 1 - avgWidth / 2);
 }

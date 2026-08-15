@@ -52,6 +52,13 @@
 //      ~2/120 of Dan's real answer orderings, reporting a plausible objective alongside a
 //      weight vector containing a negative value variable.
 //
+// Entry points (2026-08-15): `solveLP` is the single-shot solve and is unchanged in
+// signature and behaviour, but it is now a composition of `prepareLP` (tableau + Phase 1,
+// objective-independent) and `solveFromPrepared` (Phase 2 for one objective). Callers that
+// solve MANY objectives over ONE constraint set — scoreSpreadAccuracy.ts and solveValues's
+// pass 2 — call those two directly so Phase 1 runs once instead of per objective. See
+// `PreparedLP` below and docs/decisions/criteria-calibration-lp-warm-start.md.
+//
 // Known limitation, deliberately NOT addressed here (see deferred-work.md): on
 // pathologically degenerate inputs — answer logs that are majority 'equal' at n >= 100, or
 // heavily self-contradictory at n >= 300 — Dantzig degrades too. Guard (2) makes those
@@ -244,29 +251,62 @@ function pivot(
   basis[leave] = enter;
 }
 
-export function solveLP(lp: LinearProgram): LPSolution {
-  const numOriginal = lp.numVars;
+/**
+ * A constraint set with Phase 1 already solved — everything `solveFromPrepared` needs to
+ * optimize ANY objective over that set without redoing feasibility work.
+ *
+ * Why this exists: the calibration path solves the same constraint set many times over with
+ * only the objective differing — 2 solves per sampled profile pair in
+ * `computeScoreSpreadAccuracy` (210 at the default 105-pair sample) and 2 per free value
+ * variable in `solveValues` (48 at the 6x5 production shape). Every one of those calls used
+ * to rebuild the tableau and re-run all of Phase 1 from scratch, which is objective-
+ * INDEPENDENT work: `lp.objective` is first read only when Phase 2 prices the objective row
+ * below, and Phase 2 zeroes that whole row (RHS column included) before repricing, so it
+ * inherits nothing from Phase 1. Measured at n=59 answers, that duplicated prefix was 79% of
+ * each solve's time and 80% of its pivots. See
+ * docs/decisions/criteria-calibration-lp-warm-start.md.
+ *
+ * This is a *structural* warm start — share the Phase 1 basis — not a dual-simplex
+ * re-optimization from a previous objective's optimum. That distinction is deliberate: from
+ * an identical starting tableau and basis, Phase 2 takes an identical pivot path, so results
+ * are bit-for-bit identical to solving cold. Re-optimizing from a previous optimum would cut
+ * Phase 2 pivots too, but changes the pivot path and forfeits that guarantee — not a trade
+ * worth making in a solver with this file's history of silent numerical corruption.
+ */
+export interface PreparedLP {
+  numOriginal: number;
+  numVars: number;
+  numRows: number;
+  /** Structural + slack/surplus columns, i.e. everything except artificials. */
+  numRealVars: number;
+  /** Rows 0..numRows-1 are the post-Phase-1 tableau. Row numRows (the objective row) is
+   *  scratch — `solveFromPrepared` rebuilds it per objective and never reads it. */
+  tableau: number[][];
+  basis: number[];
+  minPivotMagnitude: number;
+  totalPivots: number;
+  /** Non-null if Phase 1 itself failed. Feasibility is a property of the constraints alone,
+   *  so every objective over this set fails identically — recorded once, replayed per solve. */
+  failure: LPFailureReason | null;
+  /** The ORIGINAL constraints as passed in, kept for the post-solve feasibility guard —
+   *  which must check against these, not the internally rhs-normalized rows. */
+  constraints: Constraint[];
+}
+
+/**
+ * Builds the tableau and runs Phase 1 (plus the degenerate-artificial cleanup) for a
+ * constraint set. Depends on `constraints` only — never on any objective.
+ */
+export function prepareLP(numOriginal: number, constraints: Constraint[]): PreparedLP {
   // Accumulated across both phases so the diagnostics describe the whole solve, not just
-  // whichever phase happened to fail.
+  // whichever phase happened to fail. Phase 1's contribution is computed here and handed to
+  // `solveFromPrepared`, which continues accumulating into it.
   let minPivotMagnitude = Infinity;
   let totalPivots = 0;
-  const diagnose = (reason: LPFailureReason | undefined, maxViolation: number): LPDiagnostics => ({
-    reason,
-    maxViolation,
-    minPivotMagnitude,
-    nearSingularPivot: minPivotMagnitude < NEAR_SINGULAR_PIVOT_THRESHOLD,
-    totalPivots,
-  });
-  const infeasible = (reason: LPFailureReason, maxViolation = NaN): LPSolution => ({
-    feasible: false,
-    x: new Array(numOriginal).fill(0),
-    objectiveValue: NaN,
-    diagnostics: diagnose(reason, maxViolation),
-  });
 
   // Normalize so every constraint has rhs >= 0 (required for the initial basic
   // feasible solution built below).
-  const rows = lp.constraints.map((c) => {
+  const rows = constraints.map((c) => {
     if (c.rhs < 0) {
       const flippedType: ConstraintType = c.type === 'le' ? 'ge' : c.type === 'ge' ? 'le' : 'eq';
       return { coeffs: c.coeffs.map((v) => -v), type: flippedType, rhs: -c.rhs };
@@ -318,6 +358,16 @@ export function solveLP(lp: LinearProgram): LPSolution {
     tableau[i][numVars] = row.rhs;
   }
 
+  const base = {
+    numOriginal,
+    numVars,
+    numRows,
+    numRealVars: numOriginal + numSlackSurplus,
+    tableau,
+    basis,
+    constraints,
+  };
+
   // If nothing needs an artificial variable, the all-slack basis built above is already
   // feasible — skip Phase 1 entirely and go straight to Phase 2 on it.
   if (artificialCols.length > 0) {
@@ -342,12 +392,18 @@ export function solveLP(lp: LinearProgram): LPSolution {
       // minimizes a sum of non-negative artificials and is bounded below by 0. If it is ever
       // reported, the tableau has been numerically corrupted, which is exactly what the
       // diagnostics are here to make visible.
-      return infeasible(phase1.unbounded ? 'phase1-unbounded' : 'phase1-iteration-cap');
+      return {
+        ...base,
+        minPivotMagnitude,
+        totalPivots,
+        failure: phase1.unbounded ? 'phase1-unbounded' : 'phase1-iteration-cap',
+      };
     }
 
     const phase1Objective = -tableau[numRows][numVars]; // objective row's RHS is -objectiveValue
     if (phase1Objective > PHASE1_FEASIBILITY_TOLERANCE) {
-      return infeasible('phase1-genuinely-infeasible'); // genuinely infeasible
+      // genuinely infeasible
+      return { ...base, minPivotMagnitude, totalPivots, failure: 'phase1-genuinely-infeasible' };
     }
 
     // Drive any artificial still basic (necessarily at ~0, since Phase 1 objective ~0) out
@@ -374,15 +430,52 @@ export function solveLP(lp: LinearProgram): LPSolution {
       }
       // else: row is redundant (all real/slack coefficients are 0) — leave the artificial
       // basic at 0; it can never re-enter Phase 2 since Phase 2 excludes artificial columns
-      // from consideration entirely (see numRealVars below), so it stays pinned at 0.
+      // from consideration entirely (see numRealVars), so it stays pinned at 0.
     }
   }
 
+  return { ...base, minPivotMagnitude, totalPivots, failure: null };
+}
+
+/**
+ * Runs Phase 2 for one objective against an already-prepared constraint set. Safe to call
+ * repeatedly with the same `prep`: the tableau rows it pivots on are private copies, so
+ * `prep` is never mutated and every call starts from the identical Phase 1 basis.
+ */
+export function solveFromPrepared(prep: PreparedLP, objective: number[]): LPSolution {
+  const { numOriginal, numVars, numRows, numRealVars } = prep;
+  let minPivotMagnitude = prep.minPivotMagnitude;
+  let totalPivots = prep.totalPivots;
+  const diagnose = (reason: LPFailureReason | undefined, maxViolation: number): LPDiagnostics => ({
+    reason,
+    maxViolation,
+    minPivotMagnitude,
+    nearSingularPivot: minPivotMagnitude < NEAR_SINGULAR_PIVOT_THRESHOLD,
+    totalPivots,
+  });
+  const infeasible = (reason: LPFailureReason, maxViolation = NaN): LPSolution => ({
+    feasible: false,
+    x: new Array(numOriginal).fill(0),
+    objectiveValue: NaN,
+    diagnostics: diagnose(reason, maxViolation),
+  });
+
+  // Phase 1 already failed for this constraint set — the objective cannot rescue it.
+  if (prep.failure) return infeasible(prep.failure);
+
+  // Private working copy: the pivots below mutate rows in place, and `prep` has to survive
+  // intact for the next objective. Only the constraint rows are copied — the objective row
+  // is fully rebuilt just below, so copying it would be wasted work.
+  const tableau: number[][] = new Array(numRows + 1);
+  for (let i = 0; i < numRows; i++) tableau[i] = prep.tableau[i].slice();
+  tableau[numRows] = new Array(numVars + 1).fill(0);
+  const basis = prep.basis.slice();
+
   // --- Phase 2: real objective, artificial columns excluded from consideration (both from
-  // the entering-column search and by construction never re-priced below).
-  const numRealVars = numOriginal + numSlackSurplus;
-  for (let j = 0; j < numVars + 1; j++) tableau[numRows][j] = 0;
-  for (let j = 0; j < numOriginal; j++) tableau[numRows][j] = lp.objective[j] ?? 0;
+  // the entering-column search and by construction never re-priced below). The objective row
+  // starts at all-zero (allocated above) rather than being cleared, which is why nothing from
+  // Phase 1's objective row can leak into this solve.
+  for (let j = 0; j < numOriginal; j++) tableau[numRows][j] = objective[j] ?? 0;
   for (let i = 0; i < numRows; i++) {
     const b = basis[i];
     const coeff = tableau[numRows][b];
@@ -406,15 +499,26 @@ export function solveLP(lp: LinearProgram): LPSolution {
   // reduced cost — on a tableau corrupted by near-singular pivots that condition can hold
   // while the extracted x violates the very constraints it was solved against. Verifying x
   // directly against the ORIGINAL constraints (not the internally rhs-normalized rows) is
-  // the only check that cannot be fooled by the tableau's own state.
-  const maxViolation = maxConstraintViolation(lp.constraints, x);
+  // the only check that cannot be fooled by the tableau's own state. Stays per-objective —
+  // it validates the extracted x, which is objective-specific, so it cannot be hoisted into
+  // prepareLP alongside the rest of the shared work.
+  const maxViolation = maxConstraintViolation(prep.constraints, x);
   if (!(maxViolation <= FEASIBILITY_TOLERANCE)) {
     // `!(a <= b)` rather than `a > b` so a NaN violation also fails closed.
     return infeasible('post-solve-infeasible', maxViolation);
   }
 
   let objectiveValue = 0;
-  for (let j = 0; j < numOriginal; j++) objectiveValue += (lp.objective[j] ?? 0) * x[j];
+  for (let j = 0; j < numOriginal; j++) objectiveValue += (objective[j] ?? 0) * x[j];
 
   return { feasible: true, x, objectiveValue, diagnostics: diagnose(undefined, maxViolation) };
+}
+
+/**
+ * Single-shot solve. Unchanged in signature and behaviour — it is now literally
+ * `prepareLP` + `solveFromPrepared`, which is what makes the two paths equivalent by
+ * construction rather than by matching two parallel implementations.
+ */
+export function solveLP(lp: LinearProgram): LPSolution {
+  return solveFromPrepared(prepareLP(lp.numVars, lp.constraints), lp.objective);
 }
