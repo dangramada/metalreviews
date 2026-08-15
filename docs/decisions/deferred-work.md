@@ -2,7 +2,7 @@
 
 This file is the single place to check for real, previously-decided future work that
 has not yet been built or resolved. It does not replace the historical detail in
-individual decision docs — those remain the source of truth for *why* a decision was
+individual decision docs — those remain the source of truth for _why_ a decision was
 made; this file exists so nothing gets lost across dozens of session-scoped "what this
 session did NOT do" notes.
 
@@ -73,7 +73,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   unavailable to an individual developer; YouTube Music: no official API).
 - **Bulk MusicBrainz ID backfill pass** — current backfill is opportunistic-only;
   already-enriched albums that never got an MB match can stay `mb_release_group_id
-  = null` indefinitely under the current design. `album-identity-ingest.md`.
+= null` indefinitely under the current design. `album-identity-ingest.md`.
 - ~~**GitHub Actions cron for scheduled ingest**~~ — **DONE (2026-07-21)**.
   Implemented as `.github/workflows/ingest.yml` (`0 7,19 * * *` UTC +
   `workflow_dispatch`), calling `POST /api/ingest` with a server-only
@@ -130,6 +130,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   **Revisit trigger:** before any public launch, and before sharing the app
   with anyone outside Dan himself for testing/feedback. Full corrected-finding
   writeup: `auth-email-smtp.md`.
+
 - **Shareable AOTY page** (`/aoty/:shareId`) — route reserved (renamed from
   `/list/:shareId`), nothing built. `auth-routing.md`.
 - ~~**Favorites row mobile redesign**~~ — **DONE**, `favorites-row-mobile-layout` branch (not
@@ -158,7 +159,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   gets compared (e.g. criterion 0: `[0, 0.4995, 0.4996, 0.4996, 0.4996]` — one big
   jump 1->2, then flat). Weighting the draw away from level 1/max (already
   well-touched by cold start) pushes it toward levels 2-5 — precisely the region
-  the solver already treats as flat — so the weighted pool samples *more* into the
+  the solver already treats as flat — so the weighted pool samples _more_ into the
   flat region, not less. Fixing this requires changing how `solveValues` assigns
   point estimates within a criterion, not how candidates are chosen. **New finding
   surfaced by the same trace, possibly relevant to that upcoming solver-design
@@ -190,7 +191,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   fast enough that the gate never had to bridge an actual gap; both a
   same-instant resolve and a genuinely-late resolve are consistent with the
   passing result. Proposed but not attempted: throttle network in the browser
-  tool (if available) to force the refetch to resolve *after* the slide settles,
+  tool (if available) to force the refetch to resolve _after_ the slide settles,
   to get a harder guarantee than "verified under normal network conditions."
 - **`skipped_posts.url` has no index.** Surfaced 2026-08-07 while adding the
   `filterAlreadySkipped` safety-net check (see `roundup-skip-fix.md`'s stale-deploy
@@ -243,8 +244,8 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   `roundup-skip-fix.md`'s 2026-07-26 addendum), at which point the denylist fix
   should have prevented any further ingestion of it. A second, differently-ID'd
   copy was found live on 2026-08-07 (`reviews.id
-  8753001c-cc67-42fc-bdb1-e30b5c6b6f84`, `albums.id
-  47c1e4b8-340e-4705-8e98-768aefb0bae0`, `mb_lookup_attempts: 16` at time of
+8753001c-cc67-42fc-bdb1-e30b5c6b6f84`, `albums.id
+47c1e4b8-340e-4705-8e98-768aefb0bae0`, `mb_lookup_attempts: 16` at time of
   discovery — notably higher than a single MB-lookup-retry pattern would
   predict) and deleted (see `roundup-skip-fix.md`'s 2026-08-07 addendum). A
   correct `skipped_posts` row for this URL has existed since 2026-07-26 the
@@ -258,7 +259,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   brief called for this to stay deferred pending Dan's go-ahead
   (`album-identity-migration.md`), but a later session confirmed via direct live
   query that the column is already gone (`favorites` rows are `{ user_id,
-  created_at, album_id }` only — `album-identity-ingest.md`), and
+created_at, album_id }` only — `album-identity-ingest.md`), and
   `album-identity-frontend-homepage.md` explicitly logs the drop as "confirmed
   run." Listed here only so the now-superseded "not run yet" language in
   `album-identity-migration.md` isn't mistaken for current status.
@@ -329,15 +330,15 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   - **Non-review retrospective columns** (same bucket as roundup/list posts, not
     corrupted reviews): AMG's "Yer Metal Is Olde" (~120+ instances since Nov 2024,
     confirmed old-album-only via direct post fetch — e.g. reviews Stratovarius's
-    mid-90s *Episode*, not a new release) and AMG's "The Willowtip Files" (confirmed
+    mid-90s _Episode_, not a new release) and AMG's "The Willowtip Files" (confirmed
     retrospective — reviews a 2004 album as part of a "label's 2001–2006" feature). PS's
     "Lost in Time" (10+ instances since Mar 2025) is the same pattern, confirmed across
-    three separate instances (Metallica's 1991 *Black Album*, Anathallo's 2006 *Floating
-    World*, Watchtower's 1985 *Energetic Disassembly*) — always an old-album
+    three separate instances (Metallica's 1991 _Black Album_, Anathallo's 2006 _Floating
+    World_, Watchtower's 1985 _Energetic Disassembly_) — always an old-album
     retrospective, never new-release coverage.
   - **Genuine franchise-prefix pollution on a real, current review** — the one confirmed
     case is AMG's "AMG's Unsigned Band Rodeö" (~110+ instances since Dec 2024): checked
-    directly, it reviews a real new release (Blindfolded's *What Seeps through Threads*,
+    directly, it reviews a real new release (Blindfolded's _What Seeps through Threads_,
     released July 2025) with real numeric scores, but its band field still ends up
     polluted with the franchise prefix (`"AMG's Unsigned Band Rodeö: Blindfolded"`
     instead of `"Blindfolded"`). This is the one case where the pollution actually
@@ -356,7 +357,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   sentinel-colliding `band`/`album` pairs. The shipped fix (`roundup-skip-fix.md`,
   `unknown-band-collision-audit.md` §6) handles this generally via the RSS `<category>` tag
   signal identified here: genuine review items carry `Reviews`/`Review` (AMG) or `Album
-  Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts` now reads
+Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts` now reads
   `item.categories` to check for them. The one confirmed false-negative franchise (AMG's
   "Unsigned Band Rodeö", a genuine review filed under its own category instead of `Reviews`)
   is allowlisted by name. Other named-but-unverified AMG franchises ("AMG Goes Ranking", the
@@ -376,9 +377,9 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   non-review-post pollution — diagnosed and migrated, 2026-07-20.** Found while
   diagnosing the Metal-Storm-timeout score-collapse bug (2026-07-19). All 4
   were Angry Metal Guy, matching known non-review franchise patterns ("Yer
-  Metal is Olde: Warning" / *Watching from a Distance*, "The Willowtip Files:
-  Commit Suicide" / *Synthetics*, "Stuck in the Filter" / *April 2026's Angry
-  Misses*, "Record(s) o' the Month" / *March 2026*). Diagnosis confirmed all 4
+  Metal is Olde: Warning" / _Watching from a Distance_, "The Willowtip Files:
+  Commit Suicide" / _Synthetics_, "Stuck in the Filter" / _April 2026's Angry
+  Misses_, "Record(s) o' the Month" / _March 2026_). Diagnosis confirmed all 4
   `published_at` dates (2026-06-12 through 2026-07-02) predate the
   non-review-post skip-fix's ship date (2026-07-17) — not a live gap in the
   filter, simply outside the narrow scope of the prior two `stale-row-cleanup.md`
@@ -399,8 +400,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
     adding a `url`-based existence check before insert in
     `scripts/ingest.ts`'s `logSkippedPost` (now exported, covered by
     `scripts/__tests__/logSkippedPost.test.ts`); the 40 pre-existing
-    duplicates were then backfill-deduped (kept earliest row per URL) down to
-    4. `tsc --noEmit` clean, full test suite passing throughout. Not written
+    duplicates were then backfill-deduped (kept earliest row per URL) down to 4. `tsc --noEmit` clean, full test suite passing throughout. Not written
     up as a standalone decision doc — tracked here only, per explicit
     direction.
 - **Score-collapse fix (normalizeScore null-handling) — shipped, live
@@ -440,7 +440,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   unaffected. Full detail: `criteria-calibration-joint-point-estimate.md`.
 - **Medium tier can't distinguish middle levels — real ties, not a rare edge
   case.** Also found live 2026-07-30: Medium tier's degree-2 questions only ever
-  compare each criterion's *extreme* levels (1 vs 5), so levels 2–4 are never
+  compare each criterion's _extreme_ levels (1 vs 5), so levels 2–4 are never
   directly probed and land on identical solved values under monotonicity alone.
   Two differently-rated albums (4/4/3/4/3/3 vs 2/2/2/2/2/2) produced the exact
   same raw score. `rankAlbum`'s deterministic `albumId` tie-break — written
@@ -565,9 +565,9 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
      exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
      n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
      a test. Revisit alongside any auto-escalation work that lengthens sessions.
-  A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
-  recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
-  `criteria-calibration-dantzig-stress-test.md`.
+     A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
+     recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
+     `criteria-calibration-dantzig-stress-test.md`.
 - **All-'equal'-heavy answer logs at high n can still fail the LP — NOT fixed, deliberately
   out of scope of the 2026-08-12 Dantzig pass.** On pathologically degenerate inputs — answer
   logs that are majority `'equal'` at n >= 100, or >30% self-contradictory at n >= 300 —
@@ -615,6 +615,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   margin beyond the single observed instability window, not as the bare minimum that
   cleared it. Revisit together with the thresholds above once a second real calibration
   session is available.
+
 - **`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is
   currently a static, hardcoded list of Dan's own 13 albumIds — not per-user.**
   Surfaced 2026-08-14/15 while diagnosing why Brief 3's auto-escalation signal
@@ -640,19 +641,37 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   answer mutation has touched the account since the original 92.04% reading. The 0.99999
   figure doesn't reproduce and was most likely a bug in that session's own ad hoc check, not
   a real stored/fresh mismatch.
-- **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
-  algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
-  round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).
-  That pass collapsed 2-3 redundant per-commit calls down to 1 (~54% reduction measured), but
-  even a single call is ~2.2-2.35s at n=59 (synthetic 6-criterion fixture) — measured growth
-  10→50ms, 20→187ms, 30→436ms, 40→844ms, 50→1.35s, 59→2.2s, far worse than the "16-120ms"
-  figure in `scoreSpreadAccuracy.ts`'s own header (evidently measured at a much lower n). Dan
-  should expect continued, worsening sluggishness even after the redundancy fix. Explicitly
-  out of scope for that pass (forbidden from touching `solver.ts`/`scoreSpreadAccuracy.ts`'s
-  actual LP logic) — candidates for a dedicated follow-up: investigate why the ~210
-  per-call `solveLP` invocations don't benefit from warm-starting between them, and/or move
-  the computation off the main thread (Web Worker) so a slow solve degrades to a delayed
-  number instead of a frozen UI.
+- ~~**`computeScoreSpreadAccuracy` scales superlinearly with answer count**~~ — **DONE
+  (2026-08-15)**, on `criteria-calibration-lp-warm-start`. Diagnosis: call count is constant
+  at 210, so the superlinearity was entirely per-solve cost (~O(n²): tableau grows in both
+  dimensions per answer while pivot count grows too). All 210 solves shared one constraint set
+  and differed only in objective, so tableau construction + Phase 1 — 79% of each solve's time,
+  80% of its pivots — was identical work repeated 210 times. Fixed by splitting `solveLP` into
+  `prepareLP` + `solveFromPrepared` and preparing once (`simplex.ts`); `solveValues`'s pass-2
+  range solves share the same win. Warm-starting was the applicable mechanism of the two
+  originally guessed. Per-question blocking time at n=59: 1881ms → 309ms (6.09×), bit-for-bit
+  identical output verified over 2314 solves. Full detail:
+  `criteria-calibration-lp-warm-start.md`.
+- **Web Worker relocation for the per-commit LP computation — deliberately deferred, not
+  rejected.** Was the second of the two candidate mechanisms for the item above; the
+  diagnostic showed it addresses a different problem (hiding latency vs. removing work), so it
+  was held back rather than bundled. Decision point: measure the post-warm-start per-question
+  cost on Dan's actual hardware (~309ms at n=59 on the dev machine used for the fix) and
+  decide whether that residual still warrants going off-thread. Note if revisited:
+  `usePendingWritesGuard.ts`'s "Saving…"/pending-writes UI would need re-verification with the
+  computation off the main thread. `criteria-calibration-lp-warm-start.md` §5.
+- **`nextAction` and `computeCommitState` each run their own `solveValues` over the identical
+  answer log, twice per question.** Found 2026-08-15 during the warm-start pass. Deduping
+  needs an `elicitationDriver` API change to accept a pre-solved `ValueSolverResult`, which
+  couples the driver to its caller's compute lifecycle; after the warm start the duplicate
+  costs ~50ms at n=59 rather than ~200ms, so it was not worth the coupling in that pass.
+  Revisit only if per-question cost becomes a problem again.
+- **`computeScoreSpreadAccuracy` is still O(n²) after the warm start** — the pass removed a
+  ~4× constant factor, not the complexity; the residual is 96% genuine Phase 2 pivoting.
+  Around n≈120 per-question cost returns to what n=59 cost before the fix. No action needed
+  now (real sessions don't reach that), but this is the known ceiling of the current approach
+  — a genuine complexity fix would mean a different algorithm (revised simplex with a sparse
+  factorization, or an LP library), which is a much larger change.
 - ~~**Weights/status upsert had an unfixed write-race**~~ — **DONE**, fixed 2026-08-15 on
   `criteria-calibration-weights-write-race-fix`. `upsert_calibration_status`'s conflict
   clause now only adopts `accuracy_value`/`tier`/`answer_count` from a write whose
@@ -672,7 +691,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   `last_change_answer_index` can regress backward via the same write-race, and this can fire
   Brief 3's live auto-escalation signal EARLIER than the true trajectory warrants — not just
   later.** Confirmed live (not theoretical), though narrower in practice than the
-  accuracy_value/tier race the 2026-08-15 fix closed — see the trigger-assessment note added
+  accuracy*value/tier race the 2026-08-15 fix closed — see the trigger-assessment note added
   to that fix's approval for the concentration (fresh, non-resumed sessions; needs an early
   Undo that revisits the same answer_count; needs a genuine HTTP response reordering, which is
   real for this whole class of un-awaited writes but not guaranteed on any given commit). No
@@ -696,8 +715,8 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   stop — the risk is a premature *first* fire. Deliberately left unguarded in the
   2026-08-15 fix (out of scope for that pass's accuracy_value/tier target); a future fix
   would need the same `answer_count`-style guard extended to these two fields specifically
-  (not a blanket widening — `previous_*`/`last_commit_changed_window` may still be fine
-  unguarded, unexamined here). Full mechanism: `criteria-calibration-weights-write-race.md`'s
+  (not a blanket widening — `previous*\*`/`last_commit_changed_window`may still be fine
+unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-race.md`'s
   "Fix implemented" section.
 - **Refresh-during-write data loss is mitigated, not eliminated.** Same session/doc as above.
   `usePendingWritesGuard.ts`'s `beforeunload` warning only helps if the browser actually
