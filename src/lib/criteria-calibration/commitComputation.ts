@@ -47,7 +47,10 @@ export interface StabilityWindowContext {
   ratingsByAlbum: ReadonlyMap<string, CriterionLevelRating[]> | null;
 }
 
-function computeStabilityWindowUpdate(
+// Exported for direct unit testing (commitComputation.test.ts) — avoids needing a full
+// solveValues run just to exercise the "ratings not trustworthy" skip path, which only
+// depends on this function's own arguments, not on how `solved`/`accuracy` were produced.
+export function computeStabilityWindowUpdate(
   answerIndex: number,
   solved: ValueSolverResult,
   accuracy: number,

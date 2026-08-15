@@ -49,11 +49,25 @@ export function toFlatWeights(values: LevelValue[][]): CriterionLevelWeight[] {
  *
  * Purpose-built for RANKING_TEST_SET's fixed 13-album domain (see rankingTestSet.ts), not a
  * generic top-N utility — the "10" is Pass 3/4's own validated cutoff, not a parameter.
+ *
+ * Returns null (the same "can't compute" signal a missing weight level produces) if fewer
+ * than TOP_N albums are present in `ratingsByAlbum` — not just when it's completely empty.
+ * A per-user RLS-scoped fetch (see useRankingTestSetRatings.ts) returns zero rows for any
+ * account other than the one RANKING_TEST_SET was frozen from, and an empty ratings map
+ * would otherwise produce a real, non-null, but vacuous EMPTY Set — which trivially equals
+ * every other empty Set in advanceStabilityWindow's setsEqual check, silently degrading the
+ * signal to a bare answer-count timer completely decoupled from actual ranking stability
+ * (found live, see docs/decisions/criteria-calibration-duration-based-window-fix.md's
+ * per-user-scoping finding). A 1-9 row partial result is just as untrustworthy as 0 — either
+ * way the resulting slice isn't a genuine top-10 selection — so both are rejected identically
+ * here, forcing computeStabilityWindowUpdate (commitComputation.ts) to skip the checkpoint
+ * entirely rather than advance the window against untrustworthy data.
  */
 export function computeTop10Set(
   ratingsByAlbum: ReadonlyMap<string, CriterionLevelRating[]>,
   weights: CriterionLevelWeight[]
 ): Set<string> | null {
+  if (ratingsByAlbum.size < TOP_N) return null;
   const scored: { albumId: string; score: number }[] = [];
   for (const [albumId, ratings] of ratingsByAlbum) {
     const score = computeScore(ratings, weights);

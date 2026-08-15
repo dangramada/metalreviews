@@ -66,10 +66,32 @@ describe('computeTop10Set', () => {
   });
 
   it('returns null if a rating references a (criterion, level) the weights do not cover', () => {
-    const ratingsByAlbum = new Map<string, CriterionLevelRating[]>([
-      ['album-x', [{ criterionId: 0, level: 3 }]],
-    ]);
-    const weights = [{ criterionId: 0, level: 1, value: 0 }]; // level 3 missing
+    // 10 albums (clears the TOP_N floor below) so this exercises the unscoreable-rating path
+    // specifically, not the size guard.
+    const ratingsByAlbum = new Map<string, CriterionLevelRating[]>();
+    for (let i = 0; i < 9; i++) {
+      ratingsByAlbum.set(`album-${i}`, makeRatings(0, 1));
+    }
+    ratingsByAlbum.set('album-x', [{ criterionId: 0, level: 3 }]); // level 3 missing below
+    const weights = [{ criterionId: 0, level: 1, value: 0 }];
+    expect(computeTop10Set(ratingsByAlbum, weights)).toBeNull();
+  });
+
+  it('returns null when ratingsByAlbum is empty, rather than a vacuous empty Set', () => {
+    // The per-user-scoping finding: an RLS-scoped fetch returning zero rows for a non-owning
+    // account must not be indistinguishable from "top 10 is genuinely empty" — see
+    // docs/decisions/criteria-calibration-duration-based-window-fix.md.
+    const ratingsByAlbum = new Map<string, CriterionLevelRating[]>();
+    const weights = [{ criterionId: 0, level: 1, value: 0 }];
+    expect(computeTop10Set(ratingsByAlbum, weights)).toBeNull();
+  });
+
+  it('returns null when fewer than TOP_N (10) albums have ratings, not just when empty', () => {
+    const ratingsByAlbum = new Map<string, CriterionLevelRating[]>();
+    for (let i = 0; i < 9; i++) {
+      ratingsByAlbum.set(`album-${i}`, makeRatings(0, 1));
+    }
+    const weights = [{ criterionId: 0, level: 1, value: 0 }];
     expect(computeTop10Set(ratingsByAlbum, weights)).toBeNull();
   });
 });
