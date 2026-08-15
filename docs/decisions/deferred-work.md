@@ -667,9 +667,18 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   unguarded, deliberately in scope terms — but see the new item directly below for why their
   staleness is no longer simply "safe-direction/delay-only" as previously assumed.
   Full detail: `criteria-calibration-weights-write-race.md`.
-- **`last_eligible_top10`/`last_change_answer_index` can regress backward via the same
-  write-race, and this can fire the auto-escalation signal EARLIER than the true trajectory
-  warrants — not just later.** Surfaced 2026-08-15 while scoping the fix above, under direct
+- **CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL** (not routine cleanup — flagged distinctly
+  from this section's other accepted-not-fixed items): **`last_eligible_top10`/
+  `last_change_answer_index` can regress backward via the same write-race, and this can fire
+  Brief 3's live auto-escalation signal EARLIER than the true trajectory warrants — not just
+  later.** Confirmed live (not theoretical), though narrower in practice than the
+  accuracy_value/tier race the 2026-08-15 fix closed — see the trigger-assessment note added
+  to that fix's approval for the concentration (fresh, non-resumed sessions; needs an early
+  Undo that revisits the same answer_count; needs a genuine HTTP response reordering, which is
+  real for this whole class of un-awaited writes but not guaranteed on any given commit). No
+  user-visible symptom and no self-correction if it happens — worth prioritizing over this
+  section's other items precisely because it's silent. Surfaced 2026-08-15 while scoping the
+  fix above, under direct
   challenge to the "staleness here only delays firing, never falsely un-fires" claim from
   the two prior migrations' headers (`user_calibration_status-add-stability-window.sql`,
   `-add-previous-window.sql`). Mechanism, reproduced live in
