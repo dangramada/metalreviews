@@ -633,6 +633,13 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   just the source of the ratings needs to become per-user. Full context:
   `criteria-calibration-duration-based-window-fix.md`,
   `criteria-calibration-ranking-stability-analysis.md`.
+- **Unresolved: `accuracy_value` persisted in `user_calibration_status` for Dan's real
+  account disagrees significantly with a fresh `computeScoreSpreadAccuracy` recomputation
+  over the identical 70-answer log (0.9204 stored vs 0.99999 fresh, same code, same input —
+  found 2026-08-15, flagged but not chased further in that session).** Confirmed NOT present
+  on the disposable test account's parallel session (stored/fresh matched to 8+ decimals
+  there), so this is specific to Dan's real account/data, not a general bug in the metric.
+  Needs its own diagnostic session.
 - **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
   algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
   round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).
