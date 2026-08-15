@@ -216,7 +216,24 @@ export function CriteriaCalibrationPage() {
     return s;
   }, [answers]);
 
-  const action = catalog ? nextAction(session, catalog.levelsPerCriterion, degree) : null;
+  // Memoized because nextAction runs a full solveValues internally once past the cold-start
+  // phase (elicitationDriver.ts's ambiguity-refinement branch) — measured at 203ms on a
+  // 59-answer 6x5 session before the LP warm start landed, ~50ms after. Called bare in the
+  // render body it re-solved on EVERY render, and one answered question produces four:
+  // the selection/hold/fade state machine below sets `phase` in four separate timeout ticks
+  // (holding -> fading-out -> fading-in -> idle). Three of those four renders change neither
+  // the answer log nor the degree, so they were re-deriving a result that could not have
+  // changed. See docs/decisions/criteria-calibration-lp-warm-start.md.
+  //
+  // The deps are exactly nextAction's three arguments, and it holds no state of its own —
+  // every decision is derived from the session passed in, with the only randomness being a
+  // per-subset seeded LCG, so it is deterministic given these three. `session` is itself
+  // memoized on `answers` above, and `answers` is always replaced with a fresh array
+  // (never mutated in place), so its identity changes exactly when the answer log does.
+  const action = useMemo(
+    () => (catalog ? nextAction(session, catalog.levelsPerCriterion, degree) : null),
+    [catalog, session, degree]
+  );
 
   // Single live accuracy value drives both the Progress ring and the Accuracy label/number
   // — previously these were two different metrics (canonical degree-2 pair coverage for the

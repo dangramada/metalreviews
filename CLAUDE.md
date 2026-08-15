@@ -29,17 +29,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   state) comes first, since every session reads it. Historical completion narratives and the
   Past-decisions index go last — reference material, read only when the task at hand needs it.
 - **Branch lifecycle**: a merged branch (`--no-ff`) may be deleted, local + remote, once
-  >=14 days have passed since its merge date — safety rests on the merge commit's first
-  parent (always the pre-merge rollback point) plus the `docs/decisions/branch-log.md`
-  entry as the durable record, not on keeping the ref. Review cadence: folded into the
-  existing roughly-monthly `deferred-work.md` review — same session, check
-  `branch-log.md` for anything >=14 days past merge, delete what qualifies. Exception: a
-  branch ref confirmed stale (behind master — master has commits not reachable from the
-  branch) is deleted regardless of age, since a stale ref is actively misleading rather
-  than "not yet due." Branches that were never merged (rejected/abandoned work) are
-  **not** covered by this automatic policy — deleting them loses code that exists
-  nowhere else, so each such branch is a separate, explicit decision. On deletion,
-  append a note to the branch's `branch-log.md` line rather than removing the line.
+  > =14 days have passed since its merge date — safety rests on the merge commit's first
+  > parent (always the pre-merge rollback point) plus the `docs/decisions/branch-log.md`
+  > entry as the durable record, not on keeping the ref. Review cadence: folded into the
+  > existing roughly-monthly `deferred-work.md` review — same session, check
+  > `branch-log.md` for anything >=14 days past merge, delete what qualifies. Exception: a
+  > branch ref confirmed stale (behind master — master has commits not reachable from the
+  > branch) is deleted regardless of age, since a stale ref is actively misleading rather
+  > than "not yet due." Branches that were never merged (rejected/abandoned work) are
+  > **not** covered by this automatic policy — deleting them loses code that exists
+  > nowhere else, so each such branch is a separate, explicit decision. On deletion,
+  > append a note to the branch's `branch-log.md` line rather than removing the line.
 
 ## Commands
 
@@ -66,7 +66,15 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was
+**Active: `criteria-calibration-lp-warm-start`** — splits `solveLP` into `prepareLP` +
+`solveFromPrepared` so the ~210 score-spread solves (and `solveValues`'s range solves) share
+one Phase 1 instead of rebuilding it per objective, and memoizes `nextAction` so the four
+animation-phase re-renders per question stop re-solving. Per-question blocking time at n=59:
+1881ms → 309ms (6.09×), output bit-for-bit identical (2314 solves compared, plus a full
+PAPRIKA before/after diff). Not yet merged. Full detail:
+`docs/decisions/criteria-calibration-lp-warm-start.md`.
+
+Previous merge was
 `criteria-calibration-weights-write-race-fix` (guards `accuracy_value`/`tier`/`answer_count`
 in `upsert_calibration_status` against the out-of-order write race via `answer_count >=`),
 merged to `master` `--no-ff` at `3e679a7` on 2026-08-15. Rollback tag:
@@ -161,4 +169,5 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `criteria-calibration-dantzig-stress-test.md` — read-only diagnostic 2026-08-12: extended the prior n=59-only Dantzig test across n=20…800, three data tracks and six adversarial constructions; verdict **GO** for a production Dantzig implementation (0 failures on all realistic data vs Bland's 44/120 at n=59, 30/30 at n=150; strict dominance over 1760 paired solves). Also root-causes the crash to `EPS = 1e-9` admitting near-singular pivots (Dantzig is a mitigation, not a cure), records the rejected Bland-fallback design, and flags that Bland silently returns constraint-violating weights in ~2/120 real orderings today. No production files touched; follow-ups in `deferred-work.md`
 - `criteria-calibration-dantzig-fix.md` — implemented 2026-08-12: `simplex.ts` pivoting switched Bland -> Dantzig (both phases + the artificial-cleanup handoff), plus a post-solve feasibility guard in `solveLP` and near-singular-pivot detection surfaced via a new `LPSolution.diagnostics`; `computeChebyshevCenter` now throws instead of degrading to an all-zero point estimate. Fixes the crash that stalled Dan's session at question #59 AND a live silent failure that had been persisting all-zero weights (confirmed read-only in the DB). Parity with Bland verified to <=2.9e-13 where Bland worked; `MAX_ITERATIONS` left at 2000 (>3x headroom, pinned by test). Point estimates changed materially — expected, see the doc. All-'equal'-at-high-n breakdown NOT fixed, now loud instead of silent, tracked in `deferred-work.md`; branch merged to `master` 2026-08-12
 - `criteria-calibration-weights-write-race.md` — diagnosed (not fixed) 2026-08-12: `upsertWeightsAndStatus` calls fired un-awaited on every commit can resolve out of order; `weightsGenRef` only gates the toast, not the write, so an older commit's write can silently overwrite a newer one's `accuracy_value` with no self-correction (confirmed on Dan's live `user_calibration_status` row, persisted at a stale mid-session 92.04% instead of the true final value); two candidate fixes identified, neither implemented, tracked in `deferred-work.md`
+- `criteria-calibration-lp-warm-start.md` — 2026-08-15: root-causes `computeScoreSpreadAccuracy`'s superlinear scaling to per-solve cost (call count is constant at 210) and to Phase 1 being rebuilt identically for every objective; `solveLP` split into `prepareLP`/`solveFromPrepared`, plus a `nextAction` `useMemo` fixing 4 solves per question down to 1. 1881ms → 309ms per question at n=59, bit-for-bit identical output. Also records the still-O(n²) ceiling and the deferred Web Worker decision
 - `criteria-calibration-ranking-stability-analysis.md` — evidentiary doc for Brief 3, 2026-08-10 through 2026-08-12: both the original pass (n=57 all-zero-weights anomaly, later explained by the Dantzig fix) and the Dantzig-corrected re-analysis (71-answer session, 13-album `RANKING_TEST_SET`); verdict is that none of Medium/High/Very-High cleanly separates "ranking settled" from "still moving" — evidence against Medium (0.55) as a safe auto-stop point, not proof of the correct threshold; single-session/single-user caveat applies. The temporary `rankingStabilityLog.ts` instrument that produced this data (and its `server.ts` route) was removed once the analysis was written; `rankingTestSet.ts` kept as historical evidence backing this doc

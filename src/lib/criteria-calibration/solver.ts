@@ -32,7 +32,13 @@
 //      by construction it satisfies normalization exactly (up to LP solver float epsilon).
 
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
-import { solveLP, type Constraint, type LPSolution } from './simplex.js';
+import {
+  prepareLP,
+  solveFromPrepared,
+  solveLP,
+  type Constraint,
+  type LPSolution,
+} from './simplex.js';
 
 /**
  * Renders simplex.ts's diagnostics into an actionable error message. The distinction that
@@ -297,6 +303,13 @@ export function solveValues(input: ValueSolverInput): ValueSolverResult {
 
   const centerPoint = computeChebyshevCenter(constraintsWithSlackCap, totalVars, numValueVars);
 
+  // Pass 2's min/max solves all run against `constraintsWithSlackCap` and differ only in
+  // objective, so Phase 1 is prepared once and shared across all 2*numValueVars of them (see
+  // simplex.ts's `PreparedLP`). The Chebyshev solve above deliberately does NOT use this: it
+  // runs against a different constraint set (every inequality widened by r, plus an extra
+  // variable), so there is nothing for it to share.
+  const rangePrep = prepareLP(totalVars, constraintsWithSlackCap);
+
   const values: LevelValue[][] = levelsPerCriterion.map((m) => new Array(m + 1).fill(undefined));
   for (let c = 0; c < levelsPerCriterion.length; c++) {
     values[c][1] = { point: 0, min: 0, max: 0 };
@@ -305,19 +318,11 @@ export function solveValues(input: ValueSolverInput): ValueSolverResult {
 
       const objMin = new Array(totalVars).fill(0);
       objMin[idx] = 1;
-      const minResult = solveLP({
-        numVars: totalVars,
-        objective: objMin,
-        constraints: constraintsWithSlackCap,
-      });
+      const minResult = solveFromPrepared(rangePrep, objMin);
 
       const objMax = new Array(totalVars).fill(0);
       objMax[idx] = -1;
-      const maxResult = solveLP({
-        numVars: totalVars,
-        objective: objMax,
-        constraints: constraintsWithSlackCap,
-      });
+      const maxResult = solveFromPrepared(rangePrep, objMax);
 
       const minVal = minResult.feasible ? minResult.x[idx] : 0;
       const maxVal = maxResult.feasible ? maxResult.x[idx] : minVal;
