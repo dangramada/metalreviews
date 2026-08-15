@@ -634,6 +634,22 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   just the source of the ratings needs to become per-user. Full context:
   `criteria-calibration-duration-based-window-fix.md`,
   `criteria-calibration-ranking-stability-analysis.md`.
+  - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
+    `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
+    with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account
+    as a possible cross-user pollution path for the top-10 stability signal; **checked and
+    ruled out** — `album_criteria_ratings` has RLS enabled with
+    `using (auth.uid() = user_id)` (`supabase/album_criteria_ratings.sql:35-41`), so the
+    frontend query is already per-user at the DB layer, exactly as the parent entry states.
+    What remains is only that the scoping is implicit: a reader of the hook can't see it
+    without knowing the policy, and the sibling queries in `useAlbumRatingsSummary.ts` /
+    `AlbumRatingPage.tsx` rely on the same implicit scoping. Worth an explicit filter (or at
+    minimum a comment naming the RLS dependency) when the per-user rework above happens —
+    that rework will move this query off a fixed id list anyway. **Separately and more
+    importantly:** service-key scripts (`scripts/*.ts` via `scripts/supabaseClient.ts`)
+    **bypass RLS entirely**, so any script touching this table must filter on `user_id`
+    explicitly — `scripts/verify-pre-reset-step0.ts` and
+    `scripts/reset-calibration-2026-08-15.ts` both do.
 - ~~**`accuracy_value`/fresh-recompute discrepancy on Dan's real account**~~ — **NOT
   CONFIRMED, retracted.** Re-verified 2026-08-15 (`criteria-calibration-weights-write-race.md`'s
   dated correction section): a fresh `computeScoreSpreadAccuracy` recompute over the live
