@@ -66,7 +66,31 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-(No active branches right now — the working tree is on `master`.)
+- `criteria-calibration-auto-escalation-signal` — Brief 3: tier-gated top-10 stability
+  auto-escalation signal. **Not yet merged** — the original K=2 checkpoint-count window was
+  found (fine-grained real-70-answer replay) to fire on a false positive at n=28 (real settle
+  point n=35); replaced with a duration-based window (`REQUIRED_ANSWER_SPAN=12` real answers
+  with an unchanged tier-eligible top-10 set, provisional). Implementation + all three
+  migrations confirmed live (2026-08-14) + live-browser re-verification all done; duration
+  firing itself behaves exactly as designed (confirmed live: fires at anchor+12, stays fired,
+  no re-flip). **New blocker surfaced by that live pass, more fundamental than the window-timing
+  fix**: `RANKING_TEST_SET`'s top-10-membership check is only ever real for Dan's own account —
+  `useRankingTestSetRatings.ts`'s query is RLS-scoped to the current user, but the 13 albumIds
+  are frozen from Dan's own ratings specifically, so every other account (confirmed live on the
+  disposable test account) gets an empty ratings map, and the signal degrades to a bare
+  "R real answers after tier-eligibility" timer, completely decoupled from actual ranking
+  stability — not an R-tuning problem, no R fixes it. This also means genuine no-click
+  auto-escalation remains unobserved live, now for a precise structural reason (near-impossible
+  on non-Dan accounts) rather than just unlucky timing — still untested on Dan's own real
+  account. Needs a decision (ship as-is if truly single-user-only in practice, or fix the
+  per-user scoping) before merge. Full detail:
+  `docs/decisions/criteria-calibration-auto-escalation-signal.md`,
+  `docs/decisions/criteria-calibration-fine-grained-firing-instability.md` (the K=2
+  false-positive finding), `docs/decisions/criteria-calibration-duration-based-window-fix.md`
+  (the fix, R-value sweep, persistence design analysis, implementation, AND the live
+  verification + new per-user-scoping finding — current "Before merging"),
+  `docs/decisions/criteria-calibration-additive-model-degree-sufficiency.md` (why degree-2
+  alone converges this model, and the standing interaction-effects limitation this implies).
 
 (Update this section, not individual decision docs, when a new branch is started or a
 branch's status changes.)
