@@ -616,6 +616,18 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   cleared it. Revisit together with the thresholds above once a second real calibration
   session is available.
 
+  **Second real session, 2026-08-15 (corroborating, still not dispositive):** replayed
+  the second validation session's 71-answer log (see
+  `docs/decisions/criteria-calibration-second-session-reset.md`) through the unmodified
+  signal, same fine-grained per-real-answer method as the first session's replay. Last
+  real top-10 change at n=45; `fired` flips at n=57 (45+12, exactly R=12); span held
+  through the end of the log (n=71) with zero re-flips — same pattern as the first
+  session's n=35→70 hold. No false positive on this second independent trace. Two data
+  points now instead of one, both single-user (Dan's own account) — real evidence, not
+  yet enough to stop treating R=12 as provisional. Full numbers, plus the full
+  accuracy/tier/fired trajectory:
+  `docs/decisions/second-session-accuracy-trajectory-2026-08-15.csv`.
+
 - **`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is
   currently a static, hardcoded list of Dan's own 13 albumIds — not per-user.**
   Surfaced 2026-08-14/15 while diagnosing why Brief 3's auto-escalation signal
@@ -741,6 +753,28 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   `keepalive` fetch flag threaded through the Supabase client (non-trivial — no per-call fetch
   override currently exists in `supabaseClient.ts`), deferred as not urgent enough to justify
   that plumbing on top of the same pass's other fixes.
+- **Undo across a degree boundary shows the wrong degree's content until a manual page
+  refresh.** Live-observed 2026-08-15, second calibration session, Undo from degree 4 back
+  to degree 3 around round 46. Root cause diagnosed (read-only, not fixed): `degree`
+  (`CriteriaCalibrationPage.tsx`) is a plain `useState`, mutated in exactly two places — the
+  resume effect and `handleEscalate` (line ~501) — both forward-only. `handleUndo` (line
+  ~424) pops `answers`/`windowHistory` but never touches `degree`. `action` (the displayed
+  question) DOES correctly recompute on every Undo — it's a `useMemo` on
+  `[catalog, session, degree]` and `session` rebuilds fresh from `answers` — so this is not
+  a memoization-staleness bug; it recomputes against the wrong (stale, never-decremented)
+  `degree` value, so once every degree-4 answer is undone it still calls
+  `nextAction(session, degree=4)` and gets a *fresh* degree-4 result instead of reverting to
+  degree 3. A page refresh fixes it because reload re-invokes `useCalibrationResume`, which
+  re-derives `degree` from the now-shorter persisted log (`Math.max(...profile-key-counts,
+  STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs on mount.
+  Explicitly distinct from the 2026-08-14 "degree came back at 2 instead of 3 after
+  refresh" note in `criteria-calibration-auto-escalation-signal.md` — that one confirmed
+  `useCalibrationResume`'s resume-time inference is *correct*; this is a live in-session gap
+  with no resume involved. Answer-log data integrity checked and unaffected by this
+  specific Undo: 0 duplicate profile-pairs, 0 out-of-order timestamps, 0 sub-50ms
+  insert/delete-race candidates across the full 71-row log. **Not fixed this session** —
+  needs a `handleUndo` path that re-derives `degree` from the truncated answer log the same
+  way resume does, or an explicit call to the same inference helper.
 
 ## C. Design/branding (open)
 
@@ -785,6 +819,20 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   `album-rating-page--concept-draft.md`. Same status: idea only, no design work done.
   **Status: not scheduled.** Needs a dedicated Concept Draft session before any code — do
   not implement from this note alone.
+  **Sub-note (2026-08-15, mechanical replay, not new design work):** the "round 58"/"round
+  72" figures above are the UI's `RoundCounter` label (`answers.length + 1` —
+  `CriteriaCalibrationPage.tsx:273`), confirmed by a full replay of the session's real
+  `user_calibration_answers` log: 71 real answers, `fired` at answer_count 57 (round 58),
+  session's actual final `nextAction` call independently returns `degree-exhausted`/
+  `coverage-complete` at n=71 (round 72) — both match this entry's live-observed numbers
+  exactly. Same replay quantifies the post-saturation gap this entry already describes
+  qualitatively ("held through round 72"): **14 real degree-4 answers were asked between
+  firing (n=57) and actual exhaustion (n=71)**, all after accuracy had already reached
+  0.9999+ — i.e., real user time spent past the point the model had anything left to
+  learn, the concrete cost of not yet having this entry's proposed two-signal display.
+  Not fixing here, just quantifying: full trajectory in
+  `docs/decisions/second-session-accuracy-trajectory-2026-08-15.csv`; the fired/exhaustion
+  mechanics themselves are also written up under the `REQUIRED_ANSWER_SPAN` entry above.
   Cross-reference: "Criteria Calibration header layout" above (related area, distinct
   scope — not to be merged).
 - **Logo** — T-ligature concept explored across five typefaces (Bebas Neue,
