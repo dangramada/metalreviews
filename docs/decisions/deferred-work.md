@@ -166,6 +166,90 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   decision:** criterion 5 received a solved weight of essentially zero across all 5
   levels (`[0, 0, 0, 0, 0]`) on this real session — flat at zero, not just flat
   among levels 2-5. Full trace output and reasoning: `docs/decisions/criteria-calibration-coverage-weighted-candidates.md`.
+
+  **2026-08-15 addendum — re-verified against Dan's second, independent 71-answer
+  session, read-only, no production files touched
+  (`scripts/diagnose-second-session-flatness-2026-08-15.ts`, live
+  `user_calibration_answers` replay through the real `solveValues`).** Four things
+  checked, per the standing brief:
+
+  1. **`MAX_AMBIGUOUS_GAP` status: confirmed dead code, not a live gate.** Only
+     two references in the whole tree: a comment in `elicitationDriver.ts:398`
+     ("replaces the old gap-based `MAX_AMBIGUOUS_GAP` check") and a `describe()`
+     label in `elicitationDriver.test.ts:451`. The constant itself no longer
+     exists in source. `nextAction` consults `isDegreeCoverageComplete` /
+     `MAX_VALUE_RANGE_FOR_COVERAGE` (fixed at `0.2`, not criteria-count-scaled)
+     instead — fully superseded by the 2026-08-09 coverage-based escalation
+     design checkpoint. This makes the original confound (a) as literally framed
+     (does `MAX_AMBIGUOUS_GAP` need to scale with criteria count?) moot: there is
+     nothing left to recalibrate. A parallel question could be asked of
+     `MAX_VALUE_RANGE_FOR_COVERAGE` instead, but that is a different mechanism,
+     not a resolution of the old confound, and — same as before — two sessions at
+     a fixed 6-criteria count can't separate a criteria-count effect from
+     anything else regardless of which threshold is in question. Not resolvable
+     with current data; not forced.
+
+  2. **The flat-plateau shape did NOT reproduce as originally described, but a
+     related degree-2-confinement pattern did, and it resolved once the session
+     escalated past degree 2.** Checkpoints every ~10 real answers plus the
+     three degree-transition boundaries (degree 2 ends at n=28, degree 3 spans
+     n=29-49, degree 4 spans n=50-71, degree distribution 28/21/22):
+     - **While still confined to degree 2 (n=28, the last purely-degree-2
+       checkpoint):** several criteria show a flat/zero pair among *low* levels
+       instead of high levels — e.g. criterion 0: `[0, 0, 0.0832, 0.1249,
+       0.1667]` (flat 1-2, then differentiated 3-5); criterion 2: `[0, 0, 0,
+       0.0830, 0.1666]` (flat 1-3, then differentiated). This is the same
+       qualitative phenomenon as the original finding — adjacent levels
+       collapsing to indistinguishable point estimates — but the *specific*
+       levels affected differ (1-2/1-3 here vs. 2-5 in the original), which the
+       original session-level diagnosis couldn't have shown since it only ever
+       reached degree 2.
+     - **Once degree escalated to 3 then 4 (n=29 through the final n=71), the
+       flatness dissolved.** Final state, all six criteria, no adjacent-level
+       gap under 0.02: criterion 0 `[0, 0.0242, 0.0713, 0.1189, 0.1667]`;
+       criterion 1 `[0, 0.0233, 0.0714, 0.1184, 0.1668]`; criterion 2 `[0,
+       0.0235, 0.0472, 0.0709, 0.1666]`; criterion 3 `[0, 0.0239, 0.0949,
+       0.1422, 0.1667]`; criterion 4 `[0, 0.0242, 0.0481, 0.0953, 0.1667]`;
+       criterion 5 `[0, 0.0475, 0.0712, 0.0954, 0.1665]`. No criterion shows a
+       near-flat run of two or more adjacent non-level-1 levels anywhere in this
+       final state.
+     - **Working hypothesis this raises, not yet confirmed:** the original
+       33-answer trace was diagnosed *while the session was stuck at degree 2*
+       (its own doc records `nextAction()` returning a degree-2 ask at the
+       moment of the trace). The flatness may be substantially a
+       degree-2-confinement symptom — a criterion only gets enough independent
+       constraints to separate its middle levels once cross-criterion
+       comparisons at degree 3+ start arriving — rather than a standalone,
+       permanent defect in `solveValues`' point-estimate assignment. This does
+       **not** rule out a real solver-side issue (the degree-2-only shape above
+       is still a genuine flat/indistinguishable region that existed at that
+       point in the session, and a session that stalls at degree 2 for longer
+       than this one did would presumably keep it), but it means "the solver
+       treats levels 2-5 as flat" is not the most precise statement of the
+       mechanism. Worth factoring into the future solver-design brief rather
+       than assuming the original framing still holds unmodified.
+
+  3. **Criterion-5-style total zero-weight did NOT reproduce, at any checkpoint
+     sampled (n=10, 20, 28, 29, 40, 49, 50, 60, 70, 71).** Max solved point
+     across all 5 levels, per criterion, at the final state: criterion 0
+     `0.1667`, criterion 1 `0.1668`, criterion 2 `0.1666`, criterion 3 `0.1667`,
+     criterion 4 `0.1667`, criterion 5 `0.1665` — none near zero, and by n=10
+     every criterion already had at least one non-level-1 level at ~0.166+ from
+     cold-start extreme comparisons. No criterion in this session was ever
+     starved of solved weight the way criterion 5 was in the first. Reported as
+     a genuine non-reproduction, not assumed fixed — a single non-reproducing
+     session doesn't rule out position- or content-dependent recurrence on a
+     future session, especially since the original zero-weight criterion and
+     this session's exact configuration weren't confirmed to be the identical
+     criterion set/order.
+
+  4. **Confound (a) is not resolvable with current data**, and for a different
+     reason than expected going in: not because two 6-criteria sessions can't
+     separate a criteria-count effect (true, but moot), but because the gate it
+     was originally about no longer exists in production. See point 1.
+
+  Script used (kept, read-only, not wired into any build step):
+  `scripts/diagnose-second-session-flatness-2026-08-15.ts`.
 - **Criteria Calibration UI never displays the current `degree` anywhere —
   flagged 2026-08-11, not fixed.** Surfaced while diagnosing/fixing the
   degree-jump anomaly (`docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md`):
