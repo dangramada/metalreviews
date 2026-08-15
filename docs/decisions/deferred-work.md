@@ -250,6 +250,27 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
   Script used (kept, read-only, not wired into any build step):
   `scripts/diagnose-second-session-flatness-2026-08-15.ts`.
+
+  **2026-08-15 follow-up framing — two unseparated candidate explanations, and
+  a priority downgrade.** The re-verification above found a *different* flat
+  region (levels 1-3, not 2-5) at the degree-2-confined checkpoint (n=28),
+  which then resolved by n=71. Two candidate explanations, not distinguished
+  by this data: (a) escaping degree-2 confinement specifically resolved it, or
+  (b) total answer volume (33 vs. 71) resolved it regardless of degree — the
+  two sessions differ on both dimensions simultaneously (more answers *and*
+  more degree escalation), so this can't be separated yet. The differing
+  flat-region location (1-3 vs. the original's 2-5) also weakens the idea that
+  this is a stable, level-specific solver pathology — it's more consistent
+  with generic sparse-data under-determination that can appear anywhere data
+  is still thin, not a defect tied to particular levels.
+
+  Downgrading this item's priority: given the final state at n=71 shows no
+  gap under 0.02 anywhere, there's no current evidence of a permanent solver
+  defect requiring a dedicated fix. No solver-design brief scoped for now.
+  Revisit only if a future real session shows persistent flatness that
+  doesn't resolve with continued real answers, ideally on a third independent
+  account/session so degree-confinement and answer volume can finally be
+  separated.
 - **Criteria Calibration UI never displays the current `degree` anywhere —
   flagged 2026-08-11, not fixed.** Surfaced while diagnosing/fixing the
   degree-jump anomaly (`docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md`):
