@@ -664,8 +664,32 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   because the RPC's structural lack of a guard was real and independently confirmed by
   reading its code, regardless of that one account never having visibly hit it.
   `last_eligible_top10`/`last_change_answer_index`/the `previous_*` triple remain
-  unguarded, deliberately (their staleness is documented as safe-direction/delay-only).
+  unguarded, deliberately in scope terms — but see the new item directly below for why their
+  staleness is no longer simply "safe-direction/delay-only" as previously assumed.
   Full detail: `criteria-calibration-weights-write-race.md`.
+- **`last_eligible_top10`/`last_change_answer_index` can regress backward via the same
+  write-race, and this can fire the auto-escalation signal EARLIER than the true trajectory
+  warrants — not just later.** Surfaced 2026-08-15 while scoping the fix above, under direct
+  challenge to the "staleness here only delays firing, never falsely un-fires" claim from
+  the two prior migrations' headers (`user_calibration_status-add-stability-window.sql`,
+  `-add-previous-window.sql`). Mechanism, reproduced live in
+  `scripts/verify-write-race-guard.ts` check #4: `computeStabilityWindowUpdate`'s
+  ratings-null skip (`commitComputation.ts`) means a write computed *before* the
+  `RANKING_TEST_SET` ratings fetch resolves carries the client's prior (pre-advance) window
+  state; if that write's HTTP response resolves at the DB *after* a later write (e.g. the
+  same commit reached again via Undo+Redo, once ratings had resolved) already advanced
+  `last_eligible_top10`/`last_change_answer_index` forward, the stale write silently
+  overwrites them backward — `last_change_answer_index` regressed `11` → `4` in the
+  reproduction. A regressed (smaller) `last_change_answer_index` makes a later resumed
+  session compute a *larger* apparent stability span than the true trajectory, which can
+  fire Brief 3's auto-escalation signal early. `fired` itself still can't regress
+  true→false (its own OR-guard is unaffected), so this can't un-fire an already-correct
+  stop — the risk is a premature *first* fire. Deliberately left unguarded in the
+  2026-08-15 fix (out of scope for that pass's accuracy_value/tier target); a future fix
+  would need the same `answer_count`-style guard extended to these two fields specifically
+  (not a blanket widening — `previous_*`/`last_commit_changed_window` may still be fine
+  unguarded, unexamined here). Full mechanism: `criteria-calibration-weights-write-race.md`'s
+  "Fix implemented" section.
 - **Refresh-during-write data loss is mitigated, not eliminated.** Same session/doc as above.
   `usePendingWritesGuard.ts`'s `beforeunload` warning only helps if the browser actually
   shows the native confirmation and the user heeds it — a forced close, crash, or a dismissed

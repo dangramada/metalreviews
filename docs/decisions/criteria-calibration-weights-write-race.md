@@ -132,23 +132,50 @@ already-in-flight requests. Rejected (c) (serialized write queue / `AbortControl
 because it touches `persistFailingRef`'s resolve/reject assumption for no extra benefit over
 (a), which was explicitly out of scope.
 
-**Schema**: `supabase/user_calibration_status-add-answer-count-guard.sql` adds an
-`answer_count` column (the `answers.length` a write was computed against) and rewrites
-`upsert_calibration_status`'s conflict clause so `accuracy_value`/`tier`/`answer_count` are
-only adopted from an incoming write when `excluded.answer_count >= user_calibration_status.answer_count`
-— **`>=`, not `>`**: a real current flow (Undo immediately followed by Redo landing back on
-the same answer_count, with the async `RANKING_TEST_SET` ratings fetch resolving in
-between — see `computeStabilityWindowUpdate`'s ratings-null skip in `commitComputation.ts`)
-can legitimately re-fire a write at an unchanged answer_count carrying a more complete
-stability-window payload than the first write at that count did; strict `>` would silently
-drop it. `fired`'s existing OR-guard is unchanged. `last_eligible_top10`/
-`last_change_answer_index`/the `previous_*` triple stay on plain `excluded.*` overwrites,
-deliberately — their staleness is already documented (in the two prior migrations' headers)
-as safe-direction/delay-only, not a correctness risk, so widening the guard to them was kept
-out of scope. Migration is idempotent (`add column if not exists`, `create or replace
-function`, an extra `drop function if exists` covering both the old and new signatures) —
-needed in practice, since the first apply attempt hit a stale partial-application state from
-an earlier try and had to be re-run.
+**Schema**: `supabase/user_calibration_status-add-answer-count-guard.sql` adds a `NOT NULL
+DEFAULT 0` `answer_count` column (the `answers.length` a write was computed against;
+confirmed live that a direct `NULL` insert is rejected by the constraint, so the guard's
+`excluded.answer_count >= current` comparison can never silently short-circuit on a `NULL`)
+and rewrites `upsert_calibration_status`'s conflict clause so `accuracy_value`/`tier`/
+`answer_count` are only adopted from an incoming write when
+`excluded.answer_count >= user_calibration_status.answer_count` — **`>=`, not `>`**: the
+correct reason (corrected from an earlier draft of this note — see below) is that
+`accuracy_value`/`tier` are pure functions of the answer-list content, so two writes tied at
+the same `answer_count` compute identical values whenever they're Undo+Redo-of-the-same-
+answer, but answer_count can also tie via *different* answer-list states (Undo, then a
+*different* real answer) — a strict `>` would freeze the field at whichever write happens to
+land first at a given count, forever rejecting every subsequent write at that same count even
+if it's the one that actually reflects the current DB state. `>=` avoids that freeze by
+reproducing today's pre-fix "last write wins" behavior on ties specifically, which is not a
+regression. `fired`'s existing OR-guard is unchanged. Migration is idempotent (`add column if
+not exists`, `create or replace function`, an extra `drop function if exists` covering both
+the old and new signatures) — needed in practice, since the first apply attempt hit a stale
+partial-application state from an earlier try and had to be re-run.
+
+`last_eligible_top10`/`last_change_answer_index`/the `previous_*` triple stay on plain
+`excluded.*` overwrites, completely unaffected by this migration's guard either way (this was
+scoped correctly from the start; an earlier draft of this note incorrectly attributed the
+`>=` choice to a scenario involving these fields, which the `>=`/`>` decision can't actually
+affect since they're never gated at all). **Re-verified 2026-08-15, following a direct
+challenge to this scoping**: the prior two migrations' "staleness here only delays firing,
+never falsely un-fires" argument for leaving these two fields unguarded does **not** cleanly
+extend to a specific mechanism found this session. `computeStabilityWindowUpdate`'s
+ratings-null skip (`commitComputation.ts`) means a write computed *before* the
+`RANKING_TEST_SET` ratings fetch resolves carries the client's prior (pre-advance) window
+state; if that write's HTTP response resolves at the DB *after* a later write (e.g. the same
+commit reached again via Undo+Redo, this time with ratings already resolved) already advanced
+`last_eligible_top10`/`last_change_answer_index` forward, the stale write silently
+overwrites them backward — reproduced directly against the live RPC in
+`scripts/verify-write-race-guard.ts`'s check #4: `last_change_answer_index` regressed from
+`11` to `4` via exactly this tied-answer_count mechanism. A regressed (smaller)
+`last_change_answer_index` makes a later resumed session compute a *larger* apparent
+stability span than the true trajectory warrants, which could fire the auto-escalation
+signal *earlier* than it should — not merely later, the property the original argument
+actually established. This is a real, pre-existing gap (these fields were always unguarded;
+this migration doesn't introduce or worsen it), left unfixed here since it's out of scope for
+the accuracy_value/tier bug this migration targets. Tracked as its own, newly-distinct item
+in `deferred-work.md` — no longer covered by the "safe direction" characterization the prior
+migrations used for the window fields as a group.
 
 **App code**: `commitComputation.ts`'s `CommitComputation` now carries `answerCount:
 answers.length`, computed once alongside `solved`/`accuracy` inside `computeCommitState` (no
@@ -158,23 +185,31 @@ already had `nextAnswers` in scope, but reading it off the shared computation re
 passes it through as the new `p_answer_count` RPC argument. `weightsGenRef`'s toast-gating
 logic was not touched, per the brief.
 
-**Verification**:
-- Deliberate two-write race test against the RPC directly (disposable QA test account, no
-  existing row there beforehand — confirmed clean slate, restored to empty afterward): a
-  newer write (`answer_count=10`, accuracy 0.92/`high`) followed by a stale write
-  (`answer_count=9`, accuracy 0.70/`medium`) — the stale write was correctly rejected in
-  full (`accuracy_value`/`tier`/`answer_count` all stayed at the newer write's values). A
-  control case (a genuinely newer `answer_count=11` write afterward) applied correctly, and
-  a tied-`answer_count=11` write also applied correctly (confirming `>=` behavior, not
-  silently dropped).
-- Re-ran the Step 0 cross-check on Dan's live account post-migration: `answer_count`
-  backfilled to `70` (matching the live answer table exactly), `accuracy_value` unchanged at
-  `0.920422402480693`, and a fresh `computeScoreSpreadAccuracy` recompute over the live
-  70-answer log still matches it exactly (diff = 0) — the fix didn't disturb the already-
-  correct stored state.
-- `tsc --noEmit` clean. Full suite 288/288 (286 pre-existing + 2 new: `commitComputation.ts`
-  answerCount coverage in `commitComputation.test.ts`; the `persistence.test.ts` RPC-args
-  assertion was tightened to explicitly assert `p_answer_count`, since the pre-fix mock
-  fixture didn't set `answerCount` and the exact-match assertion was passing only because
-  `toHaveBeenCalledWith` treats an explicit `undefined` value as equal to an absent key —
-  not real coverage of the new field).
+**Verification**: `scripts/verify-write-race-guard.ts` (kept in the repo, not a throwaway —
+not run by `npm run test` since it exercises real Postgres conflict-clause semantics a mocked
+`supabase.rpc()` can't validate; run manually against the disposable QA test account, which
+the script confirms has no pre-existing row before running and deletes again at the end):
+1. Out-of-order `answer_count` (newer write `answer_count=10`/0.92/`high`, then a stale write
+   `answer_count=9`/0.70/`medium`) — stale write correctly rejected in full.
+2. A genuinely newer `answer_count=11` write afterward — applies correctly.
+3. A tied `answer_count=11` write with a different `accuracy_value` — applies correctly
+   (confirms `>=`, not silently dropped by a stricter `>`).
+4. A tied `answer_count=11` write with a different `last_eligible_top10`/
+   `last_change_answer_index` — this is the check added after the scoping review above:
+   confirms (rather than assumes) that these two fields are unconditionally last-write-wins,
+   and directly reproduces the `last_change_answer_index` regression (`11` → `4`) described
+   above as a real, open gap.
+
+Also re-ran the Step 0 cross-check on Dan's live account post-migration: `answer_count`
+backfilled to `70` (matching the live answer table exactly), `accuracy_value` unchanged at
+`0.920422402480693`, and a fresh `computeScoreSpreadAccuracy` recompute over the live
+70-answer log still matches it exactly (diff = 0) — the fix didn't disturb the already-correct
+stored state. Also confirmed directly that `answer_count` can never be `NULL` — a deliberate
+raw insert with `answer_count: null` against the DB was rejected by the `NOT NULL` constraint.
+
+`tsc --noEmit` clean. Full suite 288/288 (286 pre-existing + 2 new: `commitComputation.ts`
+answerCount coverage in `commitComputation.test.ts`; the `persistence.test.ts` RPC-args
+assertion was tightened to explicitly assert `p_answer_count`, since the pre-fix mock fixture
+didn't set `answerCount` and the exact-match assertion was passing only because
+`toHaveBeenCalledWith` treats an explicit `undefined` value as equal to an absent key — not
+real coverage of the new field).
