@@ -175,16 +175,17 @@ export async function fetchPersistedStabilityWindow(
  *
  * The status write goes through the upsert_calibration_status RPC (see
  * supabase/user_calibration_status-add-stability-window.sql,
- * supabase/user_calibration_status-add-previous-window.sql, and
- * supabase/user_calibration_status-rename-duration-window.sql), not a plain `.upsert()` —
- * `fired` needs an atomic `fired OR excluded.fired` at the database level so an
- * out-of-order write (the write-race documented in
- * docs/decisions/criteria-calibration-weights-write-race.md, still unfixed) can never
- * regress an already-fired stop signal back to unfired. Every other field here (including
- * last_change_answer_index/last_eligible_top10 and the previous_ triple / last_commit_changed_window
- * fields) still goes through that same unfixed race — only `fired`'s regression direction is
- * dangerous enough to need the guard now (see the second migration's header for why
- * previous_fired specifically doesn't need it either — it's mathematically always false).
+ * supabase/user_calibration_status-add-previous-window.sql,
+ * supabase/user_calibration_status-rename-duration-window.sql, and
+ * supabase/user_calibration_status-add-answer-count-guard.sql), not a plain `.upsert()` —
+ * `fired` has an atomic `fired OR excluded.fired` at the database level so an out-of-order
+ * write (the write-race documented in docs/decisions/criteria-calibration-weights-write-race.md)
+ * can never regress an already-fired stop signal back to unfired, and accuracy_value/tier
+ * are now guarded the same way against an `answer_count` that's gone backward (see the
+ * answer-count-guard migration's header for why `>=` and not `>`). last_eligible_top10/
+ * last_change_answer_index and the previous_ triple still go through that same race
+ * unguarded — their staleness is documented as safe-direction/delay-only, not a correctness
+ * risk, so widening the guard to them is out of scope.
  */
 export async function upsertWeightsAndStatus(
   userId: string,
@@ -223,6 +224,7 @@ export async function upsertWeightsAndStatus(
     p_user_id: userId,
     p_tier: tier,
     p_accuracy_value: accuracy,
+    p_answer_count: computation.answerCount,
     p_last_eligible_top10: current.lastEligibleTop10 ? Array.from(current.lastEligibleTop10) : null,
     p_last_change_answer_index: current.lastChangeAnswerIndex,
     p_fired: current.fired,

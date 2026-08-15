@@ -633,13 +633,13 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   just the source of the ratings needs to become per-user. Full context:
   `criteria-calibration-duration-based-window-fix.md`,
   `criteria-calibration-ranking-stability-analysis.md`.
-- **Unresolved: `accuracy_value` persisted in `user_calibration_status` for Dan's real
-  account disagrees significantly with a fresh `computeScoreSpreadAccuracy` recomputation
-  over the identical 70-answer log (0.9204 stored vs 0.99999 fresh, same code, same input —
-  found 2026-08-15, flagged but not chased further in that session).** Confirmed NOT present
-  on the disposable test account's parallel session (stored/fresh matched to 8+ decimals
-  there), so this is specific to Dan's real account/data, not a general bug in the metric.
-  Needs its own diagnostic session.
+- ~~**`accuracy_value`/fresh-recompute discrepancy on Dan's real account**~~ — **NOT
+  CONFIRMED, retracted.** Re-verified 2026-08-15 (`criteria-calibration-weights-write-race.md`'s
+  dated correction section): a fresh `computeScoreSpreadAccuracy` recompute over the live
+  70-answer log exactly matches (diff = 0) the stored `accuracy_value`, and no write or
+  answer mutation has touched the account since the original 92.04% reading. The 0.99999
+  figure doesn't reproduce and was most likely a bug in that session's own ad hoc check, not
+  a real stored/fresh mismatch.
 - **`computeScoreSpreadAccuracy` scales superlinearly with answer count — needs an
   algorithmic fix, not just fewer redundant calls.** Surfaced 2026-08-11 while fixing the
   round-50+ UI-blocking bug (`criteria-calibration-reload-glitch-and-sluggishness-fix.md`).
@@ -653,15 +653,52 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   per-call `solveLP` invocations don't benefit from warm-starting between them, and/or move
   the computation off the main thread (Web Worker) so a slow solve degrades to a delayed
   number instead of a frozen UI.
-- **Weights/status upsert has an unfixed write-race — diagnosed 2026-08-12, not
-  implemented.** `upsertWeightsAndStatus` calls (fired un-awaited on every commit) can resolve
-  out of order; `weightsGenRef` only gates the success/failure toast, not the write itself, so
-  an older commit's write can silently overwrite a newer one's `accuracy_value` with no
-  self-correction. Confirmed on Dan's live `user_calibration_status` row (persisted at 92.04%,
-  matching an n=69 mid-session snapshot rather than the session's actual final n=71 state).
-  Two candidate fixes identified, neither implemented: extend `weightsGenRef` to gate the
-  write itself, or move to a serialized write queue / `AbortController` pattern. Full
-  diagnosis: `criteria-calibration-weights-write-race.md`.
+- ~~**Weights/status upsert had an unfixed write-race**~~ — **DONE**, fixed 2026-08-15 on
+  `criteria-calibration-weights-write-race-fix`. `upsert_calibration_status`'s conflict
+  clause now only adopts `accuracy_value`/`tier`/`answer_count` from a write whose
+  `answer_count` is `>=` the row's current value (see
+  `supabase/user_calibration_status-add-answer-count-guard.sql`), verified with a deliberate
+  two-write race test. Note: the account-level 92.04%/n=69 "evidence" that originally
+  motivated this diagnosis did not hold up under re-verification (see the item above and
+  `criteria-calibration-weights-write-race.md`'s dated correction) — the fix ships anyway
+  because the RPC's structural lack of a guard was real and independently confirmed by
+  reading its code, regardless of that one account never having visibly hit it.
+  `last_eligible_top10`/`last_change_answer_index`/the `previous_*` triple remain
+  unguarded, deliberately in scope terms — but see the new item directly below for why their
+  staleness is no longer simply "safe-direction/delay-only" as previously assumed.
+  Full detail: `criteria-calibration-weights-write-race.md`.
+- **CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL** (not routine cleanup — flagged distinctly
+  from this section's other accepted-not-fixed items): **`last_eligible_top10`/
+  `last_change_answer_index` can regress backward via the same write-race, and this can fire
+  Brief 3's live auto-escalation signal EARLIER than the true trajectory warrants — not just
+  later.** Confirmed live (not theoretical), though narrower in practice than the
+  accuracy_value/tier race the 2026-08-15 fix closed — see the trigger-assessment note added
+  to that fix's approval for the concentration (fresh, non-resumed sessions; needs an early
+  Undo that revisits the same answer_count; needs a genuine HTTP response reordering, which is
+  real for this whole class of un-awaited writes but not guaranteed on any given commit). No
+  user-visible symptom and no self-correction if it happens — worth prioritizing over this
+  section's other items precisely because it's silent. Surfaced 2026-08-15 while scoping the
+  fix above, under direct
+  challenge to the "staleness here only delays firing, never falsely un-fires" claim from
+  the two prior migrations' headers (`user_calibration_status-add-stability-window.sql`,
+  `-add-previous-window.sql`). Mechanism, reproduced live in
+  `scripts/verify-write-race-guard.ts` check #4: `computeStabilityWindowUpdate`'s
+  ratings-null skip (`commitComputation.ts`) means a write computed *before* the
+  `RANKING_TEST_SET` ratings fetch resolves carries the client's prior (pre-advance) window
+  state; if that write's HTTP response resolves at the DB *after* a later write (e.g. the
+  same commit reached again via Undo+Redo, once ratings had resolved) already advanced
+  `last_eligible_top10`/`last_change_answer_index` forward, the stale write silently
+  overwrites them backward — `last_change_answer_index` regressed `11` → `4` in the
+  reproduction. A regressed (smaller) `last_change_answer_index` makes a later resumed
+  session compute a *larger* apparent stability span than the true trajectory, which can
+  fire Brief 3's auto-escalation signal early. `fired` itself still can't regress
+  true→false (its own OR-guard is unaffected), so this can't un-fire an already-correct
+  stop — the risk is a premature *first* fire. Deliberately left unguarded in the
+  2026-08-15 fix (out of scope for that pass's accuracy_value/tier target); a future fix
+  would need the same `answer_count`-style guard extended to these two fields specifically
+  (not a blanket widening — `previous_*`/`last_commit_changed_window` may still be fine
+  unguarded, unexamined here). Full mechanism: `criteria-calibration-weights-write-race.md`'s
+  "Fix implemented" section.
 - **Refresh-during-write data loss is mitigated, not eliminated.** Same session/doc as above.
   `usePendingWritesGuard.ts`'s `beforeunload` warning only helps if the browser actually
   shows the native confirmation and the user heeds it — a forced close, crash, or a dismissed

@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { computeStabilityWindowUpdate } from '../lib/criteria-calibration/commitComputation';
+import {
+  computeCommitState,
+  computeStabilityWindowUpdate,
+} from '../lib/criteria-calibration/commitComputation';
 import {
   INITIAL_PERSISTED_STABILITY_WINDOW,
   type PersistedStabilityWindow,
 } from '../lib/criteria-calibration/rankingStabilitySignal';
-import type { ValueSolverResult } from '../lib/criteria-calibration/solver';
+import type { CriteriaCatalog } from '../lib/criteria-calibration/criteriaCatalog';
+import type { SolverAnswer, ValueSolverResult } from '../lib/criteria-calibration/solver';
 import type { CriterionLevelRating } from '../lib/album-rating/scoreAndRank';
 
 // Minimal single-criterion, 2-level solved result — computeStabilityWindowUpdate only reads
@@ -26,6 +30,28 @@ function fakeSolved(): ValueSolverResult {
 }
 
 const HIGH_ACCURACY = 1; // comfortably clears every accuracyTiers.ts threshold, incl. High/veryHigh
+
+describe('computeCommitState — answerCount', () => {
+  const catalog: CriteriaCatalog = {
+    entries: [{ index: 0, name: 'Test criterion', levels: { 1: 'a', 2: 'b' } }],
+    levelsPerCriterion: [2],
+  } as unknown as CriteriaCatalog;
+
+  it('reports answers.length as answerCount, threaded through to upsertWeightsAndStatus (write-race guard)', () => {
+    const answers: SolverAnswer[] = [
+      { profileA: { 0: 2 }, profileB: { 0: 1 }, result: 'A' },
+      { profileA: { 0: 2 }, profileB: { 0: 1 }, result: 'A' },
+      { profileA: { 0: 2 }, profileB: { 0: 1 }, result: 'A' },
+    ];
+    const computation = computeCommitState(catalog, answers);
+    expect(computation.answerCount).toBe(3);
+  });
+
+  it('is 0 for an empty answer log', () => {
+    const computation = computeCommitState(catalog, []);
+    expect(computation.answerCount).toBe(0);
+  });
+});
 
 describe('computeStabilityWindowUpdate — untrustworthy RANKING_TEST_SET ratings', () => {
   it('zero ratings returned: window never fires, no matter how many commits are processed', () => {

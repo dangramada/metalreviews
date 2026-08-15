@@ -111,6 +111,7 @@ describe('upsertWeightsAndStatus', () => {
     },
     accuracy: 0.9,
     mediumReached: true,
+    answerCount: 42,
   } as unknown as CommitComputation;
 
   function mockWeightsUpsert() {
@@ -146,6 +147,7 @@ describe('upsertWeightsAndStatus', () => {
       p_user_id: 'user-1',
       p_tier: 'very_high', // accuracy 0.9 >= SCORE_SPREAD_VERY_HIGH_THRESHOLD (0.85)
       p_accuracy_value: 0.9,
+      p_answer_count: 42,
       p_last_eligible_top10: ['album-a', 'album-b'],
       p_last_change_answer_index: 14,
       p_fired: true,
