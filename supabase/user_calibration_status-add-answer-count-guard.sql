@@ -17,23 +17,44 @@
 -- adopt the incoming accuracy_value/tier/answer_count when the incoming write's
 -- answer_count is >= the row's current answer_count.
 --
--- >= not > : a real current flow (Undo immediately followed by Redo landing back on the
--- exact same answer_count, with the async RANKING_TEST_SET ratings fetch resolving in
--- between) can legitimately re-fire a write at an unchanged answer_count carrying a more
--- complete stability-window computation than the first write at that count did (see
--- computeStabilityWindowUpdate's ratingsByAlbum-null skip in commitComputation.ts). A
--- strict `>` would silently drop that second, more-complete write. `>=` keeps today's
--- existing "last write wins" behavior on a true tie (harmless — accuracy_value/tier are
--- pure functions of the answer list, so two writes at the same answer_count should already
--- compute identical values for those two fields) while still fully blocking a genuinely
--- older/smaller answer_count from ever overwriting a newer/larger one, which is the actual
--- race this fixes.
+-- >= not > : NOT because of the stability-window fields (see below — this guard doesn't
+-- touch them at all, so a `>=`-vs-`>` choice here can't affect their completeness either
+-- way; an earlier version of this comment incorrectly attributed the choice to that
+-- mechanism). The real reason: accuracy_value/tier are pure functions of the answer list
+-- content, so two writes landing at the SAME answer_count (e.g. Undo immediately followed by
+-- Redo of the exact same answer) always compute identical values for these two fields —
+-- content-tie-safe regardless of which lands last. But answer_count can also tie via two
+-- DIFFERENT answer-list states reaching the same length (Undo, then a *different* real
+-- answer than the one undone) — a strict `>` would reject BOTH writes at that count after
+-- the first one lands (excluded.answer_count > stored is false on every subsequent write at
+-- that same count, forever), permanently freezing the field at whichever write happened to
+-- land first, even if a later write at the same count is the one that actually reflects the
+-- current DB state. `>=` avoids that freeze: a tie always adopts the incoming write, which
+-- reproduces today's pre-fix "last write wins" behavior on ties specifically (not a
+-- regression) while still fully blocking a genuinely older/smaller answer_count from ever
+-- overwriting a newer/larger one, which is the actual race this fixes.
 --
 -- Deliberately scoped to accuracy_value/tier/answer_count only. last_eligible_top10 and
--- last_change_answer_index keep the existing plain excluded.* overwrite — their own
--- staleness is already documented (in the prior two migrations' headers) as safe-direction/
--- delay-only, not a correctness risk, so widening the guard to them is out of scope here.
--- fired's existing OR-guard is unchanged.
+-- last_change_answer_index keep the existing plain excluded.* overwrite, completely
+-- unaffected by this migration's guard either way. IMPORTANT, re-verified 2026-08-15 (see
+-- criteria-calibration-weights-write-race.md's dated addendum and
+-- scripts/verify-write-race-guard.ts's check #4): the "staleness here only delays firing,
+-- never falsely un-fires" argument from the prior two migrations' headers does NOT cleanly
+-- cover these two fields for the specific mechanism found this session. A write computed
+-- before the RANKING_TEST_SET ratings fetch resolved (commitComputation.ts's
+-- ratingsByAlbum-null skip) carries the client's PRIOR window state; if that write's HTTP
+-- response resolves at the DB *after* a later write (e.g. an Undo+Redo of the same commit,
+-- computed once ratings had resolved) already advanced last_eligible_top10/
+-- last_change_answer_index forward, the stale write silently overwrites them backward —
+-- confirmed live: last_change_answer_index regressed from 11 to 4 in the verification
+-- script's check #4. A regressed (smaller) last_change_answer_index makes a later resumed
+-- session compute a LARGER apparent stability span than the true trajectory, which could
+-- fire the auto-escalation signal EARLIER than it should, not just later. This is a real,
+-- pre-existing gap (not introduced or worsened by this migration — these fields were always
+-- unguarded), left unfixed here because it was out of scope for the accuracy_value/tier bug
+-- this migration addresses; tracked as a new, distinct item in deferred-work.md. fired's
+-- existing OR-guard is unchanged and still fully protects fired specifically from regressing
+-- true -> false, independent of this gap.
 --
 -- Function is SECURITY INVOKER (the default, unchanged from every prior version) — RLS
 -- still applies exactly as before.
