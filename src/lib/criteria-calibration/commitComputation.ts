@@ -34,6 +34,10 @@ export interface CommitComputation {
   solved: ValueSolverResult;
   accuracy: number;
   mediumReached: boolean;
+  /** answers.length this computation was solved against — threaded through to
+   *  upsertWeightsAndStatus so the DB can reject an out-of-order write (see
+   *  docs/decisions/criteria-calibration-weights-write-race.md). */
+  answerCount: number;
   /** Present only when the caller supplied a StabilityWindowContext (a real commit/redo) —
    *  see this module's header for why Undo doesn't go through this path at all. */
   stabilityWindow?: PersistedStabilityWindow;
@@ -81,5 +85,5 @@ export function computeCommitState(
     ? computeStabilityWindowUpdate(answers.length, solved, accuracy, stabilityContext)
     : undefined;
 
-  return { solved, accuracy, mediumReached, stabilityWindow };
+  return { solved, accuracy, mediumReached, answerCount: answers.length, stabilityWindow };
 }
