@@ -749,6 +749,44 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   current `ProgressHeader` layout (Progress ring + Accuracy status centered,
   "Stop here" right, empty flex spacer left) works but wasn't given a real design
   pass — out of scope for that UI-only brief. `docs/decisions/criteria-calibration-ui.md`.
+  Related, distinct scope (do **not** merge the two): "Accuracy display conflates two
+  different signals" below — that entry is about *what* the header communicates, this one
+  about *how it is laid out*.
+- **Accuracy display conflates two different signals** — surfaced live 2026-08-15, during
+  the second full calibration session (`dan.gramada@gmail.com` account reset,
+  `criteria-calibration-second-session-reset.md`).
+  Current display shows one number (locked to "Medium" per the known display bug already
+  tracked separately) representing answer-consistency accuracy. Real session data from that
+  day shows a punctuated pattern: sharp early growth (10% → 68% by round 7), a long plateau,
+  then 100% reached at round 58 (degree 4) and held through round 72 with the stop message
+  ("You've reached your highest calibration confidence") — degrees 5–6 never touched. This
+  matches the already-documented finding that the additive model on this 6-criterion catalog
+  is structurally determined by degree-2 data
+  (`criteria-calibration-additive-model-degree-sufficiency.md`) — not a bug, but the current
+  single-number display doesn't communicate *why*, so it reads as "did I miss something?"
+  rather than "there was nothing left to learn."
+  **Proposed direction** (not designed, not approved for build): split the single number
+  into two distinct signals — (1) consistency/confidence (the current metric) and
+  (2) coverage/remaining-uncertainty, using the min/max range data `solveValues` already
+  computes per (criterion, level) but never surfaces today. Inspired by 1000minds' own
+  Lower/Upper-bound-per-level display (reference text logged in that session's chat,
+  available on request).
+  **Explicitly a reversal candidate for the 2026-08-09 decision**
+  (`criteria-calibration-medium-gate-redesign.md`) that deliberately collapsed progress-ring
+  coverage and accuracy into one number, after they diverged misleadingly (coverage hit 100%
+  from mere canonical-pair-touch while real accuracy still read "Low"). Flagged as **NOT**
+  the same bug: that coverage metric was a weak proxy (pair-touched, boolean); the newly
+  proposed signal would use the solver's own real uncertainty bounds, not a proxy. Still,
+  treat this as a genuine reversal — it needs explicit acknowledgment if revisited, not a
+  silent do-over.
+  Also flagged, same session: a **"calibration results page"** idea — showing criteria
+  weights/levels visually (bar-style relative importance, per-level trade-off values),
+  reusing the `RadarChart` (`@chakra-ui/charts`) pattern already adopted for
+  `album-rating-page--concept-draft.md`. Same status: idea only, no design work done.
+  **Status: not scheduled.** Needs a dedicated Concept Draft session before any code — do
+  not implement from this note alone.
+  Cross-reference: "Criteria Calibration header layout" above (related area, distinct
+  scope — not to be merged).
 - **Logo** — T-ligature concept explored across five typefaces (Bebas Neue,
   Archivo Black, Playfair Display, Space Mono, Monoton); never approved. Known
   issue: the fused double-T reads as the Greek letter π.
@@ -800,7 +838,9 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   matches). Not a badge, so it was out of pass 3's scope — flagged, not touched.
   Small, self-contained follow-up that would complete the corner treatment.
 
-> Note: none of the above design/branding items have a corresponding file in
+> Note: apart from the two Criteria Calibration entries (which cite existing decision
+> docs) and the items marked DONE, none of the above design/branding items have a
+> corresponding file in
 > `docs/decisions/` or elsewhere in the repo — they exist only as prior chat
 > history, which is not accessible from this session. Content above is taken
 > directly from the brief for this task; nothing here has been independently
