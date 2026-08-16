@@ -5,8 +5,8 @@
 // This is the session that got stuck: with Bland's-rule pivoting, asking question #59 made
 // the value LP report "infeasible even with slack" on a large fraction of answer orderings,
 // which is what the Dantzig switch fixes. See
-// docs/decisions/criteria-calibration-dantzig-fix.md and the stress test behind it,
-// docs/decisions/criteria-calibration-dantzig-stress-test.md.
+// docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md and the stress test behind it,
+// docs/decisions/criteria-calibration/criteria-calibration-dantzig-stress-test.md.
 //
 // Kept here rather than in lib/criteria-calibration/fixtures.ts deliberately: this is
 // regression data for solver.ts/simplex.ts specifically, not a shared elicitation fixture.

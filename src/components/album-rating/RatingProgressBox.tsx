@@ -21,7 +21,7 @@ interface RatingProgressBoxProps {
 // solver.ts's computeChebyshevCenter), so a fully-rated profile's score is <= 1 by
 // construction, not just in the common case — the old independent-midpoint method could
 // overshoot (confirmed live: 1.308 on real production data, see
-// docs/decisions/criteria-calibration-joint-point-estimate.md). SCORE_OVERFLOW_EPSILON
+// docs/decisions/criteria-calibration/criteria-calibration-joint-point-estimate.md). SCORE_OVERFLOW_EPSILON
 // tolerates only LP solver float noise; anything past it means the fix isn't holding for
 // some reason and is worth knowing about, not silently clamping away again.
 const SCORE_OVERFLOW_EPSILON = 1e-4;

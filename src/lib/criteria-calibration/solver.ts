@@ -46,7 +46,7 @@ import {
  * `nearSingularPivot`) means the solver broke down numerically on a degenerate answer log —
  * not that the answers are genuinely contradictory, which the slack variables are there to
  * absorb and which therefore cannot make this LP infeasible. See
- * docs/decisions/criteria-calibration-dantzig-fix.md.
+ * docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md.
  */
 function describeLPFailure(solution: LPSolution): string {
   const d = solution.diagnostics;

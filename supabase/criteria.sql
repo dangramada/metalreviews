@@ -1,7 +1,7 @@
 -- criteria + criteria_levels: the 6 fixed criteria and their 5 levels each, seeded here as
 -- the DB's source of truth going forward. Shared reference content (same for every user),
 -- not per-user data. Run this in the Supabase SQL editor.
--- See docs/decisions/criteria-calibration-engine.md (parts 1-2) for the criterion index
+-- See docs/decisions/criteria-calibration/criteria-calibration-engine.md (parts 1-2) for the criterion index
 -- convention this mirrors: `criteria.id` is the same 0-5 criterionIndex used throughout
 -- src/lib/criteria-calibration/preferenceGraph.ts and solver.ts -- deliberately a fixed,
 -- explicit id (not identity/serial), since it's stable domain data, not auto-incrementing.

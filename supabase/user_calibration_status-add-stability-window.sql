@@ -14,7 +14,7 @@
 --
 -- WHY A DEDICATED RPC INSTEAD OF THE PLAIN .upsert() THIS TABLE ALREADY USES:
 -- upsertWeightsAndStatus's writes are fired un-awaited on every commit and can resolve out
--- of order (docs/decisions/criteria-calibration-weights-write-race.md -- confirmed via git
+-- of order (docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md -- confirmed via git
 -- log still unfixed as of this migration, diagnosed 2026-08-12, neither candidate fix
 -- landed). For most columns here that only means transient staleness (a slightly-behind
 -- accuracy_value self-corrects on the next commit). `fired` is different: it gates

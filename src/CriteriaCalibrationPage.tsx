@@ -47,7 +47,7 @@ import {
 // resumes exactly where the user left off, via the same replay-by-rebuilding-the-session
 // approach 5a already uses for undo — not a second implementation. No High/Very High
 // accuracy is ever shown in the UI — still blocked on the documented solver-metric issue
-// (docs/decisions/criteria-calibration-engine.md, "Part 4 finding") — even though this pass
+// (docs/decisions/criteria-calibration/criteria-calibration-engine.md, "Part 4 finding") — even though this pass
 // now computes and stores those values (harmless stored, would not be harmless displayed).
 // ---------------------------------------------------------------------------
 
@@ -223,7 +223,7 @@ export function CriteriaCalibrationPage() {
   // the selection/hold/fade state machine below sets `phase` in four separate timeout ticks
   // (holding -> fading-out -> fading-in -> idle). Three of those four renders change neither
   // the answer log nor the degree, so they were re-deriving a result that could not have
-  // changed. See docs/decisions/criteria-calibration-lp-warm-start.md.
+  // changed. See docs/decisions/criteria-calibration/criteria-calibration-lp-warm-start.md.
   //
   // The deps are exactly nextAction's three arguments, and it holds no state of its own —
   // every decision is derived from the session passed in, with the only randomness being a
@@ -239,7 +239,7 @@ export function CriteriaCalibrationPage() {
   // — previously these were two different metrics (canonical degree-2 pair coverage for the
   // ring vs. solver accuracy for the label), which could show the ring at 100% while
   // Accuracy still read "Low" once cold-start coverage was done but the model wasn't
-  // actually determinate yet. See docs/decisions/criteria-calibration-medium-gate-redesign.md's
+  // actually determinate yet. See docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md's
   // progress-ring-accuracy entry for the full history.
   //
   // computeScoreSpreadAccuracy (2026-08-09, superseding computeSolverAccuracy — see
@@ -326,7 +326,7 @@ export function CriteriaCalibrationPage() {
   // more current answers snapshot. This doesn't stop an in-flight older call's write from
   // landing after a newer one (both requests are already sent) — confirmed as a real,
   // unfixed write-race (not self-correcting in practice): see
-  // docs/decisions/criteria-calibration-weights-write-race.md.
+  // docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md.
   const weightsGenRef = useRef(0);
 
   // Applies an already-computed CommitComputation: updates the displayed accuracy/progress

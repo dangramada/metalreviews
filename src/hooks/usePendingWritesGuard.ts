@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 // Tracks in-flight Supabase writes so a refresh/tab-close mid-write can warn the user
 // instead of silently dropping the row. A real refresh-during-insert on
 // CriteriaCalibrationPage was traced to a displayed-accuracy regression (see
-// docs/decisions/criteria-calibration-reload-glitch-and-sluggishness-fix.md): the insert's
+// docs/decisions/criteria-calibration/criteria-calibration-reload-glitch-and-sluggishness-fix.md): the insert's
 // fetch gets aborted by navigation (no keepalive flag), the answer never reaches the DB, and
 // the next reload deterministically recomputes accuracy from one fewer answer.
 //

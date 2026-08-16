@@ -7,9 +7,9 @@
 // (MEDIUM_ACCURACY_THRESHOLD / HIGH_ACCURACY_THRESHOLD / VERY_HIGH_ACCURACY_THRESHOLD,
 // kept below but unused, for rollback safety only) after that metric was found blind to
 // real ranking improvement from degree-3+ answers — see computeSolverAccuracy's own
-// deprecation comment and docs/decisions/criteria-calibration-engine.md's "Part 4 finding".
+// deprecation comment and docs/decisions/criteria-calibration/criteria-calibration-engine.md's "Part 4 finding".
 //
-// Medium's definition changed 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md):
+// Medium's definition changed 2026-08-08 (see docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md):
 // it used to require every canonical degree-2 pair (cold-start's extremes-only
 // comparisons) resolved via the strict graph's closure. That definition was replaced
 // because it measured pair-coverage bookkeeping, not actual model determinacy — a real
@@ -18,7 +18,7 @@
 // fixtures.ts's REAL_SESSION_* export) reached 0.88+ accuracy while never once touching
 // one of its 10 possible degree-2 pairs. `ComparisonPair`/`PreferenceGraph.isImplied`
 // are no longer involved in the Medium decision. As of 2026-08-09 (see
-// docs/decisions/criteria-calibration-medium-gate-redesign.md's progress-ring-accuracy
+// docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md's progress-ring-accuracy
 // entry) the UI's progress display no longer uses them either — it now reads the same
 // solver accuracy this file computes, reversing the original design's deliberate
 // separation between progress (coverage) and accuracy, which is exactly what produced a
@@ -62,7 +62,7 @@ export function isMediumTierReached(accuracy: number): boolean {
  * DEPRECATED — kept temporarily for rollback safety only, not called anywhere.
  * Superseded by computeScoreSpreadAccuracy (scoreSpreadAccuracy.ts): this metric averages
  * independent per-(criterion, level) feasible-range widths, which was found (see
- * docs/decisions/criteria-calibration-engine.md's "Part 4 finding") to be blind to real
+ * docs/decisions/criteria-calibration/criteria-calibration-engine.md's "Part 4 finding") to be blind to real
  * ranking improvement from degree-3+ answers. Remove after the next real calibration
  * session confirms the new metric holds up on accounts beyond Dan's single tested
  * production session.

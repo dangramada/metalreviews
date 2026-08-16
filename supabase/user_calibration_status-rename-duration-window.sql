@@ -6,7 +6,7 @@
 -- old K=2 "2 consecutive tier-eligible checkpoints matched" window fires on a false positive
 -- under production's real per-commit checking granularity — "2 consecutive checkpoints"
 -- collapses to just 2 real answers of evidence, with no floor on how far apart those
--- checkpoints actually are. See docs/decisions/criteria-calibration-fine-grained-firing-instability.md
+-- checkpoints actually are. See docs/decisions/criteria-calibration/criteria-calibration-fine-grained-firing-instability.md
 -- for the full finding (fired at n=28 on a near-tied top-10 boundary; the real settle point
 -- was n=35) and its duration-based-fix follow-up doc for the R sweep that chose R=12.
 --

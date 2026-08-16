@@ -3,14 +3,14 @@
 // solverAccuracyTier) but doesn't modify any of the locked engine modules or the schema
 // (part 3). Accuracy source switched 2026-08-09 from computeSolverAccuracy to
 // computeScoreSpreadAccuracy (scoreSpreadAccuracy.ts) — see that module's header and
-// docs/decisions/criteria-calibration-engine.md's "Part 4 finding" for why. Already async
+// docs/decisions/criteria-calibration/criteria-calibration-engine.md's "Part 4 finding" for why. Already async
 // and off the interactive render path (runs once per committed answer, not per keystroke),
 // so the extra LP solves the new metric needs are swapped in directly here, no debounce
 // needed (contrast CriteriaCalibrationPage.tsx's progress ring, which does debounce).
 //
 // Combined tier rule (per user_calibration_status.sql's own documented gap): 'high'/
 // 'very_high' require isMediumTierReached() to ALSO be true, not solverAccuracyTier() alone.
-// As of 2026-08-08 (see docs/decisions/criteria-calibration-medium-gate-redesign.md) both
+// As of 2026-08-08 (see docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md) both
 // checks read the same `accuracy` value against different thresholds (Medium >=
 // SCORE_SPREAD_MEDIUM_THRESHOLD, High/Very High >= SCORE_SPREAD_HIGH/VERY_HIGH_THRESHOLD),
 // so this is now structurally always true as long as those three constants stay nested in
@@ -179,7 +179,7 @@ export async function fetchPersistedStabilityWindow(
  * supabase/user_calibration_status-rename-duration-window.sql, and
  * supabase/user_calibration_status-add-answer-count-guard.sql), not a plain `.upsert()` —
  * `fired` has an atomic `fired OR excluded.fired` at the database level so an out-of-order
- * write (the write-race documented in docs/decisions/criteria-calibration-weights-write-race.md)
+ * write (the write-race documented in docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md)
  * can never regress an already-fired stop signal back to unfired, and accuracy_value/tier
  * are now guarded the same way against an `answer_count` that's gone backward (see the
  * answer-count-guard migration's header for why `>=` and not `>`). last_eligible_top10/
