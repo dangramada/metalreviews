@@ -1,10 +1,10 @@
 // One-time backfill closing a gap left by the original migration
-// (docs/decisions/album-identity-migration.md Step 2): manual_albums rows were copied into
+// (docs/decisions/album-identity/album-identity-migration.md Step 2): manual_albums rows were copied into
 // `albums` (created_by set), but no `favorites` row was ever created for them. Pre-migration,
 // membership in `manual_albums` was itself sufficient to appear on `/favorites` — no separate
 // favorites row was needed. Post-migration, `/favorites` reads exclusively through `favorites`,
 // so these albums silently vanished from the user's favorites list. See
-// docs/decisions/album-identity-visibility-and-duplicate-fix.md's July 2026 follow-up for the
+// docs/decisions/album-identity/album-identity-visibility-and-duplicate-fix.md's July 2026 follow-up for the
 // investigation that found this.
 //
 // Matches each manual_albums row to its albums row via norm_key (same matching key the

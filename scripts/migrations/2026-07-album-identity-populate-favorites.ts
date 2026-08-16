@@ -1,4 +1,4 @@
-// Step 4b of docs/decisions/album-identity-migration.md: populate favorites.album_id via
+// Step 4b of docs/decisions/album-identity/album-identity-migration.md: populate favorites.album_id via
 // each favorite's review_id -> reviews.album_id, then collapse any same-user duplicates
 // that only became visible once two different review_id rows resolve to the same album_id
 // (e.g. a user favorited both the AMG and Metal Storm review of the same album back when

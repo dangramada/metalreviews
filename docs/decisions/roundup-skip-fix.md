@@ -12,7 +12,7 @@ reviews-only feeds. Roundup posts ("Record(s) o' the Month", "Our `<Month>` Albu
 Month!") and recurring retrospective columns ("Yer Metal Is Olde", "Lost in Time") get parsed by
 `extractBandAlbum` the same as real reviews, producing garbage `band`/`album` values or falling
 into the shared `Unknown Band | Unknown Album` collision sentinel (see
-`album-identity-diagnosis.md` Finding 6 — not fixed here, only its most active contributor is
+`album-identity/album-identity-diagnosis.md` Finding 6 — not fixed here, only its most active contributor is
 prevented from recurring).
 
 ## Decision

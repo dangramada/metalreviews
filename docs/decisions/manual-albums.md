@@ -1,11 +1,11 @@
 # Session decisions — manual_albums table + MusicBrainz lookup endpoint (June 2026)
 
-> **SUPERSEDED by `album-identity-frontend-favorites.md`.** The `manual_albums` table concept
+> **SUPERSEDED by `album-identity/album-identity-frontend-favorites.md`.** The `manual_albums` table concept
 > was removed — manually-added albums now live in `albums` (distinguished by `created_by`),
 > with duplicate-prevention (`mb_release_group_id`/`norm_key` matching before insert) added.
 > The MB lookup endpoint's auth pattern and `scripts/musicbrainz.ts` extraction described below
 > are unchanged and still accurate. Confirmed dead in all live code paths July 2026 (see
-> `album-identity-visibility-and-duplicate-fix.md`'s follow-up section) — `supabase/manual_albums-drop.sql`
+> `album-identity/album-identity-visibility-and-duplicate-fix.md`'s follow-up section) — `supabase/manual_albums-drop.sql`
 > has been written to drop the table; pending Dan running it in the Supabase SQL editor.
 
 ## What was built
@@ -131,4 +131,4 @@ On successful insert, `useFavoritesList.refetch()` is called (increments a refre
   a `manual_albums`+`favorites` merge — `favorites` is still its own table — but `manual_albums`
   itself was folded into `albums`, the same table reviewed albums live in, distinguished only by
   `created_by`. The "keep manually-added data in its own distinct table" decision no longer
-  holds. See `album-identity-frontend-favorites.md`.
+  holds. See `album-identity/album-identity-frontend-favorites.md`.

@@ -38,7 +38,7 @@ export type AlbumWithReviewsRow = {
 };
 
 // One line item on a card — one attached review, rendered verbatim (no editorial ranking,
-// per album-identity-decisions.md §3). `summary` is only displayed by the card component in
+// per album-identity/album-identity-decisions.md §3). `summary` is only displayed by the card component in
 // the exactly-one-review case (see AlbumCard below) — it's carried here regardless so that
 // branch has the data it needs without a second, near-duplicate type.
 export interface AlbumReviewLine {
@@ -51,7 +51,7 @@ export interface AlbumReviewLine {
 }
 
 // One album -> one card. The card component branches its rendering on `reviews.length`
-// (see docs/decisions/album-identity-frontend-homepage.md's multi-source-display section
+// (see docs/decisions/album-identity/album-identity-frontend-homepage.md's multi-source-display section
 // and its follow-up bugfix note): zero reviews renders album-info-only; exactly one review
 // renders the original single-review layout (summary, one date line, one badge, card-level
 // link); two or more renders the multi-source layout (average badge, stacked source badges,
