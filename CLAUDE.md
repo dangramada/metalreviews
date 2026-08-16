@@ -66,6 +66,16 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
+**In progress: `criteria-calibration-escalation-signal-candidates`** (docs-only, unmerged).
+Diagnostic evaluation of two solver-internal replacements for Brief 3's `RANKING_TEST_SET`
+top-10 stop signal, which cannot work for any first-time user. **Both candidates fail** —
+coverage width has no single threshold that works across the 12-trace evidence set at any
+R ∈ {3,6,9,12}; weight-vector stability is structurally unsound (converged-tail jitter matches
+still-learning movement on 5 of 11 traces). Recommendation: keep the incumbent, develop the
+coverage-width family if either. Also corrects `deferred-work.md`'s now-stale n=35/n=45
+stability points to n=39/n=46 — the Harris fix moved both. No production code touched.
+Full detail: `docs/decisions/criteria-calibration/criteria-calibration-escalation-signal-candidates.md`.
+
 Most recent merge was `criteria-calibration-harris-ratio-test`
 (ships the `EPS = 1e-9` near-singular-pivot **cure**: `simplex.ts`'s leaving-row rule is now a
 Harris two-pass ratio test, `pivotTolerance = 1e-7` / `δ = 1e-8`, one production file changed.

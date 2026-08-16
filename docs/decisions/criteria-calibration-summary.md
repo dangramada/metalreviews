@@ -35,7 +35,7 @@ un-awaited-write race that `accuracy_value`/`tier`/`answer_count` were fixed aga
 `last_change_answer_index` can make a later resumed session compute an inflated stability
 span, which can fire Brief 3's auto-escalation signal **earlier than the true trajectory
 warrants** — confirmed live via reproduction script, not theoretical. It cannot falsely
-*un-fire* an already-correct stop (`fired`'s own guard is unaffected), only fire early. No
+_un-fire_ an already-correct stop (`fired`'s own guard is unaffected), only fire early. No
 user-visible symptom, no self-correction. Full mechanism and reproduction:
 `criteria-calibration-weights-write-race.md`'s "Fix implemented" section. This is the single
 statement of that risk — `CLAUDE.md` and `deferred-work.md` both point here rather than
@@ -51,11 +51,13 @@ visually); the accuracy-display two-signal split (consistency vs. coverage) prop
 Grouped by pipeline stage, roughly chronological within each group.
 
 **Core engine, UI, wiring**
+
 - `criteria-calibration-engine.md` — preference graph, closure, contradiction handling, LP solver, ordering heuristic
 - `criteria-calibration-ui.md` — selection/hold/fade state machine, Progress-vs-Accuracy split, Undo/Redo
 - `criteria-calibration-wiring.md` — wired to real `CalibrationSession`/`nextAction`, Supabase persistence
 
 **Question-selection & degree-escalation tuning**
+
 - `criteria-calibration-medium-gate-redesign.md` — fixed degree-2 extremes-only questions
 - `criteria-calibration-dominance-filter.md` — rejects dominated/tied candidate pairs
 - `criteria-calibration-coverage-weighted-candidates.md` — weights sampling toward under-covered levels
@@ -65,6 +67,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-additive-model-degree-sufficiency.md` — diagnostic: why degree-2 alone converges the additive model
 
 **Solver correctness & performance**
+
 - `criteria-calibration-joint-point-estimate.md` — single joint Chebyshev-center solve restores the sum-to-1 invariant
 - `two-phase-simplex-rewrite.md` — Big-M → two-phase simplex, fixes a numerical blowup
 - `criteria-calibration-score-spread-accuracy.md` — replaces `computeSolverAccuracy` with a score-spread LP metric
@@ -74,16 +77,20 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-lp-warm-start.md` — `prepareLP`/`solveFromPrepared` split, 6× per-question speedup
 
 **Auto-escalation / ranking-stability signal (Brief 3)**
+
 - `criteria-calibration-ranking-stability-analysis.md` — evidentiary analysis across two real sessions
 - `criteria-calibration-auto-escalation-signal.md` — Brief 3 implementation: tier-gated top-10 stability signal
 - `criteria-calibration-fine-grained-firing-instability.md` — diagnostic: K=2 checkpoint window false-positives
 - `criteria-calibration-duration-based-window-fix.md` — replaces K=2 checkpoint count with a real-answer-span window
+- `criteria-calibration-escalation-signal-candidates.md` — diagnostic (2026-08-16, no code changed): evaluates two solver-internal replacements for the `RANKING_TEST_SET` signal, which cannot work for any first-time user. **Both fail** — coverage width (A) has no single threshold that works across the 12-trace evidence set at any R; weight-vector stability (B) is structurally unsound, its converged-tail jitter matching still-learning movement on 5 of 11 traces. Keep the incumbent for now; A is the one worth developing further. Also records that the Harris fix moved both real sessions' stability points, making `deferred-work.md`'s n=35/n=45 figures stale
 
 **Data operations & write-race safety**
+
 - `criteria-calibration-weights-write-race.md` — diagnoses and partially fixes the un-awaited-write race (see "Current status" above)
 - `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run; its "Outcome" section (added 2026-08-16) is the current source of truth for Dan's account state — that session ran and completed at 71 answers, so the account is **not** empty
 
 **Research**
+
 - `criteria-calibration-1000minds-comparative-research.md` — comparative research against 1000minds' PAPRIKA calibration UX
 - `criteria-calibration-synthetic-oracles.md` — 10 synthetic ground-truth oracles driving the real `nextAction()` flow; surfaces a live LP solver crash on clean/consistent input (new, higher-priority than the prior stress test's "GO" verdict), plus solver-recovery and UX-arbitration data (Idea 1/Idea 2 pause-screen proposals, tier-crossing spread) for the future Concept Draft session
 - `criteria-calibration-near-singular-pivot-impact.md` — impact assessment for that crash: traced end to end (no error boundary anywhere → React root unmounts → blank page), reproduced through the real `CriteriaCalibrationPage`, answer persisted before the solve so a reload reproduces it; Supabase integrity unaffected. Recommends a **mitigation hotfix** ahead of the `EPS = 1e-9` cure
@@ -92,6 +99,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-harris-ratio-test.md` — **the cure, shipped (2026-08-16)**: implements the above at `pivotTolerance = 1e-7`, `δ = 1e-8` in `simplex.ts`. Re-confirms every regression track against the shipped solver rather than the lab copy (bit-identical parity, `digestDiffVsProd=0` on 181 solves), re-solves Dan's live 71-answer log read-only for the real repricing magnitude, inverts `solverCrashFixture.test.ts` after failing to construct any realistic-n log that still breaks the rule, and re-checks `MAX_VALUE_RANGE_FOR_COVERAGE`. **Read its "What NOT to change" before editing `simplex.ts`.**
 
 **Supporting data**
+
 - `second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs
 
 ## Not in this repo
