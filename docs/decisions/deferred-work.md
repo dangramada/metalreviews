@@ -561,7 +561,8 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   and 30/30 at n=150). Verdict was **GO** for a production implementation brief. Outstanding
   items, in priority order:
   Items 1 and 2 below **shipped 2026-08-12** on `criteria-calibration-dantzig-fix` (see
-  `criteria-calibration-dantzig-fix.md`); items 3 and 4 remain open.
+  `criteria-calibration-dantzig-fix.md`); item 3 **shipped 2026-08-16** and has been relocated
+  to `finished-work.md`; items 4 and 5 remain open.
   1. ~~Implement pure Dantzig in `simplex.ts`~~ — **done 2026-08-12.** Both phases, plus the
      phase-1→phase-2 artificial cleanup switched to largest-magnitude selection.
   2. ~~Bland silently returning wrong weights~~ — **done 2026-08-12**, and it was worse than
@@ -570,138 +571,14 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      because a failed Chebyshev-center solve was being swallowed into an all-zero point
      estimate and persisted. Closed by a post-solve feasibility guard in `solveLP` plus
      making the Chebyshev failure throw instead of degrading to zeros.
-  3. ~~Dantzig is a mitigation, not a cure~~ — **DONE 2026-08-16. The cure shipped.**
-     `simplex.ts`'s leaving-row rule is now a Harris two-pass ratio test
-     (`pivotTolerance = 1e-7`, `δ = 1e-8`), implementing the diagnostic's verdict verbatim.
-     Re-confirmed against the shipped solver, not the lab copy: committed real fixtures
-     181/181 clean (was 1 failure), adversarial near-singular incidence 66/240 → **0/240**,
-     closed-loop oracles 4/10 crashing → **0/10**, and the shipped rule proved bit-identical
-     to the validated lab rule on all 181 solves (`digestDiffVsProd=0`). Dan's live 71-answer
-     log was re-solved read-only: clean at every one of its 71 prefixes, and its stored
-     weights move by max 0.0239 / median 0.0065 — ~25× smaller than the synthetic estimate.
-     `solverCrashFixture.test.ts`'s assertion was inverted rather than deleted, after 1000
-     generated logs at n ≤ 100 failed to produce any replacement that still breaks the new
-     rule. Full detail:
-     `criteria-calibration/criteria-calibration-harris-ratio-test.md`.
-
-     Two things this closed item hands forward, neither a regression:
-     - **`MAX_ITERATIONS = 2000` (item 4) is now the sole cause of adversarial failure at
-       n=300**, with healthy pivots throughout. The 844 → 200 drop in max pivots per solve
-       buys real headroom against it.
-     - **The reported weights are not uniquely determined, and never were.** Every candidate
-       rule attains the identical optimal Chebyshev radius on all 180 solvable regions; the
-       optimum is degenerate enough (mean radius ≈ 1.5e-7) that the pivoting rule silently
-       picks among ties. A deterministic secondary objective (lexicographic tie-break, or a
-       strictly convex proxy) would fix it — **new open item, see below.**
-     - `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` was re-checked and **left unchanged**: escalation
-       timing shifts in *both* directions depending on data shape (one oracle 19 rounds later,
-       another 19 earlier), so no single value corrects both. Flagged as a product call.
-
-     <details><summary>Historical detail (the diagnosis that led here) — expand only if
-     re-opening the numerics</summary>
-
-     **Was: still open — Dantzig is a mitigation, not a cure.** The root cause is the
-     `EPS = 1e-9` ratio-test threshold admitting near-singular pivots; the smallest pivot
-     element used is a perfect predictor of failure across every case tested. The 2026-08-12
-     pass added detection (`nearSingularPivot` in `LPSolution.diagnostics`) but deliberately
-     did NOT change the ratio test — the real fix is a Harris ratio test or periodic
-     refactorization. See the separate all-'equal' entry below for what remains reachable.
-
-     **2026-08-16 addendum — raises this item's priority, doesn't change its status.** The
-     synthetic calibration oracles diagnostic (`criteria-calibration-synthetic-oracles.md`)
-     reproduced this exact crash (`nearSingularPivot`, `EPS=1e-9`-floor pivots) on **4 of 10**
-     independently-run oracles at n=44–87, including oracle #1 — uniform weights, linear level
-     spacing, `totalSlack = 0.000000` at every round up to the crash (fully self-consistent,
-     zero contradictions). This is a materially different regime from the 2026-08-12 stress
-     test's own characterization of the danger zone (all-'equal'-heavy or high-contradiction
-     inputs at n≥100–150) — a clean, realistic-shaped, low-'equal' answer log crashed at n=79,
-     comfortably inside the range Dan's own real sessions already reach (33/70/71 answers).
-     The stress test's "GO" verdict (0 failures across ~4000 solves, n=20…300) used a
-     different candidate generator; it did not specifically test this shape at this scale, so
-     this isn't a contradiction of that data, but it removes "stay consistent and you're safe"
-     as a reason to deprioritize the pivot-magnitude guard. Incidental finding from the same
-     run: 3 real (non-float-noise) score-spread-accuracy monotonicity dips appeared in the 5
-     rounds immediately preceding oracle #1's crash, nowhere else in the 10-oracle run —
-     plausible early-warning signal, unexplored, not chased down this session.
-
-     **2026-08-16 impact assessment — a MITIGATION hotfix is now recommended ahead of the
-     cure.** `criteria-calibration-near-singular-pivot-impact.md` traced the failure end to
-     end and reproduced it through the real `CriteriaCalibrationPage`: the throw escapes a
-     `setTimeout`, React re-renders against the new answer log, `nextAction`'s own
-     `solveValues` throws during render, and with no `ErrorBoundary`/`errorElement` anywhere
-     in the app the root unmounts — **blank page, no in-app recovery**. The triggering answer
-     is already persisted (`persistNewAnswer` runs before the solve), so a reload reproduces
-     it and the session is permanently bricked until the row is deleted from Supabase by hand.
-     Supabase integrity itself is fine (`insertAnswer` 1×, `upsertWeightsAndStatus` 0×) — this
-     is not a repeat of the all-zero-weights class. Also confirmed: Dan's real 71-answer
-     session already reached this regime (the `n=54`/`n=57` discards in
-     `criteria-calibration-ranking-stability-analysis.md` are the same failed Chebyshev
-     solve, silent pre-Dantzig), and every committed real fixture stays 4–7 orders of
-     magnitude clear of the threshold up to n=42. Hotfix scope: page-boundary catch +
-     auto-undo/defer-persist, NOT reverting the Chebyshev throw. The `EPS = 1e-9` ratio-test
-     fix below stays the separate, scheduled cure.
-
-     **2026-08-16 — the safety net SHIPPED; this item (the cure) is still open.**
-     `criteria-calibration-solver-crash-safety-net.md`: compute-first ordering on all three
-     mutating handlers, a guarded `action` memo plus auto-recovery (trim + delete) for
-     already-persisted bad logs, honest user-facing messages, and a route-level
-     `ErrorBoundary` backstop. Nothing was caught inside `solver.ts`/`simplex.ts` — the
-     Chebyshev throw is unchanged. **Sessions will still hit the numerical breakdown**; they
-     now degrade legibly instead of blanking the page. When this item's `EPS = 1e-9` fix
-     eventually lands, expect `solverCrashFixture.test.ts` to fail: it deliberately asserts
-     that `SOLVER_CRASH_ANSWERS` still throws, precisely so the safety-net tests can't
-     silently start passing against an input that no longer exercises anything. Update that
-     fixture/test as part of the cure, don't just delete the assertion.
-
-     **2026-08-16 — DIAGNOSED, ready for an implementation brief; still not implemented.**
-     `criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md` tested three
-     candidate ratio-test rules against the full regression set, driving the real production
-     stack via a Vite alias (no production file touched; baseline verified bit-identical to
-     production on 181 solves and reproducing the published oracle crashes exactly). Headlines:
-     - **Verdict GO for a Harris two-pass ratio test at `pivotTolerance = 1e-7`, `δ = 1e-8`.**
-       Near-singular-pivot incidence goes 41+25/240 → **0/240**; committed real fixtures
-       181/181 clean; closed-loop oracle crashes 4/10 → **0/10**, with oracles #1 and #3 now
-       reaching genuine `coverage-complete` through degrees 2→6 and recovering ground truth
-       exactly.
-     - **The "pivot-magnitude guard" as sketched in `dantzig-stress-test.md` Result 4 should NOT
-       be built as sketched** — taking the min ratio among rows above a floor lets the step
-       overshoot by an *unbounded* amount when the floor excludes the true min-ratio row.
-       Harris's δ is exactly the bound that makes the same trade legitimate.
-     - **A bare largest-|pivot| tie-break** (smallest possible diff, provably step-length-neutral)
-       clears every real fixture and all 10 oracles but leaves the mechanism alive at n ≥ 150 —
-       it is a better mitigation, not a cure. Choosing it would keep the all-'equal' entry below
-       open.
-     - **Q2 answered:** Harris's own slack IS flagged as corruption by `FEASIBILITY_TOLERANCE`
-       once δ ≥ 1e-7 (156/181 good solves rejected at δ = 1e-6). δ ≤ 1e-8 leaves 21× headroom.
-       `PHASE1_FEASIBILITY_TOLERANCE` is unaffected at every δ tested. Do **not** loosen either
-       guard to accommodate a larger δ.
-     - **Q3 answered — drop periodic refactorization from this item's candidate list.** Measured
-       on the committed n=44 crash fixture: drift from the exact basic solution stays at ~1e-15
-       for 626 consecutive pivots, then one division by 1.91e-9 blows the tableau
-       1.6e+4 → 8.3e+12 in a single step and leaves the basis singular. There is no accumulated
-       round-off to purge, so no re-derivation schedule can help — independent of the
-       dense-vs-revised-simplex question.
-     - **Two decisions are Dan's before an implementation brief:** (a) every candidate re-prices
-       existing users' solved weights (154/181 prefixes move, median 0.167) — this is NOT a
-       regression, since `totalSlack` is unchanged and every rule attains the *identical* optimal
-       Chebyshev radius on all 180 solvable regions; the point estimate is simply not uniquely
-       determined today and the pivoting rule silently picks among ties; (b) which rule ships.
-     - Also surfaced: `MAX_ITERATIONS = 2000` (item 4 below) becomes the *sole* remaining cause of
-       adversarial failure at n=300 once this lands, and escalation timing shifts (oracle #9 hits
-       degree-2 coverage-complete at round 30 vs 49), so `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`
-       needs re-checking against the new solver.
-
-     </details>
-
-     Residual left open by the safety net: `nextAction` is deterministic, so a question whose
-     every possible answer breaks the solver re-offers the same pair indefinitely. The page
-     stays usable (Undo and "Stop here" both work) but can't advance — a skip-question
-     affordance was judged a product decision, not hotfix scope. Note this is now much harder
-     to reach in practice (no realistic-n input is known to break the solver at all), but the
-     safety net and this residual both remain, deliberately: the guards stay whatever the
-     pivot rule does.
-
-     3b. **NEW, open — the reported weights are one arbitrary pick among tied optima.**
+  4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
+     exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
+     n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
+     a test. Revisit alongside any auto-escalation work that lengthens sessions.
+     A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
+     recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
+     `criteria-calibration-dantzig-stress-test.md`.
+  5. **NEW, open — the reported weights are one arbitrary pick among tied optima.**
      Surfaced (not caused) by the Harris pass. The Chebyshev LP's optimum is massively
      degenerate: every ratio-test rule tested attains the *identical* optimal radius on all
      180 solvable regions, and `totalSlack` is invariant, so the fitted region genuinely does
@@ -712,51 +589,6 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      property. Fix would be a deterministic secondary objective — lexicographic tie-breaking,
      or maximising a strictly convex proxy. Not scoped. Related product question, also
      unscoped: whether a "your weights were recalibrated" message belongs on the results page.
-  4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
-     exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
-     n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
-     a test. Revisit alongside any auto-escalation work that lengthens sessions.
-     A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
-     recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
-     `criteria-calibration-dantzig-stress-test.md`.
-- ~~**All-'equal'-heavy answer logs at high n can still fail the LP**~~ — **CLOSED 2026-08-16
-  by item 3's Harris ratio test.** Re-confirmed against the shipped solver, not the lab copy:
-  across 240 adversarial solves the near-singular-pivot mechanism this entry describes has
-  **zero incidence**, and failures at n=150 are **0/120** — including the 100%-`'equal'` and
-  100%-contradiction cells the entry called unfixable without item 3. The residual 47/120
-  failures at n=300 are `MAX_ITERATIONS` (item 4) with healthy pivots throughout, a different
-  cause and one well beyond any real session length. Nothing here is deferred any more; the
-  historical framing below is kept because it records the boundary measurements.
-  `criteria-calibration/criteria-calibration-harris-ratio-test.md`.
-
-  <details><summary>Historical framing (pre-fix)</summary>
-
-  **Was: NOT fixed, deliberately
-  out of scope of the 2026-08-12 Dantzig pass.** On pathologically degenerate inputs — answer
-  logs that are majority `'equal'` at n >= 100, or >30% self-contradictory at n >= 300 —
-  Dantzig degrades the same way Bland did, via the same near-singular-pivot mechanism. What
-  the Dantzig pass changed is that these now fail **loudly** (a thrown error naming the
-  numerical cause) instead of returning silently-wrong weights, which was the bar that pass
-  targeted. Making them not fail at all requires fixing item 3 above — the `EPS = 1e-9`
-  admission itself — which is substantially larger work (Harris ratio test / refactorization)
-  and needs its own brief. Practical exposure is low: Dan's real session runs ~12% `'equal'`
-  with a low contradiction rate, and the measured breakdown boundary is around a 70% equal
-  share at n=150. Relevant if auto-escalation ever pushes sessions into the hundreds, or if a
-  user answers 'equal' very frequently. Measurements and the variable-separation sweep that
-  established the boundary: `criteria-calibration-dantzig-stress-test.md`.
-
-  **2026-08-16 update — this is now closable by item 3's fix, and measured to be so.** The
-  EPS-ratio-test diagnostic re-ran the equal-share and contradiction-rate tracks (rebuilt
-  generator, `'equal'` answers genuinely true under the oracle so consistency is really held
-  fixed) at n=150 and n=300. Both curing candidates take near-singular incidence to 0/240 and
-  failures at n=150 to **0/120**, including the 100%-`'equal'` and 100%-contradiction cells this
-  entry describes as unfixable without item 3. The bare largest-|pivot| tie-break does **not**
-  close it (4/120 failures, 5/240 near-singular still), so whether this entry can be retired
-  depends on which rule ships. Residual n=300 failures under the curing rules are
-  `MAX_ITERATIONS` (item 4), not this mechanism.
-  `criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`.
-
-  </details>
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the
