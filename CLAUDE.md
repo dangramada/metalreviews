@@ -66,26 +66,24 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-`criteria-calibration-harris-ratio-test` — **active, implemented, not yet merged** (`tsc` clean,
-318/318 tests). Ships the `EPS = 1e-9` near-singular-pivot **cure**: `simplex.ts`'s leaving-row
-rule is now a Harris two-pass ratio test (`pivotTolerance = 1e-7`, `δ = 1e-8`). One production
-file changed. Closes `deferred-work.md` item 3 **and** the all-'equal' entry; opens item 3b (the
-reported weights are one arbitrary pick among tied optima — surfaced, not caused). Dan's live
-71-answer log re-solved read-only: clean at all 71 prefixes, stored weights move max 0.0239 /
-median 0.0065. `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` re-checked and left unchanged — escalation
-timing shifts in both directions, flagged as a product call. Full detail:
-`docs/decisions/criteria-calibration/criteria-calibration-harris-ratio-test.md`.
+Most recent merge was `criteria-calibration-harris-ratio-test`
+(ships the `EPS = 1e-9` near-singular-pivot **cure**: `simplex.ts`'s leaving-row rule is now a
+Harris two-pass ratio test, `pivotTolerance = 1e-7` / `δ = 1e-8`, one production file changed.
+Closes `deferred-work.md`'s former item 3 and the all-'equal' entry, both relocated to
+`finished-work.md`; opens `deferred-work.md` item 5, the reported weights being one arbitrary
+pick among tied optima — surfaced, not caused. Dan's live 71-answer log re-solved read-only:
+clean at all 71 prefixes, stored weights move max 0.0239 / median 0.0065.
+`MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` re-checked and left unchanged), merged to `master`
+`--no-ff` at `ca7f905` on 2026-08-16. Rollback tag:
+`pre-merge-criteria-calibration-harris-ratio-test`. That merge also subsumed its parent
+`criteria-calibration-eps-ratio-test-diagnostic` (docs + harness only, never merged
+separately). Full detail: `docs/decisions/criteria-calibration/criteria-calibration-harris-ratio-test.md`.
 
-Its parent `criteria-calibration-eps-ratio-test-diagnostic` (read-only diagnostic, docs +
-harness only) is superseded by the above and can be merged with it. Full detail:
-`docs/decisions/criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`; harness
-`scripts/lab-eps-ratio-test-2026-08-16/`.
-
-Most recent merge was `criteria-calibration-solver-crash-safety-net`
+Before that was `criteria-calibration-solver-crash-safety-net`
 (contains the LP solver's near-singular breakdown at the page boundary: compute-first ordering on
 the mutating handlers, auto-recovery for already-persisted bad logs, route-level `ErrorBoundary`;
-solver layer deliberately untouched, so sessions still hit the breakdown but degrade legibly
-instead of blanking the page — the `EPS = 1e-9` cure stays open as `deferred-work.md` item 3),
+solver layer deliberately untouched at the time, so sessions still hit the breakdown but degraded
+legibly instead of blanking the page — the `EPS = 1e-9` cure above has since closed that gap),
 merged to `master` `--no-ff` at `f7f6f3c` on 2026-08-16. Rollback tag:
 `pre-merge-criteria-calibration-solver-crash-safety-net`. That merge also subsumed
 `criteria-calibration-synthetic-oracles` (docs-only, never merged separately). Full detail:
