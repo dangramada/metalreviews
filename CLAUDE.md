@@ -105,13 +105,11 @@ Before that was `docs-criteria-calibration-reorg` (docs-only folder+gateway reor
 Criteria Calibration cluster; see `docs/decisions/criteria-calibration-summary.md`), merged
 `--no-ff` at `97b4e3d` on 2026-08-16.
 
-Carried forward from `criteria-calibration-second-session-reset` (`ea0b2a4`, 2026-08-15 —
-`docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md`):
-the in-browser fresh-state check was not completed (page is behind auth) — worth a glance
-before starting the new calibration session; score/rank badges stay absent app-wide until
-that session's first commit. Note the reset must DELETE, not upsert — `answer_count`/`fired`
-are guarded monotonic and an upsert cannot clear them; `archive-and-reset-calibration.ts
---reset` is disabled for that reason.
+Account state (`criteria-calibration-second-session-reset.md`, "Outcome" section): the awaited
+second validation session **ran and completed at 71 answers on 2026-08-15** — Dan's account is
+not empty, and score/rank badges are back. Treat those 71 answers as the validated dataset, not
+scratch space; a further session needs a fresh backup+reset, and the reset must DELETE, not
+upsert (`archive-and-reset-calibration.ts --reset` is disabled for that reason).
 
 Also carried forward from the two merges before that (LP warm-start's O(n²) ceiling, and the
 `last_eligible_top10`/`last_change_answer_index` write-race correctness risk to the

@@ -73,7 +73,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 
 **Data operations & write-race safety**
 - `criteria-calibration-weights-write-race.md` — diagnoses and partially fixes the un-awaited-write race (see "Current status" above)
-- `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run
+- `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run; its "Outcome" section (added 2026-08-16) is the current source of truth for Dan's account state — that session ran and completed at 71 answers, so the account is **not** empty
 
 **Research**
 - `criteria-calibration-1000minds-comparative-research.md` — comparative research against 1000minds' PAPRIKA calibration UX
