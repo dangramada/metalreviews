@@ -1,0 +1,8 @@
+regions built: 181
+baseline                   chebyshevSolves=181 failures=1 meanRadius=1.5172e-7
+magnitude-tiebreak         chebyshevSolves=181 failures=0 meanRadius=1.5094e-7
+magnitude-floor(0.001)     chebyshevSolves=181 failures=0 meanRadius=1.5094e-7
+harris(d=1e-8)             chebyshevSolves=181 failures=0 meanRadius=1.5094e-7
+  magnitude-tiebreak vs baseline: rescued=1 largerRadius=0 smallerRadius=0 tiedRadius=180 worstRadiusLoss=0.00e+0
+  magnitude-floor(0.001) vs baseline: rescued=1 largerRadius=0 smallerRadius=0 tiedRadius=180 worstRadiusLoss=0.00e+0
+  harris(d=1e-8) vs baseline: rescued=1 largerRadius=0 smallerRadius=0 tiedRadius=180 worstRadiusLoss=0.00e+0

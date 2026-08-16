@@ -1,0 +1,15 @@
+=== LEVEL A: committed fixtures, all prefixes ===
+fixtures: real-session-n31(31), n42-repro(42), real-production-n33(33), degree-anomaly-n31(31), solver-crash-n44(44)
+production baseline (unaliased tsx run): 181 solves, 0 failures
+baseline                           solves=181 failures=1 digestDiffVsProd=157 worstPointDelta=5.00e-1 floorFallbacks=0 harrisDeviations=0 harrisWorstStepExcess=0.00e+0
+    FAIL solver-crash-n44 n=44: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=post-solve-infeasible maxViolation=0.0003108164070553424 minPivotMagnitude=1.
+magnitude-tiebreak                 solves=181 failures=0 digestDiffVsProd=9 worstPointDelta=8.32e-2 floorFallbacks=0 harrisDeviations=0 harrisWorstStepExcess=0.00e+0
+magnitude-floor(floor=1e-7)        solves=181 failures=0 digestDiffVsProd=9 worstPointDelta=8.32e-2 floorFallbacks=0 harrisDeviations=0 harrisWorstStepExcess=0.00e+0
+magnitude-floor(floor=0.00001)     solves=181 failures=0 digestDiffVsProd=9 worstPointDelta=8.32e-2 floorFallbacks=0 harrisDeviations=0 harrisWorstStepExcess=0.00e+0
+magnitude-floor(floor=0.001)       solves=181 failures=0 digestDiffVsProd=9 worstPointDelta=8.32e-2 floorFallbacks=0 harrisDeviations=0 harrisWorstStepExcess=0.00e+0
+harris(floor=1e-7,delta=1e-9)      solves=181 failures=0 digestDiffVsProd=9 worstPointDelta=6.02e-2 floorFallbacks=0 harrisDeviations=1 harrisWorstStepExcess=2.72e-7
+harris(floor=1e-7,delta=1e-8)      solves=181 failures=0 digestDiffVsProd=0 worstPointDelta=0.00e+0 floorFallbacks=0 harrisDeviations=41 harrisWorstStepExcess=2.00e-6
+harris(floor=1e-7,delta=1e-7)      solves=181 failures=1 digestDiffVsProd=86 worstPointDelta=2.22e-1 floorFallbacks=0 harrisDeviations=2379 harrisWorstStepExcess=2.20e-5
+    FAIL degree-anomaly-n31 n=27: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=post-solve-infeasible maxViolation=1.3994827360654173e-7 minPivotMagnitude=0.
+harris(floor=0.00001,delta=1e-9)   solves=181 failures=0 digestDiffVsProd=9 worstPointDelta=6.02e-2 floorFallbacks=0 harrisDeviations=1 harrisWorstStepExcess=2.72e-7
+harris(floor=0.00001,delta=1e-8)   solves=181 failures=0 digestDiffVsProd=0 worstPointDelta=0.00e+0 floorFallbacks=0 harrisDeviations=41 harrisWorstStepExcess=2.00e-6

@@ -1,0 +1,12 @@
+
+--- baseline --- feasible=false reason=post-solve-infeasible pivots=818 minPivot=1.908e-9 maxTableau=8.259e+12 maxViolation=3.108e-4
+  drift samples=802/818 (non-finite = singular basis matrix)
+  largest single-pivot |tableau| jump: pivot #627 1.58e+4 -> 8.26e+12 (x5.24e+8) at pivotMag=1.91e-9; drift 3.83e-13 -> NaN
+  trajectory: p1:d=0.0e+0,t=6.2e+1 p82:d=3.1e-15,t=1.5e+3 p163:d=5.4e-15,t=2.8e+3 p244:d=2.2e-16,t=1.4e+4 p325:d=8.9e-15,t=1.4e+4 p406:d=5.4e-15,t=1.4e+4 p487:d=2.4e-15,t=1.4e+4 p568:d=1.8e-15,t=1.4e+4 p649:d=NaN,t=8.3e+12 p730:d=6.1e-11,t=8.3e+12 p811:d=6.6e-10,t=8.3e+12 p3:d=4.4e-8,t=1.2e+6
+  first pivot below 1e-7: #627 of 818 (191 pivots remain)
+
+--- magnitude-tiebreak --- feasible=true reason=- pivots=160 minPivot=2.000e-1 maxTableau=7.841e+2 maxViolation=1.776e-15
+  drift samples=160/160 (non-finite = singular basis matrix)
+  largest single-pivot |tableau| jump: pivot #115 1.69e+2 -> 4.23e+2 (x2.51e+0) at pivotMag=8.33e-1; drift 2.45e-15 -> 9.16e-16
+  trajectory: p1:d=0.0e+0,t=4.9e+1 p17:d=1.1e-17,t=8.2e+1 p33:d=1.1e-16,t=1.5e+2 p49:d=2.1e-17,t=1.5e+2 p65:d=1.5e-16,t=1.5e+2 p81:d=2.1e-15,t=1.5e+2 p97:d=5.0e-16,t=1.7e+2 p113:d=7.6e-16,t=1.7e+2 p6:d=5.8e-16,t=1.5e+1 p22:d=5.1e-15,t=2.0e+1 p37:d=1.0e-15,t=2.0e+1
+  first pivot below 1e-7: never

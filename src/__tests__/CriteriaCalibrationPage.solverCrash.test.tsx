@@ -8,9 +8,18 @@
 // reload reproduced it. Full trace:
 // docs/decisions/criteria-calibration/criteria-calibration-near-singular-pivot-impact.md.
 //
-// Uses SOLVER_CRASH_ANSWERS (see fixtures.ts) — a real 44-answer log produced by the
-// production elicitation driver itself, which throws at n=44 and solves at n=43.
-// solverCrashFixture.test.ts pins both of those properties independently.
+// The breakdown is INJECTED here, not induced numerically (changed 2026-08-16, when the
+// Harris ratio test landed). Until then these tests leaned on SOLVER_CRASH_ANSWERS actually
+// breaking the solver at n=44 — but Harris cures that log, and 1000 generated adversarial
+// logs at n <= 100 failed to produce a replacement (see
+// criteria-calibration-harris-ratio-test.md). That is the fix working, not a gap: there is
+// no longer a realistic input that reaches this code path by itself.
+//
+// So the safety net is now tested against a stubbed `solveValues` that throws at one chosen
+// answer count. This is strictly better decoupling — the safety net's job is "a solver throw
+// must not blank the page", which was never really a claim about numerics — and it means a
+// future solver change can't silently turn these tests into no-ops. SOLVER_CRASH_ANSWERS is
+// still used, purely as a realistically-shaped 44-answer log from the real driver.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
@@ -45,6 +54,26 @@ vi.mock('../supabaseClient', () => ({
     from: vi.fn(),
   },
 }));
+// Set per test: the answer count at which the stubbed solver throws. `null` = never.
+// Both consumers of solveValues on this page (computeCommitState and the elicitationDriver's
+// nextAction) import it from this one module, so a single stub covers the commit path AND
+// the render path — which is the one that actually unmounted the root pre-fix.
+let throwAtAnswerCount: number | null = null;
+vi.mock('../lib/criteria-calibration/solver', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/criteria-calibration/solver')>();
+  return {
+    ...actual,
+    solveValues: (input: Parameters<typeof actual.solveValues>[0]) => {
+      if (throwAtAnswerCount !== null && input.answers.length === throwAtAnswerCount) {
+        // Message shape matches the real Chebyshev failure, so anything downstream that
+        // matches on it behaves as it would in production.
+        throw new Error('Chebyshev-center solve failed (injected by test)');
+      }
+      return actual.solveValues(input);
+    },
+  };
+});
+
 vi.mock('../lib/criteria-calibration/persistence', () => ({
   insertAnswer: vi.fn().mockResolvedValue('new-db-id'),
   deleteAnswer: vi.fn().mockResolvedValue(undefined),
@@ -57,7 +86,11 @@ import { useRankingTestSetRatings } from '../hooks/useRankingTestSetRatings';
 import { usePendingWritesGuard } from '../hooks/usePendingWritesGuard';
 import { useFeedbackToast } from '../hooks/useFeedbackToast';
 import { useAuth } from '../AuthContext';
-import { insertAnswer, deleteAnswer, upsertWeightsAndStatus } from '../lib/criteria-calibration/persistence';
+import {
+  insertAnswer,
+  deleteAnswer,
+  upsertWeightsAndStatus,
+} from '../lib/criteria-calibration/persistence';
 
 const CRITERION_NAMES = [
   'Songwriting',
@@ -79,9 +112,10 @@ const FIXTURE_CATALOG: CriteriaCatalog = {
   levelsPerCriterion: SOLVER_CRASH_LEVELS_PER_CRITERION,
 };
 
-// The last answer in the fixture is the one that tips the solver over. Seeding everything
-// before it gives a healthy n=43 session sitting on exactly the question whose answer breaks.
+// Seeding all but the last answer gives an n=43 session sitting on the question whose answer
+// takes it to 44 — the count the stub is set to throw at.
 const HEALTHY_PREFIX = SOLVER_CRASH_ANSWERS.slice(0, -1);
+const CRASH_AT = SOLVER_CRASH_ANSWERS.length; // 44
 
 function seed(rounds: typeof SOLVER_CRASH_ANSWERS) {
   return rounds.map((r, i) => ({
@@ -118,6 +152,7 @@ function renderPage() {
 describe('CriteriaCalibrationPage — solver-crash safety net', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    throwAtAnswerCount = null;
     vi.mocked(useCriteriaCatalog).mockReturnValue({
       catalog: FIXTURE_CATALOG,
       loading: false,
@@ -147,6 +182,7 @@ describe('CriteriaCalibrationPage — solver-crash safety net', () => {
   });
 
   it('a comparison that breaks the solver leaves the page usable and saves nothing', async () => {
+    throwAtAnswerCount = CRASH_AT;
     mockResume(HEALTHY_PREFIX);
     const { container } = renderPage();
     await screen.findAllByRole('article');
@@ -178,6 +214,7 @@ describe('CriteriaCalibrationPage — solver-crash safety net', () => {
   });
 
   it('a resumed session whose saved log breaks the solver auto-recovers to the last good state', async () => {
+    throwAtAnswerCount = CRASH_AT;
     mockResume(SOLVER_CRASH_ANSWERS);
     const { container } = renderPage();
 
@@ -191,7 +228,9 @@ describe('CriteriaCalibrationPage — solver-crash safety net', () => {
     expect(deleteAnswer).toHaveBeenCalledWith(`db-${SOLVER_CRASH_ANSWERS.length - 1}`);
     expect(deleteAnswer).toHaveBeenCalledTimes(1);
     expect(screen.getByText(`Round ${SOLVER_CRASH_ANSWERS.length}`)).toBeTruthy();
-    expect(showError).toHaveBeenCalledWith(expect.stringContaining('remove your most recent answer'));
+    expect(showError).toHaveBeenCalledWith(
+      expect.stringContaining('remove your most recent answer')
+    );
 
     // Recovery re-syncs the persisted weights/status with the trimmed log, rather than
     // leaving the DB describing an answer count that no longer exists.
