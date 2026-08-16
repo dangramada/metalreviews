@@ -152,8 +152,10 @@ cancels it like every other deferred callback here). Two further live runs after
 produced zero occurrences. This is the specific reason the live check was worth doing.
 
 **Incidental, and it closes an open question from the impact assessment:** Dan's real account
-currently holds a **71-answer** log — the session the assessment could only reason about
-indirectly, since it was never committed as a fixture. Every prefix `n=1…71` was re-solved
+holds a **71-answer** log — the completed second validation session of 2026-08-15, not the
+older session the impact assessment could only reason about indirectly (that one was 70
+answers and was deleted; see `criteria-calibration-second-session-reset.md`'s "Outcome"
+section, whose stale "awaiting a session" note this run also corrected). Every prefix `n=1…71` was re-solved
 read-only against the current solver: **all 71 solve cleanly, no failures.** So the `n=54`/`n=57`
 breakdowns recorded in `criteria-calibration-ranking-stability-analysis.md` do *not* reproduce
 on this log post-Dantzig-fix. That is reassuring but not a general clearance — the 4/10 oracle

@@ -1,5 +1,9 @@
 # Criteria-calibration reset for a second validation session (2026-08-15)
 
+> **Account state has moved on since this was written — see the "Outcome" section at the
+> bottom before acting on anything here.** The session this reset was preparing for ran the
+> same day and completed at 71 answers; the account is not empty.
+
 Data operation, not a feature. Wiped Dan's completed 70-answer calibration session so a
 second, independent session can be run — the prerequisite for revisiting the accuracy
 thresholds and the `R = 12` stability window, both of which are currently calibrated against
@@ -71,6 +75,7 @@ consumer breaks: the two readers outside the calibration flow — `AlbumRatingPa
 gracefully, since `computeScore` returns `null` on a missing weight and the album is skipped.
 **Expected visible consequence:** score and rank badges are absent app-wide until the new
 session's first commit repopulates the weights. That is inherent to the reset, not a bug.
+(Satisfied on 2026-08-15 — the session ran and the 30 weight rows are back. See "Outcome".)
 
 ## Fresh-state verification
 
@@ -107,3 +112,48 @@ that **service-key scripts bypass RLS**, so any script touching this table must 
   `album_criteria_ratings` invariant check, an other-users-unchanged guard, and the Step 2
   fresh-state checks
 - `scripts/archive-and-reset-calibration.ts` — `--reset` disabled (throws)
+
+## Outcome — the awaited session ran and completed (recorded 2026-08-16)
+
+This doc, and CLAUDE.md's carried-forward note pointing at it, both described the account as
+freshly reset and *awaiting* the second validation session. That was true when written and
+stopped being true the same day. The session ran on 2026-08-15 and **completed at 71 answers**;
+neither doc was updated, so until now the docs described an empty account while the account
+actually held a complete session. Discovered incidentally while verifying the solver-crash
+auto-recovery path against live data (`criteria-calibration-solver-crash-safety-net.md`).
+
+Confirmed read-only against Supabase on 2026-08-16, not inferred:
+
+| evidence | value |
+|---|---|
+| `user_calibration_answers` on `eec42cd4…` | **71 rows** |
+| `answered_at` range | 2026-08-15 10:49:33Z → 11:17:45Z — one sitting, all on one day |
+| pre-reset backup export time | 2026-08-15 10:30:54Z (19 min *before* the first answer) |
+| pre-reset backup contents | **70** answers — the wiped session, not this one |
+| `user_calibration_status` | `answer_count: 71`, `tier: very_high`, `accuracy_value: 0.999977`, `fired: true`, `last_change_answer_index: 45` |
+| `second-session-accuracy-trajectory-2026-08-15.csv` final row | `n=71`, `accuracy 0.999977`, `veryHigh`, `fired true`, `last_change_answer_index 45` |
+
+The status row and the trajectory CSV's last row agree to six decimal places on accuracy and
+exactly on `fired`/`last_change_answer_index`. Together with the timestamps bracketing the
+backup, this is the post-reset second validation session and nothing else.
+
+**Status of this account going forward: it holds the validated second session — treat it as
+data, not as scratch space.** The 30 `user_criterion_weights` rows and the score/rank badges
+now visible app-wide are derived from exactly these 71 answers, and the trajectory CSV is the
+committed analysis of them. Answering more questions on this account would extend the log
+past the point that analysis describes and silently invalidate it. If another session is
+wanted, back up and reset again via the same DELETE procedure documented above (never the
+disabled upsert path) — or use a throwaway account, as
+`scripts/seed-solver-crash-session.ts` does.
+
+Two related notes, neither chased down here:
+
+- The "in-browser fresh-state check was not completed" caveat is now moot — the session ran
+  through the real UI to completion, which exercises that state far more thoroughly than a
+  glance at an empty page would have.
+- **Unresolved, immaterial, flagged rather than silently corrected:** `fixtures.ts`'s
+  `PASS4_RANKING_STABILITY_CHECKPOINTS` header calls the 2026-08-10→12 session a "71-answer
+  session", while this doc and the pre-reset backup both put it at **70**. One of the two is
+  off by one. It affects no code (that fixture stores checkpoints, not a full log, and its
+  highest `answerCount` is 69) and no conclusion in any doc, so it is recorded here rather
+  than edited on a guess about which number is right.
