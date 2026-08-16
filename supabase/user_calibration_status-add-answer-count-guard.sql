@@ -1,5 +1,5 @@
 -- Closes the write-race documented in
--- docs/decisions/criteria-calibration-weights-write-race.md (see that file's 2026-08-15
+-- docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md (see that file's 2026-08-15
 -- correction note for what this fix is and isn't responding to: the specific 92.04%/n=69
 -- incident used as motivating evidence did NOT hold up under re-verification, but the RPC's
 -- structural lack of an ordering guard on accuracy_value/tier is real and independent of
@@ -37,7 +37,7 @@
 -- Deliberately scoped to accuracy_value/tier/answer_count only. last_eligible_top10 and
 -- last_change_answer_index keep the existing plain excluded.* overwrite, completely
 -- unaffected by this migration's guard either way. IMPORTANT, re-verified 2026-08-15 (see
--- criteria-calibration-weights-write-race.md's dated addendum and
+-- docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md's dated addendum and
 -- scripts/verify-write-race-guard.ts's check #4): the "staleness here only delays firing,
 -- never falsely un-fires" argument from the prior two migrations' headers does NOT cleanly
 -- cover these two fields for the specific mechanism found this session. A write computed

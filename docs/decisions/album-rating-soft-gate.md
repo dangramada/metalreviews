@@ -70,7 +70,7 @@ Two implementation choices flagged back to Dan and confirmed:
 ## Verification
 
 No Supabase test credentials this session (same recurring constraint as several prior
-sessions — see `album-rating-page.md`, `criteria-calibration-medium-gate-redesign.md`).
+sessions — see `album-rating-page.md`, `criteria-calibration/criteria-calibration-medium-gate-redesign.md`).
 Live-verified via a temporary dev-only route (`DevSoftGatePreview.tsx` +
 `/dev-soft-gate-preview` in `main.tsx`) rendering `FavoriteListItemRow` and
 `RatingProgressBox` directly against all four tier values, plus the nudge dialog —

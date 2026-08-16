@@ -2,9 +2,10 @@
 // session (2026-08-09, REAL_PRODUCTION_SESSION_ANSWERS / 33 answers) reproduce on the second,
 // independent real session (Dan's account, 71 answers, 2026-08-15, post-reset)?
 //
-// Per docs/decisions/criteria-calibration-coverage-weighted-candidates.md's original trace,
+// Per docs/decisions/criteria-calibration/criteria-calibration-coverage-weighted-candidates.md's original trace,
 // fetches the live user_calibration_answers log (now holding the second session, since the
-// first was deleted by the 2026-08-15 reset — see criteria-calibration-second-session-reset.md)
+// first was deleted by the 2026-08-15 reset — see
+// docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md)
 // and replays solveValues at checkpoints every ~10 answers plus the final state, reporting
 // solved.values[criterion][level].point at each checkpoint.
 //

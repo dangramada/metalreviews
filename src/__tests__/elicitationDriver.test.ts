@@ -567,7 +567,7 @@ describe('coverage-based degree escalation (replaces the old MAX_AMBIGUOUS_GAP g
     // rankCandidatesByAmbiguity, which reads solver point estimates, and those legitimately
     // shifted when simplex.ts moved from Bland's rule to Dantzig's (the Chebyshev-center LP
     // is under-determined here, so both rules return equally optimal but different centers —
-    // see docs/decisions/criteria-calibration-dantzig-fix.md). This test is about the
+    // see docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md). This test is about the
     // degree-SCOPING rule, not about the exact question sequence, so it drives to the
     // coverage-complete state rather than assuming it lands at a specific answer count.
     let atDegree2 = nextAction(session, levelsPerCriterion, 2);

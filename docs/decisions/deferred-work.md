@@ -165,7 +165,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   surfaced by the same trace, possibly relevant to that upcoming solver-design
   decision:** criterion 5 received a solved weight of essentially zero across all 5
   levels (`[0, 0, 0, 0, 0]`) on this real session — flat at zero, not just flat
-  among levels 2-5. Full trace output and reasoning: `docs/decisions/criteria-calibration-coverage-weighted-candidates.md`.
+  among levels 2-5. Full trace output and reasoning: `docs/decisions/criteria-calibration/criteria-calibration-coverage-weighted-candidates.md`.
 
   **2026-08-15 addendum — re-verified against Dan's second, independent 71-answer
   session, read-only, no production files touched
@@ -273,7 +273,7 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   separated.
 - **Criteria Calibration UI never displays the current `degree` anywhere —
   flagged 2026-08-11, not fixed.** Surfaced while diagnosing/fixing the
-  degree-jump anomaly (`docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md`):
+  degree-jump anomaly (`docs/decisions/criteria-calibration/criteria-calibration-degree-scoped-coverage-fix.md`):
   `ProgressHeader`/`RoundGaugeGroup` show round/progress/accuracy only. This is
   why repeated "you've resolved everything at this level of detail" screens
   during degree escalation were indistinguishable to Dan even after the
@@ -723,7 +723,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
 
   **Second real session, 2026-08-15 (corroborating, still not dispositive):** replayed
   the second validation session's 71-answer log (see
-  `docs/decisions/criteria-calibration-second-session-reset.md`) through the unmodified
+  `docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md`) through the unmodified
   signal, same fine-grained per-real-answer method as the first session's replay. Last
   real top-10 change at n=45; `fired` flips at n=57 (45+12, exactly R=12); span held
   through the end of the log (n=71) with zero re-flips — same pattern as the first
@@ -887,7 +887,7 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   Surfaced 2026-07-28 while building the Criteria Calibration screen UI (Phase 7);
   current `ProgressHeader` layout (Progress ring + Accuracy status centered,
   "Stop here" right, empty flex spacer left) works but wasn't given a real design
-  pass — out of scope for that UI-only brief. `docs/decisions/criteria-calibration-ui.md`.
+  pass — out of scope for that UI-only brief. `docs/decisions/criteria-calibration/criteria-calibration-ui.md`.
   Related, distinct scope (do **not** merge the two): "Accuracy display conflates two
   different signals" below — that entry is about *what* the header communicates, this one
   about *how it is laid out*.
@@ -918,7 +918,7 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   proposed signal would use the solver's own real uncertainty bounds, not a proxy. Still,
   treat this as a genuine reversal — it needs explicit acknowledgment if revisited, not a
   silent do-over.
-  See docs/decisions/criteria-calibration-1000minds-comparative-research.md
+  See docs/decisions/criteria-calibration/criteria-calibration-1000minds-comparative-research.md
   (2026-08-16) for a comparative study against 1000minds' calibration UX —
   relevant for the future Concept Draft on this item.
   Also flagged, same session: a **"calibration results page"** idea — showing criteria

@@ -1,5 +1,5 @@
 // Regression tests for the 2026-08-12 Bland -> Dantzig pivoting switch and the two guards
-// added alongside it. See docs/decisions/criteria-calibration-dantzig-fix.md.
+// added alongside it. See docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md.
 //
 // Three things are being pinned here, in order of importance:
 //   1. Dan's real stuck session (58 answers + question #59) now solves, for every possible
