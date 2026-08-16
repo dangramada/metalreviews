@@ -202,41 +202,38 @@ rewriting them, which this reorg pass deliberately avoided.
      related degree-2-confinement pattern did, and it resolved once the session
      escalated past degree 2.** Checkpoints every ~10 real answers plus the
      three degree-transition boundaries (degree 2 ends at n=28, degree 3 spans
-     n=29-49, degree 4 spans n=50-71, degree distribution 28/21/22):
-     - **While still confined to degree 2 (n=28, the last purely-degree-2
-       checkpoint):** several criteria show a flat/zero pair among _low_ levels
-       instead of high levels — e.g. criterion 0: `[0, 0, 0.0832, 0.1249,
+     n=29-49, degree 4 spans n=50-71, degree distribution 28/21/22): - **While still confined to degree 2 (n=28, the last purely-degree-2
+     checkpoint):** several criteria show a flat/zero pair among _low_ levels
+     instead of high levels — e.g. criterion 0: `[0, 0, 0.0832, 0.1249,
 0.1667]` (flat 1-2, then differentiated 3-5); criterion 2: `[0, 0, 0,
 0.0830, 0.1666]` (flat 1-3, then differentiated). This is the same
-       qualitative phenomenon as the original finding — adjacent levels
-       collapsing to indistinguishable point estimates — but the _specific_
-       levels affected differ (1-2/1-3 here vs. 2-5 in the original), which the
-       original session-level diagnosis couldn't have shown since it only ever
-       reached degree 2.
-     - **Once degree escalated to 3 then 4 (n=29 through the final n=71), the
-       flatness dissolved.** Final state, all six criteria, no adjacent-level
-       gap under 0.02: criterion 0 `[0, 0.0242, 0.0713, 0.1189, 0.1667]`;
-       criterion 1 `[0, 0.0233, 0.0714, 0.1184, 0.1668]`; criterion 2 `[0,
+     qualitative phenomenon as the original finding — adjacent levels
+     collapsing to indistinguishable point estimates — but the _specific_
+     levels affected differ (1-2/1-3 here vs. 2-5 in the original), which the
+     original session-level diagnosis couldn't have shown since it only ever
+     reached degree 2. - **Once degree escalated to 3 then 4 (n=29 through the final n=71), the
+     flatness dissolved.** Final state, all six criteria, no adjacent-level
+     gap under 0.02: criterion 0 `[0, 0.0242, 0.0713, 0.1189, 0.1667]`;
+     criterion 1 `[0, 0.0233, 0.0714, 0.1184, 0.1668]`; criterion 2 `[0,
 0.0235, 0.0472, 0.0709, 0.1666]`; criterion 3 `[0, 0.0239, 0.0949,
 0.1422, 0.1667]`; criterion 4 `[0, 0.0242, 0.0481, 0.0953, 0.1667]`;
-       criterion 5 `[0, 0.0475, 0.0712, 0.0954, 0.1665]`. No criterion shows a
-       near-flat run of two or more adjacent non-level-1 levels anywhere in this
-       final state.
-     - **Working hypothesis this raises, not yet confirmed:** the original
-       33-answer trace was diagnosed _while the session was stuck at degree 2_
-       (its own doc records `nextAction()` returning a degree-2 ask at the
-       moment of the trace). The flatness may be substantially a
-       degree-2-confinement symptom — a criterion only gets enough independent
-       constraints to separate its middle levels once cross-criterion
-       comparisons at degree 3+ start arriving — rather than a standalone,
-       permanent defect in `solveValues`' point-estimate assignment. This does
-       **not** rule out a real solver-side issue (the degree-2-only shape above
-       is still a genuine flat/indistinguishable region that existed at that
-       point in the session, and a session that stalls at degree 2 for longer
-       than this one did would presumably keep it), but it means "the solver
-       treats levels 2-5 as flat" is not the most precise statement of the
-       mechanism. Worth factoring into the future solver-design brief rather
-       than assuming the original framing still holds unmodified.
+     criterion 5 `[0, 0.0475, 0.0712, 0.0954, 0.1665]`. No criterion shows a
+     near-flat run of two or more adjacent non-level-1 levels anywhere in this
+     final state. - **Working hypothesis this raises, not yet confirmed:** the original
+     33-answer trace was diagnosed _while the session was stuck at degree 2_
+     (its own doc records `nextAction()` returning a degree-2 ask at the
+     moment of the trace). The flatness may be substantially a
+     degree-2-confinement symptom — a criterion only gets enough independent
+     constraints to separate its middle levels once cross-criterion
+     comparisons at degree 3+ start arriving — rather than a standalone,
+     permanent defect in `solveValues`' point-estimate assignment. This does
+     **not** rule out a real solver-side issue (the degree-2-only shape above
+     is still a genuine flat/indistinguishable region that existed at that
+     point in the session, and a session that stalls at degree 2 for longer
+     than this one did would presumably keep it), but it means "the solver
+     treats levels 2-5 as flat" is not the most precise statement of the
+     mechanism. Worth factoring into the future solver-design brief rather
+     than assuming the original framing still holds unmodified.
 
   3. **Criterion-5-style total zero-weight did NOT reproduce, at any checkpoint
      sampled (n=10, 20, 28, 29, 40, 49, 50, 60, 70, 71).** Max solved point
@@ -678,6 +675,22 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
     coverage-width ratio and an accuracy-plateau signal are named but untested. Full analysis,
     per-R sweeps and committed trajectory CSVs:
     `criteria-calibration-escalation-signal-candidates.md`.
+  - **Second pass, same day — the two named follow-ups also fail; recommendation is now
+    Candidate C.** Normalised coverage ratio (A2) fails because its anchor is undefined on 3 of
+    10 oracles and set _after_ the ranking settled on 3 more — normalising against tier
+    eligibility inherits the tier gate's own unreliability. Accuracy plateau (A3) is the worst
+    variant tested either pass: early on all 12 traces at R=3 at every δ, because score-spread
+    accuracy saturates and sits flat long before the ranking settles. No family has a non-empty
+    threshold intersection at any R. **Standing recommendation: Candidate C** — delete the
+    detection problem, show an explicit "See results / Answer more questions" checkpoint at each
+    existing `isDegreeCoverageComplete` boundary (already the sole trigger; `fired` only decides
+    auto-escalate vs. show-the-button). Measured cost: **2 extra interstitial screens per real
+    session**, max 4 across 12 traces. Removes ~876 lines, 7 `user_calibration_status` columns,
+    the multi-user per-user-benchmark rework this entry has been holding open, and — because the
+    un-awaited-write race is scoped _exactly_ to `last_eligible_top10` /
+    `last_change_answer_index` — **the project's one open correctness risk stops existing rather
+    than needing a guard.** Not implemented; awaiting Dan's decision. Open sub-questions for
+    implementation are listed at the end of §12 in the decision doc.
   - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
     `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
     with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account

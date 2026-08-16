@@ -71,9 +71,16 @@ Diagnostic evaluation of two solver-internal replacements for Brief 3's `RANKING
 top-10 stop signal, which cannot work for any first-time user. **Both candidates fail** —
 coverage width has no single threshold that works across the 12-trace evidence set at any
 R ∈ {3,6,9,12}; weight-vector stability is structurally unsound (converged-tail jitter matches
-still-learning movement on 5 of 11 traces). Recommendation: keep the incumbent, develop the
-coverage-width family if either. Also corrects `deferred-work.md`'s now-stale n=35/n=45
-stability points to n=39/n=46 — the Harris fix moved both. No production code touched.
+still-learning movement on 5 of 11 traces). A second pass tested the two named follow-ups —
+normalised coverage ratio and accuracy plateau — and **both fail as well**, closing the
+mathematical-signal direction (five variants, four R values, 12 traces, no safe constant).
+**Standing recommendation: Candidate C** — drop detection, show an explicit checkpoint at each
+existing `isDegreeCoverageComplete` degree boundary. Measured cost 2 extra screens per real
+session; deletes ~876 lines, 7 DB columns, and **the one open correctness risk** (the
+`last_eligible_top10`/`last_change_answer_index` write-race is scoped exactly to columns C
+removes). Awaiting Dan's decision — not implemented. Also corrects `deferred-work.md`'s
+now-stale n=35/n=45 stability points to n=39/n=46 — the Harris fix moved both. No production
+code touched.
 Full detail: `docs/decisions/criteria-calibration/criteria-calibration-escalation-signal-candidates.md`.
 
 Most recent merge was `criteria-calibration-harris-ratio-test`
