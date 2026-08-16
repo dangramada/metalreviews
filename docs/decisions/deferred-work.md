@@ -139,6 +139,23 @@ rewriting them, which this reorg pass deliberately avoided.
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **`useCalibrationResume.ts`'s mount-time degree inference and
+  `preferenceGraph.ts`'s `inferDegreeFromAnswers` are two independent
+  implementations of the same formula — drift risk, not fixed, 2026-08-16.**
+  Fixing the cross-degree Undo/Redo stale-`degree` bug (see
+  `criteria-calibration-second-session-reset.md`'s 2026-08-15 diagnosis) added
+  `inferDegreeFromAnswers` (`preferenceGraph.ts`) so `CriteriaCalibrationPage.tsx`'s
+  `handleUndo`/`handleRedo` could re-derive `degree` from the post-mutation answer
+  log the same way `useCalibrationResume.ts` already does on mount. Deliberately
+  left `useCalibrationResume.ts`'s own inline `reduce` untouched per the brief (not
+  a rewrite of resume's mount-time inference) — today the two are byte-for-byte
+  the same formula (`Math.max` over each answer's `profileA` key count, floored at
+  `STARTING_DEGREE`), so there's no live bug. The actual risk: nothing guards
+  against them diverging if either is edited later (e.g. a future change to how
+  degree is derived, applied to one call site and not the other, would silently
+  reintroduce a stale-`degree` class of bug on either resume or undo/redo). Worth
+  a follow-up pass to have `useCalibrationResume.ts` call the shared helper too,
+  once that file isn't mid-fight with something else.
 - **Degree-2 flatness / degree-3-escalation stall confirmed to originate in
   `solveValues`' point-estimate assignment, not in candidate selection — open,
   2026-08-09.** `criteria-calibration-coverage-weighted-candidates` branch (merged)
