@@ -1,0 +1,21 @@
+trials/cell=10 ns=150,300
+
+--- baseline ---
+  equal-share    param=0     n=150  failures=0/10 realisedEqual=0% minPivot=5.42e-4 maxTableau=3.23e+5
+  equal-share    param=0.2   n=150  failures=0/10 realisedEqual=24% minPivot=1.56e-3 maxTableau=2.94e+5
+  equal-share    param=0.45  n=150  failures=2/10 realisedEqual=49% minPivot=1.14e-9 maxTableau=9.80e+17
+  equal-share    param=0.7   n=150  failures=6/10 realisedEqual=72% minPivot=1.02e-9 maxTableau=3.50e+21
+  equal-share    param=0.9   n=150  failures=5/10 realisedEqual=90% minPivot=1.15e-9 maxTableau=1.16e+17
+  equal-share    param=1     n=150  failures=9/10 realisedEqual=100% minPivot=1.14e-9 maxTableau=1.39e+17
+  contradiction  param=0     n=150  failures=1/10 realisedEqual=27% minPivot=1.03e-9 maxTableau=8.62e+18
+  contradiction  param=0.15  n=150  failures=2/10 realisedEqual=27% minPivot=1.11e-9 maxTableau=2.12e+17
+  contradiction  param=0.3   n=150  failures=9/10 realisedEqual=27% minPivot=1.02e-9 maxTableau=2.52e+19
+  contradiction  param=0.5   n=150  failures=9/10 realisedEqual=27% minPivot=1.04e-9 maxTableau=7.51e+18
+  contradiction  param=0.75  n=150  failures=10/10 realisedEqual=27% minPivot=1.04e-9 maxTableau=7.16e+17
+  contradiction  param=1     n=150  failures=8/10 realisedEqual=27% minPivot=1.00e-9 maxTableau=3.59e+38
+  equal-share    param=0     n=300  failures=0/10 realisedEqual=0% minPivot=9.50e-4 maxTableau=7.26e+5
+  equal-share    param=0.2   n=300  failures=8/10 realisedEqual=22% minPivot=1.02e-9 maxTableau=1.74e+18
+  equal-share    param=0.45  n=300  failures=10/10 realisedEqual=49% minPivot=1.07e-9 maxTableau=2.14e+19
+  equal-share    param=0.7   n=300  failures=10/10 realisedEqual=73% minPivot=1.02e-9 maxTableau=3.02e+19
+  equal-share    param=0.9   n=300  failures=9/10 realisedEqual=91% minPivot=1.01e-9 maxTableau=4.49e+19
+  equal-share    param=1     n=300  failures=7/10 realisedEqual=100% minPivot=1.03e-9 maxTableau=1.17e+29

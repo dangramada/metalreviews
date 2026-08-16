@@ -1,0 +1,44 @@
+MAX_ROUNDS=90
+
+--- baseline ---
+  # 1 uniform                    stop=solver-crash                       rounds= 79 degrees=2/3/4 maxAbsErr=0.0416 rmse=0.0294 wallMs=108670
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=phase1-iteration-cap maxViolation=NaN minPivotMagnitude=1.323816143
+  # 2 single-dominant            stop=solver-crash                       rounds= 87 degrees=2 maxAbsErr=0.4140 rmse=0.1319 wallMs=98737
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=phase1-iteration-cap maxViolation=NaN minPivotMagnitude=1.031940813
+  # 3 zero-weight-criterion      stop=solver-crash                       rounds= 56 degrees=2/3 maxAbsErr=0.1665 rmse=0.0595 wallMs=20834
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=post-solve-infeasible maxViolation=6.500212185091675e-7 minPivotMag
+  # 4 linear-control             stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0431 rmse=0.0143 wallMs=29004
+  # 5 front-loaded               stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.1140 rmse=0.0547 wallMs=25475
+  # 6 back-loaded                stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0644 rmse=0.0189 wallMs=19910
+  # 7 near-tied                  stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0272 rmse=0.0161 wallMs=21872
+  # 8 noisy                      stop=solver-crash                       rounds= 44 degrees=2/3 maxAbsErr=0.0417 rmse=0.0295 wallMs=6764
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=post-solve-infeasible maxViolation=0.0003108164070553424 minPivotMa
+  # 9 short-session-degree2-cap  stop=degree2-cap:coverage-complete      rounds= 49 degrees=2 maxAbsErr=0.0417 rmse=0.0295 wallMs=9758
+  #10 dan-approximation          stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0736 rmse=0.0373 wallMs=18246
+  => crashes: 4/10
+
+--- magnitude-tiebreak ---
+  # 1 uniform                    stop=natural-exhaustion:coverage-complete rounds= 80 degrees=2/3/4/5/6 maxAbsErr=0.0000 rmse=0.0000 wallMs=52117
+  # 2 single-dominant            stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.3894 rmse=0.1287 wallMs=35255
+  # 3 zero-weight-criterion      stop=natural-exhaustion:coverage-complete rounds= 78 degrees=2/3/4/5/6 maxAbsErr=0.0000 rmse=0.0000 wallMs=32237
+  # 4 linear-control             stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0355 rmse=0.0123 wallMs=17726
+  # 5 front-loaded               stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.1597 rmse=0.0637 wallMs=22074
+  # 6 back-loaded                stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0678 rmse=0.0324 wallMs=19141
+  # 7 near-tied                  stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0207 rmse=0.0100 wallMs=26935
+  # 8 noisy                      stop=round-cap-hit                      rounds= 90 degrees=2/3/4/5/6 maxAbsErr=0.0500 rmse=0.0306 wallMs=43497
+  # 9 short-session-degree2-cap  stop=degree2-cap:coverage-complete      rounds= 30 degrees=2 maxAbsErr=0.1250 rmse=0.0741 wallMs=1265
+  #10 dan-approximation          stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0599 rmse=0.0226 wallMs=19815
+  => crashes: 0/10
+
+--- harris(d=1e-8) ---
+  # 1 uniform                    stop=natural-exhaustion:coverage-complete rounds= 80 degrees=2/3/4/5/6 maxAbsErr=0.0416 rmse=0.0294 wallMs=44880
+  # 2 single-dominant            stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.4141 rmse=0.1268 wallMs=31417
+  # 3 zero-weight-criterion      stop=natural-exhaustion:coverage-complete rounds= 71 degrees=2/3/4/5/6 maxAbsErr=0.0499 rmse=0.0322 wallMs=21769
+  # 4 linear-control             stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0564 rmse=0.0217 wallMs=18707
+  # 5 front-loaded               stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.1575 rmse=0.0654 wallMs=19507
+  # 6 back-loaded                stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0769 rmse=0.0415 wallMs=22492
+  # 7 near-tied                  stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0250 rmse=0.0120 wallMs=25535
+  # 8 noisy                      stop=natural-exhaustion:coverage-complete rounds= 83 degrees=2/3/4/5/6 maxAbsErr=0.0831 rmse=0.0509 wallMs=35765
+  # 9 short-session-degree2-cap  stop=degree2-cap:coverage-complete      rounds= 30 degrees=2 maxAbsErr=0.1250 rmse=0.0741 wallMs=1264
+  #10 dan-approximation          stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0617 rmse=0.0267 wallMs=18817
+  => crashes: 0/10
