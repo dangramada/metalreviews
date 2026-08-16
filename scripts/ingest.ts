@@ -225,7 +225,7 @@ async function fetchAngryMetalGuyRating(reviewUrl: string): Promise<number | nul
 // scoreByNormKey: norm_key -> score string, for existing reviews from THIS source only
 // (see buildScoreByNormKey in runIngestion). Keying by norm_key instead of the old
 // band+album-only computeId fixes the cross-source collision bug (see
-// docs/decisions/album-identity-diagnosis.md) — two sources reviewing the same album now
+// docs/decisions/album-identity/album-identity-diagnosis.md) — two sources reviewing the same album now
 // get distinct skip-set lookups since each fetcher only ever sees its own source's map.
 async function fetchAngryMetalGuy(scoreByNormKey: Map<string, string>): Promise<RawReview[]> {
   const feed = await parser.parseURL('https://www.angrymetalguy.com/feed/');
@@ -535,7 +535,7 @@ export interface AlbumResolution {
   backfilledMbId: boolean;
 }
 
-// Resolves which album a (band, album) pair belongs to, per docs/decisions/album-identity-decisions.md
+// Resolves which album a (band, album) pair belongs to, per docs/decisions/album-identity/album-identity-decisions.md
 // §4's dual-key strategy: mb_release_group_id checked first (when a fresh lookup resolved one),
 // norm_key as the fallback — never the reverse. `mbResult` is null when the caller decided to
 // skip the MusicBrainz call entirely (see needMbCall in runIngestion) — in that case only the
@@ -565,7 +565,7 @@ export function resolveAlbumIdentity(
     }
     // No album has this release-group id yet. Before creating a new album, check whether an
     // existing norm_key-matched row (created via fallback or manual add) can now be upgraded —
-    // this is the "opportunistic, not retroactive-sweep" backfill from album-identity-decisions.md §4.
+    // this is the "opportunistic, not retroactive-sweep" backfill from album-identity/album-identity-decisions.md §4.
     if (normKeyMatch && !normKeyMatch.mb_release_group_id) {
       const enriched = applyAlbumEnrichment(normKeyMatch, mbResult);
       enriched.mb_release_group_id = mbResult.releaseGroupId;
@@ -733,7 +733,7 @@ export async function runIngestion() {
     // the album-scoped equivalent of the old mbAlreadyFetched set. Note: this means a fully
     // enriched norm_key-matched album whose mb_release_group_id is still null will NOT get an
     // opportunistic backfill attempt here (that only happens when resolveAlbumIdentity is
-    // actually given a fresh mbResult). See docs/decisions/album-identity-ingest.md for why
+    // actually given a fresh mbResult). See docs/decisions/album-identity/album-identity-ingest.md for why
     // this coverage gap is accepted rather than closed this session.
     const needMbCall = !normKeyMatch || !isAlbumEnriched(normKeyMatch);
     let mbResult: MusicBrainzData | null = null;

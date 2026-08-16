@@ -1,5 +1,17 @@
 # Album Rating Page — dedicated route replacing the drawer and the rejected modal
 
+> **Summary:** The page (`/rate/:albumId`) where a user rates an album against the app's 6
+> criteria and sees a computed rank badge. Third UI attempt — replaced `AlbumRatingDrawer`
+> and a rejected modal concept — with genuinely different desktop/mobile layouts. Currently
+> **soft-gated**, not hard-gated: the 2026-07-30 hard calibration gate blocked rating until a
+> user calibrated; a 2026-08-09 reversal relaxed this after it blocked live usage (see
+> `album-rating-soft-gate.md`). Related files:
+> - `album-rating-drawer.md` — the original (functional but poor-UX) flat drawer this page
+>   replaced, plus the Criteria Calibration part-6 gate/score/rank wiring that's still in effect
+> - `album-rating-page--concept-draft.md` — the design concept this page was built from,
+>   including why the modal concept before it was rejected
+> - `album-rating-soft-gate.md` — the 2026-08-09 hard→soft gate reversal and why
+
 Branch: `album-rating-page`, branched fresh from `master` (not from `album-rating-modal`,
 which is rejected and left untouched per the brief). Third UI attempt at this feature: the
 original `AlbumRatingDrawer` (flat 6×5 list in a narrow drawer, `album-rating-drawer.md`) was

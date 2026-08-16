@@ -32,4 +32,4 @@ decision doc, not here. Newest merge first.
 - `criteria-calibration-ui` — merged to master `d87220e`, 2026-07-30 — full detail: `docs/decisions/criteria-calibration/criteria-calibration-ui.md`
 - `criteria-calibration-engine` — merged to master `f3b7705`, 2026-07-30 — full detail: `docs/decisions/criteria-calibration/criteria-calibration-engine.md`
 - `design-system-slant-take` — merged to master `a3eeb88`, 2026-07-25 — full detail: `docs/decisions/slant-take-design-system.md` — branch deleted 2026-08-09 (14-day rule)
-- `album-identity-migration` — merged to master `e205d5d`, 2026-07-15 — full detail: `docs/decisions/album-identity-migration.md` — branch deleted 2026-08-09 (14-day rule)
+- `album-identity-migration` — merged to master `e205d5d`, 2026-07-15 — full detail: `docs/decisions/album-identity/album-identity-migration.md` — branch deleted 2026-08-09 (14-day rule)

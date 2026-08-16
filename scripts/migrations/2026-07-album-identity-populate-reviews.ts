@@ -1,4 +1,4 @@
-// Step 3b of docs/decisions/album-identity-migration.md: populate reviews.album_id by
+// Step 3b of docs/decisions/album-identity/album-identity-migration.md: populate reviews.album_id by
 // matching each review's norm_key against the albums table built in step 2.
 //
 // Prerequisite: supabase/reviews-add-album-id.sql already applied (album_id column exists).

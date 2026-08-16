@@ -65,7 +65,7 @@ rewriting them, which this reorg pass deliberately avoided.
   once this route exists. `album-rating-page.md`.
 - **Admin merge tooling for manual album dedup** — select two `albums` rows,
   reassign `reviews`/`favorites` foreign keys, delete the loser. Named only, not
-  scheduled. `album-identity-decisions.md` §5 Layer 2.
+  scheduled. `album-identity/album-identity-decisions.md` §5 Layer 2.
 - **Album data staleness / admin data-quality view** — surfaced 2026-07-17.
   **Could not locate a source doc for this.** Searched `docs/decisions/` and
   `CLAUDE.md`'s index for any "log-tags-decision-and-staleness-question" file or
@@ -74,14 +74,14 @@ rewriting them, which this reorg pass deliberately avoided.
   should be cross-referenced here instead of this note.
 - **Live MusicBrainz autocomplete on `AddAlbumDrawer`** — debounced search-as-you-
   type, Layer 1 of the manual-add duplicate-prevention design. Named follow-up in
-  `album-identity-decisions.md` §5 / `album-identity-frontend-favorites.md`.
+  `album-identity/album-identity-decisions.md` §5 / `album-identity/album-identity-frontend-favorites.md`.
 - **Import tool** — text-paste MVP first. Richer follow-ups: Last.fm
   (`user.getTopAlbums`, time-scoped) and ListenBrainz (MBID-native). Spotify and
   YouTube Music ruled out (Spotify: extended-quota API access structurally
   unavailable to an individual developer; YouTube Music: no official API).
 - **Bulk MusicBrainz ID backfill pass** — current backfill is opportunistic-only;
   already-enriched albums that never got an MB match can stay `mb_release_group_id
-= null` indefinitely under the current design. `album-identity-ingest.md`.
+= null` indefinitely under the current design. `album-identity/album-identity-ingest.md`.
 - **Google/Facebook OAuth** — credentials not yet configured. Placeholder comment
   in `LoginPage.tsx` marks where the `supabase.auth.signInWithOAuth()` buttons go.
   `auth-routing.md`.

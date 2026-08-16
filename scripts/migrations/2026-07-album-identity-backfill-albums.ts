@@ -1,5 +1,5 @@
 // One-time backfill: populate the new `albums` table from existing `reviews` and
-// `manual_albums` rows. Step 2 of docs/decisions/album-identity-migration.md.
+// `manual_albums` rows. Step 2 of docs/decisions/album-identity/album-identity-migration.md.
 //
 // Prerequisite: supabase/albums.sql must already be applied (the `albums` table exists).
 //
