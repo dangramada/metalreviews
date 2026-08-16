@@ -66,13 +66,18 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-`criteria-calibration-eps-ratio-test-diagnostic` — **active, docs + harness only, no production
-code touched** (`git diff` over `src/` empty, `tsc` clean, 307/307 tests). Read-only diagnostic
-closing the *diagnostic* half of `deferred-work.md` item 3 (the `EPS = 1e-9` near-singular-pivot
-root cause). Verdict **GO for a Harris two-pass ratio test** (`pivotTolerance = 1e-7`, `δ = 1e-8`);
-periodic refactorization ruled out by measurement, and the plain pivot-magnitude guard ruled out
-as previously sketched. **Two decisions are Dan's before an implementation brief is written** —
-whether re-pricing existing users' solved weights is acceptable, and which rule ships. Full detail:
+`criteria-calibration-harris-ratio-test` — **active, implemented, not yet merged** (`tsc` clean,
+318/318 tests). Ships the `EPS = 1e-9` near-singular-pivot **cure**: `simplex.ts`'s leaving-row
+rule is now a Harris two-pass ratio test (`pivotTolerance = 1e-7`, `δ = 1e-8`). One production
+file changed. Closes `deferred-work.md` item 3 **and** the all-'equal' entry; opens item 3b (the
+reported weights are one arbitrary pick among tied optima — surfaced, not caused). Dan's live
+71-answer log re-solved read-only: clean at all 71 prefixes, stored weights move max 0.0239 /
+median 0.0065. `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` re-checked and left unchanged — escalation
+timing shifts in both directions, flagged as a product call. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-harris-ratio-test.md`.
+
+Its parent `criteria-calibration-eps-ratio-test-diagnostic` (read-only diagnostic, docs +
+harness only) is superseded by the above and can be merged with it. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`; harness
 `scripts/lab-eps-ratio-test-2026-08-16/`.
 
@@ -186,7 +191,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
-- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (23 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related
+- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".**
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)

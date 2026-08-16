@@ -1,0 +1,27 @@
+trials/cell=10 ns=150,300
+
+--- harris(d=1e-8) ---
+  equal-share    param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=7.97e-3 maxTableau=NaN reasons={}
+  equal-share    param=0.2   n=150  failures=0/10 nearSingular=0/10 realisedEqual=24% minPivot=9.58e-3 maxTableau=NaN reasons={}
+  equal-share    param=0.45  n=150  failures=0/10 nearSingular=0/10 realisedEqual=49% minPivot=4.71e-4 maxTableau=NaN reasons={}
+  equal-share    param=0.7   n=150  failures=0/10 nearSingular=0/10 realisedEqual=72% minPivot=8.01e-4 maxTableau=NaN reasons={}
+  equal-share    param=0.9   n=150  failures=0/10 nearSingular=0/10 realisedEqual=90% minPivot=9.56e-3 maxTableau=NaN reasons={}
+  equal-share    param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=2.56e-3 maxTableau=NaN reasons={}
+  contradiction  param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=8.00e-3 maxTableau=NaN reasons={}
+  contradiction  param=0.15  n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=6.73e-3 maxTableau=NaN reasons={}
+  contradiction  param=0.3   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.88e-4 maxTableau=NaN reasons={}
+  contradiction  param=0.5   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=3.92e-3 maxTableau=NaN reasons={}
+  contradiction  param=0.75  n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=4.81e-3 maxTableau=NaN reasons={}
+  contradiction  param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=3.28e-3 maxTableau=NaN reasons={}
+  equal-share    param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=6.29e-3 maxTableau=NaN reasons={}
+  equal-share    param=0.2   n=300  failures=0/10 nearSingular=0/10 realisedEqual=22% minPivot=2.49e-3 maxTableau=NaN reasons={}
+  equal-share    param=0.45  n=300  failures=0/10 nearSingular=0/10 realisedEqual=49% minPivot=1.37e-4 maxTableau=NaN reasons={}
+  equal-share    param=0.7   n=300  failures=0/10 nearSingular=0/10 realisedEqual=73% minPivot=8.15e-4 maxTableau=NaN reasons={}
+  equal-share    param=0.9   n=300  failures=0/10 nearSingular=0/10 realisedEqual=91% minPivot=7.59e-4 maxTableau=NaN reasons={}
+  equal-share    param=1     n=300  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=2.13e-3 maxTableau=NaN reasons={}
+  contradiction  param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=8.71e-5 maxTableau=NaN reasons={}
+  contradiction  param=0.15  n=300  failures=7/10 nearSingular=0/10 realisedEqual=27% minPivot=8.80e-4 maxTableau=NaN reasons={phase1-iteration-cap:7}
+  contradiction  param=0.3   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=3.95e-2 maxTableau=NaN reasons={phase1-iteration-cap:5 buildValueLP-throw:5}
+  contradiction  param=0.5   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.00e-1 maxTableau=NaN reasons={buildValueLP-throw:9 phase1-iteration-cap:1}
+  contradiction  param=0.75  n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=1     n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.62e-1 maxTableau=NaN reasons={buildValueLP-throw:7 phase1-iteration-cap:3}

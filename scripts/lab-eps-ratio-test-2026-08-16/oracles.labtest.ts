@@ -212,11 +212,18 @@ function runOracle(spec: OracleSpec): OracleRunResult {
   };
 }
 
-const RULES: RatioRuleConfig[] = [
+const ALL_RULES: RatioRuleConfig[] = [
   { name: 'baseline', pivotFloor: 1e-7, delta: 1e-9 },
   { name: 'magnitude-tiebreak', pivotFloor: 1e-7, delta: 1e-9 },
   { name: 'harris', pivotFloor: 1e-7, delta: 1e-8 },
 ];
+// LAB_RULES filters by name, same convention as adversarial.labtest.ts (added 2026-08-16).
+// Its real use is the no-alias production run under lab.prod.vitest.config.ts, where
+// setRatioRule is inert and running all three would just re-run the shipped rule 3x at ~8
+// minutes each.
+const RULES = process.env.LAB_RULES
+  ? ALL_RULES.filter((r) => process.env.LAB_RULES!.split(',').includes(r.name))
+  : ALL_RULES;
 const label = (r: RatioRuleConfig) => (r.name === 'harris' ? `harris(d=${r.delta})` : r.name);
 
 describe('Level B — closed-loop oracles', () => {

@@ -86,7 +86,10 @@ describe('drift trace', () => {
       // "catastrophic" step.
       let biggestJump = { at: -1, from: 0, to: 0, pivotMag: 0, driftBefore: 0, driftAfter: 0 };
       for (let i = 1; i < e.length; i++) {
-        if (e[i].maxTableau / Math.max(e[i - 1].maxTableau, 1e-300) > biggestJump.to / Math.max(biggestJump.from, 1e-300)) {
+        if (
+          e[i].maxTableau / Math.max(e[i - 1].maxTableau, 1e-300) >
+          biggestJump.to / Math.max(biggestJump.from, 1e-300)
+        ) {
           biggestJump = {
             at: i,
             from: e[i - 1].maxTableau,
@@ -112,7 +115,9 @@ describe('drift trace', () => {
         );
       }
       const last = e[e.length - 1];
-      samples.push(`p${last.pivot}:d=${Number(last.drift).toExponential(1)},t=${last.maxTableau.toExponential(1)}`);
+      samples.push(
+        `p${last.pivot}:d=${Number(last.drift).toExponential(1)},t=${last.maxTableau.toExponential(1)}`
+      );
       out.push(`  trajectory: ${samples.join(' ')}`);
       // How many pivots elapse between the first near-singular pivot and the end?
       const firstBad = e.findIndex((x) => x.pivotMag < 1e-7);

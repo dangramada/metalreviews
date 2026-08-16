@@ -570,7 +570,37 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      because a failed Chebyshev-center solve was being swallowed into an all-zero point
      estimate and persisted. Closed by a post-solve feasibility guard in `solveLP` plus
      making the Chebyshev failure throw instead of degrading to zeros.
-  3. **Still open — Dantzig is a mitigation, not a cure.** The root cause is the
+  3. ~~Dantzig is a mitigation, not a cure~~ — **DONE 2026-08-16. The cure shipped.**
+     `simplex.ts`'s leaving-row rule is now a Harris two-pass ratio test
+     (`pivotTolerance = 1e-7`, `δ = 1e-8`), implementing the diagnostic's verdict verbatim.
+     Re-confirmed against the shipped solver, not the lab copy: committed real fixtures
+     181/181 clean (was 1 failure), adversarial near-singular incidence 66/240 → **0/240**,
+     closed-loop oracles 4/10 crashing → **0/10**, and the shipped rule proved bit-identical
+     to the validated lab rule on all 181 solves (`digestDiffVsProd=0`). Dan's live 71-answer
+     log was re-solved read-only: clean at every one of its 71 prefixes, and its stored
+     weights move by max 0.0239 / median 0.0065 — ~25× smaller than the synthetic estimate.
+     `solverCrashFixture.test.ts`'s assertion was inverted rather than deleted, after 1000
+     generated logs at n ≤ 100 failed to produce any replacement that still breaks the new
+     rule. Full detail:
+     `criteria-calibration/criteria-calibration-harris-ratio-test.md`.
+
+     Two things this closed item hands forward, neither a regression:
+     - **`MAX_ITERATIONS = 2000` (item 4) is now the sole cause of adversarial failure at
+       n=300**, with healthy pivots throughout. The 844 → 200 drop in max pivots per solve
+       buys real headroom against it.
+     - **The reported weights are not uniquely determined, and never were.** Every candidate
+       rule attains the identical optimal Chebyshev radius on all 180 solvable regions; the
+       optimum is degenerate enough (mean radius ≈ 1.5e-7) that the pivoting rule silently
+       picks among ties. A deterministic secondary objective (lexicographic tie-break, or a
+       strictly convex proxy) would fix it — **new open item, see below.**
+     - `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` was re-checked and **left unchanged**: escalation
+       timing shifts in *both* directions depending on data shape (one oracle 19 rounds later,
+       another 19 earlier), so no single value corrects both. Flagged as a product call.
+
+     <details><summary>Historical detail (the diagnosis that led here) — expand only if
+     re-opening the numerics</summary>
+
+     **Was: still open — Dantzig is a mitigation, not a cure.** The root cause is the
      `EPS = 1e-9` ratio-test threshold admitting near-singular pivots; the smallest pivot
      element used is a perfect predictor of failure across every case tested. The 2026-08-12
      pass added detection (`nearSingularPivot` in `LPSolution.diagnostics`) but deliberately
@@ -661,10 +691,27 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
        degree-2 coverage-complete at round 30 vs 49), so `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`
        needs re-checking against the new solver.
 
+     </details>
+
      Residual left open by the safety net: `nextAction` is deterministic, so a question whose
      every possible answer breaks the solver re-offers the same pair indefinitely. The page
      stays usable (Undo and "Stop here" both work) but can't advance — a skip-question
-     affordance was judged a product decision, not hotfix scope.
+     affordance was judged a product decision, not hotfix scope. Note this is now much harder
+     to reach in practice (no realistic-n input is known to break the solver at all), but the
+     safety net and this residual both remain, deliberately: the guards stay whatever the
+     pivot rule does.
+
+     3b. **NEW, open — the reported weights are one arbitrary pick among tied optima.**
+     Surfaced (not caused) by the Harris pass. The Chebyshev LP's optimum is massively
+     degenerate: every ratio-test rule tested attains the *identical* optimal radius on all
+     180 solvable regions, and `totalSlack` is invariant, so the fitted region genuinely does
+     not move — but many points attain the maximum and the pivoting rule decides which one is
+     reported and persisted. Consequences: (a) any solver change re-prices stored weights
+     (measured on Dan's real log: max 0.0239, median 0.0065, and one level value collapsing to
+     exactly 0); (b) any test pinning specific solved values pins a tie-break, not a model
+     property. Fix would be a deterministic secondary objective — lexicographic tie-breaking,
+     or maximising a strictly convex proxy. Not scoped. Related product question, also
+     unscoped: whether a "your weights were recalibrated" message belongs on the results page.
   4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
      exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
      n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
@@ -672,7 +719,19 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
      recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
      `criteria-calibration-dantzig-stress-test.md`.
-- **All-'equal'-heavy answer logs at high n can still fail the LP — NOT fixed, deliberately
+- ~~**All-'equal'-heavy answer logs at high n can still fail the LP**~~ — **CLOSED 2026-08-16
+  by item 3's Harris ratio test.** Re-confirmed against the shipped solver, not the lab copy:
+  across 240 adversarial solves the near-singular-pivot mechanism this entry describes has
+  **zero incidence**, and failures at n=150 are **0/120** — including the 100%-`'equal'` and
+  100%-contradiction cells the entry called unfixable without item 3. The residual 47/120
+  failures at n=300 are `MAX_ITERATIONS` (item 4) with healthy pivots throughout, a different
+  cause and one well beyond any real session length. Nothing here is deferred any more; the
+  historical framing below is kept because it records the boundary measurements.
+  `criteria-calibration/criteria-calibration-harris-ratio-test.md`.
+
+  <details><summary>Historical framing (pre-fix)</summary>
+
+  **Was: NOT fixed, deliberately
   out of scope of the 2026-08-12 Dantzig pass.** On pathologically degenerate inputs — answer
   logs that are majority `'equal'` at n >= 100, or >30% self-contradictory at n >= 300 —
   Dantzig degrades the same way Bland did, via the same near-singular-pivot mechanism. What
@@ -696,6 +755,8 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   depends on which rule ships. Residual n=300 failures under the curing rules are
   `MAX_ITERATIONS` (item 4), not this mechanism.
   `criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`.
+
+  </details>
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the

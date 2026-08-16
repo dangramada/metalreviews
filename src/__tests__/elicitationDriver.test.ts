@@ -488,13 +488,20 @@ describe('coverage-based degree escalation (replaces the old MAX_AMBIGUOUS_GAP g
       action = nextAction(session, levelsPerCriterion, currentDegree);
     }
 
-    // Measured directly against this driver + oracle (see check_oracle_escalation script run
-    // during implementation): coverage first completes at exactly n=63. A tight window
-    // rather than an exact match, since the LP solver's floating-point path is not
-    // guaranteed bit-identical across environments.
+    // Measured directly against this driver + oracle: coverage first completes at exactly
+    // n=82. A tight window rather than an exact match, since the LP solver's floating-point
+    // path is not guaranteed bit-identical across environments.
+    //
+    // Re-pinned from n=63 on 2026-08-16, when the Harris ratio test landed. This is a REAL
+    // behavioural change, not a re-pin of float noise: the coverage gate reads solved value
+    // RANGES, Harris solves the same (degenerate) region to a different point among ties, and
+    // the ranges therefore close at a different rate. Direction is data-dependent — this
+    // oracle takes 19 rounds LONGER, while synthetic oracle #9 in the diagnostic completed 19
+    // rounds EARLIER. See criteria-calibration-harris-ratio-test.md's
+    // MAX_VALUE_RANGE_FOR_COVERAGE section; the 0.2 threshold itself was left unchanged.
     expect(firstCoverageCompleteAt).not.toBeNull();
-    expect(firstCoverageCompleteAt!).toBeGreaterThanOrEqual(58);
-    expect(firstCoverageCompleteAt!).toBeLessThanOrEqual(68);
+    expect(firstCoverageCompleteAt!).toBeGreaterThanOrEqual(77);
+    expect(firstCoverageCompleteAt!).toBeLessThanOrEqual(87);
   }, 30_000);
 
   it("does NOT report degree-exhausted on Dan's real 33-answer production session — criteria 0-3 stay under-covered, criterion-0/level-3 worst of all", () => {
