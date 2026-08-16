@@ -66,17 +66,22 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was
-`criteria-calibration-second-session-reset` (admin/tooling + data operation: wiped Dan's
-completed 70-answer calibration session so a second validation session can be run;
-`album_criteria_ratings` untouched), merged to `master` `--no-ff` at `ea0b2a4` on 2026-08-15.
-Rollback tag: `pre-merge-criteria-calibration-second-session-reset`. Note the reset must
-DELETE, not upsert — `answer_count`/`fired` are guarded monotonic and an upsert cannot clear
-them; `archive-and-reset-calibration.ts --reset` is disabled for that reason. Full detail:
-`docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md`.
-Outstanding: the in-browser fresh-state check was not completed (page is behind auth) —
-worth a glance before starting the new session; score/rank badges stay absent app-wide until
-the new session's first commit.
+No active branches currently — most recent merge was `docs-criteria-calibration-reorg`
+(docs-only: moved all 23 Criteria Calibration decision docs + 1 supporting CSV into
+`docs/decisions/criteria-calibration/`, added a gateway file at
+`docs/decisions/criteria-calibration-summary.md`, and split `deferred-work.md` into open
+items + a new `finished-work.md`; no application code touched), merged to `master`
+`--no-ff` at `97b4e3d` on 2026-08-16. Rollback tag:
+`pre-merge-docs-criteria-calibration-reorg`. Full detail: this doc's own dated section in
+`docs/decisions/documentation-audit-june2026.md`.
+
+Carried forward from `criteria-calibration-second-session-reset` (`ea0b2a4`, 2026-08-15 —
+`docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md`):
+the in-browser fresh-state check was not completed (page is behind auth) — worth a glance
+before starting the new calibration session; score/rank badges stay absent app-wide until
+that session's first commit. Note the reset must DELETE, not upsert — `answer_count`/`fired`
+are guarded monotonic and an upsert cannot clear them; `archive-and-reset-calibration.ts
+--reset` is disabled for that reason.
 
 Also carried forward from the two merges before that (LP warm-start's O(n²) ceiling, and the
 `last_eligible_top10`/`last_change_answer_index` write-race correctness risk to the
