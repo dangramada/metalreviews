@@ -12,8 +12,10 @@ accuracy growth already observed in this session
 
 **Accuracy visibility, not accuracy behavior, is the main difference.**
 1000minds shows ONLY a raw "Progress: X%" counter throughout all of
-degree 2 (rounds 1–27) — no accuracy number at all. Accuracy first appears
-at an explicit interstitial screen exactly when degree 2 completes:
+degree 2 (rounds 1–27) — no accuracy number at all, confirmed by direct
+re-inspection of multiple screenshots (round 6, round 25) after an initial
+mis-read. Accuracy first appears at an explicit interstitial screen exactly
+when degree 2 completes:
 "You've finished making trade-offs," Accuracy: Medium, 91%, with plain-
 language explanation of what the tier means and two explicit choices —
 "Go to results" or "Make more trade-offs." Only after this screen does
