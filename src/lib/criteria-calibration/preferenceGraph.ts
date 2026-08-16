@@ -50,6 +50,20 @@ export function profileDegree(profile: Profile): number {
 }
 
 /**
+ * Infers the degree a session should be at from its answer log: the highest degree any
+ * answered profile reaches, or `startingDegree` if the log is empty/all lower. Same formula
+ * useCalibrationResume.ts uses to derive degree on mount from a resumed answer log — reused
+ * here (not reinvented) so CriteriaCalibrationPage's Undo/Redo can re-derive degree from a
+ * post-mutation answer log the same way a fresh page load does.
+ */
+export function inferDegreeFromAnswers(
+  answers: readonly { profileA: Profile }[],
+  startingDegree: number
+): number {
+  return answers.reduce((max, a) => Math.max(max, profileDegree(a.profileA)), startingDegree);
+}
+
+/**
  * Canonical string key for a profile, stable regardless of key insertion order, so
  * profiles can be used as Map/Set members by value.
  */
