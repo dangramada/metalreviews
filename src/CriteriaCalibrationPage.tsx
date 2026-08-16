@@ -16,10 +16,11 @@ import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { useAuth } from './AuthContext';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CalibrationSession } from './lib/criteria-calibration/calibrationSession';
-import { nextAction } from './lib/criteria-calibration/elicitationDriver';
+import { nextAction, type DriverAction } from './lib/criteria-calibration/elicitationDriver';
 import {
   computeCommitState,
   type CommitComputation,
+  type StabilityWindowContext,
 } from './lib/criteria-calibration/commitComputation';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
@@ -96,6 +97,41 @@ const DEGREE_CLARIFICATION_TEXT: Record<number, string> = {
 // wording).
 const POST_FIRED_DEGREE_EXHAUSTED_TEXT =
   "You've reached your highest calibration confidence — you can stop here, or keep refining for extra precision.";
+
+// ---------------------------------------------------------------------------
+// Solver-crash safety net (2026-08-16). The LP solver THROWS on a numerical breakdown
+// rather than degrading to a wrong answer (solver.ts's Chebyshev-center guard). That is
+// correct and deliberately unchanged here — a silent catch at the solver layer is exactly
+// how the pre-2026-08-12 Big-M bug reported feasible:true on ~1e14 outputs. What was wrong
+// was what the throw did to the page: it escaped a setTimeout, React still flushed the
+// already-scheduled setAnswers, the `action` memo re-threw during render, and with no
+// ErrorBoundary anywhere the whole root unmounted — a blank page, with the triggering answer
+// already persisted, so a reload reproduced it forever. Full trace + reproduction:
+// docs/decisions/criteria-calibration/criteria-calibration-near-singular-pivot-impact.md.
+//
+// Two mechanisms, both at this page boundary and nowhere deeper:
+//   1. Compute-first (trySolve, below): every solve is attempted BEFORE any state mutation
+//      or persistence, so a failure has nothing to roll back — no React state to revert, no
+//      Supabase row to delete. This is what makes a live commit unable to create a bad
+//      persisted log in the first place.
+//   2. Auto-recovery (the recovery effect, below): for a log that was ALREADY persisted
+//      (a session bricked before this shipped), the failing trailing answers are trimmed and
+//      their rows deleted until the log solves again.
+// ---------------------------------------------------------------------------
+
+const SOLVER_COMMIT_FAILURE_MESSAGE =
+  "That comparison caused a calculation issue, so your answer wasn't saved. Try a different answer, or undo a previous one.";
+
+const SOLVER_UNDO_FAILURE_MESSAGE =
+  "Couldn't undo that — the calculation failed on the earlier state, so your progress is unchanged.";
+
+const SOLVER_RECOVERY_MESSAGE =
+  'We hit a calculation issue with your saved session and had to remove your most recent answer to recover it.';
+
+// Trim attempts before giving up on auto-recovery. A handful of trailing answers is a
+// plausible bad tail; a log that still fails after this many is not something to keep
+// silently eating answers over — better to stop and say so.
+const RECOVERY_TRIM_LIMIT = 5;
 
 // Same outer chrome (Box/Container/VStack + Header/Footer) as App.tsx and FavoritesPage.tsx, so
 // every return path below (loading, error, resume-loading, main) gets the home page's margins
@@ -231,10 +267,24 @@ export function CriteriaCalibrationPage() {
   // per-subset seeded LCG, so it is deterministic given these three. `session` is itself
   // memoized on `answers` above, and `answers` is always replaced with a fresh array
   // (never mutated in place), so its identity changes exactly when the answer log does.
-  const action = useMemo(
-    () => (catalog ? nextAction(session, catalog.levelsPerCriterion, degree) : null),
-    [catalog, session, degree]
-  );
+  //
+  // nextAction runs its own solveValues, so it throws on exactly the same answer logs
+  // computeCommitState does — and it does so during RENDER, which is what actually unmounted
+  // the root (see the safety-net note at the top of this file). Catching here converts that
+  // into a rendered recovery state. It cannot fire on a live commit any more (compute-first
+  // means a log that fails never reaches `answers`), so in practice this only catches a
+  // resumed session whose persisted log was already bad.
+  const driverResult = useMemo((): { action: DriverAction | null; failed: boolean } => {
+    if (!catalog) return { action: null, failed: false };
+    try {
+      return { action: nextAction(session, catalog.levelsPerCriterion, degree), failed: false };
+    } catch (e) {
+      console.error('Calibration solver failed while choosing the next question', e);
+      return { action: null, failed: true };
+    }
+  }, [catalog, session, degree]);
+  const action = driverResult.action;
+  const solverFailed = driverResult.failed;
 
   // Single live accuracy value drives both the Progress ring and the Accuracy label/number
   // — previously these were two different metrics (canonical degree-2 pair coverage for the
@@ -264,10 +314,20 @@ export function CriteriaCalibrationPage() {
   const initialAccuracyComputedRef = useRef(false);
   useEffect(() => {
     if (!catalog || !seeded || initialAccuracyComputedRef.current) return;
+    let computation: CommitComputation;
+    try {
+      computation = computeCommitState(catalog, answers);
+    } catch (e) {
+      // A resumed log the solver can't handle. Deliberately does NOT set
+      // initialAccuracyComputedRef — the recovery effect below trims the log, and this
+      // effect then re-runs against the trimmed one to produce a real accuracy number.
+      // Left unset, an unmount-on-throw is all this would have achieved.
+      console.error('Calibration solver failed on the resumed answer log', e);
+      return;
+    }
     initialAccuracyComputedRef.current = true;
-    const { accuracy, mediumReached } = computeCommitState(catalog, answers);
-    setProgressPercent(Math.round(accuracy * 100));
-    setMediumReached(mediumReached);
+    setProgressPercent(Math.round(computation.accuracy * 100));
+    setMediumReached(computation.mediumReached);
   }, [catalog, seeded, answers]);
 
   const interactionDisabled = phase !== 'idle' || stopped;
@@ -360,6 +420,25 @@ export function CriteriaCalibrationPage() {
     }
   }
 
+  // The single place a solver throw is absorbed on the mutating paths. Callers run this
+  // BEFORE touching React state or Supabase (see the safety-net note at the top of this
+  // file), so a null return means "this step did not happen" — there is nothing to roll back
+  // and, crucially, no persisted answer left without matching weights/status.
+  function trySolve(
+    nextAnswers: AnswerEntry[],
+    stabilityContext: StabilityWindowContext | undefined,
+    failureMessage: string
+  ): CommitComputation | null {
+    if (!catalog) return null;
+    try {
+      return computeCommitState(catalog, nextAnswers, stabilityContext);
+    } catch (e) {
+      console.error('Calibration solver failed — this step was not applied', e);
+      showError(failureMessage);
+      return null;
+    }
+  }
+
   // Forward step only (a real commit or redo — see commitComputation.ts's header for why
   // Undo can't go through this). Advances the window using computation.stabilityWindow
   // (already derived from the SAME solve computeCommitState just ran — no second LP solve),
@@ -383,15 +462,28 @@ export function CriteriaCalibrationPage() {
       result,
     };
     const nextAnswers = [...answers, entry];
+
+    // Compute-first (see trySolve). This ordering is load-bearing, not stylistic: the solve
+    // used to run AFTER setAnswers + persistNewAnswer, so a throw left the answer in React
+    // state and in Supabase while the render that followed it blanked the page. Solving
+    // first means a failed comparison is simply never recorded anywhere.
+    const computation = trySolve(
+      nextAnswers,
+      { previous: persistedWindow, ratingsByAlbum },
+      SOLVER_COMMIT_FAILURE_MESSAGE
+    );
+    if (!computation) {
+      // The fade sequence in handleChoice continues either way, so the same question comes
+      // back unselected and the user can answer it differently.
+      setSelectedSide(null);
+      return;
+    }
+
     setAnswers(nextAnswers);
     setRedoBuffer([]);
     setSelectedSide(null);
     persistNewAnswer(entry);
 
-    const computation = computeCommitState(catalog, nextAnswers, {
-      previous: persistedWindow,
-      ratingsByAlbum,
-    });
     const windowUpdate = advanceWindowForCommit(computation);
     applyCommitComputation(computation, windowUpdate);
   }
@@ -426,6 +518,13 @@ export function CriteriaCalibrationPage() {
     if (interactionDisabled || answers.length === 0 || !catalog) return;
     const last = answers[answers.length - 1];
     const nextAnswers = answers.slice(0, -1);
+
+    // Compute-first, same as commitAdvance: an undo whose target state the solver can't
+    // handle is refused outright rather than half-applied (state popped and the DB row
+    // deleted, then the solve throws).
+    const computation = trySolve(nextAnswers, undefined, SOLVER_UNDO_FAILURE_MESSAGE);
+    if (!computation) return;
+
     setAnswers(nextAnswers);
     setRedoBuffer((prev) => [...prev, last]);
     setSelectedSide(null);
@@ -464,7 +563,6 @@ export function CriteriaCalibrationPage() {
     // If last.dbId isn't set yet, its insert is still in flight (or already failed) —
     // persistNewAnswer's own race check will notice the localId is gone and delete the
     // row itself once that insert resolves.
-    const computation = computeCommitState(catalog, nextAnswers); // no stabilityContext — accuracy/weights only
     applyCommitComputation(computation, revertedWindow);
   }
 
@@ -480,6 +578,17 @@ export function CriteriaCalibrationPage() {
       result: restored.result,
     };
     const nextAnswers = [...answers, entry];
+
+    // Redo is a forward commit and gets the same compute-first treatment as commitAdvance.
+    // Note the redo buffer is left intact on failure, so the answer isn't silently lost —
+    // the user can retry it after undoing something else.
+    const computation = trySolve(
+      nextAnswers,
+      { previous: persistedWindow, ratingsByAlbum },
+      SOLVER_COMMIT_FAILURE_MESSAGE
+    );
+    if (!computation) return;
+
     setRedoBuffer((prev) => prev.slice(0, -1));
     setAnswers(nextAnswers);
     setSelectedSide(null);
@@ -490,14 +599,69 @@ export function CriteriaCalibrationPage() {
     persistNewAnswer(entry);
 
     // Redo is a second real (forward) commit point alongside commitAdvance — both create a
-    // new answer and both advance the stability window the same way.
-    const computation = computeCommitState(catalog, nextAnswers, {
-      previous: persistedWindow,
-      ratingsByAlbum,
-    });
+    // new answer and both advance the stability window the same way (using the computation
+    // already solved above, before any of this ran).
     const windowUpdate = advanceWindowForCommit(computation);
     applyCommitComputation(computation, windowUpdate);
   }
+
+  // Auto-recovery for a PERSISTED answer log the solver can't handle. Compute-first means a
+  // live commit can no longer create one, so in practice this is for sessions bricked before
+  // that shipped — but it's also the general backstop for "the log in the DB doesn't solve."
+  // Trims the trailing answer, deletes its row, and lets the `action` memo re-evaluate; if it
+  // still fails, this effect fires again, up to RECOVERY_TRIM_LIMIT times.
+  const recoveryTrimsRef = useRef(0);
+  const recoveryNotifiedRef = useRef(false);
+  const [unrecoverable, setUnrecoverable] = useState(false);
+  useEffect(() => {
+    if (!solverFailed || !catalog || unrecoverable) return;
+    if (answers.length === 0 || recoveryTrimsRef.current >= RECOVERY_TRIM_LIMIT) {
+      setUnrecoverable(true);
+      return;
+    }
+    recoveryTrimsRef.current += 1;
+
+    const last = answers[answers.length - 1];
+    const trimmed = answers.slice(0, -1);
+    setAnswers(trimmed);
+    setDegree(inferDegreeFromAnswers(trimmed, STARTING_DEGREE));
+    // Same window revert as handleUndo — this is an undo in everything but who triggered it.
+    const { next: nextWindowHistory, current: revertedCurrent } = popWindowHistory(windowHistory);
+    setWindowHistory(nextWindowHistory);
+    const revertedWindow: PersistedStabilityWindow = {
+      ...persistedWindow,
+      current: revertedCurrent,
+    };
+    setPersistedWindow(revertedWindow);
+
+    if (last.dbId) {
+      beginWrite();
+      deleteAnswer(last.dbId)
+        .then(notifyPersistRecovered)
+        .catch((e) => {
+          console.warn('Failed to delete the answer trimmed during solver recovery', e);
+          notifyPersistFailure();
+        })
+        .finally(endWrite);
+    }
+
+    // Told once per session, not once per trim — a multi-trim recovery is still one event
+    // from the user's point of view.
+    if (!recoveryNotifiedRef.current) {
+      recoveryNotifiedRef.current = true;
+      showError(SOLVER_RECOVERY_MESSAGE);
+    }
+
+    // Bring the displayed accuracy and the persisted weights back in sync with the trimmed
+    // log. If the trimmed log still doesn't solve, this effect simply runs again on the next
+    // render — no toast, no state change here.
+    try {
+      applyCommitComputation(computeCommitState(catalog, trimmed), revertedWindow);
+    } catch {
+      /* still failing — handled by the next trim cycle */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solverFailed, answers, catalog, unrecoverable]);
 
   // Used both by the auto-escalation effect below (while !currentWindowState.fired) and by
   // the manual "Add more detail" button (shown only once currentWindowState.fired is true).
@@ -608,6 +772,23 @@ export function CriteriaCalibrationPage() {
             <Text textAlign="center" color="text.dim">
               Calibration paused. Your progress is saved — come back any time to continue.
             </Text>
+          ) : unrecoverable ? (
+            // Auto-recovery gave up (RECOVERY_TRIM_LIMIT trims, or nothing left to trim).
+            // Deliberately a dead end rather than trimming further: past this point we'd be
+            // deleting real answers on a guess about what's wrong.
+            <VStack gap={4} aria-live="polite">
+              <Text textAlign="center" color="red.400" fontFamily="body">
+                We couldn't recover this calibration session automatically. Your saved answers are
+                still there — please get in touch rather than starting over.
+              </Text>
+            </VStack>
+          ) : solverFailed ? (
+            <Flex direction="column" gap={4} justify="center" align="center" minH="200px">
+              <LoadingIndicator />
+              <Text color="text.dim" fontFamily="body">
+                Recovering your session…
+              </Text>
+            </Flex>
           ) : action?.type === 'ask' ? (
             <>
               <Box aria-live="polite">
