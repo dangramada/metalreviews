@@ -4,6 +4,7 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `docs-criteria-calibration-reorg` — merged to master `97b4e3d` (`--no-ff`), 2026-08-16; rollback tag `pre-merge-docs-criteria-calibration-reorg` — full detail: `docs/decisions/documentation-audit-june2026.md` (2026-08-16 section)
 - `criteria-calibration-second-session-reset` — merged to master `ea0b2a4` (`--no-ff`), 2026-08-15; rollback tag `pre-merge-criteria-calibration-second-session-reset` — full detail: `docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md`
 - `criteria-calibration-lp-warm-start` — merged to master `c2861ab` (`--no-ff`), 2026-08-15; rollback tag `pre-merge-criteria-calibration-lp-warm-start` — full detail: `docs/decisions/criteria-calibration/criteria-calibration-lp-warm-start.md`
 - `criteria-calibration-weights-write-race-fix` — merged to master `3e679a7` (`--no-ff`), 2026-08-15; rollback tag `pre-merge-criteria-calibration-weights-write-race-fix` — full detail: `docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md`
