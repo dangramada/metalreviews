@@ -9,6 +9,7 @@ import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
 import { StyleGuide } from './StyleGuide';
 import { CriteriaCalibrationPage } from './CriteriaCalibrationPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 // Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
 const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
 // Lazy-loaded for the same reason, plus this page pulls in @chakra-ui/charts/recharts —
@@ -46,9 +47,14 @@ const router = createBrowserRouter([
   // the app's nav (separate IA decision). Auth-gated since progress is saved per-user.
   {
     path: '/criteria-calibration',
+    // ErrorBoundary is a backstop only — the page catches its own solver failures and
+    // recovers in place. Before both existed, a solver throw during render unmounted the
+    // whole root and left a blank page (see the safety-net note in CriteriaCalibrationPage).
     element: (
       <RequireAuth>
-        <CriteriaCalibrationPage />
+        <ErrorBoundary message="Something went wrong while loading your calibration session.">
+          <CriteriaCalibrationPage />
+        </ErrorBoundary>
       </RequireAuth>
     ),
   },
