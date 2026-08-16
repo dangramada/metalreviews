@@ -918,6 +918,9 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   proposed signal would use the solver's own real uncertainty bounds, not a proxy. Still,
   treat this as a genuine reversal — it needs explicit acknowledgment if revisited, not a
   silent do-over.
+  See docs/decisions/criteria-calibration-1000minds-comparative-research.md
+  (2026-08-16) for a comparative study against 1000minds' calibration UX —
+  relevant for the future Concept Draft on this item.
   Also flagged, same session: a **"calibration results page"** idea — showing criteria
   weights/levels visually (bar-style relative importance, per-level trade-off values),
   reusing the `RadarChart` (`@chakra-ui/charts`) pattern already adopted for
