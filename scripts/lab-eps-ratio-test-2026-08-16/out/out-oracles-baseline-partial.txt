@@ -1,0 +1,10 @@
+MAX_ROUNDS=90
+
+--- baseline ---
+  # 1 uniform                    stop=solver-crash                       rounds= 79 degrees=2/3/4 maxAbsErr=0.0416 rmse=0.0294 wallMs=108670
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=phase1-iteration-cap maxViolation=NaN minPivotMagnitude=1.323816143
+  # 2 single-dominant            stop=solver-crash                       rounds= 87 degrees=2 maxAbsErr=0.4140 rmse=0.1319 wallMs=98737
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=phase1-iteration-cap maxViolation=NaN minPivotMagnitude=1.031940813
+  # 3 zero-weight-criterion      stop=solver-crash                       rounds= 56 degrees=2/3 maxAbsErr=0.1665 rmse=0.0595 wallMs=20834
+      CRASH: Chebyshev-center solve failed, so no trustworthy point estimate exists for these answers. LP diagnostics: reason=post-solve-infeasible maxViolation=6.500212185091675e-7 minPivotMag
+  # 4 linear-control             stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0431 rmse=0.0143 wallMs=29004

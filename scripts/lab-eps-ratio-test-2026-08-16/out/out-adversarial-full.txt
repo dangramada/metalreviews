@@ -1,0 +1,105 @@
+trials/cell=10 ns=150,300
+
+--- baseline ---
+  equal-share    param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=5.42e-4 maxTableau=3.23e+5 reasons={}
+  equal-share    param=0.2   n=150  failures=0/10 nearSingular=0/10 realisedEqual=24% minPivot=1.56e-3 maxTableau=2.94e+5 reasons={}
+  equal-share    param=0.45  n=150  failures=2/10 nearSingular=2/10 realisedEqual=49% minPivot=1.14e-9 maxTableau=9.80e+17 reasons={phase1-iteration-cap:1 post-solve-infeasible:1}
+  equal-share    param=0.7   n=150  failures=6/10 nearSingular=6/10 realisedEqual=72% minPivot=1.02e-9 maxTableau=3.50e+21 reasons={phase1-iteration-cap:4 phase2-iteration-cap:2}
+  equal-share    param=0.9   n=150  failures=5/10 nearSingular=4/10 realisedEqual=90% minPivot=1.15e-9 maxTableau=1.16e+17 reasons={phase2-iteration-cap:4 post-solve-infeasible:1}
+  equal-share    param=1     n=150  failures=9/10 nearSingular=7/10 realisedEqual=100% minPivot=1.14e-9 maxTableau=1.39e+17 reasons={post-solve-infeasible:3 phase2-iteration-cap:5 phase1-iteration-cap:1}
+  contradiction  param=0     n=150  failures=1/10 nearSingular=1/10 realisedEqual=27% minPivot=1.03e-9 maxTableau=8.62e+18 reasons={phase1-iteration-cap:1}
+  contradiction  param=0.15  n=150  failures=2/10 nearSingular=4/10 realisedEqual=27% minPivot=1.11e-9 maxTableau=2.12e+17 reasons={phase1-iteration-cap:2}
+  contradiction  param=0.3   n=150  failures=9/10 nearSingular=7/10 realisedEqual=27% minPivot=1.02e-9 maxTableau=2.52e+19 reasons={buildValueLP-throw:3 phase1-iteration-cap:6}
+  contradiction  param=0.5   n=150  failures=9/10 nearSingular=4/10 realisedEqual=27% minPivot=1.04e-9 maxTableau=7.51e+18 reasons={phase1-iteration-cap:3 buildValueLP-throw:6}
+  contradiction  param=0.75  n=150  failures=10/10 nearSingular=1/10 realisedEqual=27% minPivot=1.04e-9 maxTableau=7.16e+17 reasons={buildValueLP-throw:9 phase1-iteration-cap:1}
+  contradiction  param=1     n=150  failures=8/10 nearSingular=5/10 realisedEqual=27% minPivot=1.00e-9 maxTableau=3.59e+38 reasons={phase1-iteration-cap:5 buildValueLP-throw:3}
+  equal-share    param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=9.50e-4 maxTableau=7.26e+5 reasons={}
+  equal-share    param=0.2   n=300  failures=8/10 nearSingular=1/10 realisedEqual=22% minPivot=1.02e-9 maxTableau=1.74e+18 reasons={phase1-iteration-cap:8}
+  equal-share    param=0.45  n=300  failures=10/10 nearSingular=3/10 realisedEqual=49% minPivot=1.07e-9 maxTableau=2.14e+19 reasons={phase1-iteration-cap:10}
+  equal-share    param=0.7   n=300  failures=10/10 nearSingular=6/10 realisedEqual=73% minPivot=1.02e-9 maxTableau=3.02e+19 reasons={phase1-iteration-cap:9 buildValueLP-throw:1}
+  equal-share    param=0.9   n=300  failures=9/10 nearSingular=4/10 realisedEqual=91% minPivot=1.01e-9 maxTableau=4.49e+19 reasons={phase2-iteration-cap:1 phase1-iteration-cap:8}
+  equal-share    param=1     n=300  failures=7/10 nearSingular=7/10 realisedEqual=100% minPivot=1.03e-9 maxTableau=1.17e+29 reasons={post-solve-infeasible:1 phase1-iteration-cap:2 phase2-iteration-cap:4}
+  contradiction  param=0     n=300  failures=9/10 nearSingular=4/10 realisedEqual=27% minPivot=1.00e-9 maxTableau=7.97e+18 reasons={phase1-iteration-cap:9}
+  contradiction  param=0.15  n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.40e-3 maxTableau=1.11e+6 reasons={buildValueLP-throw:9 phase1-iteration-cap:1}
+  contradiction  param=0.3   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=0.5   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=0.75  n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=1     n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+
+--- magnitude-tiebreak ---
+  equal-share    param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=7.97e-3 maxTableau=6.20e+4 reasons={}
+  equal-share    param=0.2   n=150  failures=0/10 nearSingular=0/10 realisedEqual=24% minPivot=8.09e-5 maxTableau=2.48e+5 reasons={}
+  equal-share    param=0.45  n=150  failures=0/10 nearSingular=0/10 realisedEqual=49% minPivot=9.06e-3 maxTableau=1.05e+5 reasons={}
+  equal-share    param=0.7   n=150  failures=0/10 nearSingular=0/10 realisedEqual=72% minPivot=2.37e-3 maxTableau=3.83e+4 reasons={}
+  equal-share    param=0.9   n=150  failures=0/10 nearSingular=0/10 realisedEqual=90% minPivot=4.95e-4 maxTableau=6.74e+4 reasons={}
+  equal-share    param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=3.81e-3 maxTableau=1.44e+4 reasons={}
+  contradiction  param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=7.11e-3 maxTableau=2.53e+4 reasons={}
+  contradiction  param=0.15  n=150  failures=1/10 nearSingular=0/10 realisedEqual=27% minPivot=6.54e-6 maxTableau=1.22e+6 reasons={post-solve-infeasible:1}
+  contradiction  param=0.3   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.88e-4 maxTableau=2.26e+4 reasons={}
+  contradiction  param=0.5   n=150  failures=0/10 nearSingular=1/10 realisedEqual=27% minPivot=2.84e-8 maxTableau=2.21e+11 reasons={}
+  contradiction  param=0.75  n=150  failures=1/10 nearSingular=1/10 realisedEqual=27% minPivot=1.03e-9 maxTableau=4.92e+12 reasons={buildValueLP-throw:1}
+  contradiction  param=1     n=150  failures=2/10 nearSingular=3/10 realisedEqual=27% minPivot=1.02e-9 maxTableau=3.55e+17 reasons={post-solve-infeasible:1 phase1-iteration-cap:1}
+  equal-share    param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=7.26e-3 maxTableau=6.44e+4 reasons={}
+  equal-share    param=0.2   n=300  failures=1/10 nearSingular=1/10 realisedEqual=22% minPivot=1.15e-9 maxTableau=9.00e+22 reasons={phase1-genuinely-infeasible:1}
+  equal-share    param=0.45  n=300  failures=4/10 nearSingular=4/10 realisedEqual=49% minPivot=1.03e-9 maxTableau=7.03e+16 reasons={phase1-iteration-cap:4}
+  equal-share    param=0.7   n=300  failures=1/10 nearSingular=0/10 realisedEqual=73% minPivot=1.64e-4 maxTableau=4.92e+5 reasons={phase1-iteration-cap:1}
+  equal-share    param=0.9   n=300  failures=0/10 nearSingular=0/10 realisedEqual=91% minPivot=2.84e-5 maxTableau=5.09e+5 reasons={}
+  equal-share    param=1     n=300  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=2.88e-4 maxTableau=1.23e+4 reasons={}
+  contradiction  param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=2.92e-5 maxTableau=7.78e+5 reasons={}
+  contradiction  param=0.15  n=300  failures=7/10 nearSingular=0/10 realisedEqual=27% minPivot=7.04e-4 maxTableau=1.65e+5 reasons={phase1-iteration-cap:7}
+  contradiction  param=0.3   n=300  failures=10/10 nearSingular=1/10 realisedEqual=27% minPivot=1.67e-9 maxTableau=4.13e+10 reasons={phase1-iteration-cap:5 buildValueLP-throw:5}
+  contradiction  param=0.5   n=300  failures=10/10 nearSingular=1/10 realisedEqual=27% minPivot=2.64e-9 maxTableau=1.38e+10 reasons={buildValueLP-throw:9 phase1-iteration-cap:1}
+  contradiction  param=0.75  n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=1     n=300  failures=10/10 nearSingular=3/10 realisedEqual=27% minPivot=1.00e-9 maxTableau=7.59e+11 reasons={buildValueLP-throw:7 phase1-iteration-cap:3}
+
+--- mag-floor(0.001) ---
+  equal-share    param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=7.97e-3 maxTableau=6.20e+4 reasons={}
+  equal-share    param=0.2   n=150  failures=0/10 nearSingular=0/10 realisedEqual=24% minPivot=4.39e-3 maxTableau=5.79e+4 reasons={}
+  equal-share    param=0.45  n=150  failures=0/10 nearSingular=0/10 realisedEqual=49% minPivot=9.06e-3 maxTableau=1.05e+5 reasons={}
+  equal-share    param=0.7   n=150  failures=0/10 nearSingular=0/10 realisedEqual=72% minPivot=2.37e-3 maxTableau=3.83e+4 reasons={}
+  equal-share    param=0.9   n=150  failures=0/10 nearSingular=0/10 realisedEqual=90% minPivot=1.39e-3 maxTableau=1.99e+4 reasons={}
+  equal-share    param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=3.81e-3 maxTableau=1.44e+4 reasons={}
+  contradiction  param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=7.11e-3 maxTableau=2.53e+4 reasons={}
+  contradiction  param=0.15  n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=3.55e-3 maxTableau=2.64e+4 reasons={}
+  contradiction  param=0.3   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.22e-3 maxTableau=2.26e+4 reasons={}
+  contradiction  param=0.5   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.62e-3 maxTableau=3.21e+4 reasons={}
+  contradiction  param=0.75  n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=4.81e-3 maxTableau=9.20e+4 reasons={}
+  contradiction  param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.45e-3 maxTableau=3.42e+4 reasons={}
+  equal-share    param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=7.26e-3 maxTableau=6.44e+4 reasons={}
+  equal-share    param=0.2   n=300  failures=0/10 nearSingular=0/10 realisedEqual=22% minPivot=1.60e-3 maxTableau=2.27e+5 reasons={}
+  equal-share    param=0.45  n=300  failures=2/10 nearSingular=0/10 realisedEqual=49% minPivot=1.00e-3 maxTableau=8.21e+5 reasons={phase1-iteration-cap:2}
+  equal-share    param=0.7   n=300  failures=2/10 nearSingular=0/10 realisedEqual=73% minPivot=1.01e-3 maxTableau=3.27e+5 reasons={phase1-iteration-cap:2}
+  equal-share    param=0.9   n=300  failures=0/10 nearSingular=0/10 realisedEqual=91% minPivot=1.20e-3 maxTableau=2.79e+5 reasons={}
+  equal-share    param=1     n=300  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=1.12e-3 maxTableau=1.33e+4 reasons={}
+  contradiction  param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.13e-3 maxTableau=1.22e+5 reasons={}
+  contradiction  param=0.15  n=300  failures=7/10 nearSingular=0/10 realisedEqual=27% minPivot=3.86e-3 maxTableau=1.65e+5 reasons={phase1-iteration-cap:7}
+  contradiction  param=0.3   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=3.95e-2 maxTableau=1.14e+5 reasons={phase1-iteration-cap:5 buildValueLP-throw:5}
+  contradiction  param=0.5   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.00e-1 maxTableau=9.22e+3 reasons={buildValueLP-throw:9 phase1-iteration-cap:1}
+  contradiction  param=0.75  n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=1     n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.62e-1 maxTableau=4.26e+3 reasons={buildValueLP-throw:7 phase1-iteration-cap:3}
+
+--- harris(d=1e-8) ---
+  equal-share    param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=7.97e-3 maxTableau=9.08e+3 reasons={}
+  equal-share    param=0.2   n=150  failures=0/10 nearSingular=0/10 realisedEqual=24% minPivot=9.58e-3 maxTableau=2.74e+4 reasons={}
+  equal-share    param=0.45  n=150  failures=0/10 nearSingular=0/10 realisedEqual=49% minPivot=4.71e-4 maxTableau=2.20e+5 reasons={}
+  equal-share    param=0.7   n=150  failures=0/10 nearSingular=0/10 realisedEqual=72% minPivot=8.01e-4 maxTableau=1.07e+5 reasons={}
+  equal-share    param=0.9   n=150  failures=0/10 nearSingular=0/10 realisedEqual=90% minPivot=9.56e-3 maxTableau=1.49e+4 reasons={}
+  equal-share    param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=2.56e-3 maxTableau=6.67e+2 reasons={}
+  contradiction  param=0     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=8.00e-3 maxTableau=1.99e+4 reasons={}
+  contradiction  param=0.15  n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=6.73e-3 maxTableau=2.45e+4 reasons={}
+  contradiction  param=0.3   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=1.88e-4 maxTableau=2.26e+4 reasons={}
+  contradiction  param=0.5   n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=3.92e-3 maxTableau=3.21e+4 reasons={}
+  contradiction  param=0.75  n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=4.81e-3 maxTableau=9.20e+4 reasons={}
+  contradiction  param=1     n=150  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=3.28e-3 maxTableau=3.42e+4 reasons={}
+  equal-share    param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=0% minPivot=6.29e-3 maxTableau=5.47e+4 reasons={}
+  equal-share    param=0.2   n=300  failures=0/10 nearSingular=0/10 realisedEqual=22% minPivot=2.49e-3 maxTableau=1.57e+5 reasons={}
+  equal-share    param=0.45  n=300  failures=0/10 nearSingular=0/10 realisedEqual=49% minPivot=1.37e-4 maxTableau=4.42e+5 reasons={}
+  equal-share    param=0.7   n=300  failures=0/10 nearSingular=0/10 realisedEqual=73% minPivot=8.15e-4 maxTableau=2.82e+5 reasons={}
+  equal-share    param=0.9   n=300  failures=0/10 nearSingular=0/10 realisedEqual=91% minPivot=7.59e-4 maxTableau=1.14e+5 reasons={}
+  equal-share    param=1     n=300  failures=0/10 nearSingular=0/10 realisedEqual=100% minPivot=2.13e-3 maxTableau=1.39e+3 reasons={}
+  contradiction  param=0     n=300  failures=0/10 nearSingular=0/10 realisedEqual=27% minPivot=8.71e-5 maxTableau=2.69e+6 reasons={}
+  contradiction  param=0.15  n=300  failures=7/10 nearSingular=0/10 realisedEqual=27% minPivot=8.80e-4 maxTableau=1.65e+5 reasons={phase1-iteration-cap:7}
+  contradiction  param=0.3   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=3.95e-2 maxTableau=1.14e+5 reasons={phase1-iteration-cap:5 buildValueLP-throw:5}
+  contradiction  param=0.5   n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.00e-1 maxTableau=9.22e+3 reasons={buildValueLP-throw:9 phase1-iteration-cap:1}
+  contradiction  param=0.75  n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=Infinity maxTableau=0.00e+0 reasons={buildValueLP-throw:10}
+  contradiction  param=1     n=300  failures=10/10 nearSingular=0/10 realisedEqual=27% minPivot=1.62e-1 maxTableau=4.26e+3 reasons={buildValueLP-throw:7 phase1-iteration-cap:3}

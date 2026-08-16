@@ -623,6 +623,44 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      silently start passing against an input that no longer exercises anything. Update that
      fixture/test as part of the cure, don't just delete the assertion.
 
+     **2026-08-16 — DIAGNOSED, ready for an implementation brief; still not implemented.**
+     `criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md` tested three
+     candidate ratio-test rules against the full regression set, driving the real production
+     stack via a Vite alias (no production file touched; baseline verified bit-identical to
+     production on 181 solves and reproducing the published oracle crashes exactly). Headlines:
+     - **Verdict GO for a Harris two-pass ratio test at `pivotTolerance = 1e-7`, `δ = 1e-8`.**
+       Near-singular-pivot incidence goes 41+25/240 → **0/240**; committed real fixtures
+       181/181 clean; closed-loop oracle crashes 4/10 → **0/10**, with oracles #1 and #3 now
+       reaching genuine `coverage-complete` through degrees 2→6 and recovering ground truth
+       exactly.
+     - **The "pivot-magnitude guard" as sketched in `dantzig-stress-test.md` Result 4 should NOT
+       be built as sketched** — taking the min ratio among rows above a floor lets the step
+       overshoot by an *unbounded* amount when the floor excludes the true min-ratio row.
+       Harris's δ is exactly the bound that makes the same trade legitimate.
+     - **A bare largest-|pivot| tie-break** (smallest possible diff, provably step-length-neutral)
+       clears every real fixture and all 10 oracles but leaves the mechanism alive at n ≥ 150 —
+       it is a better mitigation, not a cure. Choosing it would keep the all-'equal' entry below
+       open.
+     - **Q2 answered:** Harris's own slack IS flagged as corruption by `FEASIBILITY_TOLERANCE`
+       once δ ≥ 1e-7 (156/181 good solves rejected at δ = 1e-6). δ ≤ 1e-8 leaves 21× headroom.
+       `PHASE1_FEASIBILITY_TOLERANCE` is unaffected at every δ tested. Do **not** loosen either
+       guard to accommodate a larger δ.
+     - **Q3 answered — drop periodic refactorization from this item's candidate list.** Measured
+       on the committed n=44 crash fixture: drift from the exact basic solution stays at ~1e-15
+       for 626 consecutive pivots, then one division by 1.91e-9 blows the tableau
+       1.6e+4 → 8.3e+12 in a single step and leaves the basis singular. There is no accumulated
+       round-off to purge, so no re-derivation schedule can help — independent of the
+       dense-vs-revised-simplex question.
+     - **Two decisions are Dan's before an implementation brief:** (a) every candidate re-prices
+       existing users' solved weights (154/181 prefixes move, median 0.167) — this is NOT a
+       regression, since `totalSlack` is unchanged and every rule attains the *identical* optimal
+       Chebyshev radius on all 180 solvable regions; the point estimate is simply not uniquely
+       determined today and the pivoting rule silently picks among ties; (b) which rule ships.
+     - Also surfaced: `MAX_ITERATIONS = 2000` (item 4 below) becomes the *sole* remaining cause of
+       adversarial failure at n=300 once this lands, and escalation timing shifts (oracle #9 hits
+       degree-2 coverage-complete at round 30 vs 49), so `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`
+       needs re-checking against the new solver.
+
      Residual left open by the safety net: `nextAction` is deterministic, so a question whose
      every possible answer breaks the solver re-offers the same pair indefinitely. The page
      stays usable (Undo and "Stop here" both work) but can't advance — a skip-question
@@ -647,6 +685,17 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   share at n=150. Relevant if auto-escalation ever pushes sessions into the hundreds, or if a
   user answers 'equal' very frequently. Measurements and the variable-separation sweep that
   established the boundary: `criteria-calibration-dantzig-stress-test.md`.
+
+  **2026-08-16 update — this is now closable by item 3's fix, and measured to be so.** The
+  EPS-ratio-test diagnostic re-ran the equal-share and contradiction-rate tracks (rebuilt
+  generator, `'equal'` answers genuinely true under the oracle so consistency is really held
+  fixed) at n=150 and n=300. Both curing candidates take near-singular incidence to 0/240 and
+  failures at n=150 to **0/120**, including the 100%-`'equal'` and 100%-contradiction cells this
+  entry describes as unfixable without item 3. The bare largest-|pivot| tie-break does **not**
+  close it (4/120 failures, 5/240 near-singular still), so whether this entry can be retired
+  depends on which rule ships. Residual n=300 failures under the curing rules are
+  `MAX_ITERATIONS` (item 4), not this mechanism.
+  `criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`.
 - **Score-spread accuracy thresholds (`SCORE_SPREAD_MEDIUM_THRESHOLD` /
   `SCORE_SPREAD_HIGH_THRESHOLD` / `SCORE_SPREAD_VERY_HIGH_THRESHOLD` in
   `accuracyTiers.ts`) are provisional — same unresolved status as the

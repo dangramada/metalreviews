@@ -66,7 +66,17 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was `criteria-calibration-solver-crash-safety-net`
+`criteria-calibration-eps-ratio-test-diagnostic` — **active, docs + harness only, no production
+code touched** (`git diff` over `src/` empty, `tsc` clean, 307/307 tests). Read-only diagnostic
+closing the *diagnostic* half of `deferred-work.md` item 3 (the `EPS = 1e-9` near-singular-pivot
+root cause). Verdict **GO for a Harris two-pass ratio test** (`pivotTolerance = 1e-7`, `δ = 1e-8`);
+periodic refactorization ruled out by measurement, and the plain pivot-magnitude guard ruled out
+as previously sketched. **Two decisions are Dan's before an implementation brief is written** —
+whether re-pricing existing users' solved weights is acceptable, and which rule ships. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`; harness
+`scripts/lab-eps-ratio-test-2026-08-16/`.
+
+Most recent merge was `criteria-calibration-solver-crash-safety-net`
 (contains the LP solver's near-singular breakdown at the page boundary: compute-first ordering on
 the mutating handlers, auto-recovery for already-persisted bad logs, route-level `ErrorBoundary`;
 solver layer deliberately untouched, so sessions still hit the breakdown but degrade legibly
