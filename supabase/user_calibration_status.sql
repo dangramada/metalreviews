@@ -21,7 +21,7 @@
 --
 -- Also worth flagging for whoever wires this up: computeSolverAccuracy has a confirmed
 -- structural blind spot for degree-3+ ranking improvements (see
--- docs/decisions/criteria-calibration-engine.md, "Part 4 finding") -- this doesn't change
+-- docs/decisions/criteria-calibration/criteria-calibration-engine.md, "Part 4 finding") -- this doesn't change
 -- anything about this table (tier/accuracy_value stay generic columns regardless of how the
 -- metric is eventually computed), but 'high'/'very_high' values written by the CURRENT
 -- metric logic should not yet be treated as meaningful; that's a separate, already-flagged

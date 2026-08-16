@@ -46,6 +46,7 @@ const CSV_PATH = join(
   '..',
   'docs',
   'decisions',
+  'criteria-calibration',
   'second-session-accuracy-trajectory-2026-08-15.csv'
 );
 

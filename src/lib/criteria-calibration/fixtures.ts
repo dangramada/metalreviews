@@ -196,7 +196,7 @@ const REAL_SESSION_RAW: [string, string, '>' | '<' | '='][] = [
 
 // ---------------------------------------------------------------------------------------
 // n=42 numerical-blowup regression fixture (Big-M -> two-phase simplex rewrite, 2026-08-09,
-// see docs/decisions/two-phase-simplex-rewrite.md). Regenerated deterministically by
+// see docs/decisions/criteria-calibration/two-phase-simplex-rewrite.md). Regenerated deterministically by
 // driving `nextAction` for 42 rounds against the REAL_SESSION_* value table as a
 // complete-ground-truth oracle (identical method to elicitationDriver.test.ts's
 // "oracle-based simulation" describe block) — NOT hand-authored, NOT the 31-answer
@@ -322,7 +322,7 @@ export const REAL_SESSION_ALBUMS: RealSessionAlbum[] = [
 // (eec42cd4-e714-46a2-ad9c-35714a1d3a2c), pulled read-only from user_calibration_answers on
 // the current 6-criteria/5-level production model. This is the sparse 33-answer session
 // documented in docs/decisions/deferred-work.md (the levels-2-5-flatness diagnostic) and in
-// docs/decisions/criteria-calibration-joint-point-estimate.md (the 1.308 normalization-sum
+// docs/decisions/criteria-calibration/criteria-calibration-joint-point-estimate.md (the 1.308 normalization-sum
 // bug this fixture regression-tests). Single-user project, Dan's own data — fine to embed
 // directly per his explicit sign-off, no separate anonymization needed.
 // ---------------------------------------------------------------------------------------
@@ -377,7 +377,7 @@ export const REAL_PRODUCTION_SESSION_ANSWERS: RealSessionRound[] = [
 // reach the 32-answer coverage-complete moment Dan actually hit. Pre-fix, that moment made
 // nextAction report degree-exhausted/coverage-complete simultaneously at every degree from 2
 // through 6 (confirmed via a live diagnostic replay, not asserted); the fix scopes touch
-// counts to the degree being checked — see docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md.
+// counts to the degree being checked — see docs/decisions/criteria-calibration/criteria-calibration-degree-scoped-coverage-fix.md.
 // ---------------------------------------------------------------------------------------
 
 export const DEGREE_ANOMALY_SESSION_LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];
@@ -426,13 +426,13 @@ export const DEGREE_ANOMALY_SESSION_ANSWERS: RealSessionRound[] = [
 // extraction time), and the top-10 albumId set (by score, from RANKING_TEST_SET's 13 albums)
 // at that checkpoint. `n=54` and `n=57` are excluded — both are silent pre-Dantzig
 // Chebyshev-center degradations (all-13-albums-tied / accuracy=0), documented and root-caused
-// in docs/decisions/criteria-calibration-ranking-stability-analysis.md's Pass 1 and Pass 3
+// in docs/decisions/criteria-calibration/criteria-calibration-ranking-stability-analysis.md's Pass 1 and Pass 3
 // "second discard" note; not real signal, and the bug that produced them no longer exists
-// post-Dantzig-fix (see criteria-calibration-dantzig-fix.md).
+// post-Dantzig-fix (see docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md).
 //
 // This is the exact data backing Pass 4's original result: tier-gated K=2 fired at n=39.
 // HISTORICAL ONLY as of the duration-based window replacing K=2 (see
-// docs/decisions/criteria-calibration-fine-grained-firing-instability.md) — this fixture's
+// docs/decisions/criteria-calibration/criteria-calibration-fine-grained-firing-instability.md) — this fixture's
 // every-3rd-sample retrospective granularity is exactly what that finding showed is
 // unreliable for verifying a firing point (Pass 4's own n=39 estimate turned out to differ
 // from the real fine-grained result), so rankingStabilitySignal.test.ts no longer asserts an

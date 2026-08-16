@@ -12,7 +12,7 @@
 // combination within an ALREADY-answered pair isn't automatically implied by closure. So
 // covering all C(N,2) pairs with at least one direct answer each is still asked first,
 // unconditionally, as this driver's cold-start floor — but as of 2026-08-08 (see
-// docs/decisions/criteria-calibration-medium-gate-redesign.md) this coverage is no longer
+// docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md) this coverage is no longer
 // what gates Medium tier; accuracyTiers.ts's `isMediumTierReached` now reads solver
 // accuracy directly. Cold-start coverage remains here only to seed the solver with an
 // initial answer per pair before the ambiguity-driven refinement phase (below) takes over.
@@ -79,7 +79,7 @@ export function coldStartProfilesForPair(
  * `coldStartProfilesForPair`, not through this function). No longer consumed by
  * accuracyTiers.ts's `isMediumTierReached` (which reads solver accuracy directly as of
  * 2026-08-08) or by the UI's progress display (which also reads solver accuracy directly
- * as of 2026-08-09, see docs/decisions/criteria-calibration-medium-gate-redesign.md's
+ * as of 2026-08-09, see docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md's
  * progress-ring-accuracy entry — the standalone `degree2CoveragePercent`/
  * `sessionProgress.ts` module it used to back was deleted then). Exported for
  * elicitationDriver.test.ts's own coverage-count assertions only at this point.
@@ -189,7 +189,7 @@ function isDominatedPair(
 /**
  * True if ANY criterion in `subset` has the same level on both sides — a "partial tie"
  * (some but not all criteria match) when the pair isn't already a full tie. Confirmed
- * mathematically (see docs/decisions/criteria-calibration-partial-tie-fix.md,
+ * mathematically (see docs/decisions/criteria-calibration/criteria-calibration-partial-tie-fix.md,
  * solver.ts:162-181): a tied criterion's coefficient cancels exactly to zero in the LP's
  * `diff = coeffsA - coeffsB` row, so that criterion contributes nothing to the constraint —
  * the comparison is informationally equivalent to a lower-degree one over just the criteria
@@ -217,7 +217,7 @@ function hasAnyTiedCriterion(
  * degree-2+ refinement pools stop sampling levels uniformly (which was landing most
  * candidates in the flat middle-level region after a cold start that only ever touches
  * level 1 and each criterion's max — see
- * docs/decisions/criteria-calibration-coverage-weighted-candidates.md).
+ * docs/decisions/criteria-calibration/criteria-calibration-coverage-weighted-candidates.md).
  */
 function computeTouchCounts(session: CalibrationSession, levelsPerCriterion: number[]): number[][] {
   const counts = levelsPerCriterion.map((max) => new Array<number>(max + 1).fill(0));
@@ -289,7 +289,7 @@ function drawLevel(
 
 // Retry budget per subset. Was `CANDIDATES_PER_SUBSET * 20` (120 attempts) before the
 // partial-tie rejection below was added; measured empirically (see
-// docs/decisions/criteria-calibration-partial-tie-fix.md) that rejecting partial ties on top
+// docs/decisions/criteria-calibration/criteria-calibration-partial-tie-fix.md) that rejecting partial ties on top
 // of the existing full-tie/dominance/dedup filters raises the overall reject rate enough
 // that 120 attempts occasionally under-fills a subset's candidate quota at degree 3+ (most
 // visible for subsets whose touch-count weighting has already concentrated onto very few
@@ -376,7 +376,7 @@ const MAX_VALUE_RANGE_FOR_COVERAGE = 0.2;
  * of degree, since range-narrowing IS genuinely informative cross-degree evidence, unlike
  * the touch-count gate below).
  *
- * CHANGED 2026-08-11 (see docs/decisions/criteria-calibration-degree-scoped-coverage-fix.md):
+ * CHANGED 2026-08-11 (see docs/decisions/criteria-calibration/criteria-calibration-degree-scoped-coverage-fix.md):
  * touchCounts used to be computed globally too, on the reasoning that "a variable can go
  * untouched or stay wide regardless of which degree is currently active, so checking only
  * the current degree's own subsets would miss a variable a different degree already
@@ -396,7 +396,7 @@ const MAX_VALUE_RANGE_FOR_COVERAGE = 0.2;
  * this function alone, fix only the UI) was explicitly offered and declined.
  *
  * Replaces the old gap-based `MAX_AMBIGUOUS_GAP` check (2026-08-09 design checkpoint, see
- * docs/decisions/criteria-calibration-adaptive-degree-escalation.md): that rule inferred
+ * docs/decisions/criteria-calibration/criteria-calibration-adaptive-degree-escalation.md): that rule inferred
  * "nothing left to learn" from candidate-pair score gaps, which stayed near-zero by
  * construction in real sessions regardless of whether the underlying variables were
  * actually determined — measured on both an oracle trace and a real 33-answer production

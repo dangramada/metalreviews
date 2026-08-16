@@ -76,7 +76,7 @@ LP solve, but nothing re-enforces it *jointly* across the resulting midpoints, s
 isn't guaranteed to equal 1. It is worse the more under-determined the session is, making
 Medium-tier-only (the feature's actual minimum gate) close to the worst case.
 
-**Related to, but distinct from, `criteria-calibration-engine.md`'s "Part 4 finding"**: both
+**Related to, but distinct from, `criteria-calibration/criteria-calibration-engine.md`'s "Part 4 finding"**: both
 trace to the same root methodology — solving each free (criterion, level) variable via its
 own separate LP rather than jointly — but they hit different downstream consumers. Part 4's
 finding is about `computeSolverAccuracy` averaging independent *feasible-range widths*,
