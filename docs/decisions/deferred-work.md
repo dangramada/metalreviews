@@ -182,7 +182,6 @@ rewriting them, which this reorg pass deliberately avoided.
   (`scripts/diagnose-second-session-flatness-2026-08-15.ts`, live
   `user_calibration_answers` replay through the real `solveValues`).** Four things
   checked, per the standing brief:
-
   1. **`MAX_AMBIGUOUS_GAP` status: confirmed dead code, not a live gate.** Only
      two references in the whole tree: a comment in `elicitationDriver.ts:398`
      ("replaces the old gap-based `MAX_AMBIGUOUS_GAP` check") and a `describe()`
@@ -203,41 +202,38 @@ rewriting them, which this reorg pass deliberately avoided.
      related degree-2-confinement pattern did, and it resolved once the session
      escalated past degree 2.** Checkpoints every ~10 real answers plus the
      three degree-transition boundaries (degree 2 ends at n=28, degree 3 spans
-     n=29-49, degree 4 spans n=50-71, degree distribution 28/21/22):
-     - **While still confined to degree 2 (n=28, the last purely-degree-2
-       checkpoint):** several criteria show a flat/zero pair among *low* levels
-       instead of high levels — e.g. criterion 0: `[0, 0, 0.0832, 0.1249,
-       0.1667]` (flat 1-2, then differentiated 3-5); criterion 2: `[0, 0, 0,
-       0.0830, 0.1666]` (flat 1-3, then differentiated). This is the same
-       qualitative phenomenon as the original finding — adjacent levels
-       collapsing to indistinguishable point estimates — but the *specific*
-       levels affected differ (1-2/1-3 here vs. 2-5 in the original), which the
-       original session-level diagnosis couldn't have shown since it only ever
-       reached degree 2.
-     - **Once degree escalated to 3 then 4 (n=29 through the final n=71), the
-       flatness dissolved.** Final state, all six criteria, no adjacent-level
-       gap under 0.02: criterion 0 `[0, 0.0242, 0.0713, 0.1189, 0.1667]`;
-       criterion 1 `[0, 0.0233, 0.0714, 0.1184, 0.1668]`; criterion 2 `[0,
-       0.0235, 0.0472, 0.0709, 0.1666]`; criterion 3 `[0, 0.0239, 0.0949,
-       0.1422, 0.1667]`; criterion 4 `[0, 0.0242, 0.0481, 0.0953, 0.1667]`;
-       criterion 5 `[0, 0.0475, 0.0712, 0.0954, 0.1665]`. No criterion shows a
-       near-flat run of two or more adjacent non-level-1 levels anywhere in this
-       final state.
-     - **Working hypothesis this raises, not yet confirmed:** the original
-       33-answer trace was diagnosed *while the session was stuck at degree 2*
-       (its own doc records `nextAction()` returning a degree-2 ask at the
-       moment of the trace). The flatness may be substantially a
-       degree-2-confinement symptom — a criterion only gets enough independent
-       constraints to separate its middle levels once cross-criterion
-       comparisons at degree 3+ start arriving — rather than a standalone,
-       permanent defect in `solveValues`' point-estimate assignment. This does
-       **not** rule out a real solver-side issue (the degree-2-only shape above
-       is still a genuine flat/indistinguishable region that existed at that
-       point in the session, and a session that stalls at degree 2 for longer
-       than this one did would presumably keep it), but it means "the solver
-       treats levels 2-5 as flat" is not the most precise statement of the
-       mechanism. Worth factoring into the future solver-design brief rather
-       than assuming the original framing still holds unmodified.
+     n=29-49, degree 4 spans n=50-71, degree distribution 28/21/22): - **While still confined to degree 2 (n=28, the last purely-degree-2
+     checkpoint):** several criteria show a flat/zero pair among _low_ levels
+     instead of high levels — e.g. criterion 0: `[0, 0, 0.0832, 0.1249,
+0.1667]` (flat 1-2, then differentiated 3-5); criterion 2: `[0, 0, 0,
+0.0830, 0.1666]` (flat 1-3, then differentiated). This is the same
+     qualitative phenomenon as the original finding — adjacent levels
+     collapsing to indistinguishable point estimates — but the _specific_
+     levels affected differ (1-2/1-3 here vs. 2-5 in the original), which the
+     original session-level diagnosis couldn't have shown since it only ever
+     reached degree 2. - **Once degree escalated to 3 then 4 (n=29 through the final n=71), the
+     flatness dissolved.** Final state, all six criteria, no adjacent-level
+     gap under 0.02: criterion 0 `[0, 0.0242, 0.0713, 0.1189, 0.1667]`;
+     criterion 1 `[0, 0.0233, 0.0714, 0.1184, 0.1668]`; criterion 2 `[0,
+0.0235, 0.0472, 0.0709, 0.1666]`; criterion 3 `[0, 0.0239, 0.0949,
+0.1422, 0.1667]`; criterion 4 `[0, 0.0242, 0.0481, 0.0953, 0.1667]`;
+     criterion 5 `[0, 0.0475, 0.0712, 0.0954, 0.1665]`. No criterion shows a
+     near-flat run of two or more adjacent non-level-1 levels anywhere in this
+     final state. - **Working hypothesis this raises, not yet confirmed:** the original
+     33-answer trace was diagnosed _while the session was stuck at degree 2_
+     (its own doc records `nextAction()` returning a degree-2 ask at the
+     moment of the trace). The flatness may be substantially a
+     degree-2-confinement symptom — a criterion only gets enough independent
+     constraints to separate its middle levels once cross-criterion
+     comparisons at degree 3+ start arriving — rather than a standalone,
+     permanent defect in `solveValues`' point-estimate assignment. This does
+     **not** rule out a real solver-side issue (the degree-2-only shape above
+     is still a genuine flat/indistinguishable region that existed at that
+     point in the session, and a session that stalls at degree 2 for longer
+     than this one did would presumably keep it), but it means "the solver
+     treats levels 2-5 as flat" is not the most precise statement of the
+     mechanism. Worth factoring into the future solver-design brief rather
+     than assuming the original framing still holds unmodified.
 
   3. **Criterion-5-style total zero-weight did NOT reproduce, at any checkpoint
      sampled (n=10, 20, 28, 29, 40, 49, 50, 60, 70, 71).** Max solved point
@@ -262,12 +258,12 @@ rewriting them, which this reorg pass deliberately avoided.
   `scripts/diagnose-second-session-flatness-2026-08-15.ts`.
 
   **2026-08-15 follow-up framing — two unseparated candidate explanations, and
-  a priority downgrade.** The re-verification above found a *different* flat
+  a priority downgrade.** The re-verification above found a _different_ flat
   region (levels 1-3, not 2-5) at the degree-2-confined checkpoint (n=28),
   which then resolved by n=71. Two candidate explanations, not distinguished
   by this data: (a) escaping degree-2 confinement specifically resolved it, or
   (b) total answer volume (33 vs. 71) resolved it regardless of degree — the
-  two sessions differ on both dimensions simultaneously (more answers *and*
+  two sessions differ on both dimensions simultaneously (more answers _and_
   more degree escalation), so this can't be separated yet. The differing
   flat-region location (1-3 vs. the original's 2-5) also weakens the idea that
   this is a stable, level-specific solver pathology — it's more consistent
@@ -281,6 +277,7 @@ rewriting them, which this reorg pass deliberately avoided.
   doesn't resolve with continued real answers, ideally on a third independent
   account/session so degree-confinement and answer volume can finally be
   separated.
+
 - **Criteria Calibration UI never displays the current `degree` anywhere —
   flagged 2026-08-11, not fixed.** Surfaced while diagnosing/fixing the
   degree-jump anomaly (`docs/decisions/criteria-calibration/criteria-calibration-degree-scoped-coverage-fix.md`):
@@ -489,8 +486,8 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   back-loaded: the reverse). Back-loaded reached High tier at round 68 and recovered its
   ground truth to within 0.06 rmse; front-loaded never left degree 2 or reached High tier in
   90 real answers and stayed compressed well below its true scale throughout. Both recovered
-  the *correct qualitative shape* (this is not the flatness-fabrication bug — see that doc's
-  oracle #5/#6 section), so this is specifically a *convergence-speed* asymmetry, reproducible
+  the _correct qualitative shape_ (this is not the flatness-fabrication bug — see that doc's
+  oracle #5/#6 section), so this is specifically a _convergence-speed_ asymmetry, reproducible
   given the shared seed/weights. No mechanism identified beyond what's directly observable;
   worth a look if degree-2 candidate weighting (`coverage-weighted-candidates.md`) is revisited.
 
@@ -571,16 +568,16 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      because a failed Chebyshev-center solve was being swallowed into an all-zero point
      estimate and persisted. Closed by a post-solve feasibility guard in `solveLP` plus
      making the Chebyshev failure throw instead of degrading to zeros.
-  4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
+  3. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
      exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
      n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
      a test. Revisit alongside any auto-escalation work that lengthens sessions.
      A Dantzig-primary/Bland-fallback design was considered and **rejected** — reasoning
      recorded in the decision doc so it isn't re-proposed. Full detail, tables and method:
      `criteria-calibration-dantzig-stress-test.md`.
-  5. **NEW, open — the reported weights are one arbitrary pick among tied optima.**
+  4. **NEW, open — the reported weights are one arbitrary pick among tied optima.**
      Surfaced (not caused) by the Harris pass. The Chebyshev LP's optimum is massively
-     degenerate: every ratio-test rule tested attains the *identical* optimal radius on all
+     degenerate: every ratio-test rule tested attains the _identical_ optimal radius on all
      180 solvable regions, and `totalSlack` is invariant, so the fitted region genuinely does
      not move — but many points attain the maximum and the pivoting rule decides which one is
      reported and persisted. Consequences: (a) any solver change re-prices stored weights
@@ -636,6 +633,15 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   accuracy/tier/fired trajectory:
   `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`.
 
+  **Superseded numbers, 2026-08-16 (post-Harris):** the n=35 / n=45 last-top-10-change figures
+  above, and the 47 / 57 firing points derived from them, were measured pre-Harris-ratio-test.
+  Re-replaying both sessions through the current solver gives **n=39 → fires 51** (first
+  session) and **n=46 → fires 58** (second). The signal is unchanged; the solver's reported
+  point moved, so the derived top-10 trajectory moved with it — item 5 below (arbitrary pick
+  among tied optima) surfacing in a second place. R=12 still holds with zero false positives on
+  both traces. Treat 39/46 as current. Full numbers:
+  `docs/decisions/criteria-calibration/criteria-calibration-escalation-signal-candidates.md`.
+
 - **`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is
   currently a static, hardcoded list of Dan's own 13 albumIds — not per-user.**
   Surfaced 2026-08-14/15 while diagnosing why Brief 3's auto-escalation signal
@@ -654,6 +660,37 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   just the source of the ratings needs to become per-user. Full context:
   `criteria-calibration-duration-based-window-fix.md`,
   `criteria-calibration-ranking-stability-analysis.md`.
+  - **Update 2026-08-16 — "make it per-user" is not actually sufficient, and the two obvious
+    replacements were tested and both failed.** Calibration is gated to run _before_ a user has
+    rated anything, so a first-time user has no rated albums to build a per-user benchmark set
+    from — the mechanism can't work for anyone but Dan, whatever the ratings source. Two
+    solver-internal replacements needing no external data were evaluated against a 12-trace
+    evidence set (both real sessions + 10 synthetic oracles, all re-run post-Harris):
+    **coverage-width thresholds** have no single constant that fires at-or-after ranking-settle
+    across the set at any R ∈ {3,6,9,12} — the quantity isn't comparable across users;
+    **weight-vector stability** is worse and structurally unsound, its converged-tail jitter
+    matching still-learning movement on 5 of 11 traces (item 5 again). Recommendation on the
+    table: keep the incumbent, accept the degradation for non-Dan users, and if developing
+    further pick the coverage-width family (immune to the tie-break degeneracy). A normalised
+    coverage-width ratio and an accuracy-plateau signal are named but untested. Full analysis,
+    per-R sweeps and committed trajectory CSVs:
+    `criteria-calibration-escalation-signal-candidates.md`.
+  - **Second pass, same day — the two named follow-ups also fail; recommendation is now
+    Candidate C.** Normalised coverage ratio (A2) fails because its anchor is undefined on 3 of
+    10 oracles and set _after_ the ranking settled on 3 more — normalising against tier
+    eligibility inherits the tier gate's own unreliability. Accuracy plateau (A3) is the worst
+    variant tested either pass: early on all 12 traces at R=3 at every δ, because score-spread
+    accuracy saturates and sits flat long before the ranking settles. No family has a non-empty
+    threshold intersection at any R. **Standing recommendation: Candidate C** — delete the
+    detection problem, show an explicit "See results / Answer more questions" checkpoint at each
+    existing `isDegreeCoverageComplete` boundary (already the sole trigger; `fired` only decides
+    auto-escalate vs. show-the-button). Measured cost: **2 extra interstitial screens per real
+    session**, max 4 across 12 traces. Removes ~876 lines, 7 `user_calibration_status` columns,
+    the multi-user per-user-benchmark rework this entry has been holding open, and — because the
+    un-awaited-write race is scoped _exactly_ to `last_eligible_top10` /
+    `last_change_answer_index` — **the project's one open correctness risk stops existing rather
+    than needing a guard.** Not implemented; awaiting Dan's decision. Open sub-questions for
+    implementation are listed at the end of §12 in the decision doc.
   - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
     `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
     with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account
@@ -741,13 +778,13 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   `[catalog, session, degree]` and `session` rebuilds fresh from `answers` — so this is not
   a memoization-staleness bug; it recomputes against the wrong (stale, never-decremented)
   `degree` value, so once every degree-4 answer is undone it still calls
-  `nextAction(session, degree=4)` and gets a *fresh* degree-4 result instead of reverting to
+  `nextAction(session, degree=4)` and gets a _fresh_ degree-4 result instead of reverting to
   degree 3. A page refresh fixes it because reload re-invokes `useCalibrationResume`, which
   re-derives `degree` from the now-shorter persisted log (`Math.max(...profile-key-counts,
-  STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs on mount.
+STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs on mount.
   Explicitly distinct from the 2026-08-14 "degree came back at 2 instead of 3 after
   refresh" note in `criteria-calibration-auto-escalation-signal.md` — that one confirmed
-  `useCalibrationResume`'s resume-time inference is *correct*; this is a live in-session gap
+  `useCalibrationResume`'s resume-time inference is _correct_; this is a live in-session gap
   with no resume involved. Answer-log data integrity checked and unaffected by this
   specific Undo: 0 duplicate profile-pairs, 0 out-of-order timestamps, 0 sub-50ms
   insert/delete-race candidates across the full 71-row log. **Not fixed this session** —
@@ -762,8 +799,8 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   "Stop here" right, empty flex spacer left) works but wasn't given a real design
   pass — out of scope for that UI-only brief. `docs/decisions/criteria-calibration/criteria-calibration-ui.md`.
   Related, distinct scope (do **not** merge the two): "Accuracy display conflates two
-  different signals" below — that entry is about *what* the header communicates, this one
-  about *how it is laid out*.
+  different signals" below — that entry is about _what_ the header communicates, this one
+  about _how it is laid out_.
 - **Accuracy display conflates two different signals** — surfaced live 2026-08-15, during
   the second full calibration session (`dan.gramada@gmail.com` account reset,
   `criteria-calibration-second-session-reset.md`).
@@ -775,7 +812,7 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   matches the already-documented finding that the additive model on this 6-criterion catalog
   is structurally determined by degree-2 data
   (`criteria-calibration-additive-model-degree-sufficiency.md`) — not a bug, but the current
-  single-number display doesn't communicate *why*, so it reads as "did I miss something?"
+  single-number display doesn't communicate _why_, so it reads as "did I miss something?"
   rather than "there was nothing left to learn."
   **Proposed direction** (not designed, not approved for build): split the single number
   into two distinct signals — (1) consistency/confidence (the current metric) and
