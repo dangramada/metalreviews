@@ -1,0 +1,10 @@
+magnitude-tiebreak               n=180 median=1.67e-1 p90=2.00e-1 p99=5.00e-1 max=5.00e-1 |>1e-3|=148 maxTotalSlackDelta=0.00e+0
+    worst 5: n42-repro#1=0.5000 solver-crash-n44#1=0.5000 real-session-n31#2=0.4999 real-session-n31#4=0.4997 solver-crash-n44#2=0.3333
+magnitude-floor(1e-7)            n=180 median=1.67e-1 p90=2.00e-1 p99=5.00e-1 max=5.00e-1 |>1e-3|=148 maxTotalSlackDelta=0.00e+0
+    worst 5: n42-repro#1=0.5000 solver-crash-n44#1=0.5000 real-session-n31#2=0.4999 real-session-n31#4=0.4997 solver-crash-n44#2=0.3333
+magnitude-floor(0.001)           n=180 median=1.67e-1 p90=2.00e-1 p99=5.00e-1 max=5.00e-1 |>1e-3|=148 maxTotalSlackDelta=0.00e+0
+    worst 5: n42-repro#1=0.5000 solver-crash-n44#1=0.5000 real-session-n31#2=0.4999 real-session-n31#4=0.4997 solver-crash-n44#2=0.3333
+harris(floor=1e-7,delta=1e-9)    n=180 median=1.67e-1 p90=2.00e-1 p99=5.00e-1 max=5.00e-1 |>1e-3|=148 maxTotalSlackDelta=0.00e+0
+    worst 5: n42-repro#1=0.5000 solver-crash-n44#1=0.5000 real-session-n31#2=0.4999 real-session-n31#4=0.4997 solver-crash-n44#2=0.3333
+harris(floor=1e-7,delta=1e-8)    n=180 median=1.67e-1 p90=2.00e-1 p99=5.00e-1 max=5.00e-1 |>1e-3|=149 maxTotalSlackDelta=0.00e+0
+    worst 5: n42-repro#1=0.5000 solver-crash-n44#1=0.5000 real-session-n31#2=0.4999 real-session-n31#4=0.4997 solver-crash-n44#2=0.3333

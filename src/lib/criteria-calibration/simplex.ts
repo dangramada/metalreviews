@@ -37,9 +37,26 @@
 // n=20 to n=300. Across 1760 paired solves there is no case where Bland succeeded and
 // Dantzig did not.
 //
-// Dantzig is a mitigation, not a cure. The root cause is EPS below admitting near-singular
-// pivots at all; Dantzig's column choice merely makes them rare. Two guards therefore back
-// it up, because a corrupt solve must never be returned as a good one:
+// The leaving-row rule is a Harris two-pass ratio test (2026-08-16), replacing the strict
+// min-ratio + smallest-basis-index test that survived from the Bland era. This is the CURE
+// for what Dantzig only mitigated: the root cause was the EPS = 1e-9 eligibility floor
+// admitting near-singular pivots into the ratio test at all, and Dantzig's column choice
+// merely made selecting one rare rather than impossible. See
+// docs/decisions/criteria-calibration/criteria-calibration-harris-ratio-test.md and the
+// diagnostic it implements, criteria-calibration-eps-ratio-test-diagnostic.md. Measured:
+// near-singular-pivot incidence across the adversarial sweep went 66/240 -> 0/240, the
+// committed real fixtures went 1 failure -> 0 across 181 prefixes, and 4 of 10 closed-loop
+// synthetic oracles stopped crashing. See chooseLeavingRow for how it works.
+//
+// Anti-cycling, stated explicitly because it looks like a loss and is not: the old
+// smallest-basis-index tie-break was the last Bland-flavoured component in this file, and
+// Harris replaces it. No guarantee is forfeited — Bland's rule needs BOTH halves, and the
+// entering half became Dantzig on 2026-08-12, so there has been no anti-cycling guarantee
+// here since then. Empirically the new rule cycles less: max pivots per solve across the 181
+// committed regions dropped 844 -> 200 (median 108 -> 91) with zero iteration-cap hits.
+//
+// Two guards back the solver up regardless of pivot rule, because a corrupt solve must never
+// be returned as a good one:
 //   1. `minPivotMagnitude` tracking — the smallest pivot element used was a *perfect*
 //      predictor of failure in the diagnostic (clean solves stay >= ~1e-3; corrupt ones sit
 //      at the 1e-9 floor). Recorded and reported, but NOT used to abort on its own: it is a
@@ -59,12 +76,12 @@
 // pass 2 — call those two directly so Phase 1 runs once instead of per objective. See
 // `PreparedLP` below and docs/decisions/criteria-calibration/criteria-calibration-lp-warm-start.md.
 //
-// Known limitation, deliberately NOT addressed here (see deferred-work.md): on
-// pathologically degenerate inputs — answer logs that are majority 'equal' at n >= 100, or
-// heavily self-contradictory at n >= 300 — Dantzig degrades too. Guard (2) makes those
-// failures loud instead of silent, which is the bar this pass targets; making them not fail
-// at all needs the near-singular-pivot admission itself fixed (Harris ratio test or
-// refactorization), which is a substantially larger change.
+// The former known limitation here — majority-'equal' logs at n >= 100 and heavily
+// self-contradictory ones at n >= 300 degrading the same way under Dantzig — is CLOSED by
+// the Harris rule above: zero near-singular pivots across 240 adversarial solves including
+// the 100%-'equal' and 100%-contradiction cells. What remains at n = 300 is a different
+// limit, MAX_ITERATIONS below (deferred-work.md item 4), which is now the sole cause of
+// adversarial failure there and is well beyond any real session length.
 
 export type ConstraintType = 'le' | 'ge' | 'eq';
 
@@ -125,6 +142,24 @@ const FEASIBILITY_TOLERANCE = 1e-7;
 // uses, left untouched here) and four below the ~1e-3 smallest pivot observed in clean
 // solves — so it flags the pathological case without firing on healthy ones.
 const NEAR_SINGULAR_PIVOT_THRESHOLD = 1e-7;
+// --- Harris ratio test parameters. Both were fixed by direct measurement, not chosen by
+// feel; see criteria-calibration-eps-ratio-test-diagnostic.md Q1/Q2 before changing either.
+//
+// Rows whose |pivot| falls below this are not eligible to leave the basis at all — this is
+// the actual fix, since those are exactly the near-singular divisions that destroy the
+// tableau. Numerically equal to NEAR_SINGULAR_PIVOT_THRESHOLD but a DIFFERENT concept (that
+// one is a post-hoc diagnostic flag, this one changes which pivot is taken), so the two are
+// kept as separate constants and should not be collapsed into one.
+const HARRIS_PIVOT_TOLERANCE = 1e-7;
+// How far a basic variable is allowed to go negative in exchange for a numerically safer
+// pivot. This is Harris's whole trade, and delta is the bound that makes it legitimate.
+// MUST stay <= 1e-8: measured over 181 committed-fixture solves, delta = 1e-8 introduces a
+// worst-case violation of 4.7e-9 — 21x under FEASIBILITY_TOLERANCE — while delta = 1e-7
+// already trips the post-solve guard on a clean prefix and delta = 1e-6 has it reject 156 of
+// 181 good solves, mistaking Harris's own deliberate slack for corruption. Do NOT raise
+// FEASIBILITY_TOLERANCE to accommodate a larger delta: that guard is the only check that
+// catches a genuinely corrupt solve.
+const HARRIS_DELTA = 1e-8;
 // Phase 1 is "feasible" only if the sum of artificials converges to (near) zero. Looser
 // than EPS because Phase 1 objective values are accumulated over many pivots on a
 // degenerate tableau — matches the tolerance the old Big-M code used for its own
@@ -150,11 +185,69 @@ interface SimplexRunResult {
  * considers artificial columns as candidates to enter or leave; Phase 2 has already
  * dropped them from consideration entirely).
  *
- * The leaving-row ratio test is unchanged from the Bland-era code, including its
- * smallest-basis-index tie-break and its `coeff > EPS` eligibility floor. Only the entering
- * column choice changed — see this file's header for why that is the numerically decisive
- * one, and why the EPS floor is deliberately left alone in this pass.
+ * Entering column: Dantzig. Leaving row: Harris two-pass (see `chooseLeavingRow`).
  */
+/**
+ * Chooses the leaving row for entering column `enter`, by a Harris two-pass ratio test.
+ * Returns -1 when no row is eligible, which the caller reports as unbounded.
+ *
+ * Pass 1 computes `thetaMax`, the longest step that keeps every basic variable at or above
+ * `-HARRIS_DELTA` — i.e. the strict min ratio, loosened by exactly delta. Pass 2 then takes
+ * the row with the LARGEST |pivot| among those whose strict ratio still fits inside that
+ * bound. That is the entire mechanism: where the old strict min-ratio rule was forced onto
+ * whichever row won the ratio race even when its pivot sat at the 1e-9 floor, this one gets
+ * to decline that row in favour of a numerically safe pivot, paying a violation of at most
+ * delta for the privilege.
+ *
+ * `HARRIS_PIVOT_TOLERANCE` (rather than EPS) is the eligibility floor for both passes, with
+ * an EPS-floored retry if nothing clears it. The retry is not optional: without it a column
+ * whose only eligible rows sit between EPS and the tolerance would be misreported as
+ * unbounded, which changes the solver's verdict rather than just its arithmetic.
+ *
+ * Exported only so simplexHarris.test.ts can pin the rule's decisions directly — nothing
+ * outside this file calls it in production.
+ *
+ * Ties on |pivot| in pass 2 resolve to the LOWEST ROW INDEX, via the strict `>` comparison
+ * below. Note this is the lowest row index, NOT the lowest basis index the pre-2026-08-16
+ * rule used — those coincide only before the first pivot. Nothing depends on which tie-break
+ * applies (any of these rows is an equally valid pivot); it matters only that it is
+ * deterministic and identical to the harness the rule was validated in.
+ */
+export function chooseLeavingRow(tableau: number[][], numRows: number, enter: number): number {
+  const rhsCol = tableau[0].length - 1;
+
+  for (const floor of [HARRIS_PIVOT_TOLERANCE, EPS]) {
+    // Pass 1: the relaxed step bound.
+    let thetaMax = Infinity;
+    let any = false;
+    for (let i = 0; i < numRows; i++) {
+      const coeff = tableau[i][enter];
+      if (coeff > floor) {
+        any = true;
+        const relaxed = (tableau[i][rhsCol] + HARRIS_DELTA) / coeff;
+        if (relaxed < thetaMax) thetaMax = relaxed;
+      }
+    }
+    if (!any) continue; // nothing clears this floor — retry at EPS, then report unbounded
+
+    // Pass 2: largest |pivot| among rows within the relaxed bound.
+    let leave = -1;
+    let bestCoeff = -Infinity;
+    for (let i = 0; i < numRows; i++) {
+      const coeff = tableau[i][enter];
+      if (coeff > floor && tableau[i][rhsCol] / coeff <= thetaMax) {
+        if (coeff > bestCoeff) {
+          bestCoeff = coeff;
+          leave = i;
+        }
+      }
+    }
+    if (leave === -1) continue;
+    return leave;
+  }
+  return -1;
+}
+
 function runSimplex(
   tableau: number[][],
   basis: number[],
@@ -178,21 +271,7 @@ function runSimplex(
     }
     if (enter === -1) return { converged: true, unbounded: false, minPivotMagnitude, pivots }; // optimal
 
-    let leave = -1;
-    let bestRatio = Infinity;
-    for (let i = 0; i < numRows; i++) {
-      const coeff = tableau[i][enter];
-      if (coeff > EPS) {
-        const ratio = tableau[i][tableau[i].length - 1] / coeff;
-        if (
-          ratio < bestRatio - EPS ||
-          (Math.abs(ratio - bestRatio) <= EPS && (leave === -1 || basis[i] < basis[leave]))
-        ) {
-          bestRatio = ratio;
-          leave = i;
-        }
-      }
-    }
+    const leave = chooseLeavingRow(tableau, numRows, enter);
     if (leave === -1) return { converged: false, unbounded: true, minPivotMagnitude, pivots };
 
     // Record the element we are about to divide by. Observation only — a small pivot is not

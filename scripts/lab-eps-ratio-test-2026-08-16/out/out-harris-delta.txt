@@ -1,0 +1,14 @@
+regions=181 (Chebyshev solves — the solve that throws in production)
+delta        feasible  postSolveInfeas  phase1Infeas  otherFail  worstViolationOnSuccess  headroomVs1e-7
+1e-10        181       0                0             0          3.79e-14                2.6e+6x
+1e-9         181       0                0             0          8.10e-15                1.2e+7x
+1e-8         181       0                0             0          4.71e-9                 2.1e+1x
+5e-8         181       0                0             0          9.45e-8                 1.1e+0x
+1e-7         180       1                0             0          9.92e-8                 1.0e+0x
+1e-6         25        156              0             0          9.87e-8                 1.0e+0x
+
+phase-1 artificial-sum gate (PHASE1_FEASIBILITY_TOLERANCE = 1e-6):
+  delta=1e-9: phase1 rejected 0/181
+  delta=1e-8: phase1 rejected 0/181
+  delta=1e-7: phase1 rejected 0/181
+  delta=1e-6: phase1 rejected 0/181

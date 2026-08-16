@@ -1,0 +1,5 @@
+regions=181
+baseline                 medianPivots=108 p95=352 max=844 iterationCapHits=0 minPivotAcrossAll=1.73e-9
+magnitude-tiebreak       medianPivots=91 p95=158 max=200 iterationCapHits=0 minPivotAcrossAll=2.84e-3
+mag-floor(0.001)         medianPivots=91 p95=158 max=200 iterationCapHits=0 minPivotAcrossAll=2.84e-3
+harris(d=1e-8)           medianPivots=91 p95=158 max=201 iterationCapHits=0 minPivotAcrossAll=2.67e-2

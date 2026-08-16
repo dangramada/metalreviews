@@ -1,0 +1,14 @@
+MAX_ROUNDS=90
+
+--- harris(d=1e-8) ---
+  # 1 uniform                    stop=natural-exhaustion:coverage-complete rounds= 80 degrees=2/3/4/5/6 maxAbsErr=0.0416 rmse=0.0294 wallMs=33055
+  # 2 single-dominant            stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.4141 rmse=0.1268 wallMs=23222
+  # 3 zero-weight-criterion      stop=natural-exhaustion:coverage-complete rounds= 71 degrees=2/3/4/5/6 maxAbsErr=0.0499 rmse=0.0322 wallMs=16204
+  # 4 linear-control             stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0564 rmse=0.0217 wallMs=13702
+  # 5 front-loaded               stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.1575 rmse=0.0654 wallMs=14525
+  # 6 back-loaded                stop=round-cap-hit                      rounds= 90 degrees=2 maxAbsErr=0.0769 rmse=0.0415 wallMs=16478
+  # 7 near-tied                  stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0250 rmse=0.0120 wallMs=19631
+  # 8 noisy                      stop=natural-exhaustion:coverage-complete rounds= 83 degrees=2/3/4/5/6 maxAbsErr=0.0831 rmse=0.0509 wallMs=26237
+  # 9 short-session-degree2-cap  stop=degree2-cap:coverage-complete      rounds= 30 degrees=2 maxAbsErr=0.1250 rmse=0.0741 wallMs=878
+  #10 dan-approximation          stop=round-cap-hit                      rounds= 90 degrees=2/3 maxAbsErr=0.0957 rmse=0.0411 wallMs=14012
+  => crashes: 0/10
