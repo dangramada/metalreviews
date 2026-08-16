@@ -66,7 +66,15 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was `criteria-calibration-cross-degree-undo-redo-fix`
+Active: `criteria-calibration-solver-crash-safety-net` — contains the LP solver's near-singular
+breakdown at the page boundary (compute-first ordering, auto-recovery for already-persisted bad
+logs, route-level `ErrorBoundary`). Solver layer deliberately untouched; the `EPS = 1e-9` cure
+remains open in `deferred-work.md` item 3. `tsc` clean, 307/307 tests. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-solver-crash-safety-net.md`, with the
+impact assessment that motivated it in
+`docs/decisions/criteria-calibration/criteria-calibration-near-singular-pivot-impact.md`.
+
+Most recent merge was `criteria-calibration-cross-degree-undo-redo-fix`
 (fixed `degree` staying pinned after Undo crossed a degree boundary without a page refresh,
 plus the mirrored gap in Redo; added `inferDegreeFromAnswers` to `preferenceGraph.ts`, reusing
 `useCalibrationResume`'s existing formula rather than inventing new inference logic), merged

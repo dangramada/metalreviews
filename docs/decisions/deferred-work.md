@@ -610,6 +610,23 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      magnitude clear of the threshold up to n=42. Hotfix scope: page-boundary catch +
      auto-undo/defer-persist, NOT reverting the Chebyshev throw. The `EPS = 1e-9` ratio-test
      fix below stays the separate, scheduled cure.
+
+     **2026-08-16 — the safety net SHIPPED; this item (the cure) is still open.**
+     `criteria-calibration-solver-crash-safety-net.md`: compute-first ordering on all three
+     mutating handlers, a guarded `action` memo plus auto-recovery (trim + delete) for
+     already-persisted bad logs, honest user-facing messages, and a route-level
+     `ErrorBoundary` backstop. Nothing was caught inside `solver.ts`/`simplex.ts` — the
+     Chebyshev throw is unchanged. **Sessions will still hit the numerical breakdown**; they
+     now degrade legibly instead of blanking the page. When this item's `EPS = 1e-9` fix
+     eventually lands, expect `solverCrashFixture.test.ts` to fail: it deliberately asserts
+     that `SOLVER_CRASH_ANSWERS` still throws, precisely so the safety-net tests can't
+     silently start passing against an input that no longer exercises anything. Update that
+     fixture/test as part of the cure, don't just delete the assertion.
+
+     Residual left open by the safety net: `nextAction` is deterministic, so a question whose
+     every possible answer breaks the solver re-offers the same pair indefinitely. The page
+     stays usable (Undo and "Stop here" both work) but can't advance — a skip-question
+     affordance was judged a product decision, not hotfix scope.
   4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
      exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
      n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
