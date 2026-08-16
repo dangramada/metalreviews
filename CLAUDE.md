@@ -66,7 +66,15 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was `docs-album-identity-rating-reorg`
+No active branches currently — most recent merge was `criteria-calibration-cross-degree-undo-redo-fix`
+(fixed `degree` staying pinned after Undo crossed a degree boundary without a page refresh,
+plus the mirrored gap in Redo; added `inferDegreeFromAnswers` to `preferenceGraph.ts`, reusing
+`useCalibrationResume`'s existing formula rather than inventing new inference logic), merged
+to `master` `--no-ff` at `46fbc98` on 2026-08-16. Rollback tag:
+`pre-merge-criteria-calibration-cross-degree-undo-redo-fix`. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-cross-degree-undo-redo-fix.md`.
+
+Before that was `docs-album-identity-rating-reorg`
 (docs-only: moved the 7 `album-identity-*` decision docs into
 `docs/decisions/album-identity/`, added a gateway file at
 `docs/decisions/album-identity-summary.md`, collapsed CLAUDE.md's 7 individual
