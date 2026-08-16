@@ -16,14 +16,17 @@ const RULES: RatioRuleConfig[] = [
   { name: 'harris', pivotFloor: 1e-7, delta: 1e-8 },
 ];
 const label = (r: RatioRuleConfig) =>
-  r.name === 'harris' ? `harris(floor=${r.pivotFloor},delta=${r.delta})` :
-  r.name === 'magnitude-floor' ? `magnitude-floor(${r.pivotFloor})` : r.name;
+  r.name === 'harris'
+    ? `harris(floor=${r.pivotFloor},delta=${r.delta})`
+    : r.name === 'magnitude-floor'
+      ? `magnitude-floor(${r.pivotFloor})`
+      : r.name;
 
 describe('point-estimate movement', () => {
   it('quantifies it', () => {
-    const prod = JSON.parse(fs.readFileSync(`${OUT}prod-committed-sweep.json`, 'utf8')) as ReturnType<
-      typeof sweepCommitted
-    >;
+    const prod = JSON.parse(
+      fs.readFileSync(`${OUT}prod-committed-sweep.json`, 'utf8')
+    ) as ReturnType<typeof sweepCommitted>;
     const byKey = new Map(prod.map((r) => [`${r.fixture}#${r.n}`, r]));
     const out: string[] = [];
 
@@ -54,7 +57,12 @@ describe('point-estimate movement', () => {
           `|>1e-3|=${deltas.filter((d) => d > 1e-3).length} ` +
           `maxTotalSlackDelta=${Math.max(...slackDeltas).toExponential(2)}`
       );
-      out.push(`    worst 5: ${worst.slice(0, 5).map((w) => `${w.key}=${w.d.toFixed(4)}`).join(' ')}`);
+      out.push(
+        `    worst 5: ${worst
+          .slice(0, 5)
+          .map((w) => `${w.key}=${w.d.toFixed(4)}`)
+          .join(' ')}`
+      );
     }
     fs.writeFileSync(`${OUT}out-deltas.txt`, out.join('\n') + '\n');
   });

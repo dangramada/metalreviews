@@ -20,6 +20,14 @@ solver rewrite, dominance/partial-tie candidate filtering, the score-spread accu
 and Brief 3's auto-escalation stop signal. Two independent real user sessions (33/70/71
 real answers across two account resets) have exercised the shipped pipeline end to end.
 
+**2026-08-16 — the LP solver's near-singular-pivot failure mode is CURED**, not merely
+contained: the leaving-row rule is now a Harris two-pass ratio test. `deferred-work.md` item 3
+and the all-'equal' entry are both closed. Read
+`criteria-calibration-harris-ratio-test.md`'s "What NOT to change" before touching
+`simplex.ts` — several of its constants are load-bearing in non-obvious ways. New open item
+(3b, surfaced not caused): the reported point estimate is one arbitrary pick among tied optima,
+so **never pin specific solved weight values in a test**.
+
 **The one open correctness risk, carried forward every session:** `last_eligible_top10` and
 `last_change_answer_index` (`user_calibration_status` table) are unguarded against the same
 un-awaited-write race that `accuracy_value`/`tier`/`answer_count` were fixed against on
@@ -81,6 +89,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-near-singular-pivot-impact.md` — impact assessment for that crash: traced end to end (no error boundary anywhere → React root unmounts → blank page), reproduced through the real `CriteriaCalibrationPage`, answer persisted before the solve so a reload reproduces it; Supabase integrity unaffected. Recommends a **mitigation hotfix** ahead of the `EPS = 1e-9` cure
 - `criteria-calibration-solver-crash-safety-net.md` — that hotfix, shipped: compute-first ordering on the mutating handlers (chosen over persist-then-delete, which depends on a delete succeeding), guarded `action` memo + auto-recovery for already-persisted bad logs, route-level `ErrorBoundary`. Solver layer untouched; the `EPS = 1e-9` cure is still open
 - `criteria-calibration-eps-ratio-test-diagnostic.md` — the `EPS = 1e-9` cure, diagnosed (read-only, 2026-08-16): **GO for a Harris two-pass ratio test at `pivotTolerance = 1e-7`, `δ = 1e-8`** — near-singular incidence 41+25/240 → 0/240, oracle crashes 4/10 → 0/10. Rules out periodic refactorization by measurement (no accumulated drift to purge — one pivot destroys the tableau), rules out the plain magnitude floor as sketched (unbounded step overshoot), and finds that Harris's own slack trips `FEASIBILITY_TOLERANCE` once δ ≥ 1e-7. Flags that **any** rule re-prices existing users' weights, because the Chebyshev point estimate is not uniquely determined today. Harness: `scripts/lab-eps-ratio-test-2026-08-16/`
+- `criteria-calibration-harris-ratio-test.md` — **the cure, shipped (2026-08-16)**: implements the above at `pivotTolerance = 1e-7`, `δ = 1e-8` in `simplex.ts`. Re-confirms every regression track against the shipped solver rather than the lab copy (bit-identical parity, `digestDiffVsProd=0` on 181 solves), re-solves Dan's live 71-answer log read-only for the real repricing magnitude, inverts `solverCrashFixture.test.ts` after failing to construct any realistic-n log that still breaks the rule, and re-checks `MAX_VALUE_RANGE_FOR_COVERAGE`. **Read its "What NOT to change" before editing `simplex.ts`.**
 
 **Supporting data**
 - `second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs

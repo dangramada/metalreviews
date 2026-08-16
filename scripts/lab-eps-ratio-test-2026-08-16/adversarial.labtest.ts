@@ -15,10 +15,29 @@
 // computeChebyshevCenter); the 48 per-variable range solves are skipped purely for runtime.
 import * as fs from 'node:fs';
 import { describe, it } from 'vitest';
-import { setRatioRule, solveLP, type Constraint, type RatioRuleConfig } from './simplexLab.js';
+import {
+  setRatioRule,
+  solveLP as labSolveLP,
+  type Constraint,
+  type RatioRuleConfig,
+} from './simplexLab.js';
+import { solveLP as prodSolveLP } from '../../src/lib/criteria-calibration/simplex.js';
+
 import { buildValueLP } from '../../src/lib/criteria-calibration/solver.js';
 import type { SolverAnswer } from '../../src/lib/criteria-calibration/solver.js';
-import type { Profile, ComparisonResult } from '../../src/lib/criteria-calibration/preferenceGraph.js';
+import type {
+  Profile,
+  ComparisonResult,
+} from '../../src/lib/criteria-calibration/preferenceGraph.js';
+
+// This file builds its Chebyshev LP and solves it DIRECTLY, so unlike oracles.labtest.ts it
+// is not switched by dropping the vitest alias — that alias only redirects solver.ts's own
+// import. LAB_PROD_SIMPLEX=1 therefore exists to point this file's solve at the shipped
+// simplex.ts, which is how the sweep gets re-confirmed against production rather than
+// against the lab copy (added 2026-08-16 alongside lab.prod.vitest.config.ts). Default is
+// unchanged, so the frozen diagnostic numbers stay reproducible.
+const USE_PROD_SIMPLEX = process.env.LAB_PROD_SIMPLEX === '1';
+const solveLP = USE_PROD_SIMPLEX ? prodSolveLP : labSolveLP;
 
 const OUT = new URL('./out/', import.meta.url).pathname;
 
@@ -225,11 +244,19 @@ describe('adversarial sweep', () => {
             `failures=${r.failures}/${r.trials} nearSingular=${r.nearSingular}/${r.trials} ` +
             `realisedEqual=${(r.realisedEqualShare * 100).toFixed(0)}% ` +
             `minPivot=${r.minPivot.toExponential(2)} maxTableau=${r.maxTableau.toExponential(2)} ` +
-            `reasons={${Object.entries(r.reasons).map(([k, v]) => `${k}:${v}`).join(' ')}}`
+            `reasons={${Object.entries(r.reasons)
+              .map(([k, v]) => `${k}:${v}`)
+              .join(' ')}}`
         );
-        fs.writeFileSync(`${OUT}out-adversarial-${process.env.LAB_TAG ?? 'all'}.txt`, out.join('\n') + '\n');
+        fs.writeFileSync(
+          `${OUT}out-adversarial-${process.env.LAB_TAG ?? 'all'}.txt`,
+          out.join('\n') + '\n'
+        );
       }
     }
-    fs.writeFileSync(`${OUT}out-adversarial-${process.env.LAB_TAG ?? 'all'}.txt`, out.join('\n') + '\n');
+    fs.writeFileSync(
+      `${OUT}out-adversarial-${process.env.LAB_TAG ?? 'all'}.txt`,
+      out.join('\n') + '\n'
+    );
   });
 });
