@@ -66,23 +66,19 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-Active: `docs-album-identity-rating-reorg` (docs-only: moved the 7 `album-identity-*`
-decision docs into `docs/decisions/album-identity/`, added a gateway file at
+No active branches currently — most recent merge was `docs-album-identity-rating-reorg`
+(docs-only: moved the 7 `album-identity-*` decision docs into
+`docs/decisions/album-identity/`, added a gateway file at
 `docs/decisions/album-identity-summary.md`, collapsed CLAUDE.md's 7 individual
 `album-identity-*` index lines to one pointer; and prepended a summary block to
 `album-rating-page.md` — no folder move for the 4 `album-rating-*` files, no application
-code touched). Not yet merged. Rollback tag:
+code touched), merged to `master` `--no-ff` at `0146773` on 2026-08-16. Rollback tag:
 `pre-merge-docs-album-identity-rating-reorg`. Full detail: this doc's own dated section in
 `docs/decisions/documentation-audit-june2026.md`.
 
-Most recent merge before that was `docs-criteria-calibration-reorg`
-(docs-only: moved all 23 Criteria Calibration decision docs + 1 supporting CSV into
-`docs/decisions/criteria-calibration/`, added a gateway file at
-`docs/decisions/criteria-calibration-summary.md`, and split `deferred-work.md` into open
-items + a new `finished-work.md`; no application code touched), merged to `master`
-`--no-ff` at `97b4e3d` on 2026-08-16. Rollback tag:
-`pre-merge-docs-criteria-calibration-reorg`. Full detail: this doc's own dated section in
-`docs/decisions/documentation-audit-june2026.md`.
+Before that was `docs-criteria-calibration-reorg` (docs-only folder+gateway reorg of the
+Criteria Calibration cluster; see `docs/decisions/criteria-calibration-summary.md`), merged
+`--no-ff` at `97b4e3d` on 2026-08-16.
 
 Carried forward from `criteria-calibration-second-session-reset` (`ea0b2a4`, 2026-08-15 —
 `docs/decisions/criteria-calibration/criteria-calibration-second-session-reset.md`):
