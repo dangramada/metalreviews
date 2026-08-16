@@ -1,4 +1,4 @@
--- Step 4a of docs/decisions/album-identity-migration.md: add the (nullable, for now)
+-- Step 4a of docs/decisions/album-identity/album-identity-migration.md: add the (nullable, for now)
 -- album_id column to favorites. Populated by
 -- scripts/migrations/2026-07-album-identity-populate-favorites.ts immediately after.
 --

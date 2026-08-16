@@ -66,7 +66,16 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No active branches currently — most recent merge was `docs-criteria-calibration-reorg`
+Active: `docs-album-identity-rating-reorg` (docs-only: moved the 7 `album-identity-*`
+decision docs into `docs/decisions/album-identity/`, added a gateway file at
+`docs/decisions/album-identity-summary.md`, collapsed CLAUDE.md's 7 individual
+`album-identity-*` index lines to one pointer; and prepended a summary block to
+`album-rating-page.md` — no folder move for the 4 `album-rating-*` files, no application
+code touched). Not yet merged. Rollback tag:
+`pre-merge-docs-album-identity-rating-reorg`. Full detail: this doc's own dated section in
+`docs/decisions/documentation-audit-june2026.md`.
+
+Most recent merge before that was `docs-criteria-calibration-reorg`
 (docs-only: moved all 23 Criteria Calibration decision docs + 1 supporting CSV into
 `docs/decisions/criteria-calibration/`, added a gateway file at
 `docs/decisions/criteria-calibration-summary.md`, and split `deferred-work.md` into open
@@ -140,13 +149,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `documentation-audit-june2026.md` — June 2026 doc-layer audit: findings and fixes
 - `ingest-trigger-and-security.md` — ingest-trigger decision + dated security audit cross-check
 - `score-parsing-bugfixes.md` — Progressive Subway footnote-digit-pollution bugfix
-- `album-identity-diagnosis.md` — diagnostic: `computeId` collision, confirmed data loss
-- `album-identity-decisions.md` — design decisions: album+source dedup, dual-key identity strategy
-- `album-identity-migration.md` — schema + data migration: `albums` table, backfill; branch merged to `master` 2026-07-15
-- `album-identity-ingest.md` — ingest-pipeline session: `resolveAlbumIdentity`, `computeId` deleted
-- `album-identity-frontend-homepage.md` — home-page session: multi-source display, `dbMapping.ts`
-- `album-identity-frontend-favorites.md` — `/favorites` session: `useFavoritesList` re-plumb, `findExistingAlbum`
-- `album-identity-visibility-and-duplicate-fix.md` — home-page visibility filter + duplicate-check fixes
+- `album-identity-summary.md` — gateway/index for the Album Identity decision-doc cluster (7 files, now in `docs/decisions/album-identity/`); read this first for anything album-identity-related
 - `design-system-spec-slant-take.md` — reference spec for the Slant Take visual redesign, split across passes
 - `slant-take-design-system.md` — consolidated decision doc for all nine passes plus two follow-up tweaks; Chakra v3 gotchas, badge positioning, `averageScore` vs raw `score`
 - `naming-decisions.md` — product name (Slant Take), display face, logo mark, accent-colour change

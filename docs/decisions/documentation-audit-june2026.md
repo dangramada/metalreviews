@@ -142,3 +142,61 @@ matches outside the new folder.
 No application logic changed. Source-file edits were limited to comment-text
 path strings (updating where a "why" comment points) and the one CSV output
 path constant noted above.
+
+## 2026-08-16 — Album Identity folder reorg + Album Rating summary block
+
+A second, separate reorg pass in the same session as the Criteria Calibration one above,
+same "meta" documentation-structure precedent, requested via a standalone brief covering
+two independent clusters.
+
+### What was done
+
+**Album Identity folder + gateway.** The 7 `album-identity-*` decision docs (confirmed
+against the live repo, not just the brief's list — all 7 matched) moved via `git mv` from
+`docs/decisions/` into `docs/decisions/album-identity/`. A new gateway file,
+`docs/decisions/album-identity-summary.md`, carries the feature description, current
+shipped/live status of the dual-key (`mb_release_group_id` / `norm_key`) identity strategy,
+the two named-but-unscheduled deferred items (admin merge tooling, live MusicBrainz
+autocomplete on `AddAlbumDrawer`), and a pipeline-ordered index of the 7 files.
+`CLAUDE.md`'s Past-decisions index collapsed the 7 individual lines to one pointer at the
+gateway file. `branch-log.md`'s `album-identity-migration` path was updated to match.
+
+**Reference sweep.** A repo-wide grep (not limited to `docs/`) found `album-identity-*.md`
+path references in `deferred-work.md`, `finished-work.md`, `architecture.md`,
+`favorites.md`, `favorites-view.md`, `manual-albums.md`, `roundup-skip-fix.md`,
+`unknown-band-collision-audit.md`, `scripts/ingest.ts`, `scripts/musicbrainz.ts`,
+`scripts/normalizeKey.ts`, `src/dbMapping.ts`, `src/__tests__/useFavoritesList.test.ts`,
+4 `scripts/migrations/*.ts` files, and 7 `supabase/*.sql` files — all updated to the new
+`album-identity/` path. Matching was scoped to the 7 exact moved filenames so that unrelated
+files whose own names happen to contain "album-identity" (the 4 `scripts/migrations/2026-07-
+album-identity-*.ts` migration scripts themselves) were left untouched — only path
+references *to* the moved docs inside their comments changed, not their own filenames. One
+untracked, gitignored personal backup file (`CLAUDEbk2.md`) was caught by the sweep's grep
+and edited, then reverted before commit — it's outside the repo and outside this pass's
+scope.
+
+**Album Rating summary block.** No folder — only 4 files exist
+(`album-rating-page.md`, `album-rating-page--concept-draft.md`, `album-rating-drawer.md`,
+`album-rating-soft-gate.md`) and one already holds most of the weight, so this got the same
+prepended-summary treatment as `ingest-trigger-and-security.md` and
+`unknown-band-collision-audit.md` instead of a folder+gateway. A summary block was prepended
+to the top of `album-rating-page.md` stating current status (soft-gated, not hard-gated,
+since the 2026-08-09 reversal) and pointing to what each of the other 3 files covers. The
+other 3 files were left untouched and un-moved, per the brief.
+
+One correction to the brief's own assumption: it expected the 4 `album-rating-*` files to
+already have minimal one-line entries in `CLAUDE.md`'s Past-decisions index (asking to leave
+them alone if so). They don't — none of the 4 files are indexed in `CLAUDE.md` at all. Left
+as-is per the brief's explicit scope boundary (adding a missing index is a separate
+decision); flagged to Dan rather than silently fixed.
+
+### Verification
+
+Repo-wide grep for the old `docs/decisions/album-identity-*.md` path form (outside the new
+folder) returned zero matches. No application code behavior changed — all source-file edits
+were comment-text path strings.
+
+### Scope boundary respected
+
+No application logic changed, and the `album-rating-*` files' locations and CLAUDE.md's
+(non-)indexing of them were left exactly as found, per the brief.

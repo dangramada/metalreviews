@@ -1,7 +1,7 @@
 -- albums table: real album entity, separate from reviews and favorites.
--- Fixes the computeId collision confirmed in docs/decisions/album-identity-diagnosis.md
+-- Fixes the computeId collision confirmed in docs/decisions/album-identity/album-identity-diagnosis.md
 -- (band+album only, no source -> silent data loss when two sources review the same album).
--- Run this in the Supabase SQL editor. See docs/decisions/album-identity-migration.md.
+-- Run this in the Supabase SQL editor. See docs/decisions/album-identity/album-identity-migration.md.
 --
 -- mb_release_group_id stays NULL for every row created by this migration — no
 -- MusicBrainz lookups are performed here, that's a deferred enrichment pass.

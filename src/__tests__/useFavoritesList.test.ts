@@ -200,7 +200,7 @@ describe('useFavoritesList', () => {
   });
 
   // Regression guard for the missing-favorite bug investigated in
-  // docs/decisions/album-identity-visibility-and-duplicate-fix.md's July 2026 follow-up:
+  // docs/decisions/album-identity/album-identity-visibility-and-duplicate-fix.md's July 2026 follow-up:
   // useFavoritesList's query must stay a plain (non-inner) reviews embed. The home page's
   // ALBUMS_WITH_REVIEWS_SELECT (src/App.tsx) deliberately uses reviews!inner(...) to exclude
   // zero-review albums — that must never leak into this query, which is supposed to show
