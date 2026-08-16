@@ -77,9 +77,11 @@ merged to `master` `--no-ff` at `f7f6f3c` on 2026-08-16. Rollback tag:
 `docs/decisions/criteria-calibration/criteria-calibration-solver-crash-safety-net.md` and
 `docs/decisions/criteria-calibration/criteria-calibration-near-singular-pivot-impact.md`.
 
-**Outstanding from that merge:** the auto-recovery path has not been eyeballed in a live browser
-(jsdom only) — see the safety-net doc's "Known residuals". Blocked on auth + a way to stage a
-bricked session that doesn't touch Dan's real pending fresh session.
+The auto-recovery path was confirmed live in a browser on 2026-08-16 (throwaway account,
+service-key seed, 3 identical runs) — that check caught and fixed a `flushSync` warning the
+jsdom tests missed. Incidentally, Dan's real 71-answer log was re-solved read-only at every
+prefix and all 71 solve cleanly, so the historical `n=54`/`n=57` breakdowns do not reproduce
+post-Dantzig-fix. Details in the safety-net doc's "Live verification" section.
 
 Before that was `criteria-calibration-cross-degree-undo-redo-fix`
 (fixed `degree` staying pinned after Undo crossed a degree boundary without a page refresh,
