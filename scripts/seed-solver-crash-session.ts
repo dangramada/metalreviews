@@ -33,7 +33,17 @@ import {
   SOLVER_CRASH_LEVELS_PER_CRITERION,
 } from '../src/lib/criteria-calibration/fixtures.js';
 import { solveValues } from '../src/lib/criteria-calibration/solver.js';
-import { resultToDb } from '../src/lib/criteria-calibration/persistence.js';
+import type { ComparisonResult } from '../src/lib/criteria-calibration/preferenceGraph.js';
+
+// Duplicated from persistence.ts's resultToDb rather than imported: that module pulls in the
+// FRONTEND supabase client (src/supabaseClient.ts), which reads import.meta.env and blows up
+// under tsx. Three lines, pinned to the same check constraint as
+// supabase/user_calibration_answers.sql, and covered by the read-back verification below.
+function resultToDb(result: ComparisonResult): 'a_preferred' | 'b_preferred' | 'equal' {
+  if (result === 'A') return 'a_preferred';
+  if (result === 'B') return 'b_preferred';
+  return 'equal';
+}
 
 // Reserved — see guard 1 above.
 const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';

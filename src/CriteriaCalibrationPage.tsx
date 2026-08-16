@@ -647,9 +647,16 @@ export function CriteriaCalibrationPage() {
 
     // Told once per session, not once per trim — a multi-trim recovery is still one event
     // from the user's point of view.
+    //
+    // Deferred via `after(0)` rather than called inline: the toaster commits with flushSync,
+    // and calling it synchronously from inside an effect makes React warn "flushSync was
+    // called from inside a lifecycle method... React cannot flush when React is already
+    // rendering". Confirmed live in a browser on 2026-08-16 — the jsdom tests do not surface
+    // it. `after` (not a bare setTimeout) so an unmount mid-recovery cancels it like every
+    // other deferred callback here.
     if (!recoveryNotifiedRef.current) {
       recoveryNotifiedRef.current = true;
-      showError(SOLVER_RECOVERY_MESSAGE);
+      after(0, () => showError(SOLVER_RECOVERY_MESSAGE));
     }
 
     // Bring the displayed accuracy and the persisted weights back in sync with the trimmed
