@@ -234,7 +234,7 @@ created_at, album_id }` only — `album-identity/album-identity-ingest.md`), and
     rule attains the identical optimal Chebyshev radius on all 180 solvable regions; the
     optimum is degenerate enough (mean radius ≈ 1.5e-7) that the pivoting rule silently
     picks among ties. A deterministic secondary objective (lexicographic tie-break, or a
-    strictly convex proxy) would fix it — **new open item, see below.**
+    strictly convex proxy) would fix it — **new open item, see `deferred-work.md`'s item 5.**
   - `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` was re-checked and **left unchanged**: escalation
     timing shifts in *both* directions depending on data shape (one oracle 19 rounds later,
     another 19 earlier), so no single value corrects both. Flagged as a product call.
