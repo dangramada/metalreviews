@@ -78,6 +78,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 **Research**
 - `criteria-calibration-1000minds-comparative-research.md` — comparative research against 1000minds' PAPRIKA calibration UX
 - `criteria-calibration-synthetic-oracles.md` — 10 synthetic ground-truth oracles driving the real `nextAction()` flow; surfaces a live LP solver crash on clean/consistent input (new, higher-priority than the prior stress test's "GO" verdict), plus solver-recovery and UX-arbitration data (Idea 1/Idea 2 pause-screen proposals, tier-crossing spread) for the future Concept Draft session
+- `criteria-calibration-near-singular-pivot-impact.md` — impact assessment for that crash: traced end to end (no error boundary anywhere → React root unmounts → blank page), reproduced through the real `CriteriaCalibrationPage`, answer persisted before the solve so a reload reproduces it; Supabase integrity unaffected. Recommends a **mitigation hotfix** ahead of the `EPS = 1e-9` cure
 
 **Supporting data**
 - `second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs
