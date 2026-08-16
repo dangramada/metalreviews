@@ -37,6 +37,7 @@ import {
 } from './lib/criteria-calibration/rankingStabilitySignal';
 import {
   profileDegree,
+  inferDegreeFromAnswers,
   type ComparisonResult,
   type Profile,
 } from './lib/criteria-calibration/preferenceGraph';
@@ -428,6 +429,13 @@ export function CriteriaCalibrationPage() {
     setAnswers(nextAnswers);
     setRedoBuffer((prev) => [...prev, last]);
     setSelectedSide(null);
+    // Undo is the one place `degree` can need to move BACKWARD — nextAction only ever
+    // escalates it forward (resume effect / handleEscalate). Re-derive it from the
+    // post-pop answer log using the same formula useCalibrationResume.ts uses on mount, so
+    // undoing every answer at the current degree correctly reverts to the prior degree
+    // instead of leaving `nextAction` stuck asking (or rather, wrongly regenerating) a
+    // question at a degree that no longer has any answers.
+    setDegree(inferDegreeFromAnswers(nextAnswers, STARTING_DEGREE));
 
     // Undo reverts the window to a specific, already-known prior value rather than advancing
     // it — see commitComputation.ts's header and rankingStabilitySignal.ts's popWindowHistory
@@ -475,6 +483,10 @@ export function CriteriaCalibrationPage() {
     setRedoBuffer((prev) => prev.slice(0, -1));
     setAnswers(nextAnswers);
     setSelectedSide(null);
+    // Mirrors handleUndo's re-derivation: restoring a redone answer can cross a degree
+    // boundary back upward, and without this, `degree` would stay wherever Undo last left it
+    // instead of tracking the now-restored higher-degree answer.
+    setDegree(inferDegreeFromAnswers(nextAnswers, STARTING_DEGREE));
     persistNewAnswer(entry);
 
     // Redo is a second real (forward) commit point alongside commitAdvance — both create a

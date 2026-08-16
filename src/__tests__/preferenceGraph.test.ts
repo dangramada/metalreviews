@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { PreferenceGraph, profileFromNotation } from '../lib/criteria-calibration/preferenceGraph';
+import {
+  PreferenceGraph,
+  profileFromNotation,
+  inferDegreeFromAnswers,
+} from '../lib/criteria-calibration/preferenceGraph';
 import {
   buildHistoricalFixture,
   DEFAULT_FIXTURE_CONFIG,
@@ -130,5 +134,40 @@ describe('preferenceGraph', () => {
     graph.insertAnswer(a, b, 'A');
 
     expect(() => graph.insertAnswer(a, b, 'equal')).toThrow(/[Cc]ontradiction/);
+  });
+});
+
+describe('inferDegreeFromAnswers', () => {
+  it('returns startingDegree for an empty answer log', () => {
+    expect(inferDegreeFromAnswers([], 2)).toBe(2);
+  });
+
+  it('returns startingDegree when every answer is at or below it', () => {
+    const answers = [
+      { profileA: profileFromNotation('5-5---') }, // degree 2
+      { profileA: profileFromNotation('3-----') }, // degree 1
+    ];
+    expect(inferDegreeFromAnswers(answers, 2)).toBe(2);
+  });
+
+  it('returns the highest degree seen across the answer log', () => {
+    const answers = [
+      { profileA: profileFromNotation('5-5---') }, // degree 2
+      { profileA: profileFromNotation('5-5-5-') }, // degree 3
+      { profileA: profileFromNotation('3-----') }, // degree 1
+    ];
+    expect(inferDegreeFromAnswers(answers, 2)).toBe(3);
+  });
+
+  it('drops back down when the highest-degree answers are removed (Undo simulation)', () => {
+    const fullLog = [
+      { profileA: profileFromNotation('5-5---') }, // degree 2
+      { profileA: profileFromNotation('5-5-5-') }, // degree 3
+      { profileA: profileFromNotation('5-5-5-5') }, // degree 4
+    ];
+    expect(inferDegreeFromAnswers(fullLog, 2)).toBe(4);
+
+    const afterUndoingDegree4 = fullLog.slice(0, -1);
+    expect(inferDegreeFromAnswers(afterUndoingDegree4, 2)).toBe(3);
   });
 });
