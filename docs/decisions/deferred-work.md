@@ -482,6 +482,18 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   engine's already-documented under-determination scope), but worth knowing
   before any UI presents rank as a meaningful signal on its own. `album-rating-drawer.md`.
 
+- **Front-loaded value shapes converge markedly slower than back-loaded shapes under the
+  current degree-2 candidate-weighting design — found 2026-08-16, not investigated further.**
+  `criteria-calibration-synthetic-oracles.md`'s oracles #5/#6 share one weight vector, one RNG
+  seed, and differ only in within-criterion level shape (front-loaded: big 1→2 jump, flat 2-5;
+  back-loaded: the reverse). Back-loaded reached High tier at round 68 and recovered its
+  ground truth to within 0.06 rmse; front-loaded never left degree 2 or reached High tier in
+  90 real answers and stayed compressed well below its true scale throughout. Both recovered
+  the *correct qualitative shape* (this is not the flatness-fabrication bug — see that doc's
+  oracle #5/#6 section), so this is specifically a *convergence-speed* asymmetry, reproducible
+  given the shared seed/weights. No mechanism identified beyond what's directly observable;
+  worth a look if degree-2 candidate weighting (`coverage-weighted-candidates.md`) is revisited.
+
 - **Degree-2 refinement candidates rarely differentiate levels 2–5 — real
   session diagnosed 2026-08-09.** Read-only diagnostic (not fixed this session)
   of Dan's real 33-answer degree-2 session (`eec42cd4-...`) traced why
@@ -564,6 +576,23 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      pass added detection (`nearSingularPivot` in `LPSolution.diagnostics`) but deliberately
      did NOT change the ratio test — the real fix is a Harris ratio test or periodic
      refactorization. See the separate all-'equal' entry below for what remains reachable.
+
+     **2026-08-16 addendum — raises this item's priority, doesn't change its status.** The
+     synthetic calibration oracles diagnostic (`criteria-calibration-synthetic-oracles.md`)
+     reproduced this exact crash (`nearSingularPivot`, `EPS=1e-9`-floor pivots) on **4 of 10**
+     independently-run oracles at n=44–87, including oracle #1 — uniform weights, linear level
+     spacing, `totalSlack = 0.000000` at every round up to the crash (fully self-consistent,
+     zero contradictions). This is a materially different regime from the 2026-08-12 stress
+     test's own characterization of the danger zone (all-'equal'-heavy or high-contradiction
+     inputs at n≥100–150) — a clean, realistic-shaped, low-'equal' answer log crashed at n=79,
+     comfortably inside the range Dan's own real sessions already reach (33/70/71 answers).
+     The stress test's "GO" verdict (0 failures across ~4000 solves, n=20…300) used a
+     different candidate generator; it did not specifically test this shape at this scale, so
+     this isn't a contradiction of that data, but it removes "stay consistent and you're safe"
+     as a reason to deprioritize the pivot-magnitude guard. Incidental finding from the same
+     run: 3 real (non-float-noise) score-spread-accuracy monotonicity dips appeared in the 5
+     rounds immediately preceding oracle #1's crash, nowhere else in the 10-oracle run —
+     plausible early-warning signal, unexplored, not chased down this session.
   4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
      exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
      n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
