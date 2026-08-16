@@ -1,5 +1,5 @@
 // Repeatable regression check for the upsert_calibration_status write-race guard (see
-// docs/decisions/criteria-calibration-weights-write-race.md and
+// docs/decisions/criteria-calibration/criteria-calibration-weights-write-race.md and
 // supabase/user_calibration_status-add-answer-count-guard.sql). Not run by `npm run test` —
 // this exercises real Postgres conflict-clause semantics (CASE/WHEN inside `on conflict do
 // update`), which a mocked `supabase.rpc()` call (as every *.test.ts file in this repo uses)

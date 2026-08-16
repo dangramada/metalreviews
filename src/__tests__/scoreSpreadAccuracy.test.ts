@@ -79,7 +79,7 @@ describe('computeScoreSpreadAccuracy — oracle-based simulation (regression for
   }
 
   // This is the direct regression test for the Part 4 finding
-  // (docs/decisions/criteria-calibration-engine.md): computeSolverAccuracy stayed nearly
+  // (docs/decisions/criteria-calibration/criteria-calibration-engine.md): computeSolverAccuracy stayed nearly
   // flat (+0.0006) across the degree-3 refinement window while real rank displacement
   // genuinely improved. The 2026-08-09 measurement pass confirmed computeScoreSpreadAccuracy
   // moves meaningfully through that exact window (+0.127 in the same span) — assert it here

@@ -3,8 +3,9 @@
 //
 // Why this exists as a kept script rather than only a unit test: this solver has a documented
 // history of silent numerical corruption — Big-M reporting ~1e14 garbage as `feasible: true`
-// (two-phase-simplex-rewrite.md), and computeChebyshevCenter degrading to an all-zero point
-// estimate that got persisted to real users' rows (criteria-calibration-dantzig-fix.md). In
+// (docs/decisions/criteria-calibration/two-phase-simplex-rewrite.md), and computeChebyshevCenter
+// degrading to an all-zero point estimate that got persisted to real users' rows
+// (docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md). In
 // both cases the test suite was green. So "the suite passes" is not the bar for a change to
 // this file; a direct value-by-value comparison against the pre-change behaviour is.
 //

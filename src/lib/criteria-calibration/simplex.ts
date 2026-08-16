@@ -6,7 +6,7 @@
 // size; a straightforward dense tableau is simpler to reason about and fast enough.
 //
 // Two-phase rather than Big-M (was Big-M with BIG_M = 1e7 prior to 2026-08-09, see
-// docs/decisions/two-phase-simplex-rewrite.md): Big-M mixes an artificial O(1e7) penalty
+// docs/decisions/criteria-calibration/two-phase-simplex-rewrite.md): Big-M mixes an artificial O(1e7) penalty
 // coefficient into the same objective row as the real O(1) costs, which on this problem's
 // highly degenerate constraint shape (many monotonicity/answer rows sharing structure,
 // lots of zero-ratio ties) was confirmed to blow the tableau's conditioning up to ~1e14
@@ -23,8 +23,8 @@
 // Dantzig's rule (most-negative reduced cost enters) is used in both phases, including the
 // Phase-1-to-Phase-2 handoff's degenerate-artificial cleanup. This replaced Bland's rule on
 // 2026-08-12 for NUMERICAL robustness, not for speed — see
-// docs/decisions/criteria-calibration-dantzig-fix.md and the stress test it builds on,
-// docs/decisions/criteria-calibration-dantzig-stress-test.md.
+// docs/decisions/criteria-calibration/criteria-calibration-dantzig-fix.md and the stress test it builds on,
+// docs/decisions/criteria-calibration/criteria-calibration-dantzig-stress-test.md.
 //
 // Why the swap: Bland's rule takes the *first* eligible column, which on this problem's
 // constraint shape repeatedly lands on a pivot element sitting right at the EPS floor.
@@ -57,7 +57,7 @@
 // objective-independent) and `solveFromPrepared` (Phase 2 for one objective). Callers that
 // solve MANY objectives over ONE constraint set — scoreSpreadAccuracy.ts and solveValues's
 // pass 2 — call those two directly so Phase 1 runs once instead of per objective. See
-// `PreparedLP` below and docs/decisions/criteria-calibration-lp-warm-start.md.
+// `PreparedLP` below and docs/decisions/criteria-calibration/criteria-calibration-lp-warm-start.md.
 //
 // Known limitation, deliberately NOT addressed here (see deferred-work.md): on
 // pathologically degenerate inputs — answer logs that are majority 'equal' at n >= 100, or
@@ -264,7 +264,7 @@ function pivot(
  * below, and Phase 2 zeroes that whole row (RHS column included) before repricing, so it
  * inherits nothing from Phase 1. Measured at n=59 answers, that duplicated prefix was 79% of
  * each solve's time and 80% of its pivots. See
- * docs/decisions/criteria-calibration-lp-warm-start.md.
+ * docs/decisions/criteria-calibration/criteria-calibration-lp-warm-start.md.
  *
  * This is a *structural* warm start — share the Phase 1 basis — not a dual-simplex
  * re-optimization from a previous objective's optimum. That distinction is deliberate: from

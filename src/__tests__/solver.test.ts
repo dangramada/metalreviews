@@ -90,7 +90,7 @@ describe('solveValues — real historical acceptance test', () => {
     // IS one feasible point of the constraint model, and the normalization equality
     // constraint (an 'eq' row, never widened by the Chebyshev radius) holds on it exactly,
     // not just approximately. Tightened from toBeCloseTo(1, 2) after the joint-point-
-    // estimate fix (docs/decisions/criteria-calibration-joint-point-estimate.md) — the old
+    // estimate fix (docs/decisions/criteria-calibration/criteria-calibration-joint-point-estimate.md) — the old
     // independent-midpoint method could only guarantee ~1.3 orders of magnitude less
     // precision here, and on sparse real data (6-criteria/33-answer production account)
     // was off by as much as 1.308 vs. the expected 1.0.
@@ -127,7 +127,7 @@ describe('solveValues — real historical acceptance test', () => {
 
 describe('solveValues — real production session (joint-point-estimate fix)', () => {
   // Regression test for the confirmed live bug (docs/decisions/deferred-work.md,
-  // docs/decisions/criteria-calibration-joint-point-estimate.md): this exact sparse
+  // docs/decisions/criteria-calibration/criteria-calibration-joint-point-estimate.md): this exact sparse
   // 6-criteria/33-answer session, solved with the pre-fix independent-midpoint method,
   // produced level-5 values summing to 1.3077509833333332 (not 1) and zero total slack
   // (the answers are internally consistent — the bug was purely in how the point estimate
@@ -150,7 +150,7 @@ describe('solveValues — real production session (joint-point-estimate fix)', (
 
 describe('solveValues — n=42 numerical-blowup regression (two-phase simplex rewrite)', () => {
   // Permanent regression test for the Big-M blowup found 2026-08-09 (see
-  // docs/decisions/two-phase-simplex-rewrite.md): on this exact 42-answer sequence, the
+  // docs/decisions/criteria-calibration/two-phase-simplex-rewrite.md): on this exact 42-answer sequence, the
   // pre-rewrite Big-M solveLP returned `feasible: true` with `values[c][level].point` up to
   // ~1.16e14 (garbage) despite `totalSlack` being 0 (the data is fully consistent — this was
   // a purely numerical failure of the LP solver, not a real infeasibility). Asserts the

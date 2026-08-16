@@ -80,7 +80,7 @@ describe('computeTop10Set', () => {
   it('returns null when ratingsByAlbum is empty, rather than a vacuous empty Set', () => {
     // The per-user-scoping finding: an RLS-scoped fetch returning zero rows for a non-owning
     // account must not be indistinguishable from "top 10 is genuinely empty" — see
-    // docs/decisions/criteria-calibration-duration-based-window-fix.md.
+    // docs/decisions/criteria-calibration/criteria-calibration-duration-based-window-fix.md.
     const ratingsByAlbum = new Map<string, CriterionLevelRating[]>();
     const weights = [{ criterionId: 0, level: 1, value: 0 }];
     expect(computeTop10Set(ratingsByAlbum, weights)).toBeNull();

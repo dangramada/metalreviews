@@ -1,6 +1,6 @@
 // Score-spread accuracy: an alternative to `computeSolverAccuracy` (accuracyTiers.ts),
 // which averages independent per-(criterion, level) feasible-range widths and was found
-// (see docs/decisions/criteria-calibration-engine.md's "Part 4 finding") to be blind to
+// (see docs/decisions/criteria-calibration/criteria-calibration-engine.md's "Part 4 finding") to be blind to
 // real ranking improvement from degree-3+ answers — a degree-3 comparison's LP constraint
 // ties three free variables together, narrowing a *combination* of them without
 // necessarily narrowing any single axis, which an independent per-axis metric can't see.

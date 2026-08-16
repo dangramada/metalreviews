@@ -1,12 +1,12 @@
 // Brief 3 — top-10 set stability, the auto-escalation stop signal.
 //
-// Evidentiary chain (see docs/decisions/criteria-calibration-ranking-stability-analysis.md):
+// Evidentiary chain (see docs/decisions/criteria-calibration/criteria-calibration-ranking-stability-analysis.md):
 // Pass 2 (accuracy tiers alone unreliable) -> Pass 3 (top-10 SET membership stabilizes far
 // earlier and more cleanly than full ranking order) -> Pass 4 (tier-gated checkpoint-count
 // K=2 window, only High/veryHigh checkpoints eligible). Pass 4's K=2 design shipped first but
 // was found, via a fine-grained (every-real-answer) replay, to fire on a false positive under
 // production's real per-commit checking granularity — see
-// docs/decisions/criteria-calibration-fine-grained-firing-instability.md. The window here is
+// docs/decisions/criteria-calibration/criteria-calibration-fine-grained-firing-instability.md. The window here is
 // now duration-based (a minimum real-answer SPAN with an unchanged top-10 set, not a
 // checkpoint count) — see advanceStabilityWindow's own doc comment for the mechanism and why
 // it isn't weakened by check frequency the way the count-based design was.
@@ -57,7 +57,7 @@ export function toFlatWeights(values: LevelValue[][]): CriterionLevelWeight[] {
  * would otherwise produce a real, non-null, but vacuous EMPTY Set — which trivially equals
  * every other empty Set in advanceStabilityWindow's setsEqual check, silently degrading the
  * signal to a bare answer-count timer completely decoupled from actual ranking stability
- * (found live, see docs/decisions/criteria-calibration-duration-based-window-fix.md's
+ * (found live, see docs/decisions/criteria-calibration/criteria-calibration-duration-based-window-fix.md's
  * per-user-scoping finding). A 1-9 row partial result is just as untrustworthy as 0 — either
  * way the resulting slice isn't a genuine top-10 selection — so both are rejected identically
  * here, forcing computeStabilityWindowUpdate (commitComputation.ts) to skip the checkpoint
@@ -115,7 +115,7 @@ export const INITIAL_STABILITY_WINDOW_STATE: StabilityWindowState = {
 // SCORE_SPREAD_*_THRESHOLD in accuracyTiers.ts; see deferred-work.md. Chosen for margin
 // beyond the single observed instability window in that trace (last real top-10 change at
 // n=35), not as the bare minimum that happened to clear it (R=6 also cleared the same check)
-// — see docs/decisions/criteria-calibration-fine-grained-firing-instability.md and the
+// — see docs/decisions/criteria-calibration/criteria-calibration-fine-grained-firing-instability.md and the
 // duration-based-fix follow-up doc for the full sweep (R=3 still false-fired at n=29; R=6/9/12
 // all held through n=70).
 const REQUIRED_ANSWER_SPAN = 12;
@@ -129,7 +129,7 @@ const REQUIRED_ANSWER_SPAN = 12;
  * per-commit checking (production's real granularity, not Pass 4's every-3rd-sample
  * retrospective sampling), "2 consecutive checkpoints" degrades to just 2 real answers of
  * evidence, with no floor on how far apart those checkpoints actually are in real-answer
- * terms — see docs/decisions/criteria-calibration-fine-grained-firing-instability.md for the
+ * terms — see docs/decisions/criteria-calibration/criteria-calibration-fine-grained-firing-instability.md for the
  * full n=28-false-positive finding this replaced.
  *
  * This design instead measures a minimum SPAN of real answers (REQUIRED_ANSWER_SPAN) since

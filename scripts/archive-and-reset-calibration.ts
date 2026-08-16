@@ -1,6 +1,6 @@
 // One-off admin script: archive Dan's production criteria-calibration session, then reset it
 // to a fresh starting state, so a new controlled session can be run to validate the Medium
-// auto-stop threshold (see docs/decisions/criteria-calibration-adaptive-degree-escalation.md
+// auto-stop threshold (see docs/decisions/criteria-calibration/criteria-calibration-adaptive-degree-escalation.md
 // and the follow-up briefs it references). Not wired into package.json or CI — run manually:
 //
 //   npx tsx scripts/archive-and-reset-calibration.ts --export-only   (steps 1-3, safe, no writes)
