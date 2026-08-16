@@ -593,6 +593,23 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
      run: 3 real (non-float-noise) score-spread-accuracy monotonicity dips appeared in the 5
      rounds immediately preceding oracle #1's crash, nowhere else in the 10-oracle run —
      plausible early-warning signal, unexplored, not chased down this session.
+
+     **2026-08-16 impact assessment — a MITIGATION hotfix is now recommended ahead of the
+     cure.** `criteria-calibration-near-singular-pivot-impact.md` traced the failure end to
+     end and reproduced it through the real `CriteriaCalibrationPage`: the throw escapes a
+     `setTimeout`, React re-renders against the new answer log, `nextAction`'s own
+     `solveValues` throws during render, and with no `ErrorBoundary`/`errorElement` anywhere
+     in the app the root unmounts — **blank page, no in-app recovery**. The triggering answer
+     is already persisted (`persistNewAnswer` runs before the solve), so a reload reproduces
+     it and the session is permanently bricked until the row is deleted from Supabase by hand.
+     Supabase integrity itself is fine (`insertAnswer` 1×, `upsertWeightsAndStatus` 0×) — this
+     is not a repeat of the all-zero-weights class. Also confirmed: Dan's real 71-answer
+     session already reached this regime (the `n=54`/`n=57` discards in
+     `criteria-calibration-ranking-stability-analysis.md` are the same failed Chebyshev
+     solve, silent pre-Dantzig), and every committed real fixture stays 4–7 orders of
+     magnitude clear of the threshold up to n=42. Hotfix scope: page-boundary catch +
+     auto-undo/defer-persist, NOT reverting the Chebyshev throw. The `EPS = 1e-9` ratio-test
+     fix below stays the separate, scheduled cure.
   4. **Still open — `MAX_ITERATIONS = 2000` is safe now and not forever.** Dantzig first
      exceeds it at n≈300 and routinely by n≈400–600. Confirmed on the real implementation at
      n=59: worst per-solve pivot count under 600, Chebyshev LP 409 — >3x headroom, pinned by
