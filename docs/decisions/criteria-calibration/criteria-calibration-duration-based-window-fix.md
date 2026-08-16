@@ -167,11 +167,35 @@ This likely also explains why the 3 *live* trials among Brief 3's original 4 (pa
 either, if any ran on a non-Dan account — a second, independent mechanism from "the additive
 model settles fast at degree 2" (that finding is unaffected — it was verified separately,
 via a direct programmatic replay of Dan's own real rated data, not a live non-Dan browser
-session). **Not fixed in this pass** — this is a design question (make `RANKING_TEST_SET`
-dynamic per-user? require it globally readable? accept that this signal is meaningful only
-for Dan's own account, consistent with this being — per numerous fixture headers throughout
-`docs/decisions/` — a single-user personal project?), not a quick patch, and needs Dan's
-direction before any code changes.
+session). ~~**Not fixed in this pass**~~ — see 2026-08-16 correction below.
+
+> **Correction, 2026-08-16 (`criteria-calibration-vacuous-signal-fix` session):** the
+> vacuous-match half of this finding — an empty ratings map producing a real, non-null, but
+> trivially-self-equal empty Set — was fixed the very next day, in commit `914e27a` ("fix:
+> reject partial ratings coverage in computeTop10Set (per-user-scoping bug)",
+> 2026-08-15), one full day before this note above was written. `computeTop10Set`
+> (`rankingStabilitySignal.ts`) now returns `null` — the existing "can't compute" signal —
+> for any ratings map under `TOP_N` (10) albums, not just a fully-empty one, and
+> `computeStabilityWindowUpdate` (`commitComputation.ts`) treats `null` as "skip this
+> checkpoint entirely," so `PersistedStabilityWindow` never advances and `fired` stays
+> permanently `false` for the whole session on any non-Dan account — not a vacuous match,
+> not a vacuous fail either way. Confirmed both by the existing regression test
+> (`commitComputation.test.ts`'s "untrustworthy RANKING_TEST_SET ratings" describe block —
+> 50 synthetic checkpoints with empty/partial ratings, `fired` stays `false` throughout) and
+> by a fresh live end-to-end reproduction driving the real adaptive elicitation flow
+> (`nextAction`/`computeCommitState`) with a permanently-empty `ratingsByAlbum`: tier reached
+> `high` at real answer 5, the session continued 75 more real answers (through `high` and
+> `veryHigh`, to natural coverage-complete exhaustion at round 80) — under the pre-914e27a
+> code this trajectory would have fired at round 17 (5+12); with the fix, `fired` stayed
+> `false` for all 80 rounds and every single checkpoint's stability-window update was skipped
+> (`stabilityWindowSkipped=true` throughout). Below, "**New, blocking for merge**" and the
+> "Before merging" per-user-scoping bullet describe the state as of 2026-08-14/15, before this
+> fix landed — read them as history, not current status. What's genuinely still open (tracked
+> in `deferred-work.md`) is unrelated to the false-fire risk this note originally raised: the
+> underlying design question of making `RANKING_TEST_SET` per-user (dynamic, each user's own
+> rated albums) ahead of an eventual multi-user launch — a real gap, since a non-Dan account's
+> escalation signal simply never advances at all today (safe, but non-functional for them),
+> not a design question blocking merge.
 
 ## Before merging
 
