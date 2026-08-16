@@ -7,7 +7,7 @@ of the "franchise-prefix pollution" columns)
 the audit that precedes (and informs) a future roundup-skip fix session — deliberately kept
 separate, per project convention (one concern per session).
 
-**Question under investigation:** `docs/decisions/album-identity-diagnosis.md` (Finding 6)
+**Question under investigation:** `docs/decisions/album-identity/album-identity-diagnosis.md` (Finding 6)
 flagged `Unknown Band | Unknown Album` as a standing collision channel — every unparseable title
 from any source overwrites whatever currently occupies that slot. That diagnosis predates the
 album-identity migration. This session asks: does the collision still exist post-migration, what
@@ -53,7 +53,7 @@ been repeatedly and unsurprisingly failing to resolve "Unknown Band" against Mus
 
 **Pre-collision history is not recoverable.** Confirmed rather than assumed: `git log --all
 --oneline -- reviews.json` and a full-history filename search both return nothing — `reviews.json`
-was never committed, exactly as `album-identity-diagnosis.md` stated. There is no artifact
+was never committed, exactly as `album-identity/album-identity-diagnosis.md` stated. There is no artifact
 anywhere in this repo that could reveal what the sentinel held before 2026-07-13. Total table
 counts at time of audit: 148 albums, 147 reviews.
 
@@ -152,7 +152,7 @@ through `extractBandAlbum` (some sentinel, most a plausible-looking-but-wrong pa
 |---|---|---|---|
 | "AMG's Unsigned Band Rodeö: `<Band>` – `<Album>`" | ≥12 search-result pages (≈110+), back to at least Dec 2024 | Franchise name folds into `band` (e.g. `"AMG's Unsigned Band Rodeö: Blindfolded"` / `"What Seeps through Threads"`) | **Genuine parse issue — franchise-prefix pollution on a real, current-release review, confirmed in §5** (not a non-review franchise — this is the one case in this document where the album/score/band are all real and current, just mis-identified). **False-negative risk for any category-tag-based detection** (§5): it lacks the `Reviews` tag exactly like the non-review franchises do, so it needs its own explicit allowlist, not a blanket "no tag → skip" rule. |
 | "AMG Goes Ranking – `<Band>`" | ≥2 search-result pages (≈20), back to at least Nov 2023 | `band="AMG Goes Ranking"`, `album="<a real band's name>"` | Non-review — discography-ranking post, not a single-album review. The parse produces a plausible-looking pair (a real band name lands in the `album` field) rather than an obvious sentinel or garbage string, so nothing about the stored row looks wrong on inspection. Not independently re-verified against the live post text this pass (§5) — flagged as still needing that check before being relied on. |
-| "The Willowtip Files: `<Band>` – `<Album>`" | Already noted once in `album-identity-diagnosis.md` Finding 6; re-confirmed live, at least 1 instance in the archive scan (2026-06-21) | Franchise name folds into `band` | **Non-review retrospective column, confirmed in §5** (label-history feature reviewing a 2004 album from a "2001–2006" retrospective piece) — same bucket as "Yer Metal Is Olde"/"Lost in Time", not franchise-prefix pollution on a real new-release review. |
+| "The Willowtip Files: `<Band>` – `<Album>`" | Already noted once in `album-identity/album-identity-diagnosis.md` Finding 6; re-confirmed live, at least 1 instance in the archive scan (2026-06-21) | Franchise name folds into `band` | **Non-review retrospective column, confirmed in §5** (label-history feature reviewing a 2004 album from a "2001–2006" retrospective piece) — same bucket as "Yer Metal Is Olde"/"Lost in Time", not franchise-prefix pollution on a real new-release review. |
 | "`<Descriptive title>`: AMG `<...>`" (e.g. "Madness on the High Seas: AMG Elders Brave 70000 Tons of Metal") | Irregular/annual, not a fixed monthly cadence — one-off event recaps | Colon delimiter still fires, produces a plausible-but-wrong pair | Non-review blog post, roundup-adjacent |
 | "Who Are These Clowns and Where Did They Put My Flesh Stapler? The AMG Staff Pick Their Top Ten(ish) of 2025" / "Have a Merry Little AMG Christmas..." | Annual (year-end list, Christmas post) — one each per year | **No delimiter character present at all** → sentinel (`Unknown Band`/`Unknown Album`) | Roundup/list post — a second, independently-occurring source of sentinel collisions beyond the monthly ones in §1–2 |
 | "EP/Split/Single Roundup of `<Year>`, Part `<N>`" | Annual, multi-part | Colon absent, dash absent in the sampled titles → likely sentinel (not individually re-verified against the live parser) | Roundup/list post |
@@ -470,4 +470,4 @@ whose changes need to take effect), not a bug in the skip-check logic itself.
   search (`angrymetalguy.com/?s=...`, `theprogressivesubway.com/?s=...`), read the same way a
   browser would; AMG blocks plain `curl`/fetch requests (Cloudflare), so those pages were read via
   a browser tool instead, consistent with the workaround already documented in
-  `album-identity-diagnosis.md`.
+  `album-identity/album-identity-diagnosis.md`.

@@ -32,17 +32,17 @@ open sub-item and were deliberately left there rather than split.
 
 - **`favorites.review_id` column — resolved, not open.** The original migration
   brief called for this to stay deferred pending Dan's go-ahead
-  (`album-identity-migration.md`), but a later session confirmed via direct live
+  (`album-identity/album-identity-migration.md`), but a later session confirmed via direct live
   query that the column is already gone (`favorites` rows are `{ user_id,
-created_at, album_id }` only — `album-identity-ingest.md`), and
-  `album-identity-frontend-homepage.md` explicitly logs the drop as "confirmed
+created_at, album_id }` only — `album-identity/album-identity-ingest.md`), and
+  `album-identity/album-identity-frontend-homepage.md` explicitly logs the drop as "confirmed
   run." Listed here only so the now-superseded "not run yet" language in
-  `album-identity-migration.md` isn't mistaken for current status.
+  `album-identity/album-identity-migration.md` isn't mistaken for current status.
 
 - **`manual_albums` legacy table — resolved, not open.** Drop script
   (`supabase/manual_albums-drop.sql`) has been run against live Supabase; table
   physically dropped. Confirmed by Dan 2026-07-19. `manual-albums.md`,
-  `album-identity-visibility-and-duplicate-fix.md`.
+  `album-identity/album-identity-visibility-and-duplicate-fix.md`.
 
 - **`scripts/seed-from-json.ts` — resolved, deleted.** Along with the
   `DbRow`/`fromDbRow()`/`toDbRow()` vestigial pre-migration mapping layer it

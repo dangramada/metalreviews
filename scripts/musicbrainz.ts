@@ -10,7 +10,7 @@ export interface MusicBrainzData {
   artworkUrl: string | null;
   genres: string[];
   releaseDate: string | null;
-  // Release-group MBID — the strong album-identity key (see docs/decisions/album-identity-decisions.md
+  // Release-group MBID — the strong album-identity key (see docs/decisions/album-identity/album-identity-decisions.md
   // §4). Comes free on the default release search response (no extra request/rate-limit cost).
   releaseGroupId: string | null;
 }

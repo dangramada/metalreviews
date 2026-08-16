@@ -4,7 +4,7 @@ This project has two distinct halves that share `src/types.ts`.
 
 ## 1. Scraper / Ingestion (`scripts/ingest.ts`)
 
-Read `docs/decisions/album-identity-decisions.md` and `docs/decisions/album-identity-ingest.md` before touching identity-resolution, skip-set, or enrichment-merge logic in this file.
+Read `docs/decisions/album-identity/album-identity-decisions.md` and `docs/decisions/album-identity/album-identity-ingest.md` before touching identity-resolution, skip-set, or enrichment-merge logic in this file.
 
 A Node.js script (run with `tsx`) that:
 
@@ -27,13 +27,13 @@ Each source has its own extractor module in `src/scraper/`:
 
 A React + Chakra UI v3 app with client-side routing via React Router v7 (`createBrowserRouter` + `RouterProvider`). All filtering, sorting, and searching happen in-memory on the already-loaded array.
 
-**Home page (`/`):** reads `albums` inner-joined to its `reviews` (`supabase.from('albums').select('id, ..., reviews!inner(...)')`). The inner join means only albums with at least one attached review come back — a zero-review (manually-added) album never reaches the home page (see `docs/decisions/album-identity-visibility-and-duplicate-fix.md`). → `fromAlbumWithReviews()` mapping (`src/dbMapping.ts`) → React state → filter/sort → card grid.
+**Home page (`/`):** reads `albums` inner-joined to its `reviews` (`supabase.from('albums').select('id, ..., reviews!inner(...)')`). The inner join means only albums with at least one attached review come back — a zero-review (manually-added) album never reaches the home page (see `docs/decisions/album-identity/album-identity-visibility-and-duplicate-fix.md`). → `fromAlbumWithReviews()` mapping (`src/dbMapping.ts`) → React state → filter/sort → card grid.
 
-A home-page album can have one, two, or three attached reviews, and the card component branches explicitly on review count: **exactly one** review renders a single source+score badge showing that review's own raw score, a summary excerpt, one review-date line, and the whole card wrapped in a `<Link>` to that review's url; **two or more** renders a multi-source display — a computed average-score badge, one source badge per review (stacking/wrapping on narrow cards), a `{source}: {score} — {date} [see review]` line per review instead of a summary, and no card-level link (each review links out individually). See `docs/decisions/album-identity-frontend-homepage.md` for the design rationale. The card component also has a **zero**-review branch (album-info-only, no badges, no card-level link) — unreachable via the home page's own query, kept only because `AlbumCard`/`fromAlbumWithReviews` are shared plumbing.
+A home-page album can have one, two, or three attached reviews, and the card component branches explicitly on review count: **exactly one** review renders a single source+score badge showing that review's own raw score, a summary excerpt, one review-date line, and the whole card wrapped in a `<Link>` to that review's url; **two or more** renders a multi-source display — a computed average-score badge, one source badge per review (stacking/wrapping on narrow cards), a `{source}: {score} — {date} [see review]` line per review instead of a summary, and no card-level link (each review links out individually). See `docs/decisions/album-identity/album-identity-frontend-homepage.md` for the design rationale. The card component also has a **zero**-review branch (album-info-only, no badges, no card-level link) — unreachable via the home page's own query, kept only because `AlbumCard`/`fromAlbumWithReviews` are shared plumbing.
 
 Favorites are keyed by `favorites.album_id`.
 
-**`/favorites`:** `useFavoritesList` reads `favorites -> albums(...reviews(...))` in one query — reviewed and manually-added albums both live in `albums` (distinguished only by `created_by`). `AddAlbumDrawer` inserts into `albums` (`created_by: user.id`) + `favorites`, and runs `findExistingAlbum()` (mb_release_group_id first, `norm_key` fallback — mirrors `resolveAlbumIdentity` in `scripts/ingest.ts`) before allowing an insert, favoriting an existing album instead of creating a duplicate when one is found. See `docs/decisions/album-identity-frontend-favorites.md`.
+**`/favorites`:** `useFavoritesList` reads `favorites -> albums(...reviews(...))` in one query — reviewed and manually-added albums both live in `albums` (distinguished only by `created_by`). `AddAlbumDrawer` inserts into `albums` (`created_by: user.id`) + `favorites`, and runs `findExistingAlbum()` (mb_release_group_id first, `norm_key` fallback — mirrors `resolveAlbumIdentity` in `scripts/ingest.ts`) before allowing an insert, favoriting an existing album instead of creating a duplicate when one is found. See `docs/decisions/album-identity/album-identity-frontend-favorites.md`.
 
 ### Routes
 
@@ -72,7 +72,7 @@ Every page that should look like part of the app (as opposed to a bare/standalon
 `src/dbMapping.ts` holds two generations of mapping side by side:
 
 - **`DbRow` / `fromDbRow(row: DbRow): MetalReview`** — the pre-migration, flat `reviews` shape (`artwork_url`/`genre`/`release_date` directly on it, no `album_id`). Kept alive on purpose for the one remaining call site that still depends on this exact shape: `scripts/ingest.ts`'s vestigial `toDbRow()` (used only by `scripts/seed-from-json.ts`, already broken by the schema migration itself). Do not "fix" this type without updating that call site.
-- **`AlbumWithReviewsRow` / `AlbumCard` / `fromAlbumWithReviews()`** — the live post-migration shape: an `albums` row with its `reviews` embedded as an array, mapped to a card carrying every attached review (`AlbumCard.reviews: AlbumReviewLine[]`) plus a computed `averageScore`. This is what the home page (`src/App.tsx`) uses. See `docs/decisions/album-identity-frontend-homepage.md`.
+- **`AlbumWithReviewsRow` / `AlbumCard` / `fromAlbumWithReviews()`** — the live post-migration shape: an `albums` row with its `reviews` embedded as an array, mapped to a card carrying every attached review (`AlbumCard.reviews: AlbumReviewLine[]`) plus a computed `averageScore`. This is what the home page (`src/App.tsx`) uses. See `docs/decisions/album-identity/album-identity-frontend-homepage.md`.
 
 Full schema and mapping detail: `docs/decisions/supabase-migration.md`.
 

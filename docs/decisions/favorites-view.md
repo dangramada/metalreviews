@@ -1,6 +1,6 @@
 # Session decisions — Favorites view (June 2026)
 
-> **PARTIALLY SUPERSEDED by `album-identity-frontend-favorites.md`.** The data-loading layer
+> **PARTIALLY SUPERSEDED by `album-identity/album-identity-frontend-favorites.md`.** The data-loading layer
 > described below (`favorites.review_id`, `manual_albums`) was replaced by the album-identity
 > migration. The UX/interaction design here (dense rows, year dropdown, artwork thumbnails,
 > `RequireAuth`, `AddAlbumDrawer` flow) is unchanged and still accurate.

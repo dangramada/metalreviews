@@ -1,7 +1,7 @@
 // Album identity fallback key. Folds diacritics and collapses punctuation so
 // formatting variants of the same title collide deterministically (unlike the
 // old computeId in ingest.ts, which only lowercases and strips whitespace —
-// see docs/decisions/album-identity-diagnosis.md for the collisions that missed).
+// see docs/decisions/album-identity/album-identity-diagnosis.md for the collisions that missed).
 export function computeNormKey(band: string, album: string): string {
   const fold = (s: string) =>
     s
