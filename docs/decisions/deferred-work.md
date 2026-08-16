@@ -9,6 +9,14 @@ session did NOT do" notes.
 **Convention:** when a session identifies new deferred or postponed work, add it here
 rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
+**`finished-work.md` (added 2026-08-16)** holds items that used to live here and are now
+confirmed fully closed — moved there verbatim, not rewritten, so "check here first" above
+means "here, then there if you're looking for something that used to be open." A handful
+of items below carry a struck-through `DONE` sub-clause but were kept here rather than
+split, because they also contain a real, still-open follow-up in the same entry (e.g.
+"Automatic degree escalation", "LP solver hardening") — splitting those would have meant
+rewriting them, which this reorg pass deliberately avoided.
+
 ---
 
 ## A. Product features (named, not built)
@@ -74,16 +82,6 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 - **Bulk MusicBrainz ID backfill pass** — current backfill is opportunistic-only;
   already-enriched albums that never got an MB match can stay `mb_release_group_id
 = null` indefinitely under the current design. `album-identity-ingest.md`.
-- ~~**GitHub Actions cron for scheduled ingest**~~ — **DONE (2026-07-21)**.
-  Implemented as `.github/workflows/ingest.yml` (`0 7,19 * * *` UTC +
-  `workflow_dispatch`), calling `POST /api/ingest` with a server-only
-  `Authorization: Bearer` secret. Live-verified via an actual `workflow_dispatch`
-  run against production (`metalreviews.onrender.com`) — job completed green, the
-  endpoint returned `202`, and `/api/ingest/status` confirmed the run finished.
-  `node-cron` wiring in `scripts/ingest-cli.ts` is now genuinely dead code
-  (superseded by the Actions workflow), not merely dormant. 60-day
-  GitHub-inactivity caveat: accepted risk, unrelated to this item's completion.
-  Full history: `ingest-trigger-and-security.md` Section 7.
 - **Google/Facebook OAuth** — credentials not yet configured. Placeholder comment
   in `LoginPage.tsx` marks where the `supabase.auth.signInWithOAuth()` buttons go.
   `auth-routing.md`.
@@ -133,11 +131,6 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
 
 - **Shareable AOTY page** (`/aoty/:shareId`) — route reserved (renamed from
   `/list/:shareId`), nothing built. `auth-routing.md`.
-- ~~**Favorites row mobile redesign**~~ — **DONE**, `favorites-row-mobile-layout` branch (not
-  yet merged, blocked on Dan's live visual confirmation). Both carry-over questions from the
-  desktop pass are resolved: mobile drops `Tooltip` entirely (no touch/hover concern there;
-  desktop's own `Tooltip` is still unaddressed), and real artwork was live-verified at both
-  sizes. Full detail: `favorites-row-mobile-layout.md`.
 - **Font-size token audit — hardcoded values across the codebase, some non-standard.** Surfaced
   2026-08-07: `FavoriteListItemRow`'s band/album typography is inline styles, not `theme.ts`
   tokens. Dan's explicit note: real, separate concern (many hardcoded font-size values app-wide),
@@ -360,48 +353,6 @@ rather than only stating it inline in that session's own doc (see `CLAUDE.md`).
   diagnosed this session; it was deliberately deferred in favor of the
   higher-priority "Stuck in the Filter" regression investigation. Needs its own
   read-only diagnostic session before any further action.
-- **`favorites.review_id` column — resolved, not open.** The original migration
-  brief called for this to stay deferred pending Dan's go-ahead
-  (`album-identity-migration.md`), but a later session confirmed via direct live
-  query that the column is already gone (`favorites` rows are `{ user_id,
-created_at, album_id }` only — `album-identity-ingest.md`), and
-  `album-identity-frontend-homepage.md` explicitly logs the drop as "confirmed
-  run." Listed here only so the now-superseded "not run yet" language in
-  `album-identity-migration.md` isn't mistaken for current status.
-- **`manual_albums` legacy table — resolved, not open.** Drop script
-  (`supabase/manual_albums-drop.sql`) has been run against live Supabase; table
-  physically dropped. Confirmed by Dan 2026-07-19. `manual-albums.md`,
-  `album-identity-visibility-and-duplicate-fix.md`.
-- **`scripts/seed-from-json.ts` — resolved, deleted.** Along with the
-  `DbRow`/`fromDbRow()`/`toDbRow()` vestigial pre-migration mapping layer it
-  was the sole consumer of, and `src/__tests__/dbMapping.test.ts` (an
-  unanticipated second consumer, found via reference search before deletion,
-  removed alongside since it only tested the removed code). `tsc --noEmit`
-  clean, 164/164 tests passing post-deletion. `architecture.md`'s description
-  of this relic is now historical only.
-- **Security Finding #9 (`--no-sandbox` not passed to `puppeteer.launch()`)
-  — closed, no current evidence.** Diagnosed 2026-07-19 against real Render
-  production logs; no sandbox-crash signature found across runs checked.
-  See `ingest-trigger-and-security.md` for full resolution note. Revisit only
-  if a genuine sandbox-crash error signature appears in future logs.
-- **Puppeteer `dependencies` fix (commit `a63fa62`) — resolved, not open.**
-  Verified against a real Render deploy 2026-07-19: live ingest succeeded
-  across all three sources with real scores returned. `render-deployment.md`.
-- **Dropdown `<option>` white-background gap — resolved, not open.** Fixed and
-  verified in Step 5 of the Chakra v3 migration (`css: { '& option': {...} }`
-  on `controlFieldStyle`, all 4 dropdowns confirmed dark by Dan).
-  `chakra-v3-migration-plan.md`.
-- **Menu whiteAlpha-flash CSS override — verified correct under v3, closed
-  (2026-07-20).** Live-checked both `Menu` instances (`src/Header.tsx`)
-  running `npm run dev`: desktop account `Menu.Trigger` Button and mobile
-  hamburger `Menu.Trigger` IconButton both show `aria-expanded="true"` driving
-  the `css` override to `bg: surface.raised` (`rgb(63, 63, 70)`) /
-  `color: text.primary` (white), confirmed via computed styles — no bare
-  Chakra whiteAlpha flash underneath. `Menu.Item`s (`Log out` on desktop;
-  `Reviews`/`Favorites`/`Log out` on mobile) show the same `surface.raised`
-  bg on `data-highlighted` (hover), also via computed styles, not just
-  eyeballing. `header-redesign.md` line 71-74 and
-  `chakra-v3-migration-plan.md` Step 5 can be considered fully closed.
 - **Chakra v3 foundation audit** — eligible to start, explicitly left as Dan's
   call on timing. Not started. `chakra-v3-foundation-audit-brief.md`.
 - **Possible footnote-digit score-corruption risk in Angry Metal Guy / Metal
@@ -478,36 +429,6 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   it isn't automatically allowlisted; it would need the same individual-verification
   treatment Rodeö got before being added. `unknown-band-collision-audit.md` §4, §6;
   `stale-row-cleanup.md`.
-- **4 historical `reviews` rows with `score: ''` / `normalized_score: 0`,
-  non-review-post pollution — diagnosed and migrated, 2026-07-20.** Found while
-  diagnosing the Metal-Storm-timeout score-collapse bug (2026-07-19). All 4
-  were Angry Metal Guy, matching known non-review franchise patterns ("Yer
-  Metal is Olde: Warning" / _Watching from a Distance_, "The Willowtip Files:
-  Commit Suicide" / _Synthetics_, "Stuck in the Filter" / _April 2026's Angry
-  Misses_, "Record(s) o' the Month" / _March 2026_). Diagnosis confirmed all 4
-  `published_at` dates (2026-06-12 through 2026-07-02) predate the
-  non-review-post skip-fix's ship date (2026-07-17) — not a live gap in the
-  filter, simply outside the narrow scope of the prior two `stale-row-cleanup.md`
-  passes. None appeared in `skipped_posts` already, ruling out a
-  double-logging edge case. A third cleanup pass (same pattern as the prior
-  two) then migrated all 4 into `skipped_posts`
-  (`reason='backfilled_non_review_cleanup'`) and deleted the now-orphaned
-  `reviews`/`albums` rows — see the appended entry in `stale-row-cleanup.md`.
-  Final counts: albums 151→147, reviews 151→147. **Closed — no remaining
-  action.**
-  - Same investigation also found and fixed an adjacent, previously-unknown
-    bug: `logSkippedPost` had no dedup check, so every `npm run ingest` run
-    unconditionally re-logged every non-review post still in the RSS feed's
-    current window, even if already logged. 40 rows had accumulated in
-    `skipped_posts` from just 12 manual ingest runs across two debugging
-    sessions (2026-07-17, 2026-07-19) — confirmed via timestamp analysis to be
-    normal repeated manual runs, not a rogue/scheduled process. Fixed by
-    adding a `url`-based existence check before insert in
-    `scripts/ingest.ts`'s `logSkippedPost` (now exported, covered by
-    `scripts/__tests__/logSkippedPost.test.ts`); the 40 pre-existing
-    duplicates were then backfill-deduped (kept earliest row per URL) down to 4. `tsc --noEmit` clean, full test suite passing throughout. Not written
-    up as a standalone decision doc — tracked here only, per explicit
-    direction.
 - **Score-collapse fix (normalizeScore null-handling) — shipped, live
   verification pending.** Root cause (Metal Storm navigation-timeout failures
   writing `normalized_score: 0` instead of `null`, silently averaged into
@@ -531,18 +452,6 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   index line to say "historical, feature removed" — not done in this session,
   intentionally out of scope per the brief that surfaced it.
 
-- **Solver point-estimate normalization doesn't jointly hold — fixed 2026-08-09.**
-  Originally confirmed live 2026-07-30 (1.308 normalization sum on a real account, raw
-  score 122%, display-clamped to 100% as a stopgap). Fixed on the
-  `criteria-calibration-joint-point-estimate` branch: `LevelValue.point` now comes from a
-  single joint Chebyshev-center LP solve rather than independent per-variable midpoints,
-  so normalization holds exactly by construction (verified: real production account
-  1.3077509833333332 → 1.0000000000000002). `computeSolverAccuracy` deliberately left
-  unchanged (range-width method, per Dan's explicit scope call) — only the point used for
-  scoring/ranking/candidate-ambiguity changed. Measured, not assumed: this fix does
-  **not** move `nextAction`'s degree-3 escalation point on the same real data (top
-  candidate gap ~0 either way) — the separate levels-2–5 flatness issue below is
-  unaffected. Full detail: `criteria-calibration-joint-point-estimate.md`.
 - **Medium tier can't distinguish middle levels — real ties, not a rare edge
   case.** Also found live 2026-07-30: Medium tier's degree-2 questions only ever
   compare each criterion's _extreme_ levels (1 vs 5), so levels 2–4 are never
@@ -591,34 +500,6 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   `accuracyTiers.ts`. Worth revisiting once a real 6-criterion session reaches
   much higher accuracy and the flatness issue above is no longer confounding
   the gap signal.
-
-- **`simplex.ts`'s LP solver could silently return garbage values on degenerate
-  input — fixed 2026-08-09.** Discovered live via a diagnostic that drove
-  `nextAction` for 42 rounds against the `REAL_SESSION_*` (5-criterion) oracle:
-  the pre-fix Big-M solver returned `feasible: true` with `values[c][level].point`
-  up to ~1.16e14, despite `totalSlack === 0` (the data was fully consistent — a
-  purely numerical failure, not a real infeasibility). Root cause: Big-M mixed a
-  `1e7` penalty coefficient into the same objective row as the real O(1) costs,
-  which wrecked the tableau's conditioning on this problem's highly degenerate
-  constraint shape (many monotonicity/answer rows sharing structure); separately,
-  the old feasibility check only verified artificials were out of the basis, never
-  that the simplex loop actually reached optimality rather than exhausting
-  `MAX_ITERATIONS`. Fixed by rewriting `solveLP` as two-phase simplex (Phase 1
-  minimizes only the sum of artificials to establish feasibility, no Big-M
-  anywhere; Phase 2 optimizes the real objective from that feasible basis), with
-  both phases now propagating a `converged` flag so a run that hits the iteration
-  cap without reaching optimality is reported `feasible: false` instead of
-  silently returned as a solution. Bland's rule (already in place for
-  anti-cycling) carried through unchanged into both phases. `solveLP`'s public
-  signature/return shape is unchanged — `solveValues`/`computeChebyshevCenter`
-  (its only callers, both in `solver.ts`) needed no changes. Verified: all 226
-  pre-existing tests pass unchanged plus one new permanent regression test
-  (`solver.test.ts`'s "n=42 numerical-blowup regression" block, fixture
-  `N42_REPRO_ANSWERS` in `fixtures.ts`, regenerated deterministically the same way
-  the diagnostic found it — driving `nextAction` against the `REAL_SESSION_*`
-  oracle for 42 rounds); the same input now produces monotonic, exactly-normalized
-  point values in the sane `[0, 0.5]` range instead of ~1e14. Full detail:
-  `two-phase-simplex-rewrite.md`.
 
 - ~~**Automatic degree escalation (replace manual gap-based `degree-exhausted`
   trigger)**~~ — **DONE (2026-08-10).** `nextAction`'s old `MAX_AMBIGUOUS_GAP` gap-based
@@ -731,7 +612,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   points now instead of one, both single-user (Dan's own account) — real evidence, not
   yet enough to stop treating R=12 as provisional. Full numbers, plus the full
   accuracy/tier/fired trajectory:
-  `docs/decisions/second-session-accuracy-trajectory-2026-08-15.csv`.
+  `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`.
 
 - **`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is
   currently a static, hardcoded list of Dan's own 13 albumIds — not per-user.**
@@ -767,24 +648,6 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
     **bypass RLS entirely**, so any script touching this table must filter on `user_id`
     explicitly — `scripts/verify-pre-reset-step0.ts` and
     `scripts/reset-calibration-2026-08-15.ts` both do.
-- ~~**`accuracy_value`/fresh-recompute discrepancy on Dan's real account**~~ — **NOT
-  CONFIRMED, retracted.** Re-verified 2026-08-15 (`criteria-calibration-weights-write-race.md`'s
-  dated correction section): a fresh `computeScoreSpreadAccuracy` recompute over the live
-  70-answer log exactly matches (diff = 0) the stored `accuracy_value`, and no write or
-  answer mutation has touched the account since the original 92.04% reading. The 0.99999
-  figure doesn't reproduce and was most likely a bug in that session's own ad hoc check, not
-  a real stored/fresh mismatch.
-- ~~**`computeScoreSpreadAccuracy` scales superlinearly with answer count**~~ — **DONE
-  (2026-08-15)**, on `criteria-calibration-lp-warm-start`. Diagnosis: call count is constant
-  at 210, so the superlinearity was entirely per-solve cost (~O(n²): tableau grows in both
-  dimensions per answer while pivot count grows too). All 210 solves shared one constraint set
-  and differed only in objective, so tableau construction + Phase 1 — 79% of each solve's time,
-  80% of its pivots — was identical work repeated 210 times. Fixed by splitting `solveLP` into
-  `prepareLP` + `solveFromPrepared` and preparing once (`simplex.ts`); `solveValues`'s pass-2
-  range solves share the same win. Warm-starting was the applicable mechanism of the two
-  originally guessed. Per-question blocking time at n=59: 1881ms → 309ms (6.09×), bit-for-bit
-  identical output verified over 2314 solves. Full detail:
-  `criteria-calibration-lp-warm-start.md`.
 - **Web Worker relocation for the per-commit LP computation — deliberately deferred, not
   rejected.** Was the second of the two candidate mechanisms for the item above; the
   diagnostic showed it addresses a different problem (hiding latency vs. removing work), so it
@@ -805,22 +668,10 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   now (real sessions don't reach that), but this is the known ceiling of the current approach
   — a genuine complexity fix would mean a different algorithm (revised simplex with a sparse
   factorization, or an LP library), which is a much larger change.
-- ~~**Weights/status upsert had an unfixed write-race**~~ — **DONE**, fixed 2026-08-15 on
-  `criteria-calibration-weights-write-race-fix`. `upsert_calibration_status`'s conflict
-  clause now only adopts `accuracy_value`/`tier`/`answer_count` from a write whose
-  `answer_count` is `>=` the row's current value (see
-  `supabase/user_calibration_status-add-answer-count-guard.sql`), verified with a deliberate
-  two-write race test. Note: the account-level 92.04%/n=69 "evidence" that originally
-  motivated this diagnosis did not hold up under re-verification (see the item above and
-  `criteria-calibration-weights-write-race.md`'s dated correction) — the fix ships anyway
-  because the RPC's structural lack of a guard was real and independently confirmed by
-  reading its code, regardless of that one account never having visibly hit it.
-  `last_eligible_top10`/`last_change_answer_index`/the `previous_*` triple remain
-  unguarded, deliberately in scope terms — but see the new item directly below for why their
-  staleness is no longer simply "safe-direction/delay-only" as previously assumed.
-  Full detail: `criteria-calibration-weights-write-race.md`.
 - **CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL** (not routine cleanup — flagged distinctly
-  from this section's other accepted-not-fixed items): **`last_eligible_top10`/
+  from this section's other accepted-not-fixed items; see `finished-work.md`'s "Weights/status
+  upsert had an unfixed write-race" entry for the 2026-08-15 fix this risk was carved out of):
+  **`last_eligible_top10`/
   `last_change_answer_index` can regress backward via the same write-race, and this can fire
   Brief 3's live auto-escalation signal EARLIER than the true trajectory warrants — not just
   later.** Confirmed live (not theoretical), though narrower in practice than the
@@ -939,19 +790,13 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   0.9999+ — i.e., real user time spent past the point the model had anything left to
   learn, the concrete cost of not yet having this entry's proposed two-signal display.
   Not fixing here, just quantifying: full trajectory in
-  `docs/decisions/second-session-accuracy-trajectory-2026-08-15.csv`; the fired/exhaustion
+  `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`; the fired/exhaustion
   mechanics themselves are also written up under the `REQUIRED_ANSWER_SPAN` entry above.
   Cross-reference: "Criteria Calibration header layout" above (related area, distinct
   scope — not to be merged).
 - **Logo** — T-ligature concept explored across five typefaces (Bebas Neue,
   Archivo Black, Playfair Display, Space Mono, Monoton); never approved. Known
   issue: the fused double-T reads as the Greek letter π.
-- ~~**"Graded Slab" visual direction**~~ — **DONE.** Implemented as the
-  Slant Take design system across 9 sequential passes (colors/fonts, radii,
-  badge restructure, chrome polish, rename, footer, loading indicator,
-  consistency/hover pass) — all ✅ Complete, verified. "Graded Slab" was the
-  internal working name during exploration only; the shipped system is the
-  Slant Take design system. Full detail: `slant-take-design-system.md`.
 - **AOTY tab label** — still unnamed; blocked on the AOTY feature itself being
   built (section A).
 - **Portable IA ideas** parked from the "Dossier/Photocopier Mono" exploration
@@ -971,21 +816,6 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
   matches nothing in the current design system), and the domain/GitHub-repo/Render
   service name (all still literally "metalreviews" — infra-level, out of reach of a
   code change; listed for awareness in pass 5's report, not actioned).
-- ~~**Card footer / ingest-timestamp line never built**~~ — **DONE (2026-07-25,
-  design-system pass 8).** `src/Footer.tsx` built and wired into both `App.tsx` and
-  `FavoritesPage.tsx`. Full detail: `slant-take-design-system.md` pass 8, this
-  entry's original text preserved below for context.
-  <details>Mockup `03-graded-slab-void-accent_1.html` has a page footer (mono,
-  uppercase, `text.muted`) carrying "Last ingest &lt;date&gt;" on the left and a
-  source list on the right. The app had no footer element at all, so pass 3's
-  typography audit had nothing to fix. This overlapped the parked "last ingest date
-  timestamp element" idea listed above under Portable IA — same feature. Pass 8
-  found no "last ingest run" timestamp is persisted anywhere (the old
-  `/api/ingest/status` endpoint only ever exposed an in-memory running/idle flag,
-  removed along with the refresh button when ingest moved to GitHub Actions cron —
-  see `ingest-trigger-and-security.md`), so it used "Last updated" sourced from the
-  newest `publishedAt` across loaded albums/reviews instead, and replaced the
-  mockup's source-count text with `Reviews`/`Favorites` nav links per Dan's brief.</details>
 - **Favourite-heart button doesn't match the mockup** — surfaced 2026-07-25.
   Mockup has a flush 34×34 square at `top:0 right:0` with `bg-page` and 2px
   left+bottom rules, i.e. the same flush-corner treatment as the source badge and
