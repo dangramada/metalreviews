@@ -66,6 +66,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
+**Active (unmerged): `criteria-calibration-tiered-checkpoints`** — retires Brief 3's
+auto-escalation signal outright and replaces it with four explicit checkpoints (degree-2
+boundary / crossing High / crossing Very High / neutral exhaustion fallback), with silent
+escalation in between. Deletes ~876 lines, 3 one-off scripts, and 7 `user_calibration_status`
+columns; **the write-race correctness risk is retired rather than fixed** — it was scoped
+exactly to the dropped columns. Also corrects two stale premises in its own brief: the
+threshold constants it named were deprecated 2026-08-09 (live metric is
+`computeScoreSpreadAccuracy` at 0.55/0.75/0.85), and the prerequisite removal it assumed was
+merged was still live on `master`. 300/300 tests pass, no new type/lint errors.
+**Two things outstanding before merge: the SQL migration has not been run against the live
+database** (until it is, the client's 4-param RPC call won't resolve against the live 11-param
+function), **and live browser verification on a real account is not done** (the route is
+auth-gated). Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md`.
+
 Most recent merge was `criteria-calibration-escalation-signal-candidates`
 (docs-only diagnostic, no production code touched: evaluates replacements for Brief 3's
 `RANKING_TEST_SET` top-10 stop signal, which cannot work for any first-time user. **All five
@@ -76,8 +91,8 @@ Candidate C**: drop detection, show an explicit checkpoint at each existing
 `isDegreeCoverageComplete` degree boundary. Measured cost 2 extra screens per real session;
 deletes ~876 lines, 7 DB columns, and **the one open correctness risk** — the
 `last_eligible_top10`/`last_change_answer_index` write-race is scoped exactly to the columns C
-removes, so it stops existing rather than needing a guard. **Not implemented — awaiting Dan's
-decision.** Also corrects `deferred-work.md`'s stale n=35/n=45 stability points to n=39/n=46;
+removes, so it stops existing rather than needing a guard. **Resolved 2026-08-17 — a tier-gated
+variant of C was implemented on `criteria-calibration-tiered-checkpoints`, above.** Also corrects `deferred-work.md`'s stale n=35/n=45 stability points to n=39/n=46;
 the Harris fix moved both), merged to `master` `--no-ff` at `f5e3a6c` on 2026-08-16. Rollback
 tag: `pre-merge-criteria-calibration-escalation-signal-candidates`. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-escalation-signal-candidates.md`.
@@ -140,9 +155,10 @@ not empty, and score/rank badges are back. Treat those 71 answers as the validat
 scratch space; a further session needs a fresh backup+reset, and the reset must DELETE, not
 upsert (`archive-and-reset-calibration.ts --reset` is disabled for that reason).
 
-Also carried forward from the two merges before that (LP warm-start's O(n²) ceiling, and the
-`last_eligible_top10`/`last_change_answer_index` write-race correctness risk to the
-already-shipped Brief 3 auto-escalation signal) — see
+Also carried forward from the two merges before that: LP warm-start's O(n²) ceiling. (The
+`last_eligible_top10`/`last_change_answer_index` write-race risk is **retired** by
+`criteria-calibration-tiered-checkpoints` above — the columns are dropped, so there is no
+unguarded write left to race, pending that branch's migration actually being run.) See
 `docs/decisions/criteria-calibration-summary.md` for the current single-source statement of
 both, plus `deferred-work.md` for open-item tracking.
 
@@ -205,7 +221,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
-- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".**
+- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".** **Before touching degree escalation, stopping, or the accuracy tiers shown to the user, read `criteria-calibration-tiered-checkpoints.md`'s "What NOT to change" — several of its choices deliberately reverse earlier designs.**
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
