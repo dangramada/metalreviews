@@ -66,27 +66,23 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-**Active (unmerged): `criteria-calibration-tiered-checkpoints`** — retires Brief 3's
-auto-escalation signal outright and replaces it with four explicit checkpoints (degree-2
-boundary / crossing High / crossing Very High / neutral exhaustion fallback), with silent
-escalation in between. Deletes ~876 lines, 3 one-off scripts, and 7 `user_calibration_status`
-columns; **the write-race correctness risk is retired rather than fixed** — it was scoped
-exactly to the dropped columns. Also corrects two stale premises in its own brief: the
-threshold constants it named were deprecated 2026-08-09 (live metric is
+Most recent merge was `criteria-calibration-tiered-checkpoints`
+(retires Brief 3's auto-escalation signal outright and replaces it with four explicit
+checkpoints — degree-2 boundary / crossing High / crossing Very High / neutral exhaustion
+fallback — with silent escalation in between. Deletes ~876 lines, 3 one-off scripts and 7
+`user_calibration_status` columns; **the write-race correctness risk is retired rather than
+fixed**, being scoped exactly to the dropped columns. Corrects two stale premises in its own
+brief: the threshold constants it named were deprecated 2026-08-09 (live metric is
 `computeScoreSpreadAccuracy` at 0.55/0.75/0.85), and the prerequisite removal it assumed was
-merged was still live on `master`. 301/301 tests pass, no new type/lint errors.
-**Verified live 2026-08-17**: migration applied and probed (all 7 columns gone, 4-param RPC
-resolves, no stale 11-param overload); browser pass on the disposable QA account covering the
-degree-2 checkpoint, escalation to degree 3, silent auto-progression to degree 4, and a full
-persistence round-trip through the narrowed RPC. That pass caught one dead end the unit tests
-missed — a session resumed exactly at a degree-3+ boundary was stranded, since
-`degree2Acknowledged` starts false on resume; fixed by seeding it from `resume.degree`.
-Also swapped the degree-2 boundary precedence so a reached High/Very High tier shows its own
-screen instead of degree-2's "Increase accuracy" invitation (observed live at 86% Very High on
-a 105-answer degree-2 log). Dan's own 71-answer account was not touched. Full detail:
+merged was still live. Migration applied to the live DB and verified; browser pass on the
+disposable QA account. Two bugs the unit tests missed were caught live and fixed: a session
+resumed at a degree-3+ boundary was stranded, and the degree-2 checkpoint offered "Increase
+accuracy" next to an already-maxed tier. Dan's 71-answer account untouched. 305/305 tests),
+merged to `master` `--no-ff` at `892f79c` on 2026-08-17. Rollback tag:
+`pre-merge-criteria-calibration-tiered-checkpoints`. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md`.
 
-Most recent merge was `criteria-calibration-escalation-signal-candidates`
+Before that was `criteria-calibration-escalation-signal-candidates`
 (docs-only diagnostic, no production code touched: evaluates replacements for Brief 3's
 `RANKING_TEST_SET` top-10 stop signal, which cannot work for any first-time user. **All five
 signal variants fail** across 12 traces × four R values — coverage width, width plateau,
