@@ -12,6 +12,16 @@
 // Output: docs/decisions/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv
 // (one row per real answer, all 10 oracles) plus a findings summary printed to stdout, which
 // backs docs/decisions/criteria-calibration/criteria-calibration-synthetic-oracles.md.
+//
+// AMENDED 2026-08-17: the retired auto-escalation signal's columns were stripped when that
+// signal was deleted (see criteria-calibration-tiered-checkpoints.md) — the `fired` CSV
+// column, the fired-transition/post-fired-plateau stdout sections, and the synthetic
+// 13-album "RANKING_TEST_SET" that existed only to feed the top-10 comparison. Everything
+// else is unchanged, so re-running this reproduces the committed CSV's surviving columns
+// exactly. NOTE the committed CSV still has its original header including `fired`; it is the
+// 2026-08-16 record and was deliberately not regenerated. The tier-crossing report retained
+// below is now the directly relevant output, since accuracy tiers are what gate the
+// replacement flow's checkpoints.
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -27,14 +37,7 @@ import {
   type SolverAnswer,
   type ValueSolverResult,
 } from '../src/lib/criteria-calibration/solver.js';
-import {
-  computeCommitState,
-  type StabilityWindowContext,
-} from '../src/lib/criteria-calibration/commitComputation.js';
-import {
-  INITIAL_PERSISTED_STABILITY_WINDOW,
-  type PersistedStabilityWindow,
-} from '../src/lib/criteria-calibration/rankingStabilitySignal.js';
+import { computeCommitState } from '../src/lib/criteria-calibration/commitComputation.js';
 import {
   solverAccuracyTier,
   SCORE_SPREAD_HIGH_THRESHOLD,
@@ -42,7 +45,6 @@ import {
 } from '../src/lib/criteria-calibration/accuracyTiers.js';
 import type { CriteriaCatalog } from '../src/lib/criteria-calibration/criteriaCatalog.js';
 import type { ComparisonResult, Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
-import type { CriterionLevelRating } from '../src/lib/album-rating/scoreAndRank.js';
 import {
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
@@ -142,26 +144,6 @@ const ORACLES: OracleSpec[] = [
 ];
 
 // ---------------------------------------------------------------------------------------
-// Fixed synthetic "RANKING_TEST_SET" — 13 profiles, shared across all 10 oracles, so a
-// given oracle's ground-truth weights are what determines each album's score/rank, not the
-// album pool itself. Independent seed from every oracle's own answer generation.
-// ---------------------------------------------------------------------------------------
-function buildSyntheticRatingsSet(): Map<string, CriterionLevelRating[]> {
-  const rng = createRng(20260816);
-  const map = new Map<string, CriterionLevelRating[]>();
-  for (let i = 0; i < 13; i++) {
-    const ratings: CriterionLevelRating[] = [];
-    for (let c = 0; c < NUM_CRITERIA; c++) {
-      const level = 1 + Math.floor(rng() * LEVELS_PER_CRITERION[c]);
-      ratings.push({ criterionId: c, level });
-    }
-    map.set(`synthetic-album-${i}`, ratings);
-  }
-  return map;
-}
-const RATINGS_BY_ALBUM = buildSyntheticRatingsSet();
-
-// ---------------------------------------------------------------------------------------
 // Oracle answering
 // ---------------------------------------------------------------------------------------
 function scoreProfileGT(profile: Profile, gt: GroundTruth): number {
@@ -200,7 +182,6 @@ interface RoundRecord {
   progressPct: number;
   accuracy: number;
   tier: string;
-  fired: boolean;
   avgCoverageWidth: number;
   maxCoverageWidth: number;
   totalSlack: number;
@@ -222,7 +203,6 @@ function runOracle(spec: OracleSpec): OracleRunResult {
   const start = Date.now();
   const session = new CalibrationSession();
   let degree = STARTING_DEGREE;
-  let persisted: PersistedStabilityWindow = INITIAL_PERSISTED_STABILITY_WINDOW;
   const rows: RoundRecord[] = [];
   const degreesVisited = new Set<number>();
   let round = 0;
@@ -262,17 +242,12 @@ function runOracle(spec: OracleSpec): OracleRunResult {
 
         const tRoundStart = Date.now();
         const answers = toSolverAnswers(session);
-        const stabilityContext: StabilityWindowContext = {
-          previous: persisted,
-          ratingsByAlbum: RATINGS_BY_ALBUM,
-        };
-        const commit = computeCommitState(catalog, answers, stabilityContext);
+        const commit = computeCommitState(catalog, answers);
         if (process.env.ORACLE_DEBUG) {
           process.stderr.write(
             `    round ${round} commit took ${Date.now() - tRoundStart}ms (nextAction+answer took ${tRoundStart - roundLoopStart}ms)\n`
           );
         }
-        persisted = commit.stabilityWindow ?? persisted;
         finalSolved = commit.solved;
 
         const widths: number[] = [];
@@ -293,7 +268,6 @@ function runOracle(spec: OracleSpec): OracleRunResult {
           progressPct: Math.round(commit.accuracy * 100),
           accuracy: commit.accuracy,
           tier: solverAccuracyTier(commit.accuracy),
-          fired: persisted.current.fired,
           avgCoverageWidth: avgWidth,
           maxCoverageWidth: maxWidth,
           totalSlack: commit.solved.totalSlack,
@@ -355,7 +329,7 @@ function main() {
   // CSV output
   // -------------------------------------------------------------------------------------
   const csvLines: string[] = [
-    'oracle_id,oracle_name,round,degree,progress_pct,accuracy,tier,fired,avg_coverage_width,max_coverage_width,total_slack,noisy_flip',
+    'oracle_id,oracle_name,round,degree,progress_pct,accuracy,tier,avg_coverage_width,max_coverage_width,total_slack,noisy_flip',
   ];
   for (const r of results) {
     for (const row of r.rows) {
@@ -368,7 +342,6 @@ function main() {
           row.progressPct,
           row.accuracy.toFixed(6),
           row.tier,
-          row.fired,
           row.avgCoverageWidth.toFixed(6),
           row.maxCoverageWidth.toFixed(6),
           row.totalSlack.toFixed(6),
@@ -461,31 +434,6 @@ function main() {
     console.log(
       `  tierCrossing: high@round=${firstHigh?.round ?? 'never'} veryHigh@round=${firstVeryHigh?.round ?? 'never'}`
     );
-
-    // fired transition + gap to exhaustion
-    const firedRow = r.rows.find((row) => row.fired);
-    if (firedRow) {
-      const gap = r.totalRounds - firedRow.round;
-      const isLowerBound =
-        !r.stopReason.startsWith('natural-exhaustion') && !r.stopReason.startsWith('degree2-cap');
-      console.log(
-        `  fired@round=${firedRow.round} totalRounds=${r.totalRounds} gapToStop=${gap}${isLowerBound ? ' (LOWER BOUND — did not reach true exhaustion within cap)' : ''}`
-      );
-    } else {
-      console.log(`  fired: never (within ${r.totalRounds} rounds, stop=${r.stopReason})`);
-    }
-
-    // Post-fired coverage plateau check
-    if (firedRow) {
-      const postFiredRows = r.rows.filter((row) => row.round >= firedRow.round);
-      if (postFiredRows.length >= 2) {
-        const widthAtFired = postFiredRows[0].avgCoverageWidth;
-        const widthAtEnd = postFiredRows[postFiredRows.length - 1].avgCoverageWidth;
-        console.log(
-          `  postFiredCoverage: widthAtFired=${widthAtFired.toFixed(5)} widthAtEnd=${widthAtEnd.toFixed(5)} delta=${(widthAtFired - widthAtEnd).toFixed(5)}`
-        );
-      }
-    }
 
     // Monotonicity check
     const violations: { round: number; prev: number; next: number }[] = [];
