@@ -691,6 +691,18 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
     `last_change_answer_index` — **the project's one open correctness risk stops existing rather
     than needing a guard.** Not implemented; awaiting Dan's decision. Open sub-questions for
     implementation are listed at the end of §12 in the decision doc.
+  - **CLOSED 2026-08-17 — implemented, and this entry's whole premise is gone.** The
+    tier-gated-checkpoint pass shipped (`criteria-calibration-tiered-checkpoints.md`): the
+    auto-escalation signal is deleted outright, and with it `rankingTestSet.ts`,
+    `useRankingTestSetRatings.ts`, `rankingStabilitySignal.ts` and the 7
+    `user_calibration_status` columns. There is no longer a benchmark set to make per-user, so
+    the multi-user rework this entry was holding open **no longer needs doing** — it was
+    rework on a mechanism that no longer exists, not rework that got deferred again. The
+    write-race is retired by the same migration (see the write-race entry below). The shipped
+    design differs from Candidate C as recommended above: checkpoints are gated on accuracy
+    TIERS (degree-2 boundary, High, Very High, plus a neutral exhaustion fallback), not on
+    every degree boundary. Verified live 2026-08-17 (migration applied, browser pass on the
+    disposable QA account); eligible to move to `finished-work.md` at the next review.
   - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
     `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
     with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account
@@ -727,6 +739,19 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   now (real sessions don't reach that), but this is the known ceiling of the current approach
   — a genuine complexity fix would mean a different algorithm (revised simplex with a sparse
   factorization, or an LP library), which is a much larger change.
+- **~~CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL~~ — RETIRED 2026-08-17, not fixed.** The
+  entry below is kept verbatim as the record of the mechanism, but it no longer describes
+  anything reachable. `supabase/user_calibration_status-drop-stability-window.sql` drops
+  `last_eligible_top10`, `last_change_answer_index` and the `previous_` triple along with the
+  signal they fed, and narrows `upsert_calibration_status` to four parameters. Those were the
+  only fields the RPC wrote without an ordering guard, so every surviving field is covered by
+  the existing `answer_count` guard — there is no unguarded write left to race, and no signal
+  left to fire early. `verify-write-race-guard.ts`'s check #4, which reproduced the regression
+  live, is deleted with the columns. This closes the "one open correctness risk" that
+  `CLAUDE.md` and the cluster summary have carried forward every session. See
+  `criteria-calibration-tiered-checkpoints.md` §8. The migration was applied and probed on 2026-08-17 — all
+  seven columns return `undefined_column`, and the old overload is gone. Eligible to move to
+  `finished-work.md` at the next review. Original entry follows.
 - **CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL** (not routine cleanup — flagged distinctly
   from this section's other accepted-not-fixed items; see `finished-work.md`'s "Weights/status
   upsert had an unfixed write-race" entry for the 2026-08-15 fix this risk was carved out of):
@@ -913,3 +938,33 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   recovered.** This exists only in prior chat history not accessible from this
   session, and no file in the repo captures its output. A session on this topic
   happened; re-run if the concrete findings are needed.
+
+---
+
+## New items, 2026-08-17 (tiered-checkpoints pass)
+
+- **OPEN QUESTION: several plausible preference shapes never reach High accuracy — cause
+  unknown.** Synthetic oracle data from the 2026-08-16 diagnostic shows single-dominant,
+  front-loaded and linear-control shapes running to natural exhaustion within 86-90 real
+  answers without ever crossing `SCORE_SPREAD_HIGH_THRESHOLD` (`#5 front-loaded` peaks at
+  accuracy 0.63). **Whether this is genuine under-information in those shapes, or a blind spot
+  in `computeScoreSpreadAccuracy` for them, is not known** — it has never been investigated,
+  and the tiered-checkpoints brief explicitly scoped it out. Needs a data-analysis session:
+  compare solved values against ground truth for those oracles specifically, and establish
+  whether accuracy is under-reporting a model that is actually well determined, or correctly
+  reporting one that isn't. **Until this is resolved, the exhaustion-fallback copy must stay
+  neutral about cause** — it currently presupposes neither answer, and a test asserts that in
+  both directions. Full context: `criteria-calibration-tiered-checkpoints.md` §12. Note this is
+  a distinct question from the provisional-threshold entry above: retuning the threshold would
+  change _which_ sessions are affected, not explain _why_ these shapes behave this way.
+
+- **`npm run type-check` does not type-check anything.** Found 2026-08-17. The root
+  `tsconfig.json` has `"files": []` with project references to `tsconfig.app.json` /
+  `tsconfig.node.json`, but the script is a bare `tsc --noEmit` — which, with no files and no
+  `--build`, checks nothing and exits 0. Every "tsc --noEmit clean" claim in past session docs
+  that used the npm script rather than `-p` was therefore vacuous. The real invocation is
+  `npx tsc -p tsconfig.app.json --noEmit` (or `tsc -b`). That currently reports ~44
+  pre-existing file-level errors, mostly Supabase mock typings in tests plus `scripts/ingest.ts`
+  — a real backlog that has been invisible. Two pieces of work, deliberately not done in the
+  checkpoints pass: fix the script, and burn down (or explicitly accept) the existing errors.
+  Fixing the script first without the second half would make CI red immediately.

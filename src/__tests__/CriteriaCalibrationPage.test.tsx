@@ -17,11 +17,9 @@ import system from '../theme';
 import { CriteriaCalibrationPage } from '../CriteriaCalibrationPage';
 import { buildHistoricalFixture } from '../lib/criteria-calibration/fixtures';
 import type { CriteriaCatalog } from '../lib/criteria-calibration/criteriaCatalog';
-import { INITIAL_PERSISTED_STABILITY_WINDOW } from '../lib/criteria-calibration/rankingStabilitySignal';
 
 vi.mock('../hooks/useCriteriaCatalog', () => ({ useCriteriaCatalog: vi.fn() }));
 vi.mock('../hooks/useCalibrationResume', () => ({ useCalibrationResume: vi.fn() }));
-vi.mock('../hooks/useRankingTestSetRatings', () => ({ useRankingTestSetRatings: vi.fn() }));
 vi.mock('../hooks/usePendingWritesGuard', () => ({ usePendingWritesGuard: vi.fn() }));
 vi.mock('../hooks/useFeedbackToast', () => ({ useFeedbackToast: vi.fn() }));
 // Reduced-motion path skips the fade choreography entirely — irrelevant here since this test
@@ -49,7 +47,6 @@ vi.mock('../lib/criteria-calibration/persistence', () => ({
 
 import { useCriteriaCatalog } from '../hooks/useCriteriaCatalog';
 import { useCalibrationResume } from '../hooks/useCalibrationResume';
-import { useRankingTestSetRatings } from '../hooks/useRankingTestSetRatings';
 import { usePendingWritesGuard } from '../hooks/usePendingWritesGuard';
 import { useFeedbackToast } from '../hooks/useFeedbackToast';
 import { useAuth } from '../AuthContext';
@@ -127,10 +124,6 @@ describe('CriteriaCalibrationPage — cross-degree Undo/Redo (regression)', () =
       user: { id: 'user-1' },
       loading: false,
     } as ReturnType<typeof useAuth>);
-    vi.mocked(useRankingTestSetRatings).mockReturnValue({
-      ratingsByAlbum: null,
-      loading: false,
-    } as ReturnType<typeof useRankingTestSetRatings>);
     vi.mocked(usePendingWritesGuard).mockReturnValue({
       beginWrite: vi.fn(),
       endWrite: vi.fn(),
@@ -144,7 +137,6 @@ describe('CriteriaCalibrationPage — cross-degree Undo/Redo (regression)', () =
     vi.mocked(useCalibrationResume).mockReturnValue({
       answers: RESUMED_ANSWERS,
       degree: 4,
-      persistedStabilityWindow: INITIAL_PERSISTED_STABILITY_WINDOW,
       loading: false,
       error: null,
     });

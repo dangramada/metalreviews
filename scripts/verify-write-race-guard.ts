@@ -7,6 +7,14 @@
 //
 //   npx tsx scripts/verify-write-race-guard.ts
 //
+// AMENDED 2026-08-17 for the four-parameter RPC (see
+// supabase/user_calibration_status-drop-stability-window.sql). The former check #4 —
+// which demonstrated that last_eligible_top10 / last_change_answer_index were NOT covered by
+// the answer_count guard and could regress backward — is deleted along with those columns.
+// It is not an unverified gap now; it is an unreachable one. Every field this RPC still
+// writes goes through the guard checks 1-3 exercise, so this script now covers the RPC's
+// whole surface rather than most of it.
+//
 // Uses the disposable QA test account (dgramada07@gmail.com) as the target row — the RPC's
 // FK to auth.users means a fake UUID is rejected (confirmed live; the migration file's old
 // manual-verification comment claiming otherwise was wrong). Confirms the account has no
@@ -22,25 +30,12 @@ const supabase = createClient(url, key);
 
 const TEST_USER_ID = '2c2e8851-2c5d-49f3-9aa2-6246b110ad3d';
 
-async function callRpc(opts: {
-  tier: string;
-  accuracy: number;
-  answerCount: number;
-  lastEligibleTop10?: string[] | null;
-  lastChangeAnswerIndex?: number;
-}) {
+async function callRpc(opts: { tier: string; accuracy: number; answerCount: number }) {
   const { error } = await supabase.rpc('upsert_calibration_status', {
     p_user_id: TEST_USER_ID,
     p_tier: opts.tier,
     p_accuracy_value: opts.accuracy,
     p_answer_count: opts.answerCount,
-    p_last_eligible_top10: opts.lastEligibleTop10 ?? null,
-    p_last_change_answer_index: opts.lastChangeAnswerIndex ?? 0,
-    p_fired: false,
-    p_previous_last_eligible_top10: null,
-    p_previous_last_change_answer_index: 0,
-    p_previous_fired: false,
-    p_last_commit_changed_window: false,
   });
   if (error) throw error;
 }
@@ -48,7 +43,7 @@ async function callRpc(opts: {
 async function readRow() {
   const { data, error } = await supabase
     .from('user_calibration_status')
-    .select('accuracy_value, tier, answer_count, last_eligible_top10, last_change_answer_index')
+    .select('accuracy_value, tier, answer_count')
     .eq('user_id', TEST_USER_ID)
     .maybeSingle();
   if (error) throw error;
@@ -92,40 +87,6 @@ async function main() {
   row = await readRow();
   check('accuracy_value updates to 0.955 on a tie (not silently dropped)', row?.accuracy_value === 0.955);
 
-  console.log(
-    '\n4) Tied answer_count, different last_eligible_top10: NOT guarded by answer_count at all — ' +
-      'whichever write lands last wins regardless of content (this is the exact mechanism ' +
-      'flagged in the 2026-08-15 doc addendum as an unresolved gap, not something this test ' +
-      'claims is safe)'
-  );
-  await callRpc({
-    tier: 'very_high',
-    accuracy: 0.955,
-    answerCount: 11,
-    lastEligibleTop10: ['album-early', 'album-stale'],
-    lastChangeAnswerIndex: 4, // simulates the "incomplete" write's stale/reverted anchor
-  });
-  row = await readRow();
-  check(
-    'last_eligible_top10 became the stale set (["album-early","album-stale"]) even though answer_count tied',
-    JSON.stringify(row?.last_eligible_top10) === JSON.stringify(['album-early', 'album-stale'])
-  );
-  check('last_change_answer_index regressed to 4 (moved BACKWARD from 11 — the real risk)', row?.last_change_answer_index === 4);
-
-  await callRpc({
-    tier: 'very_high',
-    accuracy: 0.955,
-    answerCount: 11,
-    lastEligibleTop10: ['album-fresh'],
-    lastChangeAnswerIndex: 11,
-  });
-  row = await readRow();
-  check(
-    'a subsequent tied write with a fresher payload overwrites again (last write wins, unconditionally)',
-    JSON.stringify(row?.last_eligible_top10) === JSON.stringify(['album-fresh']) &&
-      row?.last_change_answer_index === 11
-  );
-
   await cleanup();
   console.log('\nCleaned up scratch row.');
 
@@ -133,7 +94,7 @@ async function main() {
     console.error(`\n${failures} check(s) failed.`);
     process.exit(1);
   }
-  console.log('\nAll checks passed (including the deliberately-unguarded scenario in #4).');
+  console.log('\nAll checks passed.');
 }
 
 main().catch(async (e) => {
