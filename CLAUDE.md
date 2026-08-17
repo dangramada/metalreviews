@@ -66,6 +66,15 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
+Current branch is `criteria-calibration-accuracy-threshold-recalibration`
+(diagnostic only, no production code changed, `accuracyTiers.ts` deliberately untouched).
+Fits the three `SCORE_SPREAD_*` constants against real ground truth and finds **no set of
+cutoffs generalizes** — all six quality bars give an empty usable window across 12 traces,
+because `computeScoreSpreadAccuracy` measures determinacy, not correctness. Recommends keeping
+0.55/0.75/0.85, adding a ~15–20 answer floor, and rewording checkpoint copy — **awaiting Dan's
+decision**. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md`.
+
 Most recent merge was `criteria-calibration-tiered-checkpoints`
 (retires Brief 3's auto-escalation signal outright and replaces it with four explicit
 checkpoints — degree-2 boundary / crossing High / crossing Very High / neutral exhaustion
