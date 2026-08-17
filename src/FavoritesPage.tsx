@@ -1200,7 +1200,12 @@ export function FavoritesPage() {
               {...primaryButton}
               onClick={() => {
                 setGateNudgeOpen(false);
-                navigate('/criteria-calibration');
+                // `?from=favorites` is what sends the user back here when they finish or stop
+                // calibrating — same convention as the /rate/:albumId links above. Calibration
+                // resolves it through an allowlist and falls back to /favorites when absent,
+                // so this is about not hardcoding the round-trip, not about it breaking
+                // without the param.
+                navigate('/criteria-calibration?from=favorites');
               }}
             >
               Go to calibration

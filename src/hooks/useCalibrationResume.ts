@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  fetchPersistedAnswers,
-  fetchPersistedStabilityWindow,
-} from '../lib/criteria-calibration/persistence';
+import { fetchPersistedAnswers } from '../lib/criteria-calibration/persistence';
 import type { ComparisonResult, Profile } from '../lib/criteria-calibration/preferenceGraph';
-import {
-  INITIAL_PERSISTED_STABILITY_WINDOW,
-  type PersistedStabilityWindow,
-} from '../lib/criteria-calibration/rankingStabilitySignal';
 
 // Degree always starts at 2 (Medium tier's prerequisite) when there's no prior session to
 // resume — mirrors CriteriaCalibrationPage.tsx's STARTING_DEGREE from part 5a.
@@ -28,12 +21,11 @@ export interface ResumedAnswer {
 export function useCalibrationResume(userId: string | undefined) {
   const [answers, setAnswers] = useState<ResumedAnswer[]>([]);
   const [degree, setDegree] = useState(STARTING_DEGREE);
-  // Brief 3: the stability window is path-dependent (unlike degree, which is safely
-  // re-derivable from the answer log alone) — see rankingStabilitySignal.ts's header for why
-  // it must be fetched, not recomputed. Fetched in parallel with the answers themselves,
-  // same "resume" concept covering everything needed to pick back up where the user left off.
-  const [persistedStabilityWindow, setPersistedStabilityWindow] =
-    useState<PersistedStabilityWindow>(INITIAL_PERSISTED_STABILITY_WINDOW);
+  // Nothing beyond the answer log needs fetching to resume. Brief 3's stability window used
+  // to be fetched alongside it here because it was path-dependent — it needed the trajectory
+  // of past checkpoints, not just the current state. The tiered-checkpoint flow that replaced
+  // it (2026-08-17) derives everything from the answer log alone: accuracy, tier and degree
+  // are all pure functions of `answers`, so a resume needs no second source of truth.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,10 +40,7 @@ export function useCalibrationResume(userId: string | undefined) {
       setLoading(true);
       setError(null);
       try {
-        const [rows, stabilityWindow] = await Promise.all([
-          fetchPersistedAnswers(userId!),
-          fetchPersistedStabilityWindow(userId!),
-        ]);
+        const rows = await fetchPersistedAnswers(userId!);
         if (cancelled) return;
 
         const resumed: ResumedAnswer[] = rows.map((row) => ({
@@ -69,7 +58,6 @@ export function useCalibrationResume(userId: string | undefined) {
 
         setAnswers(resumed);
         setDegree(maxDegree);
-        setPersistedStabilityWindow(stabilityWindow);
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
@@ -86,5 +74,5 @@ export function useCalibrationResume(userId: string | undefined) {
     };
   }, [userId]);
 
-  return { answers, degree, persistedStabilityWindow, loading, error };
+  return { answers, degree, loading, error };
 }
