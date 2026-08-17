@@ -1,7 +1,8 @@
 # Tier-gated checkpoints replace the auto-escalation signal
 
-**Status: implemented 2026-08-17, branch `criteria-calibration-tiered-checkpoints`. Live
-verification on a real account is OUTSTANDING — see "Verification" below.**
+**Status: implemented AND verified live 2026-08-17, branch
+`criteria-calibration-tiered-checkpoints`. Migration applied to the live database; browser
+verification done on the disposable QA account. See "Verification" below.**
 
 Design decision made 2026-08-17. Supersedes both Brief 3's duration-based auto-escalation
 signal and the earlier "checkpoint at every degree boundary" sketch (Candidate C as originally
@@ -90,6 +91,24 @@ user sitting exactly on that boundary is correct.
 Regression-tested (`CriteriaCalibrationCheckpoints.test.tsx`, "does not fire a tier checkpoint on
 load").
 
+### 5b. The same gap, one level up: `degree2Acknowledged` on resume
+
+Found during live verification, and the same shape of bug as §5 — session-local state that is
+correct within a visit but wrong on the first render of a resumed one.
+
+`degree2Acknowledged` gates the silent auto-progression effect. On a resumed session it starts
+`false`, because no click happened this visit. A session that left off **exactly at a degree-3+
+boundary** therefore rendered neither a checkpoint (degree is no longer 2, and tiers are
+pre-acknowledged per §5) nor a question (the driver is at a boundary), and could not escalate —
+a dead end with only the transient "Moving on…" fallback showing.
+
+Fix: seed `degree2Acknowledged` from `resume.degree > STARTING_DEGREE`. A session above degree 2
+has already passed the degree-2 decision in an earlier visit; the answer log proves it. Same
+principle as §5 — derive the flag from the log rather than assume a fresh visit.
+
+Caught by the live pass, not by the unit tests as originally written; regression test added
+("a session resumed at a degree-3 boundary is not stranded"), and confirmed live afterwards.
+
 ## 6. Acknowledgment is session-local, deliberately
 
 Decided with Dan (option (a) of two). Persisting it would mean re-adding columns to
@@ -162,11 +181,25 @@ built on, so all four are displayable. `AccuracyLevel` gained `'Very High'`.
   round-trip.
 - `eslint`: 2 errors on the changed page, **both pre-existing on `master`** (recovery effect).
 - Dev server loads clean, no console or server errors.
-- **OUTSTANDING: live verification on a real account.** The route is auth-gated and I cannot log
-  in. Needs Dan to authenticate, then the degree-2 checkpoint and one silent-progression case
-  driven in a browser. The SQL migration is also **not yet applied** — it must be run in the
-  Supabase SQL editor, and until it is, the client sends a 4-param RPC call that will not resolve
-  against the live 11-param function. **Apply the migration before the next live session.**
+- **Migration applied and verified against the live database** (read-only probe, 2026-08-17):
+  all 7 dropped columns return `42703 undefined_column`; `tier`/`accuracy_value`/`answer_count`
+  survive; the 4-param RPC resolves; **the old 11-param overload is gone** (`PGRST202`). That
+  last check matters — `create or replace` with a different parameter list creates an overload
+  rather than replacing, and PostgREST would then disambiguate by argument names. The explicit
+  `drop function` did its job.
+- **Live browser verification, disposable QA account** (seeded via service key from the real
+  driver + a consistent oracle, the same approach that validated auto-recovery on 2026-08-16;
+  account restored to empty afterwards, Dan's own 71-answer account never touched):
+  - **Degree-2 checkpoint** rendered at the boundary with correct copy and both actions.
+  - **"Increase accuracy"** escalated to degree 3 — card went from 2 to 3 criteria, with the
+    "Now comparing 3 criteria at once." clarification.
+  - **Silent auto-progression** confirmed: a session resumed at a degree-3 boundary moved
+    straight to a degree-4 question with no interstitial.
+  - **Very High label** displayed in the header, confirming §10.
+  - **Full persistence round-trip through the narrowed RPC** — the one thing the unit tests
+    have to mock. One browser-committed answer produced `answer_count: 117`,
+    `tier: very_high`, `accuracy_value: 0.9106`, 30 weight rows, and a status row with no
+    stability columns.
 
 ## 12. Open question — NOT resolved here
 
