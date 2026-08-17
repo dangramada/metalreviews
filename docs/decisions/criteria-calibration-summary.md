@@ -9,16 +9,19 @@ numbers. Each answer feeds a preference graph; a linear-programming solver
 per-criterion, per-level value model, which is what actually drives album scores and
 rankings once a user has calibrated. The UI (`CriteriaCalibrationPage.tsx`) walks the user
 through an adaptively-ordered sequence of questions, escalating from broad ("degree 2")
-trade-offs to finer-grained ones as answers accumulate, and stops once the model's accuracy
-and coverage stop improving.
+trade-offs to finer-grained ones as answers accumulate. As of 2026-08-17 the user decides when
+to stop, at explicit checkpoints tied to accuracy tiers — the earlier design, which tried to
+detect a good stopping point automatically, is retired (see
+`criteria-calibration-tiered-checkpoints.md`).
 
 ## Current status
 
 **Shipped and live in production:** the full pipeline — engine, UI, Supabase persistence,
 undo/redo, resume-on-reload, adaptive degree escalation, the two-phase-simplex/Dantzig LP
-solver rewrite, dominance/partial-tie candidate filtering, the score-spread accuracy metric,
-and Brief 3's auto-escalation stop signal. Two independent real user sessions (33/70/71
-real answers across two account resets) have exercised the shipped pipeline end to end.
+solver rewrite, dominance/partial-tie candidate filtering, and the score-spread accuracy
+metric. Two independent real user sessions (33/70/71 real answers across two account resets)
+have exercised the shipped pipeline end to end. (Brief 3's auto-escalation stop signal was
+also shipped, and was **deleted again on 2026-08-17** — see the entry below.)
 
 **2026-08-16 — the LP solver's near-singular-pivot failure mode is CURED**, not merely
 contained: the leaving-row rule is now a Harris two-pass ratio test. `deferred-work.md` item 3
@@ -28,18 +31,30 @@ and the all-'equal' entry are both closed. Read
 (3b, surfaced not caused): the reported point estimate is one arbitrary pick among tied optima,
 so **never pin specific solved weight values in a test**.
 
-**The one open correctness risk, carried forward every session:** `last_eligible_top10` and
-`last_change_answer_index` (`user_calibration_status` table) are unguarded against the same
-un-awaited-write race that `accuracy_value`/`tier`/`answer_count` were fixed against on
-2026-08-15 (see `criteria-calibration-weights-write-race.md`). A regressed
-`last_change_answer_index` can make a later resumed session compute an inflated stability
-span, which can fire Brief 3's auto-escalation signal **earlier than the true trajectory
-warrants** — confirmed live via reproduction script, not theoretical. It cannot falsely
-_un-fire_ an already-correct stop (`fired`'s own guard is unaffected), only fire early. No
-user-visible symptom, no self-correction. Full mechanism and reproduction:
-`criteria-calibration-weights-write-race.md`'s "Fix implemented" section. This is the single
-statement of that risk — `CLAUDE.md` and `deferred-work.md` both point here rather than
+**2026-08-17 — the auto-escalation signal is RETIRED, and with it the project's one open
+correctness risk.** Brief 3's duration-based stop signal (top-10 stability over
+`RANKING_TEST_SET`) is deleted outright — it could never work for a first-time user, and five
+mathematical replacements were tested and all failed (see
+`criteria-calibration-escalation-signal-candidates.md`). In its place, degree escalation is
+gated by four explicit user-facing checkpoints: at the degree-2 boundary, on crossing High, on
+crossing Very High, and a neutral fallback when comparisons run out. Between those, escalation
+is silent. Full design, and the "what NOT to change" list:
+`criteria-calibration-tiered-checkpoints.md`.
+
+The write-race on `last_eligible_top10` / `last_change_answer_index` **stops existing rather
+than being fixed**: it was scoped exactly to those columns, and
+`supabase/user_calibration_status-drop-stability-window.sql` drops them along with the
+`previous_` triple and narrows the RPC to four parameters. Every surviving field is covered by
+the existing `answer_count` guard. `CLAUDE.md` and `deferred-work.md` point here rather than
 restating it.
+
+**Outstanding on that pass:** the SQL migration has **not yet been run** against the live
+database — until it is, the client sends a four-parameter RPC call that will not resolve
+against the live eleven-parameter function. Live browser verification on a real account is also
+still to do.
+
+**Also retired by the same pass:** the `RANKING_TEST_SET` multi-user rework that
+`deferred-work.md` had been holding open. There is no benchmark set left to make per-user.
 
 **Not built:** an in-product explanation of why some users see more questions than others
 (deferred, no UI planned); the "calibration results page" concept (weights/levels shown
@@ -82,11 +97,12 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-auto-escalation-signal.md` — Brief 3 implementation: tier-gated top-10 stability signal
 - `criteria-calibration-fine-grained-firing-instability.md` — diagnostic: K=2 checkpoint window false-positives
 - `criteria-calibration-duration-based-window-fix.md` — replaces K=2 checkpoint count with a real-answer-span window
-- `criteria-calibration-escalation-signal-candidates.md` — diagnostic (2026-08-16, no code changed): evaluates two solver-internal replacements for the `RANKING_TEST_SET` signal, which cannot work for any first-time user. **Both fail** — coverage width (A) has no single threshold that works across the 12-trace evidence set at any R; weight-vector stability (B) is structurally unsound, its converged-tail jitter matching still-learning movement on 5 of 11 traces. Second pass (§9–§14, same day) tested the two named follow-ups — normalised coverage ratio (A2) and accuracy plateau (A3) — and **both fail too**, closing the mathematical-signal direction. **Standing recommendation is Candidate C**: drop detection entirely, show an explicit "See results / Answer more questions" checkpoint at each existing `isDegreeCoverageComplete` boundary (1000minds pattern). Measured cost: 2 extra screens per real session. Deletes ~876 lines, 7 DB columns, and **the project's one open correctness risk** — the write-race is scoped exactly to the columns C removes. Also records that the Harris fix moved both real sessions' stability points, making `deferred-work.md`'s n=35/n=45 figures stale
+- `criteria-calibration-escalation-signal-candidates.md` — diagnostic (2026-08-16, no code changed): evaluates two solver-internal replacements for the `RANKING_TEST_SET` signal, which cannot work for any first-time user. **Both fail** — coverage width (A) has no single threshold that works across the 12-trace evidence set at any R; weight-vector stability (B) is structurally unsound, its converged-tail jitter matching still-learning movement on 5 of 11 traces. Second pass (§9–§14, same day) tested the two named follow-ups — normalised coverage ratio (A2) and accuracy plateau (A3) — and **both fail too**, closing the mathematical-signal direction. **Standing recommendation is Candidate C**: drop detection entirely, show an explicit "See results / Answer more questions" checkpoint at each existing `isDegreeCoverageComplete` boundary (1000minds pattern). Measured cost: 2 extra screens per real session. Deletes ~876 lines, 7 DB columns, and **the project's one open correctness risk** — the write-race is scoped exactly to the columns C removes. Also records that the Harris fix moved both real sessions' stability points, making `deferred-work.md`'s n=35/n=45 figures stale. **RESOLVED 2026-08-17** — a tier-gated variant of Candidate C shipped; see `criteria-calibration-tiered-checkpoints.md`
 
 **Data operations & write-race safety**
 
-- `criteria-calibration-weights-write-race.md` — diagnoses and partially fixes the un-awaited-write race (see "Current status" above)
+- `criteria-calibration-tiered-checkpoints.md` — **read this for anything about degree escalation, stopping, or the accuracy tiers shown to the user.** Retires the auto-escalation signal and replaces it with tier-gated checkpoints (degree-2 boundary / High / Very High / neutral exhaustion fallback); deletes ~876 lines, 7 DB columns and the write-race; corrects two stale premises in its own brief (deprecated threshold constants, and an assumed-merged prerequisite that wasn't); records why tier-crossing here is NOT the thing Pass 2 rejected, and why checkpoints fire on an in-session crossing rather than a standing tier
+- `criteria-calibration-weights-write-race.md` — diagnoses and partially fixes the un-awaited-write race; **the residual risk it documents was retired 2026-08-17 by deleting the columns** (see "Current status" above)
 - `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run; its "Outcome" section (added 2026-08-16) is the current source of truth for Dan's account state — that session ran and completed at 71 answers, so the account is **not** empty
 
 **Research**
