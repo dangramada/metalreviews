@@ -1,8 +1,8 @@
 # Tier-gated checkpoints replace the auto-escalation signal
 
-**Status: implemented AND verified live 2026-08-17, branch
-`criteria-calibration-tiered-checkpoints`. Migration applied to the live database; browser
-verification done on the disposable QA account. See "Verification" below.**
+**Status: MERGED to `master` `--no-ff` at `892f79c`, 2026-08-17. Rollback tag:
+`pre-merge-criteria-calibration-tiered-checkpoints`. Migration applied to the live database;
+browser verification done on the disposable QA account. See "Verification" below.**
 
 Design decision made 2026-08-17. Supersedes both Brief 3's duration-based auto-escalation
 signal and the earlier "checkpoint at every degree boundary" sketch (Candidate C as originally
