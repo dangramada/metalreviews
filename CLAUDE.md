@@ -81,7 +81,9 @@ degree-2 checkpoint, escalation to degree 3, silent auto-progression to degree 4
 persistence round-trip through the narrowed RPC. That pass caught one dead end the unit tests
 missed — a session resumed exactly at a degree-3+ boundary was stranded, since
 `degree2Acknowledged` starts false on resume; fixed by seeding it from `resume.degree`.
-Dan's own 71-answer account was not touched. Full detail:
+Also swapped the degree-2 boundary precedence so a reached High/Very High tier shows its own
+screen instead of degree-2's "Increase accuracy" invitation (observed live at 86% Very High on
+a 105-answer degree-2 log). Dan's own 71-answer account was not touched. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md`.
 
 Most recent merge was `criteria-calibration-escalation-signal-candidates`

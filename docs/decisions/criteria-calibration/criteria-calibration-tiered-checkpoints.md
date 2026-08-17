@@ -33,7 +33,8 @@ rather than at every structural boundary regardless of whether anything changed.
 
 1. **Degree-2 checkpoint.** Fires when degree 2 hits `degree-exhausted`, _regardless_ of whether
    Medium was reached. Shows the real tier — "Low" if it is Low. Two actions: "Increase
-   accuracy" / "Stop here — evaluate albums".
+   accuracy" / "Stop here — evaluate albums". **Unless accuracy has already reached High or Very
+   High, in which case that tier's screen shows instead — see §5c.**
 2. **Silent progression, degree 3+.** After "Increase accuracy", degree escalates 3→4→5→6 as
    pools exhaust, with no screen, until a tier crossing or terminal exhaustion.
 3. **High checkpoint.** Fires on the commit that crosses `SCORE_SPREAD_HIGH_THRESHOLD`.
@@ -108,6 +109,36 @@ principle as §5 — derive the flag from the log rather than assume a fresh vis
 
 Caught by the live pass, not by the unit tests as originally written; regression test added
 ("a session resumed at a degree-3 boundary is not stranded"), and confirmed live afterwards.
+
+### 5c. Tier beats degree 2 when both apply
+
+Changed 2026-08-17 after live verification, reversing the first implementation's precedence.
+
+The two triggers are independent, so both can hold at once. Observed live: a perfectly
+consistent answerer exhausted degree 2 at **105 answers with accuracy 0.8607 — Very High**.
+Degree-2-wins rendered "Your accuracy so far: 86% — Very High" above an **"Increase accuracy"**
+button — inviting the user to improve a number already at the practical ceiling, and directly
+contradicting the Very High screen's premise that nothing further is worth offering.
+
+Precedence is now **Very High > High > degree 2 > terminal exhaustion**. No new copy variant was
+added; it is purely which existing screen wins.
+
+Two consequences that need the code to do more than reorder four branches:
+
+1. **A substituting tier screen must settle the degree-2 decision.** The High screen asks the
+   same question with better-matched copy, so acting on it answers the degree-2 question too.
+   Without this, dismissing High at a degree-2 boundary renders the degree-2 screen immediately
+   afterward, asking again. `handleCheckpointContinue` sets `degree2Acknowledged` in that case.
+2. **The substitution cannot be keyed on "tier not yet acknowledged."** On a resumed session
+   every reached tier is pre-acknowledged (§5), so a resumed session sitting on the degree-2
+   boundary at Very High would fall straight through to the degree-2 screen and reintroduce the
+   exact invitation this removes. The tier branches therefore also fire when a degree-2 decision
+   is pending, acknowledged or not. This cannot loop: acting on the screen clears
+   `degree2Pending`.
+
+Both are regression-tested, and all four tests were confirmed to fail under the old ordering
+before the change landed. Re-verified live on the same 105-answer seed: the Very High screen now
+renders with its single "Evaluate albums" action, which navigates to `?from=` correctly.
 
 ## 6. Acknowledgment is session-local, deliberately
 
@@ -216,6 +247,8 @@ the metric failed. A test asserts both directions. Do not reword it until this i
 ## 13. What NOT to change
 
 - Don't revive a stability window to "improve" the tier checkpoints — see §4.
+- Don't "simplify" the checkpoint precedence back to degree-2-first, and don't make the tier
+  branches depend solely on `acknowledgedTiers` — see §5c for both, each backed by a test.
 - Don't make tier acknowledgment persistent without re-reading §6 and §8; it re-opens a closed
   correctness risk.
 - Don't reword the exhaustion screen in either direction — see §12.
