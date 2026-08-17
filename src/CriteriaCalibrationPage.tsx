@@ -435,21 +435,46 @@ export function CriteriaCalibrationPage() {
   // it stays correct for a catalog with a different number of criteria.
   const isTerminalExhaustion = action?.type === 'degree-exhausted' && !action.canEscalate;
 
-  // Precedence, highest first. Degree 2 wins over a tier checkpoint deliberately: it is the
-  // first considered stopping point the user is offered, and demoting it would mean a session
-  // that crosses High early never gets asked the "do you want more accuracy at all?" question.
-  // Very High wins over High so a single commit that vaults both thresholds shows the terminal
-  // screen rather than an "encouraging progress toward Very High" screen it has already passed.
+  // Precedence, highest first: Very High > High > degree 2 > terminal exhaustion.
+  //
+  // TIER BEATS DEGREE 2 (changed 2026-08-17, after live verification — this deliberately
+  // reverses the first implementation). Both conditions can be true at once: a consistent
+  // answerer can reach Very High while degree 2 is still being exhausted, which was observed
+  // live at 86% accuracy on a 105-answer degree-2 log. Under the old ordering that rendered the
+  // degree-2 screen, which offers "Increase accuracy" — inviting the user to improve a number
+  // that is already at the practical ceiling, and contradicting the Very High screen's whole
+  // premise that there is nothing further worth offering. Showing the tier's own screen instead
+  // is honest about where they actually are. No new copy variant was added for this; it is
+  // purely which existing screen wins.
+  //
+  // Very High beats High so a single commit that vaults both thresholds shows the terminal
+  // screen rather than one encouraging progress toward a tier already passed.
+  // A degree-2 decision is owed: the boundary is reached and the user hasn't answered it yet.
+  const degree2Pending = atDegreeBoundary && degree === STARTING_DEGREE && !degree2Acknowledged;
+
+  // A tier screen shows on a fresh in-session crossing (not yet acknowledged), OR whenever it
+  // is standing in for a pending degree-2 decision. The second clause deliberately ignores
+  // acknowledgment: on a RESUMED session every reached tier is pre-acknowledged (see the seed
+  // in the initial-accuracy effect), so without it a resumed session sitting on the degree-2
+  // boundary at Very High would fall through to the degree-2 screen and show exactly the
+  // "Increase accuracy at the ceiling" invitation this precedence exists to remove. Re-showing
+  // an acknowledged tier screen here cannot loop: acting on it settles the degree-2 decision
+  // (see handleCheckpointContinue), which clears degree2Pending.
   let checkpoint: CheckpointVariant | null = null;
-  if (atDegreeBoundary && degree === STARTING_DEGREE && !degree2Acknowledged) {
-    checkpoint = 'degree2';
-  } else if (tier === 'veryHigh' && !acknowledgedTiers.has('veryHigh')) {
+  if (tier === 'veryHigh' && (!acknowledgedTiers.has('veryHigh') || degree2Pending)) {
     checkpoint = 'veryHigh';
-  } else if (tier === 'high' && !acknowledgedTiers.has('high')) {
+  } else if (tier === 'high' && (!acknowledgedTiers.has('high') || degree2Pending)) {
     checkpoint = 'high';
+  } else if (degree2Pending) {
+    checkpoint = 'degree2';
   } else if (isTerminalExhaustion) {
     checkpoint = 'exhausted';
   }
+
+  // True when a tier checkpoint is standing in for the degree-2 one. Acknowledging it therefore
+  // has to settle the degree-2 decision as well — see handleCheckpointContinue.
+  const tierIsSubstitutingForDegree2 =
+    (checkpoint === 'high' || checkpoint === 'veryHigh') && degree2Pending;
 
   // Shared failure indicator across every persistence call (answer insert/delete, weights/
   // status upsert) — surfaces only on the transition INTO a failing streak, not per-call, so
@@ -773,20 +798,30 @@ export function CriteriaCalibrationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [action, checkpoint, degree2Acknowledged]);
 
-  // "Increase accuracy" at the degree-2 checkpoint: record the choice, then escalate. Both
-  // matter — without the flag the checkpoint would re-render at the same boundary and the
-  // auto-progression effect above would stay switched off forever.
-  function handleDegree2Continue() {
-    setDegree2Acknowledged(true);
-    handleEscalate();
-  }
+  // "Increase accuracy", from whichever checkpoint is currently showing. Only the degree-2 and
+  // High screens offer it; Very High and exhaustion are terminal.
+  function handleCheckpointContinue() {
+    if (checkpoint === 'degree2') {
+      // Both halves matter: without the flag the checkpoint re-renders at the same boundary,
+      // and the auto-progression effect stays switched off forever.
+      setDegree2Acknowledged(true);
+      handleEscalate();
+      return;
+    }
+    if (checkpoint !== 'high') return;
 
-  // "Increase accuracy" at a tier checkpoint. Only the acknowledgment is needed: the user is
-  // mid-degree with questions still available, so there is nothing to escalate — dismissing
-  // the screen returns them to the next question. If they happen to be AT a boundary, the
-  // auto-progression effect picks it up on the very next render.
-  function acknowledgeTier(reached: SolverAccuracyTier) {
-    setAcknowledgedTiers((prev) => new Set(prev).add(reached));
+    setAcknowledgedTiers((prev) => new Set(prev).add('high'));
+    if (tierIsSubstitutingForDegree2) {
+      // This High screen replaced the degree-2 one, and asks the same question ("more accuracy,
+      // or stop here?") with copy better matched to where the user actually is. So answering it
+      // answers the degree-2 question too — without this, the degree-2 screen would render
+      // immediately afterward and ask again.
+      setDegree2Acknowledged(true);
+      handleEscalate();
+    }
+    // Otherwise the user is mid-degree with questions still available: dismissing just returns
+    // them to the next question, and if they happen to be at a boundary the auto-progression
+    // effect picks it up on the next render.
   }
 
   function handleExit() {
@@ -897,11 +932,9 @@ export function CriteriaCalibrationPage() {
               accuracyPercent={progressPercent}
               accuracyLabel={accuracyLabel}
               onContinue={
-                checkpoint === 'degree2'
-                  ? handleDegree2Continue
-                  : checkpoint === 'high'
-                    ? () => acknowledgeTier('high')
-                    : undefined
+                checkpoint === 'degree2' || checkpoint === 'high'
+                  ? handleCheckpointContinue
+                  : undefined
               }
               onFinish={handleFinish}
             />

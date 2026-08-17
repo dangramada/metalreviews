@@ -342,6 +342,82 @@ describe('CriteriaCalibrationPage — tiered checkpoints', () => {
     expect(screen.queryByRole('button', { name: /^Evaluate albums$/ })).toBeNull();
   });
 
+  // Precedence at the degree-2 boundary (changed 2026-08-17). Both conditions can hold on the
+  // SAME commit — one answer can simultaneously push accuracy over a tier and exhaust degree 2
+  // — which is how these are set up. Observed live: a consistent answerer reached 86% (Very
+  // High) on a 105-answer degree-2 log.
+  it('a tier checkpoint beats the degree-2 checkpoint when both fire on the same commit', async () => {
+    accuracyValue = MEDIUM;
+    actionForDegree = () => ASK_AT_DEGREE(2);
+    renderPage();
+    await screen.findAllByRole('article');
+
+    // One answer that both crosses High and exhausts degree 2.
+    accuracyValue = HIGH;
+    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
+    await answerCurrentQuestion();
+
+    expect(await screen.findByText(/Your accuracy is now 78% — High/)).toBeTruthy();
+    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
+  });
+
+  it('at Very High, the degree-2 boundary offers no "Increase accuracy" invitation', async () => {
+    // The point of the precedence swap: never invite the user to improve a number that is
+    // already at the practical ceiling.
+    accuracyValue = MEDIUM;
+    actionForDegree = () => ASK_AT_DEGREE(2);
+    renderPage();
+    await screen.findAllByRole('article');
+
+    accuracyValue = VERY_HIGH;
+    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
+    await answerCurrentQuestion();
+
+    expect(await screen.findByText(/Your accuracy is 90% — Very High/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Increase accuracy/ })).toBeNull();
+    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
+  });
+
+  it('acknowledging a High checkpoint that replaced the degree-2 one does not then ask again', async () => {
+    // The substituting High screen asks the same question, so answering it must settle the
+    // degree-2 decision too — otherwise the degree-2 screen renders immediately afterward.
+    accuracyValue = MEDIUM;
+    actionForDegree = () => ASK_AT_DEGREE(2);
+    renderPage();
+    await screen.findAllByRole('article');
+
+    accuracyValue = HIGH;
+    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
+    await answerCurrentQuestion();
+    await screen.findByText(/Your accuracy is now 78% — High/);
+
+    await clickButton(/Increase accuracy/);
+
+    // Straight to degree 3's questions — no degree-2 screen in between.
+    expect(await screen.findAllByRole('article')).toHaveLength(2);
+    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
+  });
+
+  it('a session RESUMED onto the degree-2 boundary at Very High still gets the tier screen', async () => {
+    // The resume path needs its own guard. Tiers are pre-acknowledged on resume (the
+    // crossing-not-standing rule), so a substitution keyed on "not yet acknowledged" would let
+    // this fall through to the degree-2 screen — reintroducing the ceiling invitation for
+    // exactly the case observed live (105-answer degree-2 log at 86%).
+    accuracyValue = VERY_HIGH;
+    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
+    vi.mocked(useCalibrationResume).mockReturnValue({
+      answers: [],
+      degree: 2,
+      loading: false,
+      error: null,
+    });
+    renderPage();
+
+    expect(await screen.findByText(/Your accuracy is 90% — Very High/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Increase accuracy/ })).toBeNull();
+    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
+  });
+
   it('a session resumed at a degree-3 boundary is not stranded', async () => {
     // Regression guard. `degree2Acknowledged` is session-local and starts false, so on a
     // RESUMED session it cannot have been set by a click this visit. If it also gates
