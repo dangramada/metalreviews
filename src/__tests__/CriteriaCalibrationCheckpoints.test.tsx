@@ -342,6 +342,26 @@ describe('CriteriaCalibrationPage — tiered checkpoints', () => {
     expect(screen.queryByRole('button', { name: /^Evaluate albums$/ })).toBeNull();
   });
 
+  it('a session resumed at a degree-3 boundary is not stranded', async () => {
+    // Regression guard. `degree2Acknowledged` is session-local and starts false, so on a
+    // RESUMED session it cannot have been set by a click this visit. If it also gates
+    // auto-progression, a user who left off exactly at a degree-3+ boundary comes back to a
+    // page that shows neither a checkpoint (degree !== 2, tiers pre-acknowledged) nor a
+    // question (the driver is at a boundary) and cannot escalate — a dead end.
+    accuracyValue = MEDIUM;
+    actionForDegree = (degree) => (degree === 3 ? EXHAUSTED_AT_DEGREE(3) : ASK_AT_DEGREE(degree));
+    vi.mocked(useCalibrationResume).mockReturnValue({
+      answers: [],
+      degree: 3,
+      loading: false,
+      error: null,
+    });
+    renderPage();
+
+    // Must land on degree 4's questions, not on the transient "Moving on…" fallback.
+    expect(await screen.findAllByRole('article')).toHaveLength(2);
+  });
+
   it('navigates to the ?from= destination when the user chooses to evaluate albums', async () => {
     accuracyValue = MEDIUM;
     actionForDegree = () => EXHAUSTED_AT_DEGREE(6, false);

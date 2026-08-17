@@ -48,10 +48,10 @@ than being fixed**: it was scoped exactly to those columns, and
 the existing `answer_count` guard. `CLAUDE.md` and `deferred-work.md` point here rather than
 restating it.
 
-**Outstanding on that pass:** the SQL migration has **not yet been run** against the live
-database — until it is, the client sends a four-parameter RPC call that will not resolve
-against the live eleven-parameter function. Live browser verification on a real account is also
-still to do.
+**Verified live 2026-08-17.** The migration is applied (all 7 columns dropped, the 4-param RPC
+resolves, no stale 11-param overload lingering), and a browser pass on the disposable QA
+account covered the degree-2 checkpoint, escalation, silent auto-progression, and a full
+persistence round-trip through the narrowed RPC.
 
 **Also retired by the same pass:** the `RANKING_TEST_SET` multi-user rework that
 `deferred-work.md` had been holding open. There is no benchmark set left to make per-user.

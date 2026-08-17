@@ -74,11 +74,14 @@ columns; **the write-race correctness risk is retired rather than fixed** — it
 exactly to the dropped columns. Also corrects two stale premises in its own brief: the
 threshold constants it named were deprecated 2026-08-09 (live metric is
 `computeScoreSpreadAccuracy` at 0.55/0.75/0.85), and the prerequisite removal it assumed was
-merged was still live on `master`. 300/300 tests pass, no new type/lint errors.
-**Two things outstanding before merge: the SQL migration has not been run against the live
-database** (until it is, the client's 4-param RPC call won't resolve against the live 11-param
-function), **and live browser verification on a real account is not done** (the route is
-auth-gated). Full detail:
+merged was still live on `master`. 301/301 tests pass, no new type/lint errors.
+**Verified live 2026-08-17**: migration applied and probed (all 7 columns gone, 4-param RPC
+resolves, no stale 11-param overload); browser pass on the disposable QA account covering the
+degree-2 checkpoint, escalation to degree 3, silent auto-progression to degree 4, and a full
+persistence round-trip through the narrowed RPC. That pass caught one dead end the unit tests
+missed — a session resumed exactly at a degree-3+ boundary was stranded, since
+`degree2Acknowledged` starts false on resume; fixed by seeding it from `resume.degree`.
+Dan's own 71-answer account was not touched. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md`.
 
 Most recent merge was `criteria-calibration-escalation-signal-candidates`

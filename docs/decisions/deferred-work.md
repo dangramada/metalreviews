@@ -701,8 +701,8 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
     write-race is retired by the same migration (see the write-race entry below). The shipped
     design differs from Candidate C as recommended above: checkpoints are gated on accuracy
     TIERS (degree-2 boundary, High, Very High, plus a neutral exhaustion fallback), not on
-    every degree boundary. Kept here rather than moved to `finished-work.md` only until the
-    outstanding live verification and the SQL migration are done.
+    every degree boundary. Verified live 2026-08-17 (migration applied, browser pass on the
+    disposable QA account); eligible to move to `finished-work.md` at the next review.
   - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
     `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
     with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account
@@ -749,8 +749,9 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   left to fire early. `verify-write-race-guard.ts`'s check #4, which reproduced the regression
   live, is deleted with the columns. This closes the "one open correctness risk" that
   `CLAUDE.md` and the cluster summary have carried forward every session. See
-  `criteria-calibration-tiered-checkpoints.md` §8. **Not yet moved to `finished-work.md`: the
-  migration still has to be run against the live database.** Original entry follows.
+  `criteria-calibration-tiered-checkpoints.md` §8. The migration was applied and probed on 2026-08-17 — all
+  seven columns return `undefined_column`, and the old overload is gone. Eligible to move to
+  `finished-work.md` at the next review. Original entry follows.
 - **CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL** (not routine cleanup — flagged distinctly
   from this section's other accepted-not-fixed items; see `finished-work.md`'s "Weights/status
   upsert had an unfixed write-race" entry for the 2026-08-15 fix this risk was carved out of):

@@ -225,6 +225,14 @@ export function CriteriaCalibrationPage() {
     async function seedFromResume() {
       if (resume.loading || seeded) return;
       setSeeded(true);
+      // A session resuming ABOVE degree 2 has already passed the degree-2 decision in an
+      // earlier visit — the answers prove it. Seed the flag accordingly, for the same reason
+      // the tier acknowledgments are seeded below: without it, `degree2Acknowledged` is false
+      // on every resume, which gates OFF auto-progression while the degree-2 checkpoint also
+      // can't fire (degree is no longer 2). A session resuming exactly at a degree-3+ boundary
+      // would then render neither a checkpoint nor a question and have no way forward — a dead
+      // end, covered by "a session resumed at a degree-3 boundary is not stranded".
+      if (resume.degree > STARTING_DEGREE) setDegree2Acknowledged(true);
       setAnswers(
         resume.answers.map((a) => ({
           localId: a.localId,
