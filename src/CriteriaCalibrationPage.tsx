@@ -1,16 +1,21 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Box, Container, Flex, Text, VStack, Button } from '@chakra-ui/react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
 import { ProgressHeader } from './components/criteria-calibration/ProgressHeader';
 import { QuestionPrompt } from './components/criteria-calibration/QuestionPrompt';
 import { ComparisonRow } from './components/criteria-calibration/ComparisonRow';
 import { EqualButton } from './components/criteria-calibration/EqualButton';
 import { HistoryActions } from './components/criteria-calibration/HistoryActions';
+import {
+  CalibrationCheckpoint,
+  type CheckpointVariant,
+} from './components/criteria-calibration/CalibrationCheckpoint';
+import type { AccuracyLevel } from './components/criteria-calibration/AccuracyStatus';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
 import { useCalibrationResume } from './hooks/useCalibrationResume';
-import { useRankingTestSetRatings } from './hooks/useRankingTestSetRatings';
 import { usePendingWritesGuard } from './hooks/usePendingWritesGuard';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { useAuth } from './AuthContext';
@@ -20,7 +25,6 @@ import { nextAction, type DriverAction } from './lib/criteria-calibration/elicit
 import {
   computeCommitState,
   type CommitComputation,
-  type StabilityWindowContext,
 } from './lib/criteria-calibration/commitComputation';
 import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatalog';
 import {
@@ -29,13 +33,9 @@ import {
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
 import {
-  seedWindowHistoryOnResume,
-  popWindowHistory,
-  INITIAL_STABILITY_WINDOW_STATE,
-  INITIAL_PERSISTED_STABILITY_WINDOW,
-  type StabilityWindowState,
-  type PersistedStabilityWindow,
-} from './lib/criteria-calibration/rankingStabilitySignal';
+  solverAccuracyTier,
+  type SolverAccuracyTier,
+} from './lib/criteria-calibration/accuracyTiers';
 import {
   profileDegree,
   inferDegreeFromAnswers,
@@ -44,13 +44,25 @@ import {
 } from './lib/criteria-calibration/preferenceGraph';
 
 // ---------------------------------------------------------------------------
-// Part 5a wired the UI to the real engine, in-memory only. Part 5b (this pass) adds
-// Supabase persistence: every real answer is saved as it happens, and reopening the page
-// resumes exactly where the user left off, via the same replay-by-rebuilding-the-session
-// approach 5a already uses for undo — not a second implementation. No High/Very High
-// accuracy is ever shown in the UI — still blocked on the documented solver-metric issue
-// (docs/decisions/criteria-calibration/criteria-calibration-engine.md, "Part 4 finding") — even though this pass
-// now computes and stores those values (harmless stored, would not be harmless displayed).
+// Part 5a wired the UI to the real engine, in-memory only. Part 5b added Supabase
+// persistence: every real answer is saved as it happens, and reopening the page resumes
+// exactly where the user left off, via the same replay-by-rebuilding-the-session approach 5a
+// already uses for undo — not a second implementation.
+//
+// TIERED CHECKPOINTS (2026-08-17) replaced Brief 3's automatic escalation. See
+// docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md. Two changes
+// matter for reading the code below:
+//
+//   1. The auto-escalation useLayoutEffect is GONE, along with the whole
+//      rankingStabilitySignal.ts machinery it read (`fired`, the top-10 window, windowHistory,
+//      and seven DB columns). Degree escalation now happens only when the user chooses it at
+//      an explicit checkpoint, or — between the degree-2 checkpoint and the next tier
+//      crossing — automatically via handleEscalate with no screen shown.
+//   2. High/Very High accuracy IS now displayed. The old rule capping the label at Medium
+//      was about computeSolverAccuracy, the metric deprecated on 2026-08-09 for being blind
+//      to degree-3+ improvement ("Part 4 finding"). The live metric is
+//      computeScoreSpreadAccuracy, and the checkpoint flow is built on its tiers, so showing
+//      them is the point rather than a leak.
 // ---------------------------------------------------------------------------
 
 // Hold duration after a selection, before the fade starts — a deliberate
@@ -91,12 +103,24 @@ const DEGREE_CLARIFICATION_TEXT: Record<number, string> = {
   6: 'All 6 criteria at once — the most detailed comparisons.',
 };
 
-// Brief 3: post-signal copy for the degree-exhausted screen. Framed around calibration
-// confidence, never around ranking/stability directly — ProgressHeader.tsx documents the
-// same standing rule for exit copy, and it applies here too. Illustrative (Dan owns final
-// wording).
-const POST_FIRED_DEGREE_EXHAUSTED_TEXT =
-  "You've reached your highest calibration confidence — you can stop here, or keep refining for extra precision.";
+// Where "evaluate albums" sends the user when they finish or stop. Deliberately an ALLOWLIST
+// keyed by a `from` query param, not a raw path taken from the URL — same mechanism and same
+// param name AlbumRatingPage.tsx already uses for its own back-navigation (see
+// resolveBackDestination there, and docs/decisions/album-rating-page--concept-draft.md).
+// Mirroring it rather than inventing a `next`/`redirectTo` keeps one convention across the
+// app, and an allowlist means a crafted `?from=` can never redirect anywhere we didn't
+// choose. Favorites' soft-gate dialog is the only inbound path today and passes
+// `?from=favorites`; an absent or unrecognised param falls back to /favorites, which is what
+// the hardcoded behaviour was before this existed.
+const EXIT_DESTINATIONS: Record<string, string> = {
+  favorites: '/favorites',
+};
+const DEFAULT_EXIT_DESTINATION = '/favorites';
+
+function resolveExitDestination(from: string | null): string {
+  if (from && EXIT_DESTINATIONS[from]) return EXIT_DESTINATIONS[from];
+  return DEFAULT_EXIT_DESTINATION;
+}
 
 // ---------------------------------------------------------------------------
 // Solver-crash safety net (2026-08-16). The LP solver THROWS on a numerical breakdown
@@ -157,12 +181,10 @@ export function CriteriaCalibrationPage() {
   const { catalog, loading, error } = useCriteriaCatalog();
   const { user } = useAuth();
   const resume = useCalibrationResume(user?.id);
-  // Brief 3: one-time fetch of RANKING_TEST_SET's 13 albums' ratings, independent of the
-  // resume fetch above — doesn't gate seeding, only gates whether a given commit can advance
-  // the stability window (see advanceWindowForCommit below; null while still loading is a
-  // safe no-op, not a block).
-  const { ratingsByAlbum } = useRankingTestSetRatings();
   const { showError } = useFeedbackToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const exitDestination = resolveExitDestination(searchParams.get('from'));
 
   const [answers, setAnswers] = useState<AnswerEntry[]>([]);
   const [redoBuffer, setRedoBuffer] = useState<AnswerEntry[]>([]);
@@ -171,25 +193,26 @@ export function CriteriaCalibrationPage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
 
-  // Brief 3: the tier-gated duration-based stability window (minimum real-answer span with an
-  // unchanged top-10 set — see rankingStabilitySignal.ts). `windowHistory` is one StabilityWindowState
-  // per known answer (seeded 1-2 entries on resume, pushed on every real commit/redo, popped
-  // on Undo — see rankingStabilitySignal.ts's popWindowHistory for the Undo semantics and its
-  // accepted, proven-safe gap at 2+ consecutive Undos with no intervening commit).
-  // `persistedWindow` is the fuller current/previous/lastCommitChangedWindow triple that
-  // upsertWeightsAndStatus writes and a FUTURE resume reads back — kept separately because
-  // windowHistory alone doesn't carry `previous`/`lastCommitChangedWindow`.
-  const [windowHistory, setWindowHistory] = useState<StabilityWindowState[]>([
-    INITIAL_STABILITY_WINDOW_STATE,
-  ]);
-  // Initialized to the empty window, not resume.persistedStabilityWindow — the resume fetch
-  // hasn't resolved on first render regardless, so that value would just be its own default
-  // here too. The real seed happens in seedFromResume below, once resume.loading is false.
-  const [persistedWindow, setPersistedWindow] = useState<PersistedStabilityWindow>(
-    INITIAL_PERSISTED_STABILITY_WINDOW
-  );
-  const currentWindowState =
-    windowHistory[windowHistory.length - 1] ?? INITIAL_STABILITY_WINDOW_STATE;
+  // Which tier checkpoints the user has already clicked through, this page visit only.
+  //
+  // DELIBERATELY NOT PERSISTED (decision recorded in the tiered-checkpoints doc). The tier
+  // itself is a pure function of the answer log — solverAccuracyTier(accuracy) — which is
+  // exactly the path-independence that makes this flow reliable where the retired signal
+  // wasn't. But it also means "accuracy is High" stays true forever once crossed, so without
+  // an acknowledgment record the High checkpoint would re-render on every commit after it.
+  // Session-local state is what closes that, and keeping it session-local (rather than adding
+  // DB columns) is the whole point: this brief's migration empties user_calibration_status of
+  // exactly this kind of client-trajectory bookkeeping, and re-adding some would re-open the
+  // un-awaited-write-race surface it just closed. The cost is that a reload re-shows a
+  // checkpoint once — one extra click, no lost progress, and consistent with `stopped`, which
+  // has never been persisted either.
+  const [acknowledgedTiers, setAcknowledgedTiers] = useState<Set<SolverAccuracyTier>>(new Set());
+  // Set when the user picks "Increase accuracy" at the degree-2 checkpoint. Until then a
+  // degree-2 boundary must SHOW that checkpoint rather than auto-escalate past it; after it,
+  // degree escalation runs silently until a tier checkpoint or exhaustion interrupts (brief
+  // step 2). Also session-local, and self-healing if lost: on reload the checkpoint simply
+  // shows again at the same boundary.
+  const [degree2Acknowledged, setDegree2Acknowledged] = useState(false);
 
   // Seed local state from the resumed session exactly once, when the resume fetch
   // completes. `seeded` guards this so it can't re-run and clobber in-progress answers if
@@ -202,8 +225,14 @@ export function CriteriaCalibrationPage() {
     async function seedFromResume() {
       if (resume.loading || seeded) return;
       setSeeded(true);
-      setPersistedWindow(resume.persistedStabilityWindow);
-      setWindowHistory(seedWindowHistoryOnResume(resume.persistedStabilityWindow));
+      // A session resuming ABOVE degree 2 has already passed the degree-2 decision in an
+      // earlier visit — the answers prove it. Seed the flag accordingly, for the same reason
+      // the tier acknowledgments are seeded below: without it, `degree2Acknowledged` is false
+      // on every resume, which gates OFF auto-progression while the degree-2 checkpoint also
+      // can't fire (degree is no longer 2). A session resuming exactly at a degree-3+ boundary
+      // would then render neither a checkpoint nor a question and have no way forward — a dead
+      // end, covered by "a session resumed at a degree-3 boundary is not stranded".
+      if (resume.degree > STARTING_DEGREE) setDegree2Acknowledged(true);
       setAnswers(
         resume.answers.map((a) => ({
           localId: a.localId,
@@ -306,6 +335,10 @@ export function CriteriaCalibrationPage() {
   // isn't a "commit"), handled by the one-time effect just below.
   const [progressPercent, setProgressPercent] = useState(0);
   const [mediumReached, setMediumReached] = useState(false);
+  // The RAW accuracy, kept alongside the rounded percent above because the tier must be
+  // derived from the unrounded value — Math.round(0.7449) would read as 74% but must not be
+  // allowed to tier as High at a 0.75 threshold.
+  const [accuracy, setAccuracy] = useState(0);
 
   // Computes progress/accuracy exactly once, the first time both the catalog and the
   // resumed answer log are ready — covers page load, independent of which of the two
@@ -328,6 +361,33 @@ export function CriteriaCalibrationPage() {
     initialAccuracyComputedRef.current = true;
     setProgressPercent(Math.round(computation.accuracy * 100));
     setMediumReached(computation.mediumReached);
+    setAccuracy(computation.accuracy);
+
+    // Pre-acknowledge whatever tier the RESUMED log already sits at, so checkpoints fire on a
+    // genuine in-session CROSSING rather than on a standing state.
+    //
+    // Without this, a session resumed above a threshold renders its checkpoint immediately, on
+    // load, before the user has answered anything — and for Very High that is a dead end by
+    // design: it offers no continuation (correctly, per the brief), so a returning user whose
+    // saved log is already Very High could never reach another question. The checkpoint is
+    // meant to mark "your accuracy just improved to X", which is not a thing that happened on
+    // a page load.
+    //
+    // Still fully derived, still nothing persisted: the seed is computed from the same answer
+    // log as everything else, at the one moment the log is first known. It also removes the
+    // reload-re-shows-a-checkpoint wrinkle that session-local acknowledgment would otherwise
+    // have. Deliberately does NOT touch degree2Acknowledged — that checkpoint is triggered by
+    // the degree-2 boundary, not by a tier, and re-showing it to a user sitting exactly on
+    // that boundary is correct.
+    const resumedTier = solverAccuracyTier(computation.accuracy);
+    if (resumedTier !== 'insufficient') {
+      // Seeds 'high' alongside 'veryHigh': a log resuming at Very High has necessarily passed
+      // High too, and leaving it unseeded would fire the High checkpoint on the way back down
+      // after an Undo.
+      setAcknowledgedTiers(
+        resumedTier === 'veryHigh' ? new Set(['high', 'veryHigh']) : new Set([resumedTier])
+      );
+    }
   }, [catalog, seeded, answers]);
 
   const interactionDisabled = phase !== 'idle' || stopped;
@@ -339,6 +399,82 @@ export function CriteriaCalibrationPage() {
   const isFirstAnswerAtDegree =
     answers.filter((a) => profileDegree(a.profileA) === degree).length === 0;
   const degreeClarificationText = degree > 2 ? DEGREE_CLARIFICATION_TEXT[degree] : undefined;
+
+  // ---------------------------------------------------------------------------
+  // Checkpoint derivation (2026-08-17). Everything here is computed during render from
+  // `accuracy` and `action`, both of which are pure functions of the answer log — there is no
+  // stored trajectory, nothing to replay, and nothing that can drift out of sync with the
+  // answers. That is the structural difference from the retired signal, which had to persist
+  // a running window precisely because it could not be re-derived.
+  //
+  // WHY TIER-CROSSING IS LEGITIMATE HERE, despite Pass 2 rejecting it. Pass 2 (see
+  // criteria-calibration-ranking-stability-analysis.md) rejected accuracy tiers as a proxy for
+  // RANKING STABILITY — the tier gate arrives unpredictably relative to the round where the
+  // ranking actually settles (on oracle #6 it becomes eligible at n=71 for a session that
+  // settled at n=40). That is a finding about tiers being a poor ESTIMATOR OF A DIFFERENT,
+  // HIDDEN QUANTITY. Here the tier is not estimating anything: the checkpoint's subject IS the
+  // accuracy tier, and its copy claims nothing about ranking or stability. "Your accuracy
+  // reached High" is true by definition when solverAccuracyTier returns 'high'. Pass 2's
+  // finding therefore does not apply, and this is NOT a reintroduction of the retired
+  // mechanism. Do not "fix" this by reviving a stability window.
+  const tier = solverAccuracyTier(accuracy);
+  const atDegreeBoundary = action?.type === 'degree-exhausted';
+
+  // The one place the tier is turned into user-facing words, shared by the header and the
+  // checkpoint screens so the two can never disagree. Note solverAccuracyTier's
+  // 'insufficient' covers everything below High, which is where isMediumTierReached splits
+  // Low from Medium — the two functions read the same accuracy against different thresholds
+  // (see accuracyTiers.ts), so this ordering is what keeps the four labels contiguous.
+  const accuracyLabel: AccuracyLevel =
+    tier === 'veryHigh' ? 'Very High' : tier === 'high' ? 'High' : mediumReached ? 'Medium' : 'Low';
+
+  // A boundary with nowhere left to escalate to is the real end of the road, and it's the
+  // only way brief step 2b's "pool exhausts without reaching the next tier" can actually
+  // happen: at any lower degree, escalation is available and happens silently, so exhaustion
+  // there is not a terminal state. Expressed as `!canEscalate` rather than `degree === 6` so
+  // it stays correct for a catalog with a different number of criteria.
+  const isTerminalExhaustion = action?.type === 'degree-exhausted' && !action.canEscalate;
+
+  // Precedence, highest first: Very High > High > degree 2 > terminal exhaustion.
+  //
+  // TIER BEATS DEGREE 2 (changed 2026-08-17, after live verification — this deliberately
+  // reverses the first implementation). Both conditions can be true at once: a consistent
+  // answerer can reach Very High while degree 2 is still being exhausted, which was observed
+  // live at 86% accuracy on a 105-answer degree-2 log. Under the old ordering that rendered the
+  // degree-2 screen, which offers "Increase accuracy" — inviting the user to improve a number
+  // that is already at the practical ceiling, and contradicting the Very High screen's whole
+  // premise that there is nothing further worth offering. Showing the tier's own screen instead
+  // is honest about where they actually are. No new copy variant was added for this; it is
+  // purely which existing screen wins.
+  //
+  // Very High beats High so a single commit that vaults both thresholds shows the terminal
+  // screen rather than one encouraging progress toward a tier already passed.
+  // A degree-2 decision is owed: the boundary is reached and the user hasn't answered it yet.
+  const degree2Pending = atDegreeBoundary && degree === STARTING_DEGREE && !degree2Acknowledged;
+
+  // A tier screen shows on a fresh in-session crossing (not yet acknowledged), OR whenever it
+  // is standing in for a pending degree-2 decision. The second clause deliberately ignores
+  // acknowledgment: on a RESUMED session every reached tier is pre-acknowledged (see the seed
+  // in the initial-accuracy effect), so without it a resumed session sitting on the degree-2
+  // boundary at Very High would fall through to the degree-2 screen and show exactly the
+  // "Increase accuracy at the ceiling" invitation this precedence exists to remove. Re-showing
+  // an acknowledged tier screen here cannot loop: acting on it settles the degree-2 decision
+  // (see handleCheckpointContinue), which clears degree2Pending.
+  let checkpoint: CheckpointVariant | null = null;
+  if (tier === 'veryHigh' && (!acknowledgedTiers.has('veryHigh') || degree2Pending)) {
+    checkpoint = 'veryHigh';
+  } else if (tier === 'high' && (!acknowledgedTiers.has('high') || degree2Pending)) {
+    checkpoint = 'high';
+  } else if (degree2Pending) {
+    checkpoint = 'degree2';
+  } else if (isTerminalExhaustion) {
+    checkpoint = 'exhausted';
+  }
+
+  // True when a tier checkpoint is standing in for the degree-2 one. Acknowledging it therefore
+  // has to settle the degree-2 decision as well — see handleCheckpointContinue.
+  const tierIsSubstitutingForDegree2 =
+    (checkpoint === 'high' || checkpoint === 'veryHigh') && degree2Pending;
 
   // Shared failure indicator across every persistence call (answer insert/delete, weights/
   // status upsert) — surfaces only on the transition INTO a failing streak, not per-call, so
@@ -391,22 +527,19 @@ export function CriteriaCalibrationPage() {
   const weightsGenRef = useRef(0);
 
   // Applies an already-computed CommitComputation: updates the displayed accuracy/progress
-  // and persists weights/status (including `windowUpdate`, the stability-window value to
-  // write). Split from the computeCommitState call itself (see commitAdvance/handleUndo/
-  // handleRedo) so each of the three callers can get exactly the CommitComputation shape it
-  // needs — with or without a stability advance — without a second LP solve either way.
-  function applyCommitComputation(
-    computation: CommitComputation,
-    windowUpdate: PersistedStabilityWindow
-  ) {
+  // and persists weights/status. Split from the computeCommitState call itself (see
+  // commitAdvance/handleUndo/handleRedo) so all three callers share one persistence path
+  // without a second LP solve.
+  function applyCommitComputation(computation: CommitComputation) {
     if (!catalog) return;
     setProgressPercent(Math.round(computation.accuracy * 100));
     setMediumReached(computation.mediumReached);
+    setAccuracy(computation.accuracy);
 
     if (user) {
       const myGen = ++weightsGenRef.current;
       beginWrite();
-      upsertWeightsAndStatus(user.id, catalog, computation, windowUpdate)
+      upsertWeightsAndStatus(user.id, catalog, computation)
         .then(() => {
           if (myGen !== weightsGenRef.current) return;
           notifyPersistRecovered();
@@ -424,33 +557,15 @@ export function CriteriaCalibrationPage() {
   // BEFORE touching React state or Supabase (see the safety-net note at the top of this
   // file), so a null return means "this step did not happen" — there is nothing to roll back
   // and, crucially, no persisted answer left without matching weights/status.
-  function trySolve(
-    nextAnswers: AnswerEntry[],
-    stabilityContext: StabilityWindowContext | undefined,
-    failureMessage: string
-  ): CommitComputation | null {
+  function trySolve(nextAnswers: AnswerEntry[], failureMessage: string): CommitComputation | null {
     if (!catalog) return null;
     try {
-      return computeCommitState(catalog, nextAnswers, stabilityContext);
+      return computeCommitState(catalog, nextAnswers);
     } catch (e) {
       console.error('Calibration solver failed — this step was not applied', e);
       showError(failureMessage);
       return null;
     }
-  }
-
-  // Forward step only (a real commit or redo — see commitComputation.ts's header for why
-  // Undo can't go through this). Advances the window using computation.stabilityWindow
-  // (already derived from the SAME solve computeCommitState just ran — no second LP solve),
-  // updates windowHistory/persistedWindow, and returns the value to persist. When ratings
-  // haven't loaded yet, computation.stabilityWindow is undefined and the window simply
-  // doesn't move for this one commit — it catches up on the next one once ratings resolve.
-  function advanceWindowForCommit(computation: CommitComputation): PersistedStabilityWindow {
-    if (!computation.stabilityWindow) return persistedWindow;
-    const next = computation.stabilityWindow;
-    setPersistedWindow(next);
-    setWindowHistory((prev) => [...prev, next.current]);
-    return next;
   }
 
   function commitAdvance(result: ComparisonResult) {
@@ -467,11 +582,7 @@ export function CriteriaCalibrationPage() {
     // used to run AFTER setAnswers + persistNewAnswer, so a throw left the answer in React
     // state and in Supabase while the render that followed it blanked the page. Solving
     // first means a failed comparison is simply never recorded anywhere.
-    const computation = trySolve(
-      nextAnswers,
-      { previous: persistedWindow, ratingsByAlbum },
-      SOLVER_COMMIT_FAILURE_MESSAGE
-    );
+    const computation = trySolve(nextAnswers, SOLVER_COMMIT_FAILURE_MESSAGE);
     if (!computation) {
       // The fade sequence in handleChoice continues either way, so the same question comes
       // back unselected and the user can answer it differently.
@@ -484,8 +595,7 @@ export function CriteriaCalibrationPage() {
     setSelectedSide(null);
     persistNewAnswer(entry);
 
-    const windowUpdate = advanceWindowForCommit(computation);
-    applyCommitComputation(computation, windowUpdate);
+    applyCommitComputation(computation);
   }
 
   // Selection -> Hold -> Transition sequence, unchanged from the mock pass. "Equal" runs the
@@ -522,7 +632,7 @@ export function CriteriaCalibrationPage() {
     // Compute-first, same as commitAdvance: an undo whose target state the solver can't
     // handle is refused outright rather than half-applied (state popped and the DB row
     // deleted, then the solve throws).
-    const computation = trySolve(nextAnswers, undefined, SOLVER_UNDO_FAILURE_MESSAGE);
+    const computation = trySolve(nextAnswers, SOLVER_UNDO_FAILURE_MESSAGE);
     if (!computation) return;
 
     setAnswers(nextAnswers);
@@ -535,20 +645,6 @@ export function CriteriaCalibrationPage() {
     // instead of leaving `nextAction` stuck asking (or rather, wrongly regenerating) a
     // question at a degree that no longer has any answers.
     setDegree(inferDegreeFromAnswers(nextAnswers, STARTING_DEGREE));
-
-    // Undo reverts the window to a specific, already-known prior value rather than advancing
-    // it — see commitComputation.ts's header and rankingStabilitySignal.ts's popWindowHistory
-    // for why this can't go through advanceStabilityWindow the way a real commit does.
-    // `previous`/`lastCommitChangedWindow` are deliberately left as-is (not recomputed) — the
-    // same accepted, proven-safe staleness as a resumed session's post-resume Undo, just
-    // arising from a live-session Undo instead.
-    const { next: nextWindowHistory, current: revertedCurrent } = popWindowHistory(windowHistory);
-    setWindowHistory(nextWindowHistory);
-    const revertedWindow: PersistedStabilityWindow = {
-      ...persistedWindow,
-      current: revertedCurrent,
-    };
-    setPersistedWindow(revertedWindow);
 
     if (last.dbId) {
       beginWrite();
@@ -563,7 +659,14 @@ export function CriteriaCalibrationPage() {
     // If last.dbId isn't set yet, its insert is still in flight (or already failed) —
     // persistNewAnswer's own race check will notice the localId is gone and delete the
     // row itself once that insert resolves.
-    applyCommitComputation(computation, revertedWindow);
+    //
+    // No checkpoint bookkeeping to unwind here. The tier is recomputed from the shorter
+    // answer log like everything else, so an Undo that drops accuracy back below High
+    // genuinely un-crosses that tier — which the retired `fired` signal could not do by
+    // construction (it was one-way and terminal). `acknowledgedTiers` deliberately does NOT
+    // get cleared: having already seen and dismissed the High checkpoint, the user should not
+    // be shown it a second time for re-crossing the same threshold they just stepped back over.
+    applyCommitComputation(computation);
   }
 
   function handleRedo() {
@@ -582,11 +685,7 @@ export function CriteriaCalibrationPage() {
     // Redo is a forward commit and gets the same compute-first treatment as commitAdvance.
     // Note the redo buffer is left intact on failure, so the answer isn't silently lost —
     // the user can retry it after undoing something else.
-    const computation = trySolve(
-      nextAnswers,
-      { previous: persistedWindow, ratingsByAlbum },
-      SOLVER_COMMIT_FAILURE_MESSAGE
-    );
+    const computation = trySolve(nextAnswers, SOLVER_COMMIT_FAILURE_MESSAGE);
     if (!computation) return;
 
     setRedoBuffer((prev) => prev.slice(0, -1));
@@ -598,11 +697,7 @@ export function CriteriaCalibrationPage() {
     setDegree(inferDegreeFromAnswers(nextAnswers, STARTING_DEGREE));
     persistNewAnswer(entry);
 
-    // Redo is a second real (forward) commit point alongside commitAdvance — both create a
-    // new answer and both advance the stability window the same way (using the computation
-    // already solved above, before any of this ran).
-    const windowUpdate = advanceWindowForCommit(computation);
-    applyCommitComputation(computation, windowUpdate);
+    applyCommitComputation(computation);
   }
 
   // Auto-recovery for a PERSISTED answer log the solver can't handle. Compute-first means a
@@ -625,14 +720,6 @@ export function CriteriaCalibrationPage() {
     const trimmed = answers.slice(0, -1);
     setAnswers(trimmed);
     setDegree(inferDegreeFromAnswers(trimmed, STARTING_DEGREE));
-    // Same window revert as handleUndo — this is an undo in everything but who triggered it.
-    const { next: nextWindowHistory, current: revertedCurrent } = popWindowHistory(windowHistory);
-    setWindowHistory(nextWindowHistory);
-    const revertedWindow: PersistedStabilityWindow = {
-      ...persistedWindow,
-      current: revertedCurrent,
-    };
-    setPersistedWindow(revertedWindow);
 
     if (last.dbId) {
       beginWrite();
@@ -663,15 +750,15 @@ export function CriteriaCalibrationPage() {
     // log. If the trimmed log still doesn't solve, this effect simply runs again on the next
     // render — no toast, no state change here.
     try {
-      applyCommitComputation(computeCommitState(catalog, trimmed), revertedWindow);
+      applyCommitComputation(computeCommitState(catalog, trimmed));
     } catch {
       /* still failing — handled by the next trim cycle */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solverFailed, answers, catalog, unrecoverable]);
 
-  // Used both by the auto-escalation effect below (while !currentWindowState.fired) and by
-  // the manual "Add more detail" button (shown only once currentWindowState.fired is true).
+  // Moves to the next degree. Called from the degree-2 and High checkpoints' "Increase
+  // accuracy" action, and from the silent auto-progression effect below.
   function handleEscalate() {
     if (
       !action ||
@@ -684,32 +771,70 @@ export function CriteriaCalibrationPage() {
     setDegree(action.nextDegree);
   }
 
-  // Brief 3 — auto-escalation: while the stability signal hasn't fired yet, degree escalation
-  // happens automatically. The user never sees the "degree exhausted" screen mid-flow while
-  // !fired, only real questions — useLayoutEffect (not useEffect) specifically so this
-  // resolves before paint; an ordinary useEffect would let the browser paint the exhausted
-  // screen for one frame before flipping to the next question, a visible flash this avoids.
-  // Once currentWindowState.fired is true, this effect's condition is permanently false
-  // (fired never un-fires — see rankingStabilitySignal.ts), so escalation reverts to fully
-  // manual from that point on, via the "Add more detail" button.
+  // Silent auto-progression (brief steps 2 and 4). Once the user has chosen "Increase
+  // accuracy" at the degree-2 checkpoint, degree escalates 3->4->5->6 as each pool exhausts
+  // with NO screen shown, until a tier checkpoint or terminal exhaustion interrupts. Gated on
+  // `!checkpoint` so a pending checkpoint always wins — without that, this effect would
+  // escalate straight past the screen the user is supposed to see.
+  //
+  // useLayoutEffect (not useEffect) so it resolves before paint: an ordinary effect would let
+  // the browser paint the bare degree-exhausted state for one frame before flipping to the
+  // next question, a visible flash. This is the one piece of the retired auto-escalation
+  // machinery that survives, and only its mechanics — it is now gated on an explicit user
+  // choice rather than on a signal deciding for the user.
   useLayoutEffect(() => {
-    if (action?.type === 'degree-exhausted' && action.canEscalate && !currentWindowState.fired) {
-      // `degree` genuinely is React state (persisted, read by nextAction, also settable via
-      // resume-seeding and the manual "Add more detail" click below) — it can't just be
-      // computed during render the way the rule's guidance usually suggests instead. This is
-      // the same accepted pattern as App.tsx/FavoritesPage.tsx's own set-state-in-effect
-      // disables: synchronizing local state with a signal (here, the driver's own
-      // degree-exhausted report) that only becomes known once render has already happened.
+    if (checkpoint) return;
+    if (!degree2Acknowledged) return;
+    if (action?.type === 'degree-exhausted' && action.canEscalate) {
+      // `degree` genuinely is React state (read by nextAction, also settable via
+      // resume-seeding and the checkpoints' own "Increase accuracy") — it can't just be
+      // computed during render the way the rule's guidance usually suggests instead. Same
+      // accepted pattern as App.tsx/FavoritesPage.tsx's own set-state-in-effect disables:
+      // synchronizing local state with a signal (the driver's degree-exhausted report) that
+      // only becomes known once render has already happened.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       handleEscalate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, currentWindowState.fired]);
+  }, [action, checkpoint, degree2Acknowledged]);
+
+  // "Increase accuracy", from whichever checkpoint is currently showing. Only the degree-2 and
+  // High screens offer it; Very High and exhaustion are terminal.
+  function handleCheckpointContinue() {
+    if (checkpoint === 'degree2') {
+      // Both halves matter: without the flag the checkpoint re-renders at the same boundary,
+      // and the auto-progression effect stays switched off forever.
+      setDegree2Acknowledged(true);
+      handleEscalate();
+      return;
+    }
+    if (checkpoint !== 'high') return;
+
+    setAcknowledgedTiers((prev) => new Set(prev).add('high'));
+    if (tierIsSubstitutingForDegree2) {
+      // This High screen replaced the degree-2 one, and asks the same question ("more accuracy,
+      // or stop here?") with copy better matched to where the user actually is. So answering it
+      // answers the degree-2 question too — without this, the degree-2 screen would render
+      // immediately afterward and ask again.
+      setDegree2Acknowledged(true);
+      handleEscalate();
+    }
+    // Otherwise the user is mid-degree with questions still available: dismissing just returns
+    // them to the next question, and if they happen to be at a boundary the auto-progression
+    // effect picks it up on the next render.
+  }
 
   function handleExit() {
-    // No "stopped" state is persisted (per the brief) — resuming just picks up wherever the
-    // real answer log left off. Stopping only halts interaction locally.
+    // No "stopped" state is persisted — resuming just picks up wherever the real answer log
+    // left off. Stopping only halts interaction locally.
     setStopped(true);
+  }
+
+  // "Evaluate albums" / "Stop here — evaluate albums" from any checkpoint. Leaves the page
+  // entirely, unlike handleExit's in-place pause: the user has finished deciding, and every
+  // answer is already persisted, so there is nothing to save on the way out.
+  function handleFinish() {
+    navigate(exitDestination);
   }
 
   if (loading) {
@@ -757,13 +882,15 @@ export function CriteriaCalibrationPage() {
         <VStack gap={10} align="stretch">
           {/* Static sibling of the fading region below — never fades itself; only its own
             numeric/text values update, instantly, via prop changes. Progress and Accuracy
-            both drive off the same live solver-accuracy number — Accuracy's level is never
-            anything beyond 'Low'/'Medium' (no High/Very High claim). */}
+            both drive off the same live score-spread-accuracy number. The label now goes all
+            the way to Very High: the old 'never beyond Medium' cap belonged to the deprecated
+            computeSolverAccuracy metric, and the checkpoint flow this header sits above is
+            built on exactly these tiers. */}
           <ProgressHeader
             round={round}
             progressPercent={progressPercent}
             accuracyPercent={progressPercent}
-            accuracyLevel={mediumReached ? 'Medium' : 'Low'}
+            accuracyLevel={accuracyLabel}
             onExit={handleExit}
           />
           {hasPendingWrites && (
@@ -796,6 +923,21 @@ export function CriteriaCalibrationPage() {
                 Recovering your session…
               </Text>
             </Flex>
+          ) : checkpoint ? (
+            // Deliberately ahead of the 'ask' branch: a tier crossing interrupts the question
+            // stream on the commit that crosses it, rather than waiting for a degree boundary
+            // that some sessions never reach again (per the brief's step 2a).
+            <CalibrationCheckpoint
+              variant={checkpoint}
+              accuracyPercent={progressPercent}
+              accuracyLabel={accuracyLabel}
+              onContinue={
+                checkpoint === 'degree2' || checkpoint === 'high'
+                  ? handleCheckpointContinue
+                  : undefined
+              }
+              onFinish={handleFinish}
+            />
           ) : action?.type === 'ask' ? (
             <>
               <Box aria-live="polite">
@@ -825,26 +967,14 @@ export function CriteriaCalibrationPage() {
               </Box>
             </>
           ) : (
-            // degree-exhausted. Brief 3: while !currentWindowState.fired and canEscalate,
-            // the useLayoutEffect above escalates automatically before paint — this branch's
-            // "not fired" copy below should be effectively invisible in practice, kept only
-            // as a sane fallback for the first render/edge timing. Once fired, escalation is
-            // manual again: "Add more detail" reappears, and the copy switches to framing
-            // continuing as optional rather than required (never referencing ranking/
-            // stability directly — same standing rule as ProgressHeader's exit copy).
+            // degree-exhausted with escalation still available and no checkpoint pending —
+            // the auto-progression useLayoutEffect above moves the degree on before paint, so
+            // this should be invisible in practice. Kept as a sane fallback for the first
+            // render / edge timing, and as the honest state if `degree` somehow can't advance.
             <VStack gap={4} aria-live="polite">
-              <Text textAlign="center" color="text.primary" fontFamily="body">
-                {!action?.canEscalate
-                  ? "No more comparisons left to make — you've resolved everything this model can distinguish."
-                  : currentWindowState.fired
-                    ? POST_FIRED_DEGREE_EXHAUSTED_TEXT
-                    : "You've resolved everything at this level of detail."}
+              <Text textAlign="center" color="text.dim" fontFamily="body">
+                Moving on to more detailed comparisons…
               </Text>
-              {action?.canEscalate && currentWindowState.fired && (
-                <Button colorPalette="orange" onClick={handleEscalate}>
-                  Add more detail
-                </Button>
-              )}
             </VStack>
           )}
 

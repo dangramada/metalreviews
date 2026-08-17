@@ -14,6 +14,14 @@ ready to replace the incumbent. Section 7 sketches the direction that is still o
 > open. The current recommendation is **Candidate C** (§12) — drop detection, show an explicit
 > checkpoint at each existing degree boundary. Read §12–§13 for the standing recommendation;
 > §1–§8 remain accurate as the record of why A and B were rejected.
+>
+> **RESOLVED 2026-08-17 — a variant of Candidate C shipped. See
+> `criteria-calibration-tiered-checkpoints.md`.** This doc is now the historical record of why
+> no mathematical signal was viable; it is no longer awaiting a decision. What shipped differs
+> from §12's Candidate C in one respect: checkpoints are gated on accuracy TIERS (the degree-2
+> boundary, then High, then Very High, plus a neutral exhaustion fallback) rather than on every
+> degree boundary. §12's open sub-questions are all answered there. Note §14's caveat 5 about
+> tier thresholds being provisional still applies to the shipped design.
 
 ---
 

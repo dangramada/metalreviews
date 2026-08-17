@@ -1,6 +1,10 @@
 import { HStack, Text } from '@chakra-ui/react';
 
-export type AccuracyLevel = 'Low' | 'Medium' | 'High';
+// 'Very High' added 2026-08-17 with the tiered-checkpoint flow. The page used to hard-cap the
+// displayed label at Medium — that cap was about the deprecated computeSolverAccuracy metric
+// (blind to degree-3+ improvement, see accuracyTiers.ts). The live score-spread metric's tiers
+// are what the checkpoint flow is built on, so all four are now displayable.
+export type AccuracyLevel = 'Low' | 'Medium' | 'High' | 'Very High';
 
 interface AccuracyStatusProps {
   percent: number;

@@ -435,10 +435,17 @@ export const DEGREE_ANOMALY_SESSION_ANSWERS: RealSessionRound[] = [
 // docs/decisions/criteria-calibration/criteria-calibration-fine-grained-firing-instability.md) — this fixture's
 // every-3rd-sample retrospective granularity is exactly what that finding showed is
 // unreliable for verifying a firing point (Pass 4's own n=39 estimate turned out to differ
-// from the real fine-grained result), so rankingStabilitySignal.test.ts no longer asserts an
-// exact firing point against it. Kept as the evidentiary record backing
-// criteria-calibration-ranking-stability-analysis.md, same convention as
-// REAL_PRODUCTION_SESSION_ANSWERS above.
+// from the real fine-grained result), so rankingStabilitySignal.test.ts no longer asserted an
+// exact firing point against it.
+//
+// NO REMAINING CONSUMER as of 2026-08-17: the whole auto-escalation signal was retired (see
+// criteria-calibration-tiered-checkpoints.md) and rankingStabilitySignal.test.ts, this
+// fixture's last reader, was deleted with it. Kept deliberately anyway, and NOT because
+// something might use it again — it is the only committed copy of the raw
+// docs/decisions/backups/ranking-stability-log-2026-08-1{0,1,2}.jsonl snapshots, which are
+// gitignored. It is evidence backing criteria-calibration-ranking-stability-analysis.md, same
+// convention as REAL_PRODUCTION_SESSION_ANSWERS above; deleting it would destroy data that
+// exists nowhere else in the repo. Do not "clean it up" as dead code.
 // ---------------------------------------------------------------------------------------
 
 export interface RankingStabilityCheckpoint {

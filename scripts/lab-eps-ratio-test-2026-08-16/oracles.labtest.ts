@@ -24,20 +24,12 @@ import {
   type SolverAnswer,
   type ValueSolverResult,
 } from '../../src/lib/criteria-calibration/solver.js';
-import {
-  computeCommitState,
-  type StabilityWindowContext,
-} from '../../src/lib/criteria-calibration/commitComputation.js';
-import {
-  INITIAL_PERSISTED_STABILITY_WINDOW,
-  type PersistedStabilityWindow,
-} from '../../src/lib/criteria-calibration/rankingStabilitySignal.js';
+import { computeCommitState } from '../../src/lib/criteria-calibration/commitComputation.js';
 import type { CriteriaCatalog } from '../../src/lib/criteria-calibration/criteriaCatalog.js';
 import type {
   ComparisonResult,
   Profile,
 } from '../../src/lib/criteria-calibration/preferenceGraph.js';
-import type { CriterionLevelRating } from '../../src/lib/album-rating/scoreAndRank.js';
 import {
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
@@ -88,20 +80,6 @@ interface OracleSpec {
   capDegreeAt2?: boolean;
 }
 
-function buildSyntheticRatingsSet(): Map<string, CriterionLevelRating[]> {
-  const rng = createRng(20260816);
-  const map = new Map<string, CriterionLevelRating[]>();
-  for (let i = 0; i < 13; i++) {
-    const ratings: CriterionLevelRating[] = [];
-    for (let c = 0; c < NUM_CRITERIA; c++) {
-      ratings.push({ criterionId: c, level: 1 + Math.floor(rng() * LEVELS_PER_CRITERION[c]) });
-    }
-    map.set(`synthetic-album-${i}`, ratings);
-  }
-  return map;
-}
-const RATINGS_BY_ALBUM = buildSyntheticRatingsSet();
-
 function scoreProfileGT(profile: Profile, gt: GroundTruth): number {
   let total = 0;
   for (const key of Object.keys(profile)) total += gt[Number(key)][profile[Number(key)]];
@@ -136,7 +114,6 @@ function runOracle(spec: OracleSpec): OracleRunResult {
   const start = Date.now();
   const session = new CalibrationSession();
   let degree = STARTING_DEGREE;
-  let persisted: PersistedStabilityWindow = INITIAL_PERSISTED_STABILITY_WINDOW;
   const degreesVisited = new Set<number>();
   let round = 0;
   let stopReason = 'unknown';
@@ -163,12 +140,7 @@ function runOracle(spec: OracleSpec): OracleRunResult {
         }
         session.recordAnswer(action.profileA, action.profileB, result);
         round++;
-        const stabilityContext: StabilityWindowContext = {
-          previous: persisted,
-          ratingsByAlbum: RATINGS_BY_ALBUM,
-        };
-        const commit = computeCommitState(catalog, toSolverAnswers(session), stabilityContext);
-        persisted = commit.stabilityWindow ?? persisted;
+        const commit = computeCommitState(catalog, toSolverAnswers(session));
         finalSolved = commit.solved;
       } else {
         if (spec.capDegreeAt2 && action.degree === 2) {
