@@ -602,6 +602,37 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   constants without that session's data. Full detail:
   `criteria-calibration-score-spread-accuracy.md`.
 
+  **Addressed 2026-08-17 — recalibration ran; the answer is "no better numbers exist."**
+  `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` fitted the
+  three constants against real ground truth (10 synthetic oracles, Kendall's tau vs known true
+  weight vectors; plus A70/B71 as secondary). **All six quality bars tested yield an empty
+  usable threshold window across the 12-trace evidence set** — same failure mode as the
+  escalation-signal diagnostic's Candidate A: good within-session signal (median Spearman
+  0.876), no across-session comparability. `#1 uniform` crosses High at answer **5** while
+  `#4 linear-control` never crosses it in 90 answers and ends with the best ranking in the set.
+  **Recommendation: keep 0.55 / 0.75 / 0.85** (no better triple exists), add a ~15–20 answer
+  floor so Medium cannot be reached at answer 5, and reword the checkpoint copy to claim
+  determinacy rather than correctness. Constants left untouched pending Dan's decision — this
+  entry stays open until that decision is made, but it is no longer waiting on *data*.
+
+  **New, opened by the same pass — `computeScoreSpreadAccuracy` cannot detect inconsistent
+  answering.** It measures how determined the model is, not whether it is right. Oracle `#8`
+  (12% random answer flips) reaches accuracy **1.0000** — feasible region collapsed to a point —
+  at a true-rank correlation of only 0.7575: precisely determined, to the wrong model. No metric
+  computed from the answer log alone can catch this, so it is a limit on what any accuracy
+  number can promise rather than a bug. A separate consistency measure would be needed;
+  `totalSlack` is already computed and already in the trajectory CSVs and is the obvious
+  candidate. Not scoped.
+
+  **Also opened — the published `settle` points understate convergence.** The n=39 / n=46
+  figures (and the oracle settles in the escalation-signal doc §3) are measured on a 13-album
+  set / Dan's rated albums. On a 200-profile pool, 7 of 12 traces are still changing their
+  top-10 past `settle` — `A70` until round 69 against a published 39. Separately, `A70`'s
+  *final* top-10 is not uniquely determined at all (25 profiles could still enter it, 8 of 9
+  internal orderings undecided), so `A70`-based "distance from final" numbers substantially
+  measure the pivot rule. This is `deferred-work` item 5 (arbitrary pick among tied optima)
+  surfacing in a third place. `B71` is fully determined and unaffected.
+
   **Extended 2026-08-10:** same provisional status applies to
   **`MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`** (`elicitationDriver.ts`), the coverage-based
   degree-escalation threshold that replaced the gap-based `MAX_AMBIGUOUS_GAP` check (see
