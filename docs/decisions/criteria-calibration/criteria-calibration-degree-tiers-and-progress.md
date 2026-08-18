@@ -1,9 +1,17 @@
 # Degree-tied accuracy tiers, renamed labels, segmented progress bar — Step 1 recon
 
-**Status: RECON ONLY, 2026-08-18. No production code changed. Awaiting Dan's approval before
-Step 2 (implementation).**
+**Status: IMPLEMENTED 2026-08-18, on branch `criteria-calibration-degree-tiers-and-progress`
+(cut from `master`), not yet merged. §§1-6 below are the Step 1 recon that preceded the
+decision and are unchanged; §§7-11 record what shipped.**
 
-Branch: `criteria-calibration-degree-tiers-and-progress`, cut from `master`.
+**CROSS-REFERENCE DEBT — do not lose this.** This document cites
+`criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
+throughout. That work is still on the **unmerged** `criteria-calibration-accuracy-threshold-recalibration`
+branch; its files do not exist on `master`, so every reference to it here is currently a
+dangling link for anyone reading from `master`. The recon's reproduction check read that
+branch's CSV via `git show`. **When both branches land, re-check these references and correct
+any paths that moved.** Filed in `deferred-work.md` as well, so it does not depend on someone
+re-reading this header.
 
 Diagnostic script: `scripts/degree-tier-recon-2026-08-18.ts` (read-only; the one Supabase call
 is a `select`). Derived data: `degree-tier-recon-2026-08-18.csv`, 945 rows.
@@ -370,3 +378,160 @@ pass:
    trustworthy reference. Two real traces, one user, one account.
 3. Only three traces exhausted all five degrees, so §2a's "degrees 5–6 add nothing" rests on
    `#1`, `#3` and `#8` — with `#8` being the deliberately-noisy one.
+
+---
+
+# Step 2 — what shipped
+
+Approved 2026-08-18 with the mapping, the architecture collapse, the continuous fill, the
+"Unfocused" base rung, and soft-gate option 3. Implemented in one pass.
+
+## 7. The blocking question, answered
+
+Dan asked, before any production code, whether the four traces that never exhaust degree 2
+(`#2 single-dominant`, `#4 linear-control`, `#5 front-loaded`, `#6 back-loaded`) at least reach a
+`degree-exhausted` action by some other route — `pool-empty` — so the degree-2 checkpoint still
+appears, base-rung labelled.
+
+**They do not. Zero `degree-exhausted` actions of either reason, across 90 answers, on all
+four.** The replay escalates on any exhaustion, and all four stayed at degree 2 for the full run,
+so neither reason ever fired. `pool-empty` cannot rescue them either: the degree-2 candidate
+space is 15 criterion pairs' worth of undominated level combinations and does not run dry at that
+scale.
+
+So these users see **no checkpoint and no label change for 90+ answers** — only the accuracy
+percentage and (with the continuous fill) a slowly moving bar. Logged against
+`deferred-work.md`'s existing "preference shapes never reach High" entry, which was also
+**corrected** in the process: it claimed these shapes "run to natural exhaustion within 86-90
+answers", which is the opposite of what happens. `#6 back-loaded` was added to its list. The only
+lever remains `MAX_VALUE_RANGE_FOR_COVERAGE`, out of scope here.
+
+## 8. What the code does now
+
+**New modules.**
+
+- `accuracyTierLabels.ts` — the four display strings and nothing else. Every surface reads it:
+  the header, all four checkpoint screens, and `useCalibrationGate`'s album-page confidence
+  label, which previously kept its own copy of the names.
+- `degreeTiers.ts` — the mapping (`tierForCompletedDegrees`), the position derivation
+  (`completedDegrees` / `tierForPosition`), which degrees get a screen
+  (`isLabelChangingDegree`), the continuous within-degree fill (`computeDegreeCoverageFill`),
+  the monotone clamp (`clampFillMonotone`), and the segmented bar (`computeProgressPercent`).
+  `STARTING_DEGREE` moved here from the page.
+
+**`MAX_VALUE_RANGE_FOR_COVERAGE` is now exported** from `elicitationDriver.ts` (it was
+module-private). The bar reads the same constant as the gate that ends a degree, deliberately: a
+bar built on a copy could drift and then fill at a boundary the driver disagrees with.
+
+**The page.** Four pieces of session state and two resume-seeding effects became one number,
+exactly as §3 planned:
+
+| removed                                             | replaced by                                                       |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| `acknowledgedTiers: Set<SolverAccuracyTier>`        | `acknowledgedBoundaryDegree: number \| null`                      |
+| resume-time tier pre-acknowledgment (~25 lines)     | nothing — a resumed session on a boundary _should_ see its screen |
+| `degree2Acknowledged` + its resume seed             | nothing — subsumed by the boundary number                         |
+| the Very High > High > degree 2 > exhausted chain   | one rule: the screen for the degree just exhausted                |
+| `tierIsSubstitutingForDegree2` and its extra settle | nothing — no substitution is expressible                          |
+
+The silent auto-progression effect survives, re-gated on `!checkpoint` alone. It now carries
+exactly the boundaries with no screen: degrees 5 and 6, plus any boundary already acted on.
+
+**Sharp offers continuation — a deliberate reversal**, recorded here because it overturns
+`criteria-calibration-tiered-checkpoints.md`'s copy rule 3 ("Very High offers no continuation").
+That rule was about an accuracy ceiling: 100% is unreachable, so there was nothing to offer.
+Sharp is the top of the _label_ ladder, not of the work — degrees 5 and 6 still have comparisons,
+and per §2a they stay at Sharp because they change nothing measurable. Making Sharp terminal
+would have made two whole degrees and the terminal-exhaustion screen unreachable. The screen says
+plainly that continuing will not move the label.
+
+**Copy.** All four screens rewritten under the constraint that a label may describe only how many
+degrees of comparison are finished. Headlines name the degree ("3-criteria comparisons complete —
+Clear"); the accuracy percentage appears as a separate stated fact ("your answers currently pin
+the model down to 84%"). The "Increase accuracy" button is now "Keep comparing", since a button
+promising accuracy would reintroduce the conflation the labels just removed. The header reads
+"Detail: Blurry", not "Accuracy: Blurry". The exhaustion screen's neutrality constraint is
+unchanged and still asserted in both directions.
+
+## 9. Two consequences the brief did not scope
+
+**The persisted tier.** `persistence.ts` no longer derives the tier; it takes one. The DB column,
+its CHECK constraint and its four values are untouched, so **no migration was needed** — only
+what puts a value there changed. Deriving it inside `persistence.ts` from the answer log alone
+would have lagged the flow by one answer, and specifically for the user who reaches a boundary
+and stops right there, which is the case where the album pages' label matters most. A small
+effect writes the tier when it changes without a new answer (reaching a boundary promotes the
+tier on an answer log the previous write already covered), through the same guarded RPC; the
+guard is `>=` on answer count, so a re-write at an unchanged count is accepted.
+
+**The soft gate (option 3).** `FavoritesPage`'s rate-album nudge now fires on "this user has no
+calibration weights at all" instead of `tier === 'none'`. Under thresholds those were near
+equivalent — every trace left `'none'` within a handful of answers. Degree-tied `'none'` means
+"has not finished degree 2", which for the §7 shapes never happens, and gating a nudge on that
+would follow a user who has answered ninety questions. `useCalibrationGate` gained `hasWeights`
+alongside `tier`; the tier is still used for the confidence _label_, which is what it is good for.
+
+## 10. Verification
+
+- **`npx tsc -p tsconfig.app.json --noEmit`**: no new errors against the `master` baseline.
+  Zero errors in any changed non-test file. (Note `npm run type-check` is still a no-op in this
+  repo — see `deferred-work.md`.)
+- **`npx vitest run`: 326/326 pass**, up from 305. New coverage:
+  - `degreeTiers.test.ts` (19) — the degree→tier mapping including the "no promotion past Sharp
+    at degrees 5-6" case, position derivation, the fill reaching exactly 1.0 at the gate's own
+    width, degree-scoped touch counting, segment seams joining exactly, catalog-derived segment
+    counts, and the monotone clamp (dip held, genuine rise passed through, reset at a degree
+    change, **not** held across an Undo).
+  - `accuracyTierLabels.test.ts` (3) — a source scan asserting no display surface hardcodes a
+    retired _or_ a current label. Its known limit is documented in the file: it matches whole
+    quoted literals, so prose containing a label would slip past. That gap is closed by
+    construction instead — the checkpoint copy interpolates the constants.
+  - `CriteriaCalibrationCheckpoints.test.tsx` rewritten (12) — label per degree, label ignoring
+    accuracy (set to a would-be-Very-High 0.9 at a degree-2 boundary), silent escalation at
+    degree 5, terminal exhaustion, Sharp's continuation, a resumed session on a boundary not
+    being stranded, `?from=` navigation, and a rendered-output assertion that no screen claims
+    ranking quality.
+  - `FavoritesPage.test.tsx` (+2) — the soft gate nudging with no weights, and **not** nudging a
+    user who has weights but sits on the base tier, which is the exact combination the old
+    condition would have caught.
+- **`eslint`**: 2 errors on the calibration page, both pre-existing on `master` (the recovery
+  effect's `set-state-in-effect`).
+- **Live browser check: NOT YET DONE** — see §11.
+
+## 11. Live verification status
+
+`scripts/seed-degree-tier-qa-2026-08-18.ts` was added for it (same two guards as
+`seed-solver-crash-session.ts`: refuses Dan's user id, refuses a non-empty account) and the
+disposable QA account is seeded with **27 uniform-oracle answers — three short of the degree-2
+boundary at answer 30**, so the transition can be driven by hand with the label and bar both on
+screen. A `front-loaded` seed is available in the same script for the §7 stuck-shape check.
+
+The browser pass itself is blocked on sign-in: the calibration route requires an authenticated
+session, and this session does not enter credentials. The account owner signs in themselves —
+the same convention `seed-solver-crash-session.ts` already records.
+
+## 12. What NOT to change
+
+- **Don't re-attach the tier to an accuracy number.** Six quality bars produced six empty
+  threshold windows (`criteria-calibration-accuracy-threshold-recalibration.md`); this pass did
+  not find a better threshold, it stopped needing one. §2b is the reason, and it applies to any
+  future metric, not just the current one.
+- **Don't let the copy claim ranking quality, score reliability, or confidence.** Degree-tying
+  did not fix the `#4`/`#8` inversion, it re-expressed it — the oracle with the best true ranking
+  sits on the base rung. The rule is enforced by a rendered-output test and stated in
+  `accuracyTierLabels.ts`; don't relax either.
+- **Don't add a rung for degree 5 or 6.** Both change tau by ≤0.04 non-monotonically and accuracy
+  by ≤0.001 on every trace that reached them. There is nothing there to name.
+- **Don't make Sharp terminal again** without re-reading §8. That reverses this pass
+  deliberately, and doing so strands degrees 5-6 and the exhaustion screen.
+- **Don't re-derive the persisted tier inside `persistence.ts`.** It lags by one answer exactly
+  where it matters most — see §9.
+- **Don't gate the album-rating nudge on `tier` again.** See §9 and `deferred-work.md`.
+- **Don't copy `MAX_VALUE_RANGE_FOR_COVERAGE` into the progress code.** It is exported so the bar
+  and the gate share one number; a copy can drift and then fill the segment at a boundary the
+  driver disagrees with.
+- **Don't drop the monotone clamp because it never fires.** It didn't fire in 945 replayed
+  rounds, and that is the expected result, not evidence it is unnecessary — see
+  `clampFillMonotone`'s comment. Equally, don't "fix" it to survive an Undo.
+- **Don't reword the exhaustion screen** in either direction — the open question behind it
+  (`deferred-work.md`) is still open, and a test asserts both directions.
