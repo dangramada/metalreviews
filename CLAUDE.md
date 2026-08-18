@@ -66,7 +66,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-Most recent merge was `criteria-calibration-tiered-checkpoints`
+Current branch is `criteria-calibration-degree-tiers-and-progress` (**not yet merged**).
+Replaces threshold-based accuracy tiers with degree-tied ones: the label names how many degrees
+of trade-off comparison are finished — Unfocused / Blurry / Clear / Sharp, single-sourced in
+`accuracyTierLabels.ts` — while the accuracy percentage stays as an independent, still-displayed
+number. Collapses the whole threshold-crossing apparatus (tier Set, two resume seeds, degree-2
+flag, four-way precedence) to one `acknowledgedBoundaryDegree`; degrees 5-6 escalate silently.
+Progress ring becomes the segmented per-degree bar, filled continuously by the same coverage gate
+that ends a degree. Soft gate decoupled from the tier (`hasWeights`, not `tier === 'none'`). No DB
+migration. **Reverses `criteria-calibration-tiered-checkpoints`' rule that the top tier offers no
+continuation.** 326/326 tests; **live browser pass still outstanding** (blocked on QA-account
+sign-in). Known accepted gap: four preference shapes never exhaust degree 2 and therefore never
+leave the base rung or see a checkpoint at all — logged in `deferred-work.md`. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md`.
+
+Before that, most recent merge was `criteria-calibration-tiered-checkpoints`
 (retires Brief 3's auto-escalation signal outright and replaces it with four explicit
 checkpoints — degree-2 boundary / crossing High / crossing Very High / neutral exhaustion
 fallback — with silent escalation in between. Deletes ~876 lines, 3 one-off scripts and 7
@@ -222,7 +236,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
-- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".** **Before touching degree escalation, stopping, or the accuracy tiers shown to the user, read `criteria-calibration-tiered-checkpoints.md`'s "What NOT to change" — several of its choices deliberately reverse earlier designs.**
+- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".** **Before touching degree escalation, stopping, the accuracy tiers shown to the user, or the calibration progress bar, read `criteria-calibration-degree-tiers-and-progress.md`'s "What NOT to change" first, then `criteria-calibration-tiered-checkpoints.md`'s — the newer doc reverses several of the older one's choices, and both reverse designs older still.**
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)

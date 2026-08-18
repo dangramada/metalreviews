@@ -985,6 +985,15 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
     — it was calibrated against the 2026-08-09 oracle trace and tightening it would cut off a
     measured, still-substantial accuracy gain.
 
+- **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
+  `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
+  throughout — all of which live only on the still-unmerged
+  `criteria-calibration-accuracy-threshold-recalibration` branch. Read from `master`, those are
+  dangling references. **When both branches land, re-check every such citation and correct any
+  path that moved.** Noted in that document's own header too, but tracked here so it does not
+  depend on someone re-reading a header.
+
 - **`npm run type-check` does not type-check anything.** Found 2026-08-17. The root
   `tsconfig.json` has `"files": []` with project references to `tsconfig.app.json` /
   `tsconfig.node.json`, but the script is a bare `tsc --noEmit` — which, with no files and no
