@@ -8,22 +8,18 @@
 // so the extra LP solves the new metric needs are swapped in directly here, no debounce
 // needed (contrast CriteriaCalibrationPage.tsx's progress ring, which does debounce).
 //
-// Combined tier rule (per user_calibration_status.sql's own documented gap): 'high'/
-// 'very_high' require isMediumTierReached() to ALSO be true, not solverAccuracyTier() alone.
-// As of 2026-08-08 (see docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md) both
-// checks read the same `accuracy` value against different thresholds (Medium >=
-// SCORE_SPREAD_MEDIUM_THRESHOLD, High/Very High >= SCORE_SPREAD_HIGH/VERY_HIGH_THRESHOLD),
-// so this is now structurally always true as long as those three constants stay nested in
-// ascending order. The combined check is kept as-is (harmless, and keeps `computeTier`
-// correct if Medium's threshold and High's threshold are ever independently retuned to no
-// longer nest). As of 2026-08-17 the UI DOES display High/Very High — the tiered-checkpoint
-// flow is built on those tiers (see
-// docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md), replacing
-// the earlier rule that capped the displayed label at Medium.
+// TIER SOURCE CHANGED 2026-08-18. This module used to compute the stored tier itself, from
+// accuracy thresholds plus a combined Medium gate (the rule user_calibration_status.sql
+// documents). Both are gone: the tier is now decided by how many degrees of comparison the user
+// has finished and is passed in by the caller — see degreeTiers.ts and
+// docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md. The
+// column, its CHECK constraint and its four values are unchanged, so no migration was needed;
+// what changed is only what puts a value in it. `accuracy_value` still stores the live
+// score-spread accuracy, which is now an independent quantity rather than the tier's source.
 
 import { supabase } from '../../supabaseClient.js';
 import type { ComparisonResult, Profile } from './preferenceGraph.js';
-import { solverAccuracyTier } from './accuracyTiers.js';
+import type { AccuracyTier } from './accuracyTierLabels.js';
 import type { CriteriaCatalog } from './criteriaCatalog.js';
 import type { CommitComputation } from './commitComputation.js';
 
@@ -94,12 +90,65 @@ export async function deleteAnswer(id: string): Promise<void> {
   if (error) throw error;
 }
 
-function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
-  if (!mediumReached) return 'none';
-  const solverTier = solverAccuracyTier(accuracy);
-  if (solverTier === 'veryHigh') return 'very_high';
-  if (solverTier === 'high') return 'high';
-  return 'medium';
+/**
+ * The app's tier identifier in the database's spelling. The two differ only in case
+ * convention ('veryHigh' vs 'very_high'), which is deliberate — the column's CHECK constraint
+ * and every existing row use snake_case, so degree-tying the tier needed no migration.
+ *
+ * CHANGED 2026-08-18: the tier is no longer computed here from accuracy thresholds. It is
+ * decided by how many degrees of comparison the user has finished (degreeTiers.ts) and passed
+ * in by the caller, because that is a property of the elicitation position — which degree the
+ * driver is at, and whether it has reported that degree exhausted — and this module only ever
+ * sees the answer log. Deriving it here from the log alone would lag the flow by one answer,
+ * and specifically would lag it for the user who reaches a boundary and stops right there,
+ * which is the case where the album pages' confidence label matters most.
+ */
+export function tierToDb(tier: AccuracyTier): StatusTier {
+  if (tier === 'veryHigh') return 'very_high';
+  if (tier === 'high') return 'high';
+  if (tier === 'medium') return 'medium';
+  return 'none';
+}
+
+/**
+ * Status-only write, for when the tier changes without a new answer — which degree-tying makes
+ * a real case: reaching a degree boundary promotes the tier on the same answer log the previous
+ * write already covered. Goes through the same guarded RPC as the combined write below, and the
+ * answer-count guard is `>=`, so re-writing at an unchanged count is accepted rather than
+ * rejected as stale.
+ */
+export async function upsertCalibrationStatus(
+  userId: string,
+  tier: AccuracyTier,
+  accuracy: number,
+  answerCount: number
+): Promise<void> {
+  const { error } = await supabase.rpc('upsert_calibration_status', {
+    p_user_id: userId,
+    p_tier: tierToDb(tier),
+    p_accuracy_value: accuracy,
+    p_answer_count: answerCount,
+  });
+  if (error) throw error;
+}
+
+/** Whether this user has any solved criterion weights stored at all.
+ *
+ *  This is what the album-rating soft gate asks as of 2026-08-18, replacing `tier === 'none'`.
+ *  The two used to be near-equivalent — under accuracy thresholds essentially every session
+ *  left 'none' within a handful of answers — but a degree-tied 'none' means "has not finished
+ *  degree 2", which for some preference shapes never happens at all (see deferred-work.md's
+ *  entry on shapes that never exhaust degree 2). Gating a nudge on that would keep nudging a
+ *  user who has answered ninety questions. Weight rows exist from the very first commit, which
+ *  is the thing the gate actually cares about: is there a calibrated model to score with. */
+export async function hasCalibrationWeights(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_criterion_weights')
+    .select('criterion_id')
+    .eq('user_id', userId)
+    .limit(1);
+  if (error) throw error;
+  return (data ?? []).length > 0;
 }
 
 /**
@@ -128,9 +177,10 @@ function computeTier(mediumReached: boolean, accuracy: number): StatusTier {
 export async function upsertWeightsAndStatus(
   userId: string,
   catalog: CriteriaCatalog,
-  computation: CommitComputation
+  computation: CommitComputation,
+  tier: AccuracyTier
 ): Promise<void> {
-  const { solved, accuracy, mediumReached } = computation;
+  const { solved, accuracy } = computation;
 
   const weightRows = catalog.entries.flatMap((entry) =>
     Object.keys(entry.levels)
@@ -148,11 +198,9 @@ export async function upsertWeightsAndStatus(
     .upsert(weightRows, { onConflict: 'user_id,criterion_id,level' });
   if (weightsError) throw weightsError;
 
-  const tier = computeTier(mediumReached, accuracy);
-
   const { error: statusError } = await supabase.rpc('upsert_calibration_status', {
     p_user_id: userId,
-    p_tier: tier,
+    p_tier: tierToDb(tier),
     p_accuracy_value: accuracy,
     p_answer_count: computation.answerCount,
   });
