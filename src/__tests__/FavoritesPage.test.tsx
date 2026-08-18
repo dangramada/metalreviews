@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import { FavoritesPage } from '../FavoritesPage';
@@ -70,6 +70,10 @@ function wrapper({ children }: { children: React.ReactNode }) {
 // stay focused on its own flow. Module-scoped so both the plain-render tests (which never
 // touch supabase directly) and the AddAlbumDrawer tests (which set their own richer mocks)
 // can use it.
+// Flipped by the soft-gate tests below; every other test leaves it false, which is the
+// pre-existing "brand new user" shape.
+let stubHasCalibrationWeights = false;
+
 function stubCalibrationTable(table: string): unknown | undefined {
   if (table === 'user_calibration_status') {
     return {
@@ -80,7 +84,22 @@ function stubCalibrationTable(table: string): unknown | undefined {
       }),
     };
   }
-  if (table === 'album_criteria_ratings' || table === 'user_criterion_weights') {
+  if (table === 'user_criterion_weights') {
+    // Two different shapes hit this table: useAlbumRatingsSummary awaits `.select(...)`
+    // directly, while useCalibrationGate's soft-gate check (2026-08-18) chains
+    // `.select(...).eq(...).limit(1)`. The returned object is therefore both thenable and
+    // chainable, so one stub serves both without either test caring which is which.
+    const result = {
+      data: stubHasCalibrationWeights ? [{ criterion_id: 0 }] : [],
+      error: null,
+    };
+    const chain = {
+      eq: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue(result) }),
+      then: (resolve: (value: typeof result) => unknown) => Promise.resolve(result).then(resolve),
+    };
+    return { select: vi.fn().mockReturnValue(chain) };
+  }
+  if (table === 'album_criteria_ratings') {
     return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
   }
   return undefined;
@@ -94,6 +113,7 @@ function mockHookReturn(overrides: Partial<ReturnType<typeof useFavoritesList>>)
 describe('FavoritesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    stubHasCalibrationWeights = false;
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       const calibrationStub = stubCalibrationTable(table);
       if (calibrationStub) return calibrationStub;
@@ -138,7 +158,9 @@ describe('FavoritesPage', () => {
     render(<FavoritesPage />, { wrapper });
     // Release date now carries the same "Release date: " label as the review card and
     // AlbumRatingPage desktop (design-system-audit-2026-08.md, Pass 4 unification).
-    expect(screen.getAllByText(`Release date: 16 Mar ${currentYear}`).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText(`Release date: 16 Mar ${currentYear}`).length
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('renders genre tags', () => {
@@ -189,6 +211,34 @@ describe('FavoritesPage', () => {
     expect(screen.getByText('All years')).toBeInTheDocument();
     // Current year appears at least once (the option itself)
     expect(screen.getAllByText(String(currentYear)).length).toBeGreaterThanOrEqual(1);
+  });
+
+  // Soft gate, changed 2026-08-18 (see useCalibrationGate's hasWeights comment). It used to
+  // fire on `tier === 'none'`, which was a workable proxy while tiers were accuracy thresholds.
+  // Degree-tied tiers broke that proxy: 'none' now means "has not finished degree 2", which for
+  // some preference shapes never happens at all, so tier-gating would nudge a user who has
+  // answered ninety questions.
+  it('nudges toward calibration when the user has no calibration weights at all', async () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+
+    // The gate's own fetch has to settle first: handleRate no-ops while it is loading, so
+    // clicking too early would make BOTH soft-gate tests pass for the wrong reason.
+    await act(async () => {});
+    fireEvent.click(screen.getAllByRole('button', { name: /Rate this album/i })[0]);
+    expect(await screen.findByText(/Calibrate your criteria first\?/i)).toBeTruthy();
+  });
+
+  it('does NOT nudge a user who has weights but is still on the base tier', async () => {
+    stubHasCalibrationWeights = true;
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+
+    // The stubbed status row is absent, so the tier is 'none' — the exact combination the old
+    // condition would have nudged on, and the one degree-tying makes common and long-lasting.
+    await act(async () => {});
+    fireEvent.click(screen.getAllByRole('button', { name: /Rate this album/i })[0]);
+    expect(screen.queryByText(/Calibrate your criteria first\?/i)).toBeNull();
   });
 
   it('renders the + Add album button', () => {

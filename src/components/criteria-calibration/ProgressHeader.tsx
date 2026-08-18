@@ -1,12 +1,12 @@
 import { Flex, Button } from '@chakra-ui/react';
 import { RoundGaugeGroup } from './RoundGaugeGroup';
-import type { AccuracyLevel } from './AccuracyStatus';
+import type { AccuracyTier } from './AccuracyStatus';
 
 interface ProgressHeaderProps {
   round: number;
   progressPercent: number;
   accuracyPercent: number;
-  accuracyLevel: AccuracyLevel;
+  accuracyTier: AccuracyTier;
   onExit: () => void;
 }
 
@@ -20,7 +20,7 @@ export function ProgressHeader({
   round,
   progressPercent,
   accuracyPercent,
-  accuracyLevel,
+  accuracyTier,
   onExit,
 }: ProgressHeaderProps) {
   return (
@@ -36,7 +36,7 @@ export function ProgressHeader({
         round={round}
         progressPercent={progressPercent}
         accuracyPercent={accuracyPercent}
-        accuracyLevel={accuracyLevel}
+        accuracyTier={accuracyTier}
       />
       <Flex flex="1" justify="flex-end">
         <Button variant="outline" colorPalette="gray" size="sm" onClick={onExit}>

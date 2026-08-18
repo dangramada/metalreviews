@@ -310,7 +310,10 @@ export function generateCandidatesForSubset(
   const seenPairKeys = new Set<string>();
   let attempts = 0;
 
-  while (candidates.length < CANDIDATES_PER_SUBSET && attempts < MAX_GENERATION_ATTEMPTS_PER_SUBSET) {
+  while (
+    candidates.length < CANDIDATES_PER_SUBSET &&
+    attempts < MAX_GENERATION_ATTEMPTS_PER_SUBSET
+  ) {
     attempts++;
     const profileA: Record<number, number> = {};
     const profileB: Record<number, number> = {};
@@ -364,8 +367,13 @@ function buildRefinementCandidatePool(
  * nothing tighter (0.15/0.1/0.05) fired at all within 65 oracle steps, too conservative
  * given this LP's achievable precision. Do not tighten or loosen without the same planned
  * recalibration session.
+ *
+ * EXPORTED as of 2026-08-18 (it was module-private) because the calibration progress bar reads
+ * the same gate continuously — see degreeTiers.ts's computeDegreeCoverageFill. Sharing the
+ * constant is the point: a bar built on a copy of the number could drift from the gate that
+ * actually ends a degree, and then reach 100% at a boundary the driver disagrees with.
  */
-const MAX_VALUE_RANGE_FOR_COVERAGE = 0.2;
+export const MAX_VALUE_RANGE_FOR_COVERAGE = 0.2;
 
 /**
  * A degree is exhausted (nothing left worth asking AT THIS DEGREE) once every free
@@ -451,7 +459,12 @@ export function nextAction(
   }
 
   const touchCounts = computeTouchCounts(session, levelsPerCriterion);
-  const pool = buildRefinementCandidatePool(session, levelsPerCriterion, currentDegree, touchCounts);
+  const pool = buildRefinementCandidatePool(
+    session,
+    levelsPerCriterion,
+    currentDegree,
+    touchCounts
+  );
   const nextDegree = currentDegree + 1;
   const canEscalate = nextDegree <= numCriteria;
 
@@ -470,7 +483,11 @@ export function nextAction(
   // Degree-scoped touch counts for the coverage gate specifically — NOT the same
   // `touchCounts` used above for candidate weighting, which stays degree-agnostic on
   // purpose (see computeTouchCountsForDegree's and isDegreeCoverageComplete's comments).
-  const touchCountsForDegree = computeTouchCountsForDegree(session, levelsPerCriterion, currentDegree);
+  const touchCountsForDegree = computeTouchCountsForDegree(
+    session,
+    levelsPerCriterion,
+    currentDegree
+  );
 
   if (isDegreeCoverageComplete(levelsPerCriterion, solved.values, touchCountsForDegree)) {
     return {
