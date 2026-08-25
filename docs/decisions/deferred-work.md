@@ -985,6 +985,17 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
     — it was calibrated against the 2026-08-09 oracle trace and tightening it would cut off a
     measured, still-substantial accuracy gain.
 
+- **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
+  2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
+  keeps its old threshold-derived value until that user next opens calibration, then silently
+  recomputes degree-tied. Dan's own row is the live case: it reads `very_high` while his
+  71-answer log reaches degree 4, which the new mapping calls `high` / Clear — so his album
+  pages will show Sharp until he opens calibration again, then Clear. **Self-correcting, no
+  backfill needed** (and the soft gate no longer reads the tier), but it is a visible label
+  change on an account that did nothing. A backfill would mean replaying the driver per user;
+  deliberately not written. Full context:
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §12.
+
 - **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
   `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
   `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs

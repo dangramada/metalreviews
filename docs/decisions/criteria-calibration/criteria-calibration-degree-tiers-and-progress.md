@@ -496,21 +496,86 @@ alongside `tier`; the tier is still used for the confidence _label_, which is wh
     condition would have caught.
 - **`eslint`**: 2 errors on the calibration page, both pre-existing on `master` (the recovery
   effect's `set-state-in-effect`).
-- **Live browser check: NOT YET DONE** — see §11.
+- **Live browser check: DONE** — see §11.
 
-## 11. Live verification status
+## 11. Live verification
 
-`scripts/seed-degree-tier-qa-2026-08-18.ts` was added for it (same two guards as
-`seed-solver-crash-session.ts`: refuses Dan's user id, refuses a non-empty account) and the
-disposable QA account is seeded with **27 uniform-oracle answers — three short of the degree-2
-boundary at answer 30**, so the transition can be driven by hand with the label and bar both on
-screen. A `front-loaded` seed is available in the same script for the §7 stuck-shape check.
+Done 2026-08-18 on the disposable QA account (`1ecd9169-…b94c`), seeded via
+`scripts/seed-degree-tier-qa-2026-08-18.ts` (same two guards as
+`seed-solver-crash-session.ts`: refuses Dan's user id, refuses a non-empty account). Dan signed
+in himself; this session never handled credentials. **Dan's own account was verified untouched
+afterwards** — still 71 answers, `updated_at` unchanged at 2026-08-15.
 
-The browser pass itself is blocked on sign-in: the calibration route requires an authenticated
-session, and this session does not enter credentials. The account owner signs in themselves —
-the same convention `seed-solver-crash-session.ts` already records.
+**A full degree transition, with label and bar on screen together.** Seeded 27 uniform-oracle
+answers (three short of the degree-2 boundary at answer 30) and answered the remaining three the
+way the oracle would, so the log stayed the same experiment the recon measured.
 
-## 12. What NOT to change
+|               | round 28 (before) | round 31 (boundary) | round 32 (first degree-3 answer) |
+| ------------- | ----------------- | ------------------- | -------------------------------- |
+| progress ring | 19%               | **20%**             | **25%**                          |
+| accuracy      | 78%               | 79%                 | 79%                              |
+| label         | Unfocused         | **Blurry**          | Blurry                           |
+
+Three things this confirms that no unit test can:
+
+1. **The label ignores accuracy, visibly.** At round 28 the header read **78% next to
+   "Unfocused"** — an accuracy that the retired thresholds would have called _High_, sitting
+   beside the base rung, because degree 2 was not finished. That single frame is the whole
+   change.
+2. **The segment seam is exact in practice.** The bar read 20% at the boundary — `(3-2) x 20 +
+0` — then moved to 25% on the first degree-3 answer, i.e. into the second segment, with no
+   jump or reset.
+3. **The checkpoint fired once, escalated cleanly.** "2-criteria comparisons complete — Blurry",
+   both actions present, "Keep comparing" → a 3-criteria card with the "Now comparing 3 criteria
+   at once." clarification, no re-show.
+
+**Persistence round-trip.** After the boundary: `tier: 'medium'`, `accuracy_value: 0.7939`,
+`answer_count: 31`, 30 weight rows. **The stored tier is degree-derived, demonstrably**: that
+accuracy would have written `high` under the thresholds this pass retired.
+
+**The stuck shape, confirmed as reported.** Re-seeded 60 `front-loaded` answers — the shape §7
+says never exhausts degree 2. At round 61: still degree 2 (2-criteria cards), bar **15%**,
+accuracy 54%, label **Unfocused**, and **no checkpoint had ever appeared**. Exactly the gap
+reported before implementation, now seen rather than inferred.
+
+**The soft gate, in the state that motivated the change.** That same account — `tier: 'none'`,
+60 answers, 30 weight rows — clicked "Rate this album" on Favorites and **went straight to the
+rating page with no nudge**. Under the old `tier === 'none'` condition this user would have been
+stopped by the calibrate-first dialog after sixty answers. `confidenceLabel` was also evaluated
+live against all four DB tier values and returns Unfocused / Blurry / Clear / Sharp from the
+shared constants.
+
+**Console:** the six resource errors visible during the pass (four 400, one 401, one 500) were
+reproduced identically on `master` with the same account and route, and no new error appears on
+this branch. Pre-existing and unrelated. `master` shows "Accuracy: Low" where this branch shows
+"Detail: Unfocused", which is the intended visible difference.
+
+**Not exercised live:** the album-rating page's _rendered_ confidence label, which only appears
+once an album is fully rated. The function behind it was checked directly (above) and the
+single-source rule is covered by `accuracyTierLabels.test.ts`.
+
+**Cleanup:** all 60 answers, the seeded favorite, the 30 weight rows and the status row were
+deleted; the QA account is empty.
+
+## 12. Existing rows keep their old tier until the user returns
+
+Found during the live pass, and worth stating because it is the one migration-shaped consequence
+of a change that needed no migration.
+
+`user_calibration_status.tier` is only rewritten when the calibration page runs. Every row
+written before 2026-08-18 therefore still holds a **threshold-derived** tier until that user next
+opens calibration, at which point it is recomputed degree-tied and overwritten. Dan's own row is
+the live example: it reads `very_high` (accuracy 0.99998), while his 71-answer log reaches degree
+4, which under the new mapping is **`high` / Clear**. His album pages will keep showing Sharp
+until he opens calibration again, then drop to Clear.
+
+This is not a bug and needs no backfill — the value self-corrects on the next visit, and the soft
+gate no longer depends on it. But **it is a visible label change on an account that did nothing**,
+so it should not come as a surprise. A backfill script is possible if that is preferred; it was
+not written, because recomputing the degree-tied tier for a stored log means replaying the driver
+per user, and the lazy path costs nothing.
+
+## 13. What NOT to change
 
 - **Don't re-attach the tier to an accuracy number.** Six quality bars produced six empty
   threshold windows (`criteria-calibration-accuracy-threshold-recalibration.md`); this pass did
