@@ -1,15 +1,23 @@
 // @vitest-environment jsdom
 //
-// Coverage for the tiered-checkpoint flow that replaced Brief 3's automatic degree escalation
-// (2026-08-17) — see docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md.
+// Coverage for the degree-tied checkpoint flow (2026-08-18) — see
+// docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md. It
+// replaced the 2026-08-17 threshold-crossing flow, whose tests these were: a tier can now only
+// change at a degree-exhaustion boundary, so the crossing cases those tests covered (mid-degree
+// interruption, tier-beats-degree-2 precedence, pre-acknowledging a resumed tier) no longer
+// describe anything the code can do.
 //
 // Two things are mocked, and only two: `nextAction` (so a test can put the driver at an exact
 // degree boundary, with or without escalation available, without constructing an answer log
-// that happens to exhaust a pool) and `computeScoreSpreadAccuracy` (so a test can place
-// accuracy at an exact tier without hunting for a log that solves to one). Everything the
-// tests actually assert on runs for real: the page's checkpoint derivation, the escalation and
-// acknowledgment handlers, solverAccuracyTier's thresholds, and CalibrationCheckpoint itself.
-// Mocking the checkpoint derivation would have left nothing worth testing.
+// that happens to exhaust a pool) and `computeScoreSpreadAccuracy` (so the displayed percentage
+// is a known number). Everything the tests assert on runs for real: the page's tier and
+// checkpoint derivation, the escalation and acknowledgment handler, degreeTiers' mapping, and
+// CalibrationCheckpoint itself. Mocking the derivation would have left nothing worth testing.
+//
+// NOTE what the accuracy mock is NOT for any more. Under thresholds it placed the flow at a
+// tier; now it only sets a number the screens print as a separate fact. Several tests below
+// deliberately set it to a value the old thresholds would have called Very High, precisely to
+// assert the label ignores it.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
@@ -42,6 +50,7 @@ vi.mock('../lib/criteria-calibration/persistence', () => ({
   insertAnswer: vi.fn().mockResolvedValue('new-db-id'),
   deleteAnswer: vi.fn().mockResolvedValue(undefined),
   upsertWeightsAndStatus: vi.fn().mockResolvedValue(undefined),
+  upsertCalibrationStatus: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Driven per test. `nextAction` is called with the CURRENT degree, so returning a
@@ -116,13 +125,11 @@ function EXHAUSTED_AT_DEGREE(degree: number, canEscalate = true): DriverAction {
   };
 }
 
-// Thresholds from accuracyTiers.ts — named here so a test reads as "below Medium" rather than
-// as a bare number, and so a future retune surfaces as a failure here rather than silently
-// changing what these tests mean.
-const BELOW_MEDIUM = 0.4; // < SCORE_SPREAD_MEDIUM_THRESHOLD (0.55)
-const MEDIUM = 0.6; // >= 0.55, < SCORE_SPREAD_HIGH_THRESHOLD (0.75)
-const HIGH = 0.78; // >= 0.75, < SCORE_SPREAD_VERY_HIGH_THRESHOLD (0.85)
-const VERY_HIGH = 0.9; // >= 0.85
+// Two accuracy values, named for what the RETIRED thresholds would have made of them — which
+// is the point: the tier no longer reads this number at all, and tests below assert that by
+// putting the flow at a low degree with a would-be-Very-High accuracy.
+const BELOW_MEDIUM = 0.4; // would have been below the old 0.55 Medium threshold
+const VERY_HIGH = 0.9; // would have been above the old 0.85 Very High threshold
 
 function renderPage() {
   return render(
@@ -140,22 +147,7 @@ async function clickButton(name: RegExp | string) {
   });
 }
 
-// Commits one real answer through the page's own selection/hold/fade state machine. The hold
-// is a setTimeout even under reduced motion, so the timers have to be run for the commit —
-// and therefore the accuracy recompute the checkpoint derivation reads — to actually happen.
-// Same approach as CriteriaCalibrationPage.solverCrash.test.tsx.
-async function answerCurrentQuestion() {
-  vi.useFakeTimers();
-  await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: /About equal/i }));
-  });
-  await act(async () => {
-    vi.runAllTimers();
-  });
-  vi.useRealTimers();
-}
-
-describe('CriteriaCalibrationPage — tiered checkpoints', () => {
+describe('CriteriaCalibrationPage — degree-tied checkpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     accuracyValue = BELOW_MEDIUM;
@@ -187,270 +179,164 @@ describe('CriteriaCalibrationPage — tiered checkpoints', () => {
     });
   });
 
-  it('shows the degree-2 checkpoint at the degree-2 boundary even when accuracy is below Medium, and says so honestly', async () => {
-    accuracyValue = BELOW_MEDIUM;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
+  function boundaryAt(degree: number, canEscalate = true) {
+    actionForDegree = (d) =>
+      d === degree ? EXHAUSTED_AT_DEGREE(degree, canEscalate) : ASK_AT_DEGREE(d);
+    vi.mocked(useCalibrationResume).mockReturnValue({
+      answers: [],
+      degree,
+      loading: false,
+      error: null,
+    });
+  }
+
+  it('labels the degree-2 boundary Blurry', async () => {
+    boundaryAt(2);
     renderPage();
 
-    // The brief is explicit that this fires on the degree-2 boundary REGARDLESS of whether
-    // Medium was crossed — and that the copy must not imply a threshold was met when it
-    // wasn't.
-    expect(await screen.findByText(/Your accuracy so far: 40% — Low/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Increase accuracy/ })).toBeTruthy();
+    expect(await screen.findByText(/2-criteria comparisons complete — Blurry/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Keep comparing/ })).toBeTruthy();
+    // Full name: the page header carries its own bare "Stop here" pause button.
     expect(screen.getByRole('button', { name: /Stop here — evaluate albums/ })).toBeTruthy();
   });
 
-  it('labels the degree-2 checkpoint Medium when the threshold genuinely is met', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
-    renderPage();
+  it('labels the degree-3 boundary Clear and the degree-4 boundary Sharp', async () => {
+    boundaryAt(3);
+    const { unmount } = renderPage();
+    expect(await screen.findByText(/3-criteria comparisons complete — Clear/)).toBeTruthy();
+    unmount();
 
-    expect(await screen.findByText(/Your accuracy so far: 60% — Medium/)).toBeTruthy();
+    boundaryAt(4);
+    renderPage();
+    expect(await screen.findByText(/4-criteria comparisons complete — Sharp/)).toBeTruthy();
   });
 
-  it('"Increase accuracy" moves to degree 3 and does not re-show the checkpoint', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
-    renderPage();
-
-    await screen.findByText(/Your accuracy so far/);
-    await clickButton(/Increase accuracy/);
-
-    // Back to real questions at the next degree — no checkpoint, no exhausted screen.
-    expect(await screen.findAllByRole('article')).toHaveLength(2);
-    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
-  });
-
-  it('auto-progresses silently through higher degree boundaries once degree 2 is acknowledged', async () => {
-    accuracyValue = MEDIUM;
-    // Degrees 2 and 3 are both exhausted; 4 has real questions. After acknowledging degree 2,
-    // the degree-3 boundary must pass without a screen (brief step 2).
-    actionForDegree = (degree) =>
-      degree <= 3 ? EXHAUSTED_AT_DEGREE(degree) : ASK_AT_DEGREE(degree);
-    renderPage();
-
-    await screen.findByText(/Your accuracy so far/);
-    await clickButton(/Increase accuracy/);
-
-    // Landed at degree 4's questions, having crossed the degree-3 boundary with no interstitial.
-    const articles = await screen.findAllByRole('article');
-    expect(articles).toHaveLength(2);
-    expect(screen.queryByText(/no more comparisons available/i)).toBeNull();
-  });
-
-  it('interrupts the question stream with the High checkpoint when accuracy crosses High mid-degree', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = () => ASK_AT_DEGREE(3);
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 3,
-      loading: false,
-      error: null,
-    });
-    renderPage();
-
-    // Mid-degree, real questions showing, no checkpoint yet.
-    expect(await screen.findAllByRole('article')).toHaveLength(2);
-
-    // Answering pushes accuracy over High. The checkpoint must appear even though the driver
-    // still has questions available — it is not waiting for a degree boundary.
-    accuracyValue = HIGH;
-    await answerCurrentQuestion();
-
-    expect(await screen.findByText(/Your accuracy is now 78% — High/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Increase accuracy/ })).toBeTruthy();
-  });
-
-  it('offers no continuation at Very High — a single action only', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = () => ASK_AT_DEGREE(3);
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 3,
-      loading: false,
-      error: null,
-    });
-    renderPage();
-    await screen.findAllByRole('article');
-
+  // The whole point of the 2026-08-18 change: the label is a function of degree alone. This
+  // accuracy value would have been Very High under the retired thresholds (>= 0.85).
+  it('assigns the label from the degree, ignoring accuracy entirely', async () => {
     accuracyValue = VERY_HIGH;
-    await answerCurrentQuestion();
+    boundaryAt(2);
+    renderPage();
 
-    expect(await screen.findByText(/Your accuracy is 90% — Very High/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Increase accuracy/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /^Evaluate albums$/ })).toBeTruthy();
+    expect(await screen.findByText(/2-criteria comparisons complete — Blurry/)).toBeTruthy();
+    // The number is still reported — as its own separate fact, never as what earned the label.
+    expect(screen.getByText(/pin the model down to 90%/)).toBeTruthy();
   });
 
-  it('shows the neutral exhaustion fallback when no degree is left to escalate to', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = () => EXHAUSTED_AT_DEGREE(6, false);
+  it('the header shows the degree-tied label and the accuracy percentage as separate values', async () => {
+    accuracyValue = VERY_HIGH;
+    actionForDegree = () => ASK_AT_DEGREE(2);
+    renderPage();
+
+    // Degree 2 still in progress — the base rung, regardless of a 90% accuracy reading.
+    expect(await screen.findByText(/Detail: Unfocused/)).toBeTruthy();
+    expect(screen.getByText('90%')).toBeTruthy();
+  });
+
+  it('"Keep comparing" moves to the next degree and does not re-show the checkpoint', async () => {
+    boundaryAt(2);
+    renderPage();
+
+    expect(await screen.findByText(/2-criteria comparisons complete — Blurry/)).toBeTruthy();
+    await clickButton(/Keep comparing/);
+
+    expect(screen.queryByText(/comparisons complete/)).toBeNull();
+    expect(screen.getByText(/Now comparing 3 criteria at once\./)).toBeTruthy();
+  });
+
+  // Degrees 5 and 6 do not change the tier, so they must not interrupt. This is the one place
+  // silent auto-progression still applies after the rewrite.
+  it('escalates silently through the degree-5 boundary — no screen, no label change', async () => {
+    actionForDegree = (d) => (d === 5 ? EXHAUSTED_AT_DEGREE(5) : ASK_AT_DEGREE(d));
     vi.mocked(useCalibrationResume).mockReturnValue({
       answers: [],
-      degree: 6,
+      degree: 5,
       loading: false,
       error: null,
     });
     renderPage();
 
-    expect(await screen.findByText(/There are no more comparisons available/)).toBeTruthy();
-    expect(screen.getByText(/this is where your answers land/)).toBeTruthy();
-    // Single action, and specifically NO restart CTA — restart lives in the always-visible
-    // control from Brief 2 (not yet built), and must not be duplicated here.
-    expect(screen.queryByRole('button', { name: /Increase accuracy/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /^Evaluate albums$/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /start over|restart/i })).toBeNull();
+    // Straight to a degree-6 question, with the label unchanged at Sharp.
+    expect(await screen.findByText(/All 6 criteria at once/)).toBeTruthy();
+    expect(screen.queryByText(/comparisons complete/)).toBeNull();
+    expect(screen.getByText(/Detail: Sharp/)).toBeTruthy();
   });
 
+  it('shows the neutral exhaustion screen when no degree is left to escalate to', async () => {
+    boundaryAt(6, false);
+    renderPage();
+
+    expect(await screen.findByText(/No comparisons left to ask/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Evaluate albums/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Keep comparing/ })).toBeNull();
+  });
+
+  // Unchanged constraint from the 2026-08-17 pass, and still load-bearing: whether these shapes
+  // reflect genuine under-information or a blind spot in the metric is an open question
+  // (deferred-work.md), so the copy must not answer it in either direction.
   it('exhaustion copy blames neither the user nor the metric (the open question stays open)', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = () => EXHAUSTED_AT_DEGREE(6, false);
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 6,
-      loading: false,
-      error: null,
-    });
-    const { container } = renderPage();
-    await screen.findByText(/There are no more comparisons available/);
-
-    // Whether these sessions reflect genuine under-information or a blind spot in
-    // computeScoreSpreadAccuracy is unresolved (tracked in deferred-work.md), so the copy must
-    // presuppose neither answer.
-    const text = container.textContent ?? '';
-    expect(text).not.toMatch(/inconsistent|contradict|incorrect|mistake|could have/i);
-    expect(text).not.toMatch(/unfortunately|sorry|limitation|failed/i);
-  });
-
-  it('does not fire a tier checkpoint on load for a session resumed above the threshold', async () => {
-    // Regression guard: firing on a standing tier rather than an in-session crossing made a
-    // resumed Very High session a dead end — its checkpoint offers no continuation, so the
-    // user could never reach another question.
-    accuracyValue = VERY_HIGH;
-    actionForDegree = () => ASK_AT_DEGREE(3);
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 3,
-      loading: false,
-      error: null,
-    });
+    boundaryAt(6, false);
     renderPage();
 
-    expect(await screen.findAllByRole('article')).toHaveLength(2);
-    // The ProgressHeader legitimately reads "Accuracy: Very High" here — that is the honest
-    // live label, not a checkpoint. What must be absent is the checkpoint screen itself.
-    expect(screen.queryByText(/This is as precise as this method gets/)).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Evaluate albums$/ })).toBeNull();
+    await screen.findByText(/No comparisons left to ask/);
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/inconsist|contradict|conflict|unreliable|couldn.t determine/i);
+    expect(text).not.toMatch(/limitation|failed|unable to measure/i);
   });
 
-  // Precedence at the degree-2 boundary (changed 2026-08-17). Both conditions can hold on the
-  // SAME commit — one answer can simultaneously push accuracy over a tier and exhaust degree 2
-  // — which is how these are set up. Observed live: a consistent answerer reached 86% (Very
-  // High) on a 105-answer degree-2 log.
-  it('a tier checkpoint beats the degree-2 checkpoint when both fire on the same commit', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = () => ASK_AT_DEGREE(2);
+  // Reverses the old Very High rule deliberately — see CalibrationCheckpoint's copy rule 3.
+  // Sharp is the top of the LABEL ladder, not of the work, and degrees 5-6 are only reachable
+  // through this button.
+  it('Sharp offers continuation, and says plainly that the label will not move', async () => {
+    boundaryAt(4);
     renderPage();
-    await screen.findAllByRole('article');
 
-    // One answer that both crosses High and exhausts degree 2.
-    accuracyValue = HIGH;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
-    await answerCurrentQuestion();
-
-    expect(await screen.findByText(/Your accuracy is now 78% — High/)).toBeTruthy();
-    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
+    await screen.findByText(/4-criteria comparisons complete — Sharp/);
+    expect(screen.getByRole('button', { name: /Keep comparing/ })).toBeTruthy();
+    expect(screen.getByText(/They stay at Sharp/)).toBeTruthy();
   });
 
-  it('at Very High, the degree-2 boundary offers no "Increase accuracy" invitation', async () => {
-    // The point of the precedence swap: never invite the user to improve a number that is
-    // already at the practical ceiling.
-    accuracyValue = MEDIUM;
-    actionForDegree = () => ASK_AT_DEGREE(2);
+  // The 2026-08-17 flow needed a resume-time seed to stop a standing tier firing its screen on
+  // load, and a second one to stop a session resumed at a degree-3+ boundary being stranded with
+  // neither screen nor question. Both are deleted; this asserts the behaviour they were
+  // protecting still holds, from the derivation alone.
+  it("a session resumed onto a boundary shows that boundary's checkpoint, and is never stranded", async () => {
+    boundaryAt(3);
     renderPage();
-    await screen.findAllByRole('article');
 
-    accuracyValue = VERY_HIGH;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
-    await answerCurrentQuestion();
-
-    expect(await screen.findByText(/Your accuracy is 90% — Very High/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Increase accuracy/ })).toBeNull();
-    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
+    expect(await screen.findByText(/3-criteria comparisons complete — Clear/)).toBeTruthy();
+    await clickButton(/Keep comparing/);
+    expect(screen.getByText(/4 criteria this time\./)).toBeTruthy();
   });
 
-  it('acknowledging a High checkpoint that replaced the degree-2 one does not then ask again', async () => {
-    // The substituting High screen asks the same question, so answering it must settle the
-    // degree-2 decision too — otherwise the degree-2 screen renders immediately afterward.
-    accuracyValue = MEDIUM;
-    actionForDegree = () => ASK_AT_DEGREE(2);
-    renderPage();
-    await screen.findAllByRole('article');
-
-    accuracyValue = HIGH;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
-    await answerCurrentQuestion();
-    await screen.findByText(/Your accuracy is now 78% — High/);
-
-    await clickButton(/Increase accuracy/);
-
-    // Straight to degree 3's questions — no degree-2 screen in between.
-    expect(await screen.findAllByRole('article')).toHaveLength(2);
-    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
-  });
-
-  it('a session RESUMED onto the degree-2 boundary at Very High still gets the tier screen', async () => {
-    // The resume path needs its own guard. Tiers are pre-acknowledged on resume (the
-    // crossing-not-standing rule), so a substitution keyed on "not yet acknowledged" would let
-    // this fall through to the degree-2 screen — reintroducing the ceiling invitation for
-    // exactly the case observed live (105-answer degree-2 log at 86%).
-    accuracyValue = VERY_HIGH;
-    actionForDegree = (degree) => (degree === 2 ? EXHAUSTED_AT_DEGREE(2) : ASK_AT_DEGREE(degree));
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 2,
-      loading: false,
-      error: null,
-    });
-    renderPage();
-
-    expect(await screen.findByText(/Your accuracy is 90% — Very High/)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Increase accuracy/ })).toBeNull();
-    expect(screen.queryByText(/Your accuracy so far/)).toBeNull();
-  });
-
-  it('a session resumed at a degree-3 boundary is not stranded', async () => {
-    // Regression guard. `degree2Acknowledged` is session-local and starts false, so on a
-    // RESUMED session it cannot have been set by a click this visit. If it also gates
-    // auto-progression, a user who left off exactly at a degree-3+ boundary comes back to a
-    // page that shows neither a checkpoint (degree !== 2, tiers pre-acknowledged) nor a
-    // question (the driver is at a boundary) and cannot escalate — a dead end.
-    accuracyValue = MEDIUM;
-    actionForDegree = (degree) => (degree === 3 ? EXHAUSTED_AT_DEGREE(3) : ASK_AT_DEGREE(degree));
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 3,
-      loading: false,
-      error: null,
-    });
-    renderPage();
-
-    // Must land on degree 4's questions, not on the transient "Moving on…" fallback.
-    expect(await screen.findAllByRole('article')).toHaveLength(2);
+  // The copy constraint from accuracyTierLabels.ts, asserted on rendered output rather than
+  // trusted to review: degree-tying did NOT fix the recalibration report's #4/#8 inversion, so
+  // no screen may present its label as a statement about ranking quality.
+  it('no checkpoint screen claims the label says anything about ranking quality', async () => {
+    for (const degree of [2, 3, 4]) {
+      boundaryAt(degree);
+      const { unmount } = renderPage();
+      await screen.findByText(/comparisons complete/);
+      const text = document.body.textContent ?? '';
+      expect(text).not.toMatch(/rank/i);
+      expect(text).not.toMatch(/reliable|trustworthy|confiden/i);
+      expect(text).not.toMatch(/accurate/i);
+      unmount();
+    }
   });
 
   it('navigates to the ?from= destination when the user chooses to evaluate albums', async () => {
-    accuracyValue = MEDIUM;
-    actionForDegree = () => EXHAUSTED_AT_DEGREE(6, false);
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 6,
-      loading: false,
-      error: null,
-    });
-    renderPage();
-    await screen.findByText(/There are no more comparisons available/);
+    boundaryAt(2);
+    render(
+      <ChakraProvider value={system}>
+        <MemoryRouter initialEntries={['/calibrate?from=favorites']}>
+          <CriteriaCalibrationPage />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
 
-    await clickButton(/^Evaluate albums$/);
+    await screen.findByText(/2-criteria comparisons complete — Blurry/);
+    await clickButton(/Stop here — evaluate albums/);
     expect(mockNavigate).toHaveBeenCalledWith('/favorites');
   });
 });

@@ -1017,14 +1017,21 @@ export function FavoritesPage() {
   // blocked below Medium tier (album-rating-soft-gate, reversing the original 30 July
   // gating decision) — `tier` still drives the nudge dialog and the confidence badge, but
   // `handleRate` always reaches the rating page one way or another.
-  const { tier: calibrationTier, loading: gateLoading } = useCalibrationGate();
+  const {
+    tier: calibrationTier,
+    hasWeights: hasCalibrationWeights,
+    loading: gateLoading,
+  } = useCalibrationGate();
   const { summary: ratingSummary } = useAlbumRatingsSummary();
   const [gateNudgeOpen, setGateNudgeOpen] = useState(false);
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
   function handleRate(item: FavoriteListItem) {
     if (gateLoading) return;
-    if (calibrationTier === 'none') {
+    // Gated on "is there a calibrated model at all", NOT on the tier — see useCalibrationGate's
+    // hasWeights comment. Under degree-tied tiers a user can answer ninety questions and still
+    // be tier 'none', and nudging them to go calibrate would be absurd.
+    if (!hasCalibrationWeights) {
       setPendingRateAlbumId(item.albumId);
       setGateNudgeOpen(true);
       return;

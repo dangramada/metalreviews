@@ -958,6 +958,53 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   a distinct question from the provisional-threshold entry above: retuning the threshold would
   change _which_ sessions are affected, not explain _why_ these shapes behave this way.
 
+  **EXTENDED AND PARTLY CORRECTED 2026-08-18** (recon on
+  `criteria-calibration-degree-tiers-and-progress`, see
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §2d and the
+  degree-tied-tiers write-up's "the four stuck shapes" section):
+  - **Correction to the wording above.** These shapes do NOT run "to natural exhaustion within
+    86-90 answers". They never exhaust anything: replaying all four (`#2 single-dominant`,
+    `#4 linear-control`, `#5 front-loaded`, and — newly added to the list — `#6 back-loaded`)
+    against the real driver produces **zero `degree-exhausted` actions of either reason in 90
+    answers**. They hit the round cap still inside degree 2.
+  - **The blocker is isolated.** `touched` reaches 24/24 on all four; it is the width half of
+    `isDegreeCoverageComplete` that stalls, with max feasible width 0.79-0.997 against
+    `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`. One or more level-values stay essentially
+    undetermined because these preference shapes never generate a comparison that constrains
+    them. `pool-empty` cannot rescue it either: the degree-2 candidate space (15 criterion pairs
+    x many undominated level combinations) does not run dry within 90 answers.
+  - **Product consequence, now live.** Since 2026-08-18 the accuracy label is tied to degree
+    exhaustion, so these users see **no checkpoint and no label change for 90+ answers** — the
+    session presents only a moving accuracy percentage and (with the continuous fill) a slowly
+    moving progress bar. Under the previous threshold-based labels three of the four reached
+    Medium and one reached High. This is a known, accepted gap, not a regression that was
+    missed: it was reported before implementation and explicitly scoped out.
+  - **The only lever is `MAX_VALUE_RANGE_FOR_COVERAGE`**, which is solver-adjacent, flagged
+    PROVISIONAL in `elicitationDriver.ts`, and was deliberately re-checked and left unchanged by
+    the Harris pass. Any future session touching it must read that constant's own comment first
+    — it was calibrated against the 2026-08-09 oracle trace and tightening it would cut off a
+    measured, still-substantial accuracy gain.
+
+- **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
+  2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
+  keeps its old threshold-derived value until that user next opens calibration, then silently
+  recomputes degree-tied. Dan's own row is the live case: it reads `very_high` while his
+  71-answer log reaches degree 4, which the new mapping calls `high` / Clear — so his album
+  pages will show Sharp until he opens calibration again, then Clear. **Self-correcting, no
+  backfill needed** (and the soft gate no longer reads the tier), but it is a visible label
+  change on an account that did nothing. A backfill would mean replaying the driver per user;
+  deliberately not written. Full context:
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §12.
+
+- **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
+  `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
+  throughout — all of which live only on the still-unmerged
+  `criteria-calibration-accuracy-threshold-recalibration` branch. Read from `master`, those are
+  dangling references. **When both branches land, re-check every such citation and correct any
+  path that moved.** Noted in that document's own header too, but tracked here so it does not
+  depend on someone re-reading a header.
+
 - **`npm run type-check` does not type-check anything.** Found 2026-08-17. The root
   `tsconfig.json` has `"files": []` with project references to `tsconfig.app.json` /
   `tsconfig.node.json`, but the script is a bare `tsc --noEmit` — which, with no files and no
