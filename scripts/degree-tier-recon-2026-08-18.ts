@@ -73,6 +73,17 @@ const STARTING_DEGREE = 2;
 const MAX_ROUNDS = process.env.RECON_MAX_ROUNDS ? Number(process.env.RECON_MAX_ROUNDS) : 90;
 const ORACLE_FILTER = process.env.RECON_ONLY ? process.env.RECON_ONLY.split(',').map(Number) : null;
 
+// ADDED 2026-08-25 (criteria-calibration-normalized-coverage-width-diagnostic): opt-in emission
+// of the PER-VARIABLE feasible widths this script already computes but previously only ever
+// aggregated into covered/touched/narrow/softFill. The normalized-coverage-width diagnostic
+// needs each variable's own width trajectory (its width at first touch, and the round-by-round
+// mean across touched variables), neither of which is recoverable from the aggregates.
+//
+// Strictly additive: when unset, this script's behaviour and its
+// degree-tier-recon-2026-08-18.csv output are byte-identical to before (verified with `diff`).
+// When set, a SECOND csv is written alongside it; the first is untouched either way.
+const EMIT_WIDTHS = process.env.RECON_EMIT_WIDTHS === '1';
+
 // The progress bar's within-degree denominator: every FREE (criterion, level) variable, i.e.
 // levels 2..max for each criterion. 24 for the production 6x5 shape. Derived, not hardcoded,
 // so a catalog change can't silently desynchronise the bar from the coverage gate.
@@ -300,6 +311,18 @@ interface CoverageCounts {
    * instead of as a step.
    */
   softFill: number;
+  /** Per free (criterion, level) variable, this round: its feasible width and whether it was
+   *  touched AT THE CURRENT DEGREE. Populated only under RECON_EMIT_WIDTHS (see above) — the
+   *  aggregates are what the original recon reports, and building this array unconditionally
+   *  would allocate 24 objects per round for nothing on the default path. */
+  perVariable: VariableWidth[] | null;
+}
+
+interface VariableWidth {
+  criterion: number;
+  level: number;
+  width: number;
+  touchedAtDegree: boolean;
 }
 
 function coverageCounts(
@@ -321,11 +344,18 @@ function coverageCounts(
   let touched = 0;
   let narrow = 0;
   let softTotal = 0;
+  const perVariable: VariableWidth[] | null = EMIT_WIDTHS ? [] : null;
   for (let c = 0; c < LEVELS_PER_CRITERION.length; c++) {
     for (let level = 2; level <= LEVELS_PER_CRITERION[c]; level++) {
       const isTouched = touchedAtDegree[c][level];
       const v = values[c][level];
       const isNarrow = v.max - v.min < MAX_VALUE_RANGE_FOR_COVERAGE;
+      perVariable?.push({
+        criterion: c,
+        level,
+        width: v.max - v.min,
+        touchedAtDegree: isTouched,
+      });
       if (isTouched) touched++;
       if (isNarrow) narrow++;
       if (isTouched && isNarrow) covered++;
@@ -336,7 +366,7 @@ function coverageCounts(
       }
     }
   }
-  return { covered, touched, narrow, softFill: softTotal / FREE_VARIABLE_COUNT };
+  return { covered, touched, narrow, softFill: softTotal / FREE_VARIABLE_COUNT, perVariable };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -356,6 +386,8 @@ interface RoundRecord {
   accuracy: number | null; // boundary + final rounds only (cost)
   isBoundary: boolean; // this round is the last one at its degree (degree exhausted after it)
   boundaryReason: string | null;
+  /** RECON_EMIT_WIDTHS only — see EMIT_WIDTHS above. */
+  perVariable: VariableWidth[] | null;
 }
 
 const evalPool = buildEvalPool();
@@ -439,6 +471,7 @@ function runOracle(spec: OracleSpec): RoundRecord[] {
         accuracy: null,
         isBoundary: false,
         boundaryReason: null,
+        perVariable: counts.perVariable,
       });
     } else {
       // degree-exhausted: mark the round that produced it, then escalate (or stop).
@@ -539,6 +572,7 @@ function runRealSession(trace: string, answers: SolverAnswer[]): RoundRecord[] {
       accuracy: null,
       isBoundary: nextDegree > degree,
       boundaryReason: nextDegree > degree ? 'session-escalated' : null,
+      perVariable: counts.perVariable,
     });
     if (nextDegree > degree || i === answers.length - 1) {
       rows[rows.length - 1].accuracy = computeScoreSpreadAccuracy({
@@ -632,6 +666,30 @@ async function main() {
   const outPath = path.join(DOCS, 'degree-tier-recon-2026-08-18.csv');
   fs.writeFileSync(outPath, csv.join('\n') + '\n');
   process.stderr.write(`CSV written: ${outPath} (${csv.length - 1} rows)\n`);
+
+  if (EMIT_WIDTHS) {
+    const widthCsv = ['trace,round,degree,criterion,level,width,touched_at_degree'];
+    for (const [, rows] of byTrace) {
+      for (const r of rows) {
+        for (const v of r.perVariable ?? []) {
+          widthCsv.push(
+            [
+              r.trace,
+              r.round,
+              r.degree,
+              v.criterion,
+              v.level,
+              v.width.toFixed(9),
+              v.touchedAtDegree ? 1 : 0,
+            ].join(',')
+          );
+        }
+      }
+    }
+    const widthPath = path.join(DOCS, 'normalized-coverage-widths-2026-08-25.csv');
+    fs.writeFileSync(widthPath, widthCsv.join('\n') + '\n');
+    process.stderr.write(`Width CSV written: ${widthPath} (${widthCsv.length - 1} rows)\n`);
+  }
 }
 
 main().catch((e) => {
