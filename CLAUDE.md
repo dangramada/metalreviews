@@ -66,13 +66,26 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-In progress: `criteria-calibration-normalized-coverage-width-diagnostic` (diagnostic only, no
-production code changed — tests whether a NORMALIZED coverage-width threshold frees the four
-preference shapes that never leave degree 2 under the absolute
-`MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` gate. **Verdict: negative — the usable threshold window is
-empty for both candidates**, and the one threshold that frees all four turns the width test inert.
-The UX route stays the chosen path; no implementation follows. Full detail:
-`docs/decisions/criteria-calibration/criteria-calibration-normalized-coverage-width-diagnostic.md`).
+In progress: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
+acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
+`coverage-complete`, per the brief. **Step 1 done and confirmed**: for all four shapes
+(`#2 single-dominant`, `#4 linear-control`, `#5 front-loaded`, `#6 back-loaded`), the degree-2
+refinement candidate pool is NOT empty at round 90 (54-62 unasked candidates remain, self-checked
+against `nextAction`'s own pool-empty branch across all 10 oracle traces, zero mismatches) — a
+uniform Case B, not mixed. So the checkpoint's degree-3 continuation must use the explicit-consent
+copy path, never an automatic/unconditional transition, for these four. Step 2 (freeze-detection
+threshold, checkpoint screen, copy) awaits sign-off before implementation. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`).
+
+Also merged (docs/CSVs only, no code changes): `criteria-calibration-normalized-coverage-width-diagnostic`
+(tests whether a NORMALIZED coverage-width threshold frees the four preference shapes that never
+leave degree 2 under the absolute `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` gate. **Verdict:
+negative — the usable threshold window is empty for both candidates**, and the one threshold that
+frees all four turns the width test inert. The UX route stays the chosen path; no implementation
+followed from this branch — the freeze-checkpoint brief above is a separate, later decision. Full
+detail: `docs/decisions/criteria-calibration/criteria-calibration-normalized-coverage-width-diagnostic.md`),
+merged to `master` `--no-ff` at `907d70a` on 2026-08-25. Rollback tag:
+`pre-merge-criteria-calibration-normalized-coverage-width-diagnostic`.
 
 Also merged (docs/CSVs only, no code changes): `criteria-calibration-accuracy-threshold-recalibration`
 (fit the three `SCORE_SPREAD_*` constants against real ground truth and found no cutoff set
