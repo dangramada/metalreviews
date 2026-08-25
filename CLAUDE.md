@@ -68,6 +68,14 @@ For the full branch history (including merged branches), see
 
 No branch currently in progress — working directory is `master`.
 
+Also merged (docs/CSVs only, no code changes): `criteria-calibration-accuracy-threshold-recalibration`
+(fit the three `SCORE_SPREAD_*` constants against real ground truth and found no cutoff set
+generalizes, because `computeScoreSpreadAccuracy` measures determinacy, not correctness;
+`accuracyTiers.ts` deliberately left untouched. Superseded as a live decision by
+`criteria-calibration-degree-tiers-and-progress.md`, which moved tier assignment off percentage
+thresholds entirely — this doc's findings are historical context, not open work. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md`).
+
 Most recent merge was `criteria-calibration-degree-tiers-and-progress`
 (replaces threshold-based accuracy tiers with degree-tied ones: the label names how many degrees
 of trade-off comparison are finished — Unfocused / Blurry / Clear / Sharp, single-sourced in

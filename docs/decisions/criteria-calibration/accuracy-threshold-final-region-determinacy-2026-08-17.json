@@ -1,0 +1,14 @@
+[
+  {
+    "label": "A70 (committed backup)",
+    "answers": 70,
+    "contenders": 25,
+    "undeterminedAdjacent": 8
+  },
+  {
+    "label": "B71 (live, read-only)",
+    "answers": 71,
+    "contenders": 0,
+    "undeterminedAdjacent": 0
+  }
+]

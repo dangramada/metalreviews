@@ -602,6 +602,32 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   constants without that session's data. Full detail:
   `criteria-calibration-score-spread-accuracy.md`.
 
+  **Addressed 2026-08-17 — recalibration ran; the answer is "no better numbers exist."**
+  `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` fitted the
+  three constants against real ground truth (10 synthetic oracles, Kendall's tau vs known true
+  weight vectors; plus A70/B71 as secondary). **All six quality bars tested yield an empty
+  usable threshold window across the 12-trace evidence set** — same failure mode as the
+  escalation-signal diagnostic's Candidate A: good within-session signal (median Spearman
+  0.876), no across-session comparability. `#1 uniform` crosses High at answer **5** while
+  `#4 linear-control` never crosses it in 90 answers and ends with the best ranking in the set.
+  **Recommendation: keep 0.55 / 0.75 / 0.85** (no better triple exists), add a ~15–20 answer
+  floor so Medium cannot be reached at answer 5, and reword the checkpoint copy to claim
+  determinacy rather than correctness. Constants left untouched pending Dan's decision — this
+  entry stays open until that decision is made, but it is no longer waiting on *data*.
+
+  **New, opened by the same pass — `computeScoreSpreadAccuracy` cannot detect inconsistent
+  answering.** It measures how determined the model is, not whether it is right. Oracle `#8`
+  (12% random answer flips) reaches accuracy **1.0000** — feasible region collapsed to a point —
+  at a true-rank correlation of only 0.7575: precisely determined, to the wrong model. No metric
+  computed from the answer log alone can catch this, so it is a limit on what any accuracy
+  number can promise rather than a bug. A separate consistency measure would be needed;
+  `totalSlack` is already computed and already in the trajectory CSVs and is the obvious
+  candidate. Not scoped.
+
+  (The settle-point ground-truth caveat this pass also surfaced is tracked as its own entry —
+  see "The `settle`-point ground truth is itself partially non-unique" under the 2026-08-17
+  section below.)
+
   **Extended 2026-08-10:** same provisional status applies to
   **`MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`** (`elicitationDriver.ts`), the coverage-based
   degree-escalation threshold that replaced the gap-based `MAX_AMBIGUOUS_GAP` check (see
@@ -1004,6 +1030,75 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   dangling references. **When both branches land, re-check every such citation and correct any
   path that moved.** Noted in that document's own header too, but tracked here so it does not
   depend on someone re-reading a header.
+
+  **ANSWERED 2026-08-17** by
+  `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` §6, which ran
+  exactly the data-analysis session this entry asked for (solved values vs ground truth for
+  those three oracles specifically). **The answer differs per shape — it is not one cause:**
+  - `#2 single-dominant` (max accuracy 0.7311, tau vs true **0.6718**) — accuracy is
+    **correctly** reporting a model that genuinely isn't determined. The ceiling is honest.
+  - `#4 linear-control` (max accuracy 0.6883, tau vs true **0.9240**, the best ranking of any
+    oracle) — accuracy **under-reports** a ranking that is in fact excellent. But not because it
+    is blind: the region really is wide, so many other feasible points would rank differently
+    and the good tau is partly a lucky vertex. The low accuracy is a defensible warning.
+  - `#5 front-loaded` (max accuracy 0.6223, tau vs true 0.7489) — intermediate.
+
+  The general finding underneath: **`computeScoreSpreadAccuracy` measures determinacy, not
+  correctness**, and the two diverge in both directions (see the "cannot detect inconsistent
+  answering" note under the threshold entry above — `#8 noisy` reaches accuracy 1.0000 at tau
+  0.7575). **Retuning the threshold cannot fix this**: letting all three shapes reach High
+  requires High ≤ 0.62, at which `#1`/`#8`/`#9` cross by answer 5–9 at tau 0.65–0.77.
+
+  **Consequence for the exhaustion-fallback copy: keep it neutral about cause — the requirement
+  stands, and now has a reason rather than an unknown.** Neutrality was originally required
+  because the cause was unknown; it is now required because the cause is *shape-dependent*, so
+  no single explanation would be true for all users who see that screen. The existing
+  both-directions test remains correct as-is.
+
+- **CAVEAT FOR FUTURE SESSIONS: the `settle`-point ground truth is itself partially
+  non-unique — treat "n=39", "n=46" and the oracle settles as a best-available approximation,
+  not solid ground truth.** Established 2026-08-17 by
+  `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` §3b–3c. Every
+  settle figure in the calibration cluster is defined as "the last round at which the solved
+  top-10 changed", where the solved top-10 comes from the `.point` vector — the quantity
+  `deferred-work` item 5 (arbitrary pick among tied optima) makes non-unique. Three concrete
+  findings:
+
+  1. **`A70`'s final top-10 is not uniquely determined at all.** Tested tie-break-independently
+     by maximising `score(challenger) − score(10th)` over the *final* feasible region (which
+     depends only on the answers, not on which optimal vertex the simplex reports): **25 of 190
+     profiles outside the reported top-10 could still enter it, and 8 of its 9 internal
+     orderings are not implied by Dan's answers.** So `A70`'s "final ranking" is largely a pivot
+     -rule artifact, and any `A70` measurement of the form "distance from final" partly measures
+     solver internals. **`B71` is fully determined** (0 challengers, 0 undetermined pairs) and is
+     unaffected — the two real sessions are not equally trustworthy references.
+  2. **The true top-10 is non-unique on 7 of 10 synthetic oracles.** Symmetric ground truths
+     produce heavily tied true orderings — `#1 uniform` has only 15 distinct true scores across
+     200 profiles, with 7 profiles tied exactly at the top-10 boundary. Any oracle metric of the
+     form "matches the true top-10" is therefore measuring tie-break luck on those traces.
+     Kendall's tau-b is tie-correct and should be preferred wherever a rank measure is needed.
+  3. **The published settle points also understate convergence**, independently of uniqueness.
+     They are computed on a 13-album synthetic set / Dan's rated albums; on a broader
+     200-profile pool, 7 of 12 traces are still changing their top-10 past `settle` — `A70`
+     until round 69 against a published 39.
+
+  **This does NOT invalidate the escalation-signal diagnostic's conclusions**
+  (`criteria-calibration/criteria-calibration-escalation-signal-candidates.md`), for two
+  independent reasons, and both are worth knowing before anyone re-opens that file. First, its
+  false-positive rule is "fires before settle"; finding (3) means the *true* settle is generally
+  **later** than the published one, so every rejected candidate fired even earlier relative to
+  real convergence than recorded — the rejections are strengthened, not weakened. Second, the
+  2026-08-17 recalibration reached the same class of conclusion ("no fixed threshold
+  generalizes") along a path that never uses `settle` at all: Kendall's tau against the oracles'
+  known true weight vectors. The conclusions stand; it is the *precision* of the individual
+  n-figures that should not be over-trusted.
+
+  **What this means in practice:** do not calibrate a new constant against a settle figure to
+  more precision than ±several answers, do not treat `A70`-derived stability numbers as
+  equivalent in weight to `B71`-derived ones, and prefer tau-b over top-10 membership for any
+  future rank comparison. Fixing `deferred-work` item 5 (deterministic tie-breaking) would
+  retire findings (1) and (2) at the source — as that item already notes, doing it first would
+  make every derived number in this cluster more durable.
 
 - **`npm run type-check` does not type-check anything.** Found 2026-08-17. The root
   `tsconfig.json` has `"files": []` with project references to `tsconfig.app.json` /
