@@ -43,6 +43,7 @@ vi.mock('../lib/criteria-calibration/persistence', () => ({
   insertAnswer: vi.fn().mockResolvedValue('new-db-id'),
   deleteAnswer: vi.fn().mockResolvedValue(undefined),
   upsertWeightsAndStatus: vi.fn().mockResolvedValue(undefined),
+  upsertCalibrationStatus: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { useCriteriaCatalog } from '../hooks/useCriteriaCatalog';

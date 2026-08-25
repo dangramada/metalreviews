@@ -1,28 +1,34 @@
 import { HStack, Text } from '@chakra-ui/react';
+import {
+  ACCURACY_TIER_LABELS,
+  type AccuracyTier,
+} from '../../lib/criteria-calibration/accuracyTierLabels';
 
-// 'Very High' added 2026-08-17 with the tiered-checkpoint flow. The page used to hard-cap the
-// displayed label at Medium — that cap was about the deprecated computeSolverAccuracy metric
-// (blind to degree-3+ improvement, see accuracyTiers.ts). The live score-spread metric's tiers
-// are what the checkpoint flow is built on, so all four are now displayable.
-export type AccuracyLevel = 'Low' | 'Medium' | 'High' | 'Very High';
+// Takes the internal tier and renders its label, rather than accepting a pre-formatted string:
+// the display names live in exactly one place (accuracyTierLabels.ts) as of 2026-08-18, when
+// the labels became Unfocused / Blurry / Clear / Sharp and started being assigned by which
+// degree of comparison the user has finished rather than by an accuracy threshold.
+export type { AccuracyTier };
 
 interface AccuracyStatusProps {
   percent: number;
-  level: AccuracyLevel;
+  tier: AccuracyTier;
 }
 
-// Cumulative across the whole session, not per round — a different metric from
-// Progress (which lives in the ProgressCircle and measures how far through the
-// session the user is). Numeric % and qualitative label are both rendered as
-// distinct text nodes, not merged into a single string, per spec.
-export function AccuracyStatus({ percent, level }: AccuracyStatusProps) {
+// Two INDEPENDENT quantities, deliberately shown side by side and deliberately not merged into
+// one sentence: the percentage is the live score-spread accuracy, which moves with every answer,
+// and the label names how many degrees of comparison are finished, which moves only at a
+// boundary. They are no longer derived from each other. "Detail:" rather than "Accuracy:" for
+// the label, because calling a completeness measure "accuracy" is the exact conflation the copy
+// rule in accuracyTierLabels.ts forbids.
+export function AccuracyStatus({ percent, tier }: AccuracyStatusProps) {
   return (
     <HStack gap={2}>
       <Text fontFamily="mono" fontSize="xs" color="text.dim">
         {percent}%
       </Text>
       <Text fontFamily="body" fontSize="xs" color="text.dim">
-        Accuracy: {level}
+        Detail: {ACCURACY_TIER_LABELS[tier]}
       </Text>
     </HStack>
   );

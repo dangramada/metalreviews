@@ -10,7 +10,7 @@ import {
   CalibrationCheckpoint,
   type CheckpointVariant,
 } from './components/criteria-calibration/CalibrationCheckpoint';
-import type { AccuracyLevel } from './components/criteria-calibration/AccuracyStatus';
+
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { useReducedMotion } from './hooks/useReducedMotion';
@@ -30,12 +30,21 @@ import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatal
 import {
   insertAnswer,
   deleteAnswer,
+  upsertCalibrationStatus,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
+import type { AccuracyTier } from './lib/criteria-calibration/accuracyTierLabels';
+import type { LevelValue } from './lib/criteria-calibration/solver';
+import type { FillClampState } from './lib/criteria-calibration/degreeTiers';
 import {
-  solverAccuracyTier,
-  type SolverAccuracyTier,
-} from './lib/criteria-calibration/accuracyTiers';
+  STARTING_DEGREE,
+  clampFillMonotone,
+  completedDegrees,
+  computeDegreeCoverageFill,
+  computeProgressPercent,
+  isLabelChangingDegree,
+  tierForCompletedDegrees,
+} from './lib/criteria-calibration/degreeTiers';
 import {
   profileDegree,
   inferDegreeFromAnswers,
@@ -49,20 +58,26 @@ import {
 // exactly where the user left off, via the same replay-by-rebuilding-the-session approach 5a
 // already uses for undo — not a second implementation.
 //
-// TIERED CHECKPOINTS (2026-08-17) replaced Brief 3's automatic escalation. See
-// docs/decisions/criteria-calibration/criteria-calibration-tiered-checkpoints.md. Two changes
-// matter for reading the code below:
+// TIERED CHECKPOINTS (2026-08-17) replaced Brief 3's automatic escalation, deleting the whole
+// rankingStabilitySignal.ts machinery (`fired`, the top-10 window, windowHistory, seven DB
+// columns) along with it. See criteria-calibration-tiered-checkpoints.md.
 //
-//   1. The auto-escalation useLayoutEffect is GONE, along with the whole
-//      rankingStabilitySignal.ts machinery it read (`fired`, the top-10 window, windowHistory,
-//      and seven DB columns). Degree escalation now happens only when the user chooses it at
-//      an explicit checkpoint, or — between the degree-2 checkpoint and the next tier
-//      crossing — automatically via handleEscalate with no screen shown.
-//   2. High/Very High accuracy IS now displayed. The old rule capping the label at Medium
-//      was about computeSolverAccuracy, the metric deprecated on 2026-08-09 for being blind
-//      to degree-3+ improvement ("Part 4 finding"). The live metric is
-//      computeScoreSpreadAccuracy, and the checkpoint flow is built on its tiers, so showing
-//      them is the point rather than a leak.
+// DEGREE-TIED TIERS (2026-08-18) then replaced the accuracy THRESHOLDS those checkpoints fired
+// on. See criteria-calibration-degree-tiers-and-progress.md. Three things matter for reading
+// the code below:
+//
+//   1. A tier can now only change at a degree-exhaustion boundary, because it names how many
+//      degrees of comparison are finished (degreeTiers.ts). That collapsed the whole
+//      threshold-crossing apparatus this file used to carry: a Set of acknowledged tiers, two
+//      resume-time seeding effects, a separate degree-2 flag, and a four-way precedence chain
+//      between them are all gone, replaced by one number — `acknowledgedBoundaryDegree`.
+//   2. The Progress ring is no longer the accuracy percentage. It is the segmented per-degree
+//      measure (one equal segment per degree, filled continuously by the same coverage gate
+//      that ends a degree). Accuracy is still computed and still displayed, next to the label,
+//      as its own independent number.
+//   3. The label and the accuracy percentage are INDEPENDENT and must be presented that way.
+//      Neither is derived from the other any more, and the label makes no claim about ranking
+//      quality — see accuracyTierLabels.ts's copy rule, which is backed by evidence, not taste.
 // ---------------------------------------------------------------------------
 
 // Hold duration after a selection, before the fade starts — a deliberate
@@ -86,10 +101,6 @@ interface AnswerEntry {
   profileB: Profile;
   result: ComparisonResult;
 }
-
-// Degree always starts at 2 (Medium tier's prerequisite — see elicitationDriver.ts) when
-// there's no persisted session to resume; useCalibrationResume infers it otherwise.
-const STARTING_DEGREE = 2;
 
 // Brief 3: shown once, under QuestionPrompt's heading, on the FIRST comparison at a degree
 // above 2 — degree 2 is the starting point, not an escalation, so it gets no text. Illustrative
@@ -193,26 +204,26 @@ export function CriteriaCalibrationPage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
 
-  // Which tier checkpoints the user has already clicked through, this page visit only.
+  // The degree whose boundary checkpoint the user has already acted on, this page visit only.
   //
-  // DELIBERATELY NOT PERSISTED (decision recorded in the tiered-checkpoints doc). The tier
-  // itself is a pure function of the answer log — solverAccuracyTier(accuracy) — which is
-  // exactly the path-independence that makes this flow reliable where the retired signal
-  // wasn't. But it also means "accuracy is High" stays true forever once crossed, so without
-  // an acknowledgment record the High checkpoint would re-render on every commit after it.
-  // Session-local state is what closes that, and keeping it session-local (rather than adding
-  // DB columns) is the whole point: this brief's migration empties user_calibration_status of
-  // exactly this kind of client-trajectory bookkeeping, and re-adding some would re-open the
-  // un-awaited-write-race surface it just closed. The cost is that a reload re-shows a
-  // checkpoint once — one extra click, no lost progress, and consistent with `stopped`, which
-  // has never been persisted either.
-  const [acknowledgedTiers, setAcknowledgedTiers] = useState<Set<SolverAccuracyTier>>(new Set());
-  // Set when the user picks "Increase accuracy" at the degree-2 checkpoint. Until then a
-  // degree-2 boundary must SHOW that checkpoint rather than auto-escalate past it; after it,
-  // degree escalation runs silently until a tier checkpoint or exhaustion interrupts (brief
-  // step 2). Also session-local, and self-healing if lost: on reload the checkpoint simply
-  // shows again at the same boundary.
-  const [degree2Acknowledged, setDegree2Acknowledged] = useState(false);
+  // This ONE number replaces everything the threshold era needed here: a Set of acknowledged
+  // tiers, a separate degree-2 flag, and two resume-time seeding effects that existed only to
+  // stop a standing threshold from re-firing its screen on every render (and, for the old Very
+  // High screen, from stranding a resumed session on a dead end that offered no continuation).
+  //
+  // None of that is expressible any more. A tier now changes only at a degree boundary, and a
+  // boundary is inherently a one-time position: acting on the screen escalates the degree, which
+  // moves off it. So "have they dealt with THIS boundary" is the whole question, and a resumed
+  // session that starts on a boundary should simply see the screen — that is the correct
+  // behaviour, not a bug to seed around.
+  //
+  // DELIBERATELY NOT PERSISTED (decision recorded in the tiered-checkpoints doc §6 and §8, still
+  // in force). The tier itself is a pure function of the answer log; persisting the
+  // acknowledgment would re-add user_calibration_status columns and re-open the un-awaited-write
+  // race that emptying that table closed. The cost is that a reload re-shows one checkpoint —
+  // one extra click, no lost progress, consistent with `stopped`, which has never been persisted
+  // either.
+  const [acknowledgedBoundaryDegree, setAcknowledgedBoundaryDegree] = useState<number | null>(null);
 
   // Seed local state from the resumed session exactly once, when the resume fetch
   // completes. `seeded` guards this so it can't re-run and clobber in-progress answers if
@@ -225,14 +236,11 @@ export function CriteriaCalibrationPage() {
     async function seedFromResume() {
       if (resume.loading || seeded) return;
       setSeeded(true);
-      // A session resuming ABOVE degree 2 has already passed the degree-2 decision in an
-      // earlier visit — the answers prove it. Seed the flag accordingly, for the same reason
-      // the tier acknowledgments are seeded below: without it, `degree2Acknowledged` is false
-      // on every resume, which gates OFF auto-progression while the degree-2 checkpoint also
-      // can't fire (degree is no longer 2). A session resuming exactly at a degree-3+ boundary
-      // would then render neither a checkpoint nor a question and have no way forward — a dead
-      // end, covered by "a session resumed at a degree-3 boundary is not stranded".
-      if (resume.degree > STARTING_DEGREE) setDegree2Acknowledged(true);
+      // No checkpoint state to seed. The 2026-08-17 flow needed two seeds here — one so a
+      // resumed above-degree-2 session wasn't stranded with auto-progression switched off, one
+      // so a standing tier didn't fire its screen on load. Both were symptoms of state that
+      // could disagree with the answer log; boundary acknowledgment can't, because a boundary
+      // the user hasn't acted on is exactly where they should be shown a screen, resumed or not.
       setAnswers(
         resume.answers.map((a) => ({
           localId: a.localId,
@@ -315,12 +323,17 @@ export function CriteriaCalibrationPage() {
   const action = driverResult.action;
   const solverFailed = driverResult.failed;
 
-  // Single live accuracy value drives both the Progress ring and the Accuracy label/number
-  // — previously these were two different metrics (canonical degree-2 pair coverage for the
-  // ring vs. solver accuracy for the label), which could show the ring at 100% while
-  // Accuracy still read "Low" once cold-start coverage was done but the model wasn't
-  // actually determinate yet. See docs/decisions/criteria-calibration/criteria-calibration-medium-gate-redesign.md's
-  // progress-ring-accuracy entry for the full history.
+  // Progress and Accuracy are two INDEPENDENT numbers again as of 2026-08-18, after nine days
+  // of being the same one.
+  //
+  // History, because this has now flipped twice and the reasons differ. Originally the ring
+  // showed canonical degree-2 pair coverage while the label showed solver accuracy — which
+  // could put the ring at 100% while Accuracy still read "Low", so 2026-08-09 collapsed both
+  // onto the accuracy number (see criteria-calibration-medium-gate-redesign.md's
+  // progress-ring-accuracy entry). The ring is now a coverage measure again, but NOT the one
+  // that produced that contradiction: it is per-degree, and a degree only completes when the
+  // driver's own coverage gate is satisfied, so "ring full" and "model still undetermined at
+  // this degree" cannot both be true. The label, meanwhile, no longer reads accuracy at all.
   //
   // computeScoreSpreadAccuracy (2026-08-09, superseding computeSolverAccuracy — see
   // scoreSpreadAccuracy.ts's header) costs ~100 LP solves against the default sample — too
@@ -333,12 +346,16 @@ export function CriteriaCalibrationPage() {
   // the result with upsertWeightsAndStatus, no debounce needed since there's no redundant
   // work left to throttle. The one exception is initial load (seeding from a resumed session
   // isn't a "commit"), handled by the one-time effect just below.
-  const [progressPercent, setProgressPercent] = useState(0);
-  const [mediumReached, setMediumReached] = useState(false);
-  // The RAW accuracy, kept alongside the rounded percent above because the tier must be
-  // derived from the unrounded value — Math.round(0.7449) would read as 74% but must not be
-  // allowed to tier as High at a 0.75 threshold.
+  const [accuracyPercent, setAccuracyPercent] = useState(0);
+  // The raw value too, because the DB stores the unrounded number — and because a status write
+  // triggered by a tier change (see the effect below) has no computation of its own to read.
   const [accuracy, setAccuracy] = useState(0);
+  // The solved feasible ranges from the most recent computation, kept because the progress
+  // bar's within-degree fill is a function of them AND of the current degree — and `degree`
+  // changes on escalation without a new commit, so the fill has to be recomputable at render
+  // time rather than baked in when the answer was solved. Cheap: reading ranges is arithmetic,
+  // not an LP solve.
+  const [solvedValues, setSolvedValues] = useState<LevelValue[][] | null>(null);
 
   // Computes progress/accuracy exactly once, the first time both the catalog and the
   // resumed answer log are ready — covers page load, independent of which of the two
@@ -359,35 +376,17 @@ export function CriteriaCalibrationPage() {
       return;
     }
     initialAccuracyComputedRef.current = true;
-    setProgressPercent(Math.round(computation.accuracy * 100));
-    setMediumReached(computation.mediumReached);
+    setAccuracyPercent(Math.round(computation.accuracy * 100));
     setAccuracy(computation.accuracy);
+    setSolvedValues(computation.solved.values);
 
-    // Pre-acknowledge whatever tier the RESUMED log already sits at, so checkpoints fire on a
-    // genuine in-session CROSSING rather than on a standing state.
-    //
-    // Without this, a session resumed above a threshold renders its checkpoint immediately, on
-    // load, before the user has answered anything — and for Very High that is a dead end by
-    // design: it offers no continuation (correctly, per the brief), so a returning user whose
-    // saved log is already Very High could never reach another question. The checkpoint is
-    // meant to mark "your accuracy just improved to X", which is not a thing that happened on
-    // a page load.
-    //
-    // Still fully derived, still nothing persisted: the seed is computed from the same answer
-    // log as everything else, at the one moment the log is first known. It also removes the
-    // reload-re-shows-a-checkpoint wrinkle that session-local acknowledgment would otherwise
-    // have. Deliberately does NOT touch degree2Acknowledged — that checkpoint is triggered by
-    // the degree-2 boundary, not by a tier, and re-showing it to a user sitting exactly on
-    // that boundary is correct.
-    const resumedTier = solverAccuracyTier(computation.accuracy);
-    if (resumedTier !== 'insufficient') {
-      // Seeds 'high' alongside 'veryHigh': a log resuming at Very High has necessarily passed
-      // High too, and leaving it unseeded would fire the High checkpoint on the way back down
-      // after an Undo.
-      setAcknowledgedTiers(
-        resumedTier === 'veryHigh' ? new Set(['high', 'veryHigh']) : new Set([resumedTier])
-      );
-    }
+    // NOTHING to pre-acknowledge. The 2026-08-17 flow seeded the resumed session's tier here so
+    // a standing threshold wouldn't fire its screen on load — and specifically so a log already
+    // at Very High wasn't stranded on a screen offering no continuation. Neither can happen
+    // now: a checkpoint fires only while the driver reports a degree exhausted, acting on it
+    // escalates off that boundary, and the terminal screen is reached only when there is
+    // genuinely nothing left to ask. A resumed session sitting on a boundary SHOULD see its
+    // screen, which is the one behaviour the old seed had to carve an exception for.
   }, [catalog, seeded, answers]);
 
   const interactionDisabled = phase !== 'idle' || stopped;
@@ -401,80 +400,108 @@ export function CriteriaCalibrationPage() {
   const degreeClarificationText = degree > 2 ? DEGREE_CLARIFICATION_TEXT[degree] : undefined;
 
   // ---------------------------------------------------------------------------
-  // Checkpoint derivation (2026-08-17). Everything here is computed during render from
-  // `accuracy` and `action`, both of which are pure functions of the answer log — there is no
-  // stored trajectory, nothing to replay, and nothing that can drift out of sync with the
-  // answers. That is the structural difference from the retired signal, which had to persist
-  // a running window precisely because it could not be re-derived.
+  // Tier, progress and checkpoint derivation (2026-08-18). Everything here is computed during
+  // render from `degree`, `action` and `solvedValues` — all pure functions of the answer log.
+  // There is no stored trajectory, nothing to replay, and nothing that can drift out of sync
+  // with the answers. That was already the structural difference from the retired stability
+  // signal; degree-tying keeps it and removes the one piece of genuinely session-shaped state
+  // the threshold flow still needed (which tiers had been crossed and acknowledged).
   //
-  // WHY TIER-CROSSING IS LEGITIMATE HERE, despite Pass 2 rejecting it. Pass 2 (see
+  // WHY THE TIER IS NOT AN ESTIMATE, and why that is the whole argument. Pass 2 (see
   // criteria-calibration-ranking-stability-analysis.md) rejected accuracy tiers as a proxy for
-  // RANKING STABILITY — the tier gate arrives unpredictably relative to the round where the
-  // ranking actually settles (on oracle #6 it becomes eligible at n=71 for a session that
-  // settled at n=40). That is a finding about tiers being a poor ESTIMATOR OF A DIFFERENT,
-  // HIDDEN QUANTITY. Here the tier is not estimating anything: the checkpoint's subject IS the
-  // accuracy tier, and its copy claims nothing about ranking or stability. "Your accuracy
-  // reached High" is true by definition when solverAccuracyTier returns 'high'. Pass 2's
-  // finding therefore does not apply, and this is NOT a reintroduction of the retired
-  // mechanism. Do not "fix" this by reviving a stability window.
-  const tier = solverAccuracyTier(accuracy);
+  // RANKING STABILITY, and the 2026-08-17 recalibration then found no accuracy threshold that
+  // generalises across preference shapes at all. Degree-tying does not answer either finding by
+  // predicting better — measured the same way, degree boundaries produce false positives on the
+  // same traces (see the decision doc's §2b). It answers them by not predicting: "you have
+  // answered every trade-off this model can distinguish at this level of detail" is true by
+  // construction at every boundary, for every user, with no constant to calibrate. Do not
+  // "improve" this by re-attaching it to an accuracy number, and do not let the copy imply the
+  // label says anything about ranking quality.
   const atDegreeBoundary = action?.type === 'degree-exhausted';
+  const tier: AccuracyTier = tierForCompletedDegrees(completedDegrees(degree, atDegreeBoundary));
+  // Mirrors `tier` for the async persistence callbacks, which resolve after the render that
+  // computed it — same reason `answersRef` exists.
+  const tierRef = useRef<AccuracyTier>(tier);
+  useEffect(() => {
+    tierRef.current = tier;
+  }, [tier]);
 
-  // The one place the tier is turned into user-facing words, shared by the header and the
-  // checkpoint screens so the two can never disagree. Note solverAccuracyTier's
-  // 'insufficient' covers everything below High, which is where isMediumTierReached splits
-  // Low from Medium — the two functions read the same accuracy against different thresholds
-  // (see accuracyTiers.ts), so this ordering is what keeps the four labels contiguous.
-  const accuracyLabel: AccuracyLevel =
-    tier === 'veryHigh' ? 'Very High' : tier === 'high' ? 'High' : mediumReached ? 'Medium' : 'Low';
+  // Writes the tier when it changes WITHOUT a new answer — which degree-tying makes a real case
+  // rather than a theoretical one. Reaching a boundary promotes the tier on the same answer log
+  // the previous write already persisted, so nothing else would ever send it: the combined
+  // weights+status write only runs on a commit/undo/redo. Without this, a user who reaches a
+  // boundary and leaves straight for the album pages sees the checkpoint announce one label and
+  // the rating page's confidence read the previous one.
+  //
+  // Guarded on `solvedValues` so it cannot fire before the first real computation and write
+  // accuracy 0 over a resumed session's stored value. The RPC's own answer-count guard is `>=`,
+  // so re-writing at an unchanged count is accepted rather than rejected as stale.
+  const lastWrittenTierRef = useRef<AccuracyTier | null>(null);
+  useEffect(() => {
+    if (!user || !solvedValues) return;
+    if (lastWrittenTierRef.current === tier) return;
+    lastWrittenTierRef.current = tier;
+    beginWrite();
+    upsertCalibrationStatus(user.id, tier, accuracy, answers.length)
+      .then(notifyPersistRecovered)
+      .catch((e) => {
+        console.warn('Failed to update calibration tier', e);
+        notifyPersistFailure();
+      })
+      .finally(endWrite);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tier, user, solvedValues]);
 
-  // A boundary with nowhere left to escalate to is the real end of the road, and it's the
-  // only way brief step 2b's "pool exhausts without reaching the next tier" can actually
-  // happen: at any lower degree, escalation is available and happens silently, so exhaustion
-  // there is not a terminal state. Expressed as `!canEscalate` rather than `degree === 6` so
-  // it stays correct for a catalog with a different number of criteria.
+  // Within-degree fill for the progress bar's current segment, clamped monotone by
+  // clampFillMonotone (degreeTiers.ts) — see that function for why the clamp exists at all and
+  // why it deliberately does not survive an Undo.
+  const bestFillRef = useRef<FillClampState | null>(null);
+  const rawFill =
+    solvedValues && catalog
+      ? computeDegreeCoverageFill(catalog.levelsPerCriterion, solvedValues, answers, degree)
+      : 0;
+  // A boundary means the driver's own coverage gate is satisfied, so the segment is full by
+  // definition. Stated explicitly rather than relied upon: the `pool-empty` exhaustion reason
+  // returns BEFORE the driver solves, so on that path there is no fresh solve behind `rawFill`
+  // and it can read low. Rare — `pool-empty` did not occur once in the 945 replayed rounds —
+  // but it is the one case where the computed fill and the driver disagree, and the driver is
+  // the authority on whether a degree is finished.
+  const currentFill = atDegreeBoundary ? 1 : rawFill;
+  const displayFill = clampFillMonotone(bestFillRef.current, {
+    degree,
+    answerCount: answers.length,
+    fill: currentFill,
+  });
+  bestFillRef.current = { degree, answerCount: answers.length, fill: displayFill };
+  const progressPercent = Math.round(
+    computeProgressPercent(degree, displayFill, catalog?.levelsPerCriterion.length ?? 0)
+  );
+
+  // A boundary with nowhere left to escalate to is the real end of the road. Expressed as
+  // `!canEscalate` rather than `degree === 6` so it stays correct for a catalog with a
+  // different number of criteria.
   const isTerminalExhaustion = action?.type === 'degree-exhausted' && !action.canEscalate;
 
-  // Precedence, highest first: Very High > High > degree 2 > terminal exhaustion.
+  // ONE RULE, replacing the four-way precedence chain the threshold flow needed (Very High >
+  // High > degree 2 > exhausted, plus a substitution flag for when a tier screen stood in for
+  // the degree-2 one). Both of those existed because a threshold could be crossed anywhere,
+  // including mid-degree and including simultaneously with a degree-2 boundary. A degree tier
+  // changes only AT a boundary, so at most one screen can ever apply, and which one is a
+  // function of the degree just exhausted.
   //
-  // TIER BEATS DEGREE 2 (changed 2026-08-17, after live verification — this deliberately
-  // reverses the first implementation). Both conditions can be true at once: a consistent
-  // answerer can reach Very High while degree 2 is still being exhausted, which was observed
-  // live at 86% accuracy on a 105-answer degree-2 log. Under the old ordering that rendered the
-  // degree-2 screen, which offers "Increase accuracy" — inviting the user to improve a number
-  // that is already at the practical ceiling, and contradicting the Very High screen's whole
-  // premise that there is nothing further worth offering. Showing the tier's own screen instead
-  // is honest about where they actually are. No new copy variant was added for this; it is
-  // purely which existing screen wins.
-  //
-  // Very High beats High so a single commit that vaults both thresholds shows the terminal
-  // screen rather than one encouraging progress toward a tier already passed.
-  // A degree-2 decision is owed: the boundary is reached and the user hasn't answered it yet.
-  const degree2Pending = atDegreeBoundary && degree === STARTING_DEGREE && !degree2Acknowledged;
-
-  // A tier screen shows on a fresh in-session crossing (not yet acknowledged), OR whenever it
-  // is standing in for a pending degree-2 decision. The second clause deliberately ignores
-  // acknowledgment: on a RESUMED session every reached tier is pre-acknowledged (see the seed
-  // in the initial-accuracy effect), so without it a resumed session sitting on the degree-2
-  // boundary at Very High would fall through to the degree-2 screen and show exactly the
-  // "Increase accuracy at the ceiling" invitation this precedence exists to remove. Re-showing
-  // an acknowledged tier screen here cannot loop: acting on it settles the degree-2 decision
-  // (see handleCheckpointContinue), which clears degree2Pending.
+  // Degrees 5 and 6 exhaust silently: they do not change the tier (degreeTiers.ts's mapping,
+  // and the evidence behind it), so there is nothing for a screen to say. The
+  // auto-progression effect below carries them.
   let checkpoint: CheckpointVariant | null = null;
-  if (tier === 'veryHigh' && (!acknowledgedTiers.has('veryHigh') || degree2Pending)) {
-    checkpoint = 'veryHigh';
-  } else if (tier === 'high' && (!acknowledgedTiers.has('high') || degree2Pending)) {
-    checkpoint = 'high';
-  } else if (degree2Pending) {
-    checkpoint = 'degree2';
-  } else if (isTerminalExhaustion) {
-    checkpoint = 'exhausted';
+  if (atDegreeBoundary && action && acknowledgedBoundaryDegree !== action.degree) {
+    if (isTerminalExhaustion) {
+      checkpoint = 'exhausted';
+    } else if (isLabelChangingDegree(action.degree)) {
+      // The tier the user has just reached — the same value `tier` holds above, named here from
+      // the boundary's own degree so the screen and the header can never disagree.
+      checkpoint = tierForCompletedDegrees(action.degree) as CheckpointVariant;
+    }
   }
-
-  // True when a tier checkpoint is standing in for the degree-2 one. Acknowledging it therefore
-  // has to settle the degree-2 decision as well — see handleCheckpointContinue.
-  const tierIsSubstitutingForDegree2 =
-    (checkpoint === 'high' || checkpoint === 'veryHigh') && degree2Pending;
 
   // Shared failure indicator across every persistence call (answer insert/delete, weights/
   // status upsert) — surfaces only on the transition INTO a failing streak, not per-call, so
@@ -532,14 +559,18 @@ export function CriteriaCalibrationPage() {
   // without a second LP solve.
   function applyCommitComputation(computation: CommitComputation) {
     if (!catalog) return;
-    setProgressPercent(Math.round(computation.accuracy * 100));
-    setMediumReached(computation.mediumReached);
+    setAccuracyPercent(Math.round(computation.accuracy * 100));
     setAccuracy(computation.accuracy);
+    setSolvedValues(computation.solved.values);
 
     if (user) {
       const myGen = ++weightsGenRef.current;
       beginWrite();
-      upsertWeightsAndStatus(user.id, catalog, computation)
+      // `tierRef`, not `tier`: this function is called from handlers that captured an earlier
+      // render's closure. The tier written here is the one for the position BEFORE this commit
+      // — which is right for every commit except the one that lands exactly on a boundary, and
+      // the tier-change effect below corrects that on the very next render.
+      upsertWeightsAndStatus(user.id, catalog, computation, tierRef.current)
         .then(() => {
           if (myGen !== weightsGenRef.current) return;
           notifyPersistRecovered();
@@ -660,12 +691,11 @@ export function CriteriaCalibrationPage() {
     // persistNewAnswer's own race check will notice the localId is gone and delete the
     // row itself once that insert resolves.
     //
-    // No checkpoint bookkeeping to unwind here. The tier is recomputed from the shorter
-    // answer log like everything else, so an Undo that drops accuracy back below High
-    // genuinely un-crosses that tier — which the retired `fired` signal could not do by
-    // construction (it was one-way and terminal). `acknowledgedTiers` deliberately does NOT
-    // get cleared: having already seen and dismissed the High checkpoint, the user should not
-    // be shown it a second time for re-crossing the same threshold they just stepped back over.
+    // No checkpoint bookkeeping to unwind here. `degree` is re-derived above, so an Undo that
+    // crosses back below a boundary genuinely un-reaches that tier — the label follows the log
+    // like everything else. `acknowledgedBoundaryDegree` deliberately does NOT get cleared:
+    // having already decided at this boundary once, the user should not be asked again for
+    // re-reaching the boundary they just stepped back over.
     applyCommitComputation(computation);
   }
 
@@ -757,8 +787,8 @@ export function CriteriaCalibrationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solverFailed, answers, catalog, unrecoverable]);
 
-  // Moves to the next degree. Called from the degree-2 and High checkpoints' "Increase
-  // accuracy" action, and from the silent auto-progression effect below.
+  // Moves to the next degree. Called from a checkpoint's "Keep comparing" action, and from the
+  // silent auto-progression effect below.
   function handleEscalate() {
     if (
       !action ||
@@ -771,57 +801,47 @@ export function CriteriaCalibrationPage() {
     setDegree(action.nextDegree);
   }
 
-  // Silent auto-progression (brief steps 2 and 4). Once the user has chosen "Increase
-  // accuracy" at the degree-2 checkpoint, degree escalates 3->4->5->6 as each pool exhausts
-  // with NO screen shown, until a tier checkpoint or terminal exhaustion interrupts. Gated on
-  // `!checkpoint` so a pending checkpoint always wins — without that, this effect would
-  // escalate straight past the screen the user is supposed to see.
+  // Silent auto-progression. Degree escalates with NO screen shown whenever the driver reports
+  // a degree exhausted and no checkpoint is owed for it — which, after 2026-08-18, means the
+  // degrees whose completion does not change the tier (5 and 6), plus any boundary the user has
+  // already acted on. Gated on `!checkpoint` so a pending screen always wins; without that this
+  // effect would escalate straight past the screen the user is supposed to see.
+  //
+  // The old `degree2Acknowledged` gate is gone. It existed because the degree-2 checkpoint was
+  // the one thing standing between a fresh session and unlimited silent escalation, so the
+  // effect had to be switched off until that decision was made — and then had to be seeded on
+  // resume, or a session resuming at a degree-3+ boundary was stranded with neither a screen nor
+  // a question. Checkpoints now cover every tier-changing boundary on their own, so `!checkpoint`
+  // is the complete condition and there is nothing to seed.
   //
   // useLayoutEffect (not useEffect) so it resolves before paint: an ordinary effect would let
-  // the browser paint the bare degree-exhausted state for one frame before flipping to the
-  // next question, a visible flash. This is the one piece of the retired auto-escalation
-  // machinery that survives, and only its mechanics — it is now gated on an explicit user
-  // choice rather than on a signal deciding for the user.
+  // the browser paint the bare degree-exhausted state for one frame before flipping to the next
+  // question, a visible flash.
   useLayoutEffect(() => {
     if (checkpoint) return;
-    if (!degree2Acknowledged) return;
     if (action?.type === 'degree-exhausted' && action.canEscalate) {
       // `degree` genuinely is React state (read by nextAction, also settable via
-      // resume-seeding and the checkpoints' own "Increase accuracy") — it can't just be
-      // computed during render the way the rule's guidance usually suggests instead. Same
-      // accepted pattern as App.tsx/FavoritesPage.tsx's own set-state-in-effect disables:
-      // synchronizing local state with a signal (the driver's degree-exhausted report) that
-      // only becomes known once render has already happened.
+      // resume-seeding and the checkpoint's own continue action) — it can't just be computed
+      // during render the way the rule's guidance usually suggests instead. Same accepted
+      // pattern as App.tsx/FavoritesPage.tsx's own set-state-in-effect disables: synchronizing
+      // local state with a signal (the driver's degree-exhausted report) that only becomes
+      // known once render has already happened.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       handleEscalate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, checkpoint, degree2Acknowledged]);
+  }, [action, checkpoint]);
 
-  // "Increase accuracy", from whichever checkpoint is currently showing. Only the degree-2 and
-  // High screens offer it; Very High and exhaustion are terminal.
+  // "Keep comparing", from whichever checkpoint is currently showing. Every non-terminal
+  // checkpoint is a degree boundary with an escalation available, so this is now one path
+  // rather than the two the threshold flow needed (a degree-2 branch, and a High branch that
+  // sometimes also had to settle the degree-2 decision it was standing in for).
   function handleCheckpointContinue() {
-    if (checkpoint === 'degree2') {
-      // Both halves matter: without the flag the checkpoint re-renders at the same boundary,
-      // and the auto-progression effect stays switched off forever.
-      setDegree2Acknowledged(true);
-      handleEscalate();
-      return;
-    }
-    if (checkpoint !== 'high') return;
-
-    setAcknowledgedTiers((prev) => new Set(prev).add('high'));
-    if (tierIsSubstitutingForDegree2) {
-      // This High screen replaced the degree-2 one, and asks the same question ("more accuracy,
-      // or stop here?") with copy better matched to where the user actually is. So answering it
-      // answers the degree-2 question too — without this, the degree-2 screen would render
-      // immediately afterward and ask again.
-      setDegree2Acknowledged(true);
-      handleEscalate();
-    }
-    // Otherwise the user is mid-degree with questions still available: dismissing just returns
-    // them to the next question, and if they happen to be at a boundary the auto-progression
-    // effect picks it up on the next render.
+    if (!action || action.type !== 'degree-exhausted') return;
+    // Recording the degree, not a tier: it is what stops this exact boundary re-rendering its
+    // screen, and it stays correct for the degrees that show no screen at all.
+    setAcknowledgedBoundaryDegree(action.degree);
+    handleEscalate();
   }
 
   function handleExit() {
@@ -881,16 +901,16 @@ export function CriteriaCalibrationPage() {
       <Container maxW="4xl" py={10}>
         <VStack gap={10} align="stretch">
           {/* Static sibling of the fading region below — never fades itself; only its own
-            numeric/text values update, instantly, via prop changes. Progress and Accuracy
-            both drive off the same live score-spread-accuracy number. The label now goes all
-            the way to Very High: the old 'never beyond Medium' cap belonged to the deprecated
-            computeSolverAccuracy metric, and the checkpoint flow this header sits above is
-            built on exactly these tiers. */}
+            numeric/text values update, instantly, via prop changes. Three independent numbers
+            now: the round, the per-degree progress ring, and the accuracy percentage next to a
+            label that names how many degrees are finished. Passing `progressPercent` for both
+            the ring and the accuracy figure was correct until 2026-08-18, when they stopped
+            being the same quantity. */}
           <ProgressHeader
             round={round}
             progressPercent={progressPercent}
-            accuracyPercent={progressPercent}
-            accuracyLevel={accuracyLabel}
+            accuracyPercent={accuracyPercent}
+            accuracyTier={tier}
             onExit={handleExit}
           />
           {hasPendingWrites && (
@@ -924,18 +944,13 @@ export function CriteriaCalibrationPage() {
               </Text>
             </Flex>
           ) : checkpoint ? (
-            // Deliberately ahead of the 'ask' branch: a tier crossing interrupts the question
-            // stream on the commit that crosses it, rather than waiting for a degree boundary
-            // that some sessions never reach again (per the brief's step 2a).
+            // Ahead of the 'ask' branch, though the two can no longer both apply: a checkpoint
+            // only exists while the driver reports the current degree exhausted, and in that
+            // state there is no question to ask.
             <CalibrationCheckpoint
               variant={checkpoint}
-              accuracyPercent={progressPercent}
-              accuracyLabel={accuracyLabel}
-              onContinue={
-                checkpoint === 'degree2' || checkpoint === 'high'
-                  ? handleCheckpointContinue
-                  : undefined
-              }
+              accuracyPercent={accuracyPercent}
+              onContinue={checkpoint === 'exhausted' ? undefined : handleCheckpointContinue}
               onFinish={handleFinish}
             />
           ) : action?.type === 'ask' ? (

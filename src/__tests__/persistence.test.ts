@@ -52,11 +52,15 @@ describe('upsertWeightsAndStatus', () => {
     });
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never);
 
-    await upsertWeightsAndStatus('user-1', catalog, computation);
+    await upsertWeightsAndStatus('user-1', catalog, computation, 'medium');
 
     expect(supabase.rpc).toHaveBeenCalledWith('upsert_calibration_status', {
       p_user_id: 'user-1',
-      p_tier: 'very_high', // accuracy 0.9 >= SCORE_SPREAD_VERY_HIGH_THRESHOLD (0.85)
+      // The tier comes from the CALLER now (degree-tied, 2026-08-18), not from the accuracy
+      // value in `computation` — which is 0.9 here, i.e. what the retired thresholds would
+      // have called very_high. Passing 'medium' and expecting 'medium' is the assertion that
+      // this module no longer derives the tier itself.
+      p_tier: 'medium',
       p_accuracy_value: 0.9,
       p_answer_count: 42,
     });
@@ -74,7 +78,7 @@ describe('upsertWeightsAndStatus', () => {
     });
     vi.mocked(supabase.rpc).mockResolvedValue({ error: null } as never);
 
-    await upsertWeightsAndStatus('user-1', catalog, computation);
+    await upsertWeightsAndStatus('user-1', catalog, computation, 'medium');
 
     const payload = vi.mocked(supabase.rpc).mock.calls[0][1] as Record<string, unknown>;
     expect(Object.keys(payload).sort()).toEqual([
