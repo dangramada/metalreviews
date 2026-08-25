@@ -66,8 +66,10 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-Current branch is `criteria-calibration-degree-tiers-and-progress` (**not yet merged**).
-Replaces threshold-based accuracy tiers with degree-tied ones: the label names how many degrees
+No branch currently in progress — working directory is `master`.
+
+Most recent merge was `criteria-calibration-degree-tiers-and-progress`
+(replaces threshold-based accuracy tiers with degree-tied ones: the label names how many degrees
 of trade-off comparison are finished — Unfocused / Blurry / Clear / Sharp, single-sourced in
 `accuracyTierLabels.ts` — while the accuracy percentage stays as an independent, still-displayed
 number. Collapses the whole threshold-crossing apparatus (tier Set, two resume seeds, degree-2
@@ -78,9 +80,12 @@ migration. **Reverses `criteria-calibration-tiered-checkpoints`' rule that the t
 continuation.** 326/326 tests; live browser pass done on the disposable QA account (full degree-2
 transition, the persistence round-trip, and one "stuck" shape at 60 answers; Dan's account
 untouched). Note existing `user_calibration_status` rows keep their old threshold-derived tier
-until that user next opens calibration — Dan's own will go Sharp → Clear. Known accepted gap: four preference shapes never exhaust degree 2 and therefore never
-leave the base rung or see a checkpoint at all — logged in `deferred-work.md`. Full detail:
-`docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md`.
+until that user next opens calibration — Dan's own will go Sharp → Clear. Known accepted gap:
+four preference shapes never exhaust degree 2 and therefore never leave the base rung or see a
+checkpoint at all — logged in `deferred-work.md`. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md`), merged
+to `master` `--no-ff` at `4b564d8` on 2026-08-25. Rollback tag:
+`pre-merge-criteria-calibration-degree-tiers-and-progress`.
 
 Before that, most recent merge was `criteria-calibration-tiered-checkpoints`
 (retires Brief 3's auto-escalation signal outright and replaces it with four explicit
