@@ -75,8 +75,10 @@ flag, four-way precedence) to one `acknowledgedBoundaryDegree`; degrees 5-6 esca
 Progress ring becomes the segmented per-degree bar, filled continuously by the same coverage gate
 that ends a degree. Soft gate decoupled from the tier (`hasWeights`, not `tier === 'none'`). No DB
 migration. **Reverses `criteria-calibration-tiered-checkpoints`' rule that the top tier offers no
-continuation.** 326/326 tests; **live browser pass still outstanding** (blocked on QA-account
-sign-in). Known accepted gap: four preference shapes never exhaust degree 2 and therefore never
+continuation.** 326/326 tests; live browser pass done on the disposable QA account (full degree-2
+transition, the persistence round-trip, and one "stuck" shape at 60 answers; Dan's account
+untouched). Note existing `user_calibration_status` rows keep their old threshold-derived tier
+until that user next opens calibration — Dan's own will go Sharp → Clear. Known accepted gap: four preference shapes never exhaust degree 2 and therefore never
 leave the base rung or see a checkpoint at all — logged in `deferred-work.md`. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md`.
 
