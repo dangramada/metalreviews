@@ -1011,6 +1011,25 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
     — it was calibrated against the 2026-08-09 oracle trace and tightening it would cut off a
     measured, still-substantial accuracy gain.
 
+  **NORMALIZED-THRESHOLD DIRECTION CLOSED 2026-08-25** (diagnostic only, no code changed —
+  `criteria-calibration/criteria-calibration-normalized-coverage-width-diagnostic.md`): the
+  hypothesis that these four shapes merely live on a different natural WIDTH SCALE, and that a
+  relative gate would free them, was tested on the fixed 12-trajectory evidence set and **fails.
+  The usable threshold window is empty for both candidates** — `width / widthAtFirstTouch` and
+  `width / meanWidthOfTouchedVars` — across 149 grid cells. Not a tolerance question: no
+  threshold on either candidate frees even one stuck shape while the healthy traces still
+  complete near their current round. The reasons are structural and specific: the first-touch
+  ratio orders the two populations BACKWARDS (16-19 of 24 variables on healthy traces are born
+  at width 0.167-0.200 and never move, so their ratio is 1.000 forever, above the stuck traces'
+  0.992-0.997); the mean-relative ratio is scale-free and therefore measures dispersion rather
+  than determinacy, and the single threshold that frees all four (C2 = 3.35) makes the width test
+  inert — every trace then completes at exactly its touched-24/24 round, i.e. it has silently
+  become the touched-only rule that was already rejected. **The four shapes are not stuck on
+  scale; they are stuck on variables the elicitation never constrains**, which confirms rather
+  than overturns the diagnosis above. **Consequence: the UX route (Option D) remains the chosen
+  path, and no implementation brief follows from this diagnostic.** Third empty-window result in
+  this cluster, after the accuracy-threshold recalibration and the escalation-signal candidates.
+
 - **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
   2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
   keeps its old threshold-derived value until that user next opens calibration, then silently

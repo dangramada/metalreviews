@@ -66,7 +66,13 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No branch currently in progress — working directory is `master`.
+In progress: `criteria-calibration-normalized-coverage-width-diagnostic` (diagnostic only, no
+production code changed — tests whether a NORMALIZED coverage-width threshold frees the four
+preference shapes that never leave degree 2 under the absolute
+`MAX_VALUE_RANGE_FOR_COVERAGE = 0.2` gate. **Verdict: negative — the usable threshold window is
+empty for both candidates**, and the one threshold that frees all four turns the width test inert.
+The UX route stays the chosen path; no implementation follows. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-normalized-coverage-width-diagnostic.md`).
 
 Also merged (docs/CSVs only, no code changes): `criteria-calibration-accuracy-threshold-recalibration`
 (fit the three `SCORE_SPREAD_*` constants against real ground truth and found no cutoff set
