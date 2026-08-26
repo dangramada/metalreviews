@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 //
-// Coverage for the degree-tied checkpoint flow (2026-08-18) — see
-// docs/decisions/criteria-calibration/criteria-calibration-degree-tiers-and-progress.md. It
-// replaced the 2026-08-17 threshold-crossing flow, whose tests these were: a tier can now only
-// change at a degree-exhaustion boundary, so the crossing cases those tests covered (mid-degree
-// interruption, tier-beats-degree-2 precedence, pre-acknowledging a resumed tier) no longer
-// describe anything the code can do.
+// Coverage for the calibration checkpoint flow after the 2026-08-26 copy rewrite
+// (criteria-calibration-checkpoint-copy-rewrite) — see
+// docs/decisions/criteria-calibration/criteria-calibration-checkpoint-copy-rewrite.md. It
+// replaced the 2026-08-18 degree-tied copy, whose tests these were: the underlying degree ->
+// tier mapping is UNCHANGED (still degreeTiers.ts's tierForCompletedDegrees), only the copy, the
+// badge's permanent visibility, and which degree boundaries get a screen at all changed (degree
+// 5 now shows one; it was silent before).
 //
 // Two things are mocked, and only two: `nextAction` (so a test can put the driver at an exact
 // degree boundary, with or without escalation available, without constructing an answer log
@@ -13,11 +14,6 @@
 // is a known number). Everything the tests assert on runs for real: the page's tier and
 // checkpoint derivation, the escalation and acknowledgment handler, degreeTiers' mapping, and
 // CalibrationCheckpoint itself. Mocking the derivation would have left nothing worth testing.
-//
-// NOTE what the accuracy mock is NOT for any more. Under thresholds it placed the flow at a
-// tier; now it only sets a number the screens print as a separate fact. Several tests below
-// deliberately set it to a value the old thresholds would have called Very High, precisely to
-// assert the label ignores it.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
@@ -147,7 +143,7 @@ async function clickButton(name: RegExp | string) {
   });
 }
 
-describe('CriteriaCalibrationPage — degree-tied checkpoints', () => {
+describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     accuracyValue = BELOW_MEDIUM;
@@ -190,40 +186,49 @@ describe('CriteriaCalibrationPage — degree-tied checkpoints', () => {
     });
   }
 
-  it('labels the degree-2 boundary Blurry', async () => {
+  it('shows the promotion headline and the Blurry badge at the degree-2 boundary', async () => {
     boundaryAt(2);
     renderPage();
 
-    expect(await screen.findByText(/2-criteria comparisons complete — Blurry/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Keep comparing/ })).toBeTruthy();
-    // Full name: the page header carries its own bare "Stop here" pause button.
-    expect(screen.getByRole('button', { name: /Stop here — evaluate albums/ })).toBeTruthy();
+    expect(await screen.findByText("You've compared everything at this level")).toBeTruthy();
+    expect(screen.getByText('Blurry')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Pause here' })).toBeTruthy();
   });
 
-  it('labels the degree-3 boundary Clear and the degree-4 boundary Sharp', async () => {
+  it('shows the Clear badge at the degree-3 boundary and the Sharp badge at the degree-4 boundary', async () => {
     boundaryAt(3);
     const { unmount } = renderPage();
-    expect(await screen.findByText(/3-criteria comparisons complete — Clear/)).toBeTruthy();
+    await screen.findByText("You've compared everything at this level");
+    expect(screen.getByText('Clear')).toBeTruthy();
     unmount();
 
     boundaryAt(4);
     renderPage();
-    expect(await screen.findByText(/4-criteria comparisons complete — Sharp/)).toBeTruthy();
+    await screen.findByText("You've compared everything at this level");
+    expect(screen.getByText('Sharp')).toBeTruthy();
   });
 
-  // The whole point of the 2026-08-18 change: the label is a function of degree alone. This
-  // accuracy value would have been Very High under the retired thresholds (>= 0.85).
-  it('assigns the label from the degree, ignoring accuracy entirely', async () => {
-    accuracyValue = VERY_HIGH;
-    boundaryAt(2);
+  // The 2026-08-26 rewrite made degree 5 show its own checkpoint, reversing the previous
+  // "silent, tier doesn't change" rule — a badge that's honestly still Sharp is not noise once
+  // the badge is permanently visible everywhere else. Both 4 and 5 use identical "ceiling" copy.
+  it('shows a checkpoint at the degree-5 boundary too, with the same Sharp badge and ceiling copy as degree 4', async () => {
+    boundaryAt(4);
+    const { unmount } = renderPage();
+    await screen.findByText("You've compared everything at this level");
+    const degree4Body = screen.getByText(/Continuing still sharpens that number/).textContent;
+    unmount();
+
+    boundaryAt(5);
     renderPage();
-
-    expect(await screen.findByText(/2-criteria comparisons complete — Blurry/)).toBeTruthy();
-    // The number is still reported — as its own separate fact, never as what earned the label.
-    expect(screen.getByText(/pin the model down to 90%/)).toBeTruthy();
+    await screen.findByText("You've compared everything at this level");
+    expect(screen.getByText('Sharp')).toBeTruthy();
+    const degree5Body = screen.getByText(/Continuing still sharpens that number/).textContent;
+    expect(degree5Body).toEqual(degree4Body);
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
   });
 
-  it('the header shows the degree-tied label and the accuracy percentage as separate values', async () => {
+  it('the header shows the tier and the accuracy percentage as separate values', async () => {
     accuracyValue = VERY_HIGH;
     actionForDegree = () => ASK_AT_DEGREE(2);
     renderPage();
@@ -233,90 +238,71 @@ describe('CriteriaCalibrationPage — degree-tied checkpoints', () => {
     expect(screen.getByText('90%')).toBeTruthy();
   });
 
-  it('"Keep comparing" moves to the next degree and does not re-show the checkpoint', async () => {
+  it('assigns the badge from the degree, ignoring accuracy entirely', async () => {
+    accuracyValue = VERY_HIGH;
     boundaryAt(2);
     renderPage();
 
-    expect(await screen.findByText(/2-criteria comparisons complete — Blurry/)).toBeTruthy();
-    await clickButton(/Keep comparing/);
+    await screen.findByText("You've compared everything at this level");
+    expect(screen.getByText('Blurry')).toBeTruthy();
+    // The number is still reported, attached to an explicit subject, never bare.
+    expect(screen.getByText(/you're 90% clear on what matters most to you/)).toBeTruthy();
+  });
 
-    expect(screen.queryByText(/comparisons complete/)).toBeNull();
+  it('"Continue" moves to the next degree and does not re-show the checkpoint', async () => {
+    boundaryAt(2);
+    renderPage();
+
+    await screen.findByText("You've compared everything at this level");
+    await clickButton('Continue');
+
+    expect(screen.queryByText("You've compared everything at this level")).toBeNull();
     expect(screen.getByText(/Now comparing 3 criteria at once\./)).toBeTruthy();
   });
 
-  // Degrees 5 and 6 do not change the tier, so they must not interrupt. This is the one place
-  // silent auto-progression still applies after the rewrite.
-  it('escalates silently through the degree-5 boundary — no screen, no label change', async () => {
-    actionForDegree = (d) => (d === 5 ? EXHAUSTED_AT_DEGREE(5) : ASK_AT_DEGREE(d));
-    vi.mocked(useCalibrationResume).mockReturnValue({
-      answers: [],
-      degree: 5,
-      loading: false,
-      error: null,
-    });
-    renderPage();
-
-    // Straight to a degree-6 question, with the label unchanged at Sharp.
-    expect(await screen.findByText(/All 6 criteria at once/)).toBeTruthy();
-    expect(screen.queryByText(/comparisons complete/)).toBeNull();
-    expect(screen.getByText(/Detail: Sharp/)).toBeTruthy();
-  });
-
-  it('shows the neutral exhaustion screen when no degree is left to escalate to', async () => {
+  it('shows the terminal screen when no degree is left to escalate to, with a single button', async () => {
     boundaryAt(6, false);
     renderPage();
 
-    expect(await screen.findByText(/No comparisons left to ask/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Evaluate albums/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Keep comparing/ })).toBeNull();
+    expect(await screen.findByText("You've compared everything, at every level")).toBeTruthy();
+    expect(screen.getByText('Sharp')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Done, evaluate albums' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Pause here' })).toBeNull();
   });
 
-  // Unchanged constraint from the 2026-08-17 pass, and still load-bearing: whether these shapes
-  // reflect genuine under-information or a blind spot in the metric is an open question
-  // (deferred-work.md), so the copy must not answer it in either direction.
-  it('exhaustion copy blames neither the user nor the metric (the open question stays open)', async () => {
+  // Unchanged constraint, still load-bearing: whether these preference shapes reflect genuine
+  // under-information or a blind spot in the metric is an open question (deferred-work.md), so
+  // the copy must not answer it in either direction.
+  it('terminal copy blames neither the user nor the metric (the open question stays open)', async () => {
     boundaryAt(6, false);
     renderPage();
 
-    await screen.findByText(/No comparisons left to ask/);
+    await screen.findByText("You've compared everything, at every level");
     const text = document.body.textContent ?? '';
     expect(text).not.toMatch(/inconsist|contradict|conflict|unreliable|couldn.t determine/i);
     expect(text).not.toMatch(/limitation|failed|unable to measure/i);
   });
 
-  // Reverses the old Very High rule deliberately — see CalibrationCheckpoint's copy rule 3.
-  // Sharp is the top of the LABEL ladder, not of the work, and degrees 5-6 are only reachable
-  // through this button.
-  it('Sharp offers continuation, and says plainly that the label will not move', async () => {
-    boundaryAt(4);
-    renderPage();
-
-    await screen.findByText(/4-criteria comparisons complete — Sharp/);
-    expect(screen.getByRole('button', { name: /Keep comparing/ })).toBeTruthy();
-    expect(screen.getByText(/They stay at Sharp/)).toBeTruthy();
-  });
-
-  // The 2026-08-17 flow needed a resume-time seed to stop a standing tier firing its screen on
-  // load, and a second one to stop a session resumed at a degree-3+ boundary being stranded with
-  // neither screen nor question. Both are deleted; this asserts the behaviour they were
-  // protecting still holds, from the derivation alone.
   it("a session resumed onto a boundary shows that boundary's checkpoint, and is never stranded", async () => {
     boundaryAt(3);
     renderPage();
 
-    expect(await screen.findByText(/3-criteria comparisons complete — Clear/)).toBeTruthy();
-    await clickButton(/Keep comparing/);
+    await screen.findByText("You've compared everything at this level");
+    expect(screen.getByText('Clear')).toBeTruthy();
+    await clickButton('Continue');
     expect(screen.getByText(/4 criteria this time\./)).toBeTruthy();
   });
 
-  // The copy constraint from accuracyTierLabels.ts, asserted on rendered output rather than
-  // trusted to review: degree-tying did NOT fix the recalibration report's #4/#8 inversion, so
-  // no screen may present its label as a statement about ranking quality.
-  it('no checkpoint screen claims the label says anything about ranking quality', async () => {
-    for (const degree of [2, 3, 4]) {
+  // The copy constraint carried over from the pre-rewrite tests: degree-tying did NOT fix the
+  // recalibration report's #4/#8 inversion, so no screen may present the badge as a statement
+  // about ranking quality. Loops over every degree that now shows a screen, including the
+  // newly-added degree 5.
+  it('no checkpoint screen claims the badge says anything about ranking quality', async () => {
+    for (const degree of [2, 3, 4, 5]) {
       boundaryAt(degree);
       const { unmount } = renderPage();
-      await screen.findByText(/comparisons complete/);
+      await screen.findByText("You've compared everything at this level");
       const text = document.body.textContent ?? '';
       expect(text).not.toMatch(/rank/i);
       expect(text).not.toMatch(/reliable|trustworthy|confiden/i);
@@ -325,7 +311,51 @@ describe('CriteriaCalibrationPage — degree-tied checkpoints', () => {
     }
   });
 
-  it('navigates to the ?from= destination when the user chooses to evaluate albums', async () => {
+  // Rule 2 from the copy rewrite: "label" never appears as a noun in body text — only as the
+  // badge itself, which is a single word (Unfocused/Blurry/Clear/Sharp), not a sentence.
+  it('never uses the word "label" as a noun anywhere on a checkpoint screen', async () => {
+    for (const degree of [2, 3, 4, 5]) {
+      boundaryAt(degree);
+      const { unmount } = renderPage();
+      await screen.findByText("You've compared everything at this level");
+      const text = document.body.textContent ?? '';
+      expect(text).not.toMatch(/\blabels?\b/i);
+      unmount();
+    }
+  });
+
+  it('shows the permanent tier badge with its info tooltip', async () => {
+    boundaryAt(2);
+    renderPage();
+
+    await screen.findByText("You've compared everything at this level");
+    const info = screen.getByLabelText(
+      /Unfocused, Blurry, Clear, Sharp\. Each one means a deeper level of comparison finished\./
+    );
+    expect(info).toBeTruthy();
+  });
+
+  // The freeze checkpoint's own trigger logic lives on a separate branch
+  // (criteria-calibration-freeze-checkpoint) and isn't wired up here — but its documented
+  // consequence (choosing to continue from degree 2 without ever completing it) is fully
+  // reproducible today by resuming a session AT degree 3 with no acknowledged degree-2
+  // boundary, which is exactly what that branch's "Continue" button will produce. Verifies the
+  // badge jumps Unfocused -> Clear, never rendering Blurry, and that the promotion headline
+  // doesn't say anything false about the skipped level.
+  it('skips the Blurry badge entirely when degree 2 was never completed (the freeze-then-continue path)', async () => {
+    boundaryAt(3);
+    renderPage();
+
+    await screen.findByText("You've compared everything at this level");
+    expect(screen.getByText('Clear')).toBeTruthy();
+    expect(screen.queryByText('Blurry')).toBeNull();
+    // The headline never names a specific previous level, so it can't misrepresent one that was
+    // never actually finished.
+    const text = document.body.textContent ?? '';
+    expect(text).not.toMatch(/2-criteria|two.criteria|level 2/i);
+  });
+
+  it('navigates to the ?from= destination when the user chooses to pause', async () => {
     boundaryAt(2);
     render(
       <ChakraProvider value={system}>
@@ -335,8 +365,8 @@ describe('CriteriaCalibrationPage — degree-tied checkpoints', () => {
       </ChakraProvider>
     );
 
-    await screen.findByText(/2-criteria comparisons complete — Blurry/);
-    await clickButton(/Stop here — evaluate albums/);
+    await screen.findByText("You've compared everything at this level");
+    await clickButton('Pause here');
     expect(mockNavigate).toHaveBeenCalledWith('/favorites');
   });
 });

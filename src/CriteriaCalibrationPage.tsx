@@ -949,6 +949,7 @@ export function CriteriaCalibrationPage() {
             // state there is no question to ask.
             <CalibrationCheckpoint
               variant={checkpoint}
+              tier={tier}
               accuracyPercent={accuracyPercent}
               onContinue={checkpoint === 'exhausted' ? undefined : handleCheckpointContinue}
               onFinish={handleFinish}

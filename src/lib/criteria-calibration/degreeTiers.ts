@@ -81,12 +81,21 @@ export function tierForPosition(currentDegree: number, atDegreeBoundary: boolean
 }
 
 /**
- * Which degrees get a checkpoint screen. Degrees 5 and 6 exhaust silently: the tier does not
- * change there (see the header), and a screen announcing "still Sharp" is noise. Terminal
- * exhaustion is handled separately by the page — it is a different screen with different copy.
+ * Which degrees get a checkpoint screen. Degree 6 exhausts without a screen of its own here:
+ * it is always terminal (no degree 7 to escalate to for this catalog), which the page routes to
+ * a different, separately-handled screen with different copy.
+ *
+ * Degree 5 WAS silent (auto-escalated with no screen) before the 2026-08-26 checkpoint copy
+ * rewrite (criteria-calibration-checkpoint-copy-rewrite). The tier truly does not change at
+ * degree 5 (see the module header — it stays 'veryHigh', same as degree 4), but "the tier
+ * doesn't change" stopped being a reason to hide the screen once the checkpoint's own badge
+ * became permanently visible: a badge that's honestly still Sharp is not noise, and skipping
+ * degree 5's boundary made it the only degree whose completion the user could never see marked
+ * at all. See CalibrationCheckpoint.tsx's 'veryHigh' variant (now shared by both degree 4 and
+ * degree 5 exhaustion, same "ceiling" copy for both) and the copy-rewrite decision doc.
  */
 export function isLabelChangingDegree(degree: number): boolean {
-  return degree === 2 || degree === 3 || degree === 4;
+  return degree === 2 || degree === 3 || degree === 4 || degree === 5;
 }
 
 /**
