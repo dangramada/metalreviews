@@ -131,7 +131,7 @@ Confirmed read-only against Supabase on 2026-08-16, not inferred:
 | pre-reset backup export time | 2026-08-15 10:30:54Z (19 min *before* the first answer) |
 | pre-reset backup contents | **70** answers — the wiped session, not this one |
 | `user_calibration_status` | `answer_count: 71`, `tier: very_high`, `accuracy_value: 0.999977`, `fired: true`, `last_change_answer_index: 45` |
-| `second-session-accuracy-trajectory-2026-08-15.csv` final row | `n=71`, `accuracy 0.999977`, `veryHigh`, `fired true`, `last_change_answer_index 45` |
+| `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` final row | `n=71`, `accuracy 0.999977`, `veryHigh`, `fired true`, `last_change_answer_index 45` |
 
 The status row and the trajectory CSV's last row agree to six decimal places on accuracy and
 exactly on `fired`/`last_change_answer_index`. Together with the timestamps bracketing the

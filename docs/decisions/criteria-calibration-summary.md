@@ -118,7 +118,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 
 **Supporting data**
 
-- `second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs
+- `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs
 
 ## Not in this repo
 

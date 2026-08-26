@@ -14,7 +14,7 @@ any paths that moved.** Filed in `deferred-work.md` as well, so it does not depe
 re-reading this header.
 
 Diagnostic script: `scripts/degree-tier-recon-2026-08-18.ts` (read-only; the one Supabase call
-is a `select`). Derived data: `degree-tier-recon-2026-08-18.csv`, 945 rows.
+is a `select`). Derived data: `docs/data/criteria-calibration/degree-tier-recon-2026-08-18.csv`, 945 rows.
 
 ---
 
@@ -59,7 +59,7 @@ trace's final round — the rounds where the tier decision under test actually h
 ~2 minutes.
 
 **Reproduction check, not assumed.** Against the committed
-`accuracy-threshold-recalibration-2026-08-17.csv` (945 rows, same 12 traces):
+`docs/data/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` (945 rows, same 12 traces):
 
 | quantity                                              | result                                                                                                           |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
