@@ -12,6 +12,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Target deployment: Render (current). Vercel migration is a possible future move — avoid permanent server dependencies where reasonably easy
 - Comment all non-trivial code: explain WHY, not just what. Prioritise scraper logic, ingestion pipeline, React state, and any API or browser quirks.
 - When a session identifies new deferred or postponed work, add it to `docs/decisions/deferred-work.md` rather than only stating it inline in that session's own doc.
+- `docs/decisions/` holds prose decision docs only. Raw/generated data a diagnostic script
+  produces (CSV/JSON/TXT dumps) goes in the sibling `docs/data/<cluster>/` tree instead — mirror
+  the decision-doc cluster's folder name (e.g. `docs/data/criteria-calibration/`) — so it can be
+  excluded from the Project Knowledge GitHub-connector sync. Personal/local data that's
+  gitignored (never committed) goes in the further sibling `docs/backups/`, not under
+  `docs/decisions/` either. When adding a new data-producing script, write its output straight
+  to the correct sibling folder rather than `docs/decisions/` and moving it later. See
+  `docs/decisions/documentation-audit-june2026.md`'s 2026-08-26 sections for the reorg that
+  established this.
 - Docs that are read repeatedly across sessions and grow large after a decision ships get a
   short summary block prepended once shipped-and-verified, so future sessions can skip the
   full body (currently done for `ingest-trigger-and-security.md` and
