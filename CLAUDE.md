@@ -66,6 +66,20 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
+In progress: `criteria-calibration-checkpoint-copy-rewrite` (rewrites all four existing
+checkpoint screens' copy against six rules — no em dashes, no "label" as a noun, the accuracy
+percentage never bare, no low-percentage-reads-as-failure phrasing, pausing always last and
+lightest, max 3 content sentences per body — and makes the tier badge permanently visible on
+every checkpoint via a new `tier` prop decoupled from `variant`. Also makes degree-5 exhaustion
+show a checkpoint for the first time (`isLabelChangingDegree` gained degree 5; it was silent
+before). Defines a fifth `'frozen'` variant's copy (for the freeze checkpoint below) even though
+no trigger produces it yet on this branch, specifically so the two branches don't both need to
+edit `CalibrationCheckpoint.tsx`. Cut from `master`, independent of the freeze-checkpoint branch
+below. 328/328 tests, `tsc` clean (491 pre-existing unrelated errors, unchanged), live-browser
+screenshot verification via a temporary `/dev-checkpoint-preview` route (removed before this
+commit). Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-checkpoint-copy-rewrite.md`).
+
 In progress: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
 `coverage-complete`, per the brief. **Step 1 done and confirmed**: for all four shapes
@@ -74,7 +88,13 @@ refinement candidate pool is NOT empty at round 90 (54-62 unasked candidates rem
 against `nextAction`'s own pool-empty branch across all 10 oracle traces, zero mismatches) — a
 uniform Case B, not mixed. So the checkpoint's degree-3 continuation must use the explicit-consent
 copy path, never an automatic/unconditional transition, for these four. Step 2 (freeze-detection
-threshold, checkpoint screen, copy) awaits sign-off before implementation. Full detail:
+threshold, checkpoint screen) has its copy already decided by
+`criteria-calibration-checkpoint-copy-rewrite` above (Tip 4, the `'frozen'` variant) — Step 2's
+own remaining work is just the 78-answer threshold and wiring `isDegree2Frozen` to that existing
+variant. **Deliberately left open at the same time as the copy-rewrite branch above** (Dan's
+explicit call, not the usual one-branch-at-a-time default) — sequencing is: copy-rewrite merges
+first, then this branch rebases onto the updated `master` before Step 2 implementation starts,
+so `CalibrationCheckpoint.tsx` is only edited by one branch at a time in practice. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`).
 
 Also merged (docs/CSVs only, no code changes): `criteria-calibration-normalized-coverage-width-diagnostic`

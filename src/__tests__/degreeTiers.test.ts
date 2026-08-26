@@ -86,11 +86,17 @@ describe('degree -> tier mapping', () => {
     expect(tierForPosition(4, true)).toBe('veryHigh');
   });
 
-  it('shows a checkpoint only at the degrees whose completion changes the label', () => {
+  // Degree 5 was silent before the 2026-08-26 checkpoint copy rewrite (the tier doesn't change
+  // there, same as degree 4's own tier). It now gets a screen too, since a permanently-visible
+  // badge that's honestly still Sharp is not noise — see
+  // docs/decisions/criteria-calibration/criteria-calibration-checkpoint-copy-rewrite.md. Degree
+  // 6 stays outside this function: it is always terminal for this catalog and routed to a
+  // separate screen by the page, regardless of this function's answer.
+  it('shows a checkpoint at every degree boundary except the terminal one', () => {
     expect(isLabelChangingDegree(2)).toBe(true);
     expect(isLabelChangingDegree(3)).toBe(true);
     expect(isLabelChangingDegree(4)).toBe(true);
-    expect(isLabelChangingDegree(5)).toBe(false);
+    expect(isLabelChangingDegree(5)).toBe(true);
     expect(isLabelChangingDegree(6)).toBe(false);
   });
 });
