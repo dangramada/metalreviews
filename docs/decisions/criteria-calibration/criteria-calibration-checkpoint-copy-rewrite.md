@@ -72,6 +72,17 @@ orange primary + outline secondary).
 New buttons: `"Continue"` / `"Pause here"`, equal visual weight, side by side (`flex="1"`, same
 `maxW`, one solid one outline but same size and row position).
 
+**Special case this variant must render correctly, not just the linear path**: if degree 2 was
+never actually completed (the freeze-then-continue path — see Tip 4 below and the
+freeze-checkpoint branch), the FIRST time this Tip-1 template ever renders for that session is at
+the degree-3 boundary, showing the Clear badge directly. Confirmed this headline doesn't
+misrepresent that: it never names degree 2 or "two-criteria comparisons" specifically, so it
+reads exactly as true whether or not degree 2 was ever marked complete. Full walkthrough,
+including why the Blurry badge can never render in this case, is in "Verification: weights don't
+reset, label doesn't retroactively promote" below, and is asserted directly by
+`CriteriaCalibrationCheckpoints.test.tsx`'s `'skips the Blurry badge entirely when degree 2 was
+never completed (the freeze-then-continue path)'` test.
+
 ### Tip 2 — ceiling (`'veryHigh'` variant: degree-4 AND degree-5 boundaries, both now)
 
 Old: only degree-4 exhaustion showed a screen (`'veryHigh'`, "Four criteria at a time, all
@@ -153,6 +164,27 @@ identically) — only whether a screen shows at all changed. Confirmed via the u
 `degreeTiers.test.ts` test (renamed from "shows a checkpoint only at the degrees whose completion
 changes the label" to "shows a checkpoint at every degree boundary except the terminal one") and
 `CriteriaCalibrationCheckpoints.test.tsx`'s new degree-5 test.
+
+### Audit: does anything else read `isLabelChangingDegree`, or depend on degree 5 being silent?
+
+Checked before recommending this branch for merge (`grep -rn "isLabelChangingDegree" src/
+scripts/`): the only call site anywhere in the codebase is
+`CriteriaCalibrationPage.tsx`'s checkpoint derivation (line ~499). No analytics, logging, or
+persistence code exists in this project for calibration at all (grepped for
+`analytics|track(|logEvent|posthog|mixpanel|gtag` in the relevant files: zero matches), so there
+is no hidden consumer of "was this degree silent" to worry about.
+
+There IS one real, non-visual side effect, found by tracing what `checkpoint` being non-null now
+suppresses: the silent auto-progression `useLayoutEffect` (`if (checkpoint) return; ...
+handleEscalate()`) no longer fires at the degree-5 boundary, because `checkpoint` is now
+`'veryHigh'` there instead of `null`. Before this branch, degree 5 to degree 6 was a same-frame,
+zero-click transition; after, it requires the user to click "Continue" like every other
+boundary. This is not an unintended side effect — it is the literal behavior Dan's brief asked
+for (Tip 2 explicitly specifies Continue/Pause buttons for "gradele 4->5 și 5->6") — but it is
+worth stating plainly since it changes session pacing by one click, not just what's drawn on
+screen. The tier-persistence effect (`upsertCalibrationStatus`, gated on `tier` alone, not on
+`checkpoint` or `isLabelChangingDegree`) is unaffected: `tier` is already `'veryHigh'` going into
+the degree-5 boundary (set by degree 4), so no extra write fires there either way.
 
 ## Verification: weights don't reset, label doesn't retroactively promote
 
