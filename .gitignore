@@ -13,4 +13,4 @@ scratch_ingest_once.ts
 
 # Local diagnostic dumps of calibration data (personal preference data — kept on disk,
 # deliberately not versioned). See docs/decisions/criteria-calibration/criteria-calibration-dantzig-stress-test.md.
-docs/decisions/backups/
+docs/backups/

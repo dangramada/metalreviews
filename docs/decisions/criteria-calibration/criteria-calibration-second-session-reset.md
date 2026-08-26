@@ -26,8 +26,8 @@ session is validated against, and `RANKING_TEST_SET` was frozen from them.
    or script reads `user_calibration_answers` live — `persistence.test.ts` fully mocks
    `supabaseClient`. Deleting the table's rows cannot affect the suite. Confirmed: 297/297
    still pass post-reset.
-4. **Backup.** `docs/decisions/backups/pre-reset-dan-account-2026-08-15.json` — 70 answers,
-   30 weights, 1 status row. Not versioned: `docs/decisions/backups/` is gitignored
+4. **Backup.** `docs/backups/pre-reset-dan-account-2026-08-15.json` — 70 answers,
+   30 weights, 1 status row. Not versioned: `docs/backups/` is gitignored
    (`.gitignore:16`), same convention as the `ranking-stability-log-*.jsonl` files that live
    in that directory. Referenced by path only, as those are.
 

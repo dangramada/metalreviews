@@ -284,3 +284,40 @@ regardless, so this didn't affect the move itself.
 File moves and path-string updates only. No application logic, script computation, or data
 content changed — every moved file is byte-identical to its pre-move version (`git mv`, no
 edits to file contents).
+
+**Superseded same day:** the "deliberately excluded" call above stood for a few hours. Dan
+then asked for `backups/` to sit alongside `docs/data/` rather than nested under
+`docs/decisions/`, for consistency — see the section immediately below. All path references
+in this document above this note describe the folder's location *before* that second move;
+they're left as historical record rather than rewritten.
+
+## 2026-08-26 (same day, follow-up) — `docs/decisions/backups/` moved to `docs/backups/`
+
+**Why.** Same motivation as the `docs/data/` split above, generalized: `docs/decisions/`
+should hold prose decision docs only, with non-prose content as sibling folders
+(`docs/data/`, now `docs/backups/`) rather than nested inside it. `docs/backups/` was never
+in scope for the earlier move (it's gitignored, so the GitHub-connector argument doesn't
+apply to it) — this is a separate, purely organizational follow-up requested directly.
+
+**Moved:** `docs/decisions/backups/` → `docs/backups/` (plain filesystem `mv`, not `git mv` —
+the folder was never tracked; `git status` confirms zero tracked paths under either name
+before or after).
+
+**Updated:**
+- `.gitignore:16` — `docs/decisions/backups/` → `docs/backups/`
+- 3 scripts' functional path constants: `archive-and-reset-calibration.ts` (`BACKUPS_DIR`),
+  `degree-tier-recon-2026-08-18.ts`, `accuracy-threshold-final-region-determinacy-2026-08-17.ts`
+- 2 comment references in `src/lib/criteria-calibration/fixtures.ts`
+- Prose pointers in 4 decision docs: `criteria-calibration-second-session-reset.md`,
+  `criteria-calibration-escalation-signal-candidates.md`,
+  `criteria-calibration-weights-write-race.md`,
+  `criteria-calibration-ranking-stability-analysis.md`
+
+**Also fixed while here:** `criteria-calibration-summary.md`'s "Supporting data" section
+listed only 1 of the 11 files moved to `docs/data/criteria-calibration/` in the earlier
+same-day move — expanded to list all 11.
+
+### Verification
+
+Repo-wide grep for `docs/decisions/backups` — zero matches outside this document's own
+historical record above. No application logic changed.

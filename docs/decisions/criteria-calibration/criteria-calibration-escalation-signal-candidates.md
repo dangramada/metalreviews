@@ -57,7 +57,7 @@ Everything below was regenerated **post-Harris-fix** (`980c887`). The previously
 
 | trace      | source                                                                                                                                                                                                   | rounds |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `A70`      | first real session, 2026-08-10→12, replayed from `docs/decisions/backups/pre-reset-dan-account-2026-08-15.json` (those rows were deleted by the 2026-08-15 reset; the backup is the only surviving copy) | 70     |
+| `A70`      | first real session, 2026-08-10→12, replayed from `docs/backups/pre-reset-dan-account-2026-08-15.json` (those rows were deleted by the 2026-08-15 reset; the backup is the only surviving copy) | 70     |
 | `B71`      | second real session, 2026-08-15, replayed read-only from live `user_calibration_answers`                                                                                                                 | 71     |
 | `#1`–`#10` | the ten synthetic oracles from `scripts/synthetic-calibration-oracles-2026-08-16.ts`, re-run with per-round `.point` vectors emitted                                                                     | 30–90  |
 
