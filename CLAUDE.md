@@ -75,7 +75,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-In progress: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
+No branch currently in progress — `criteria-calibration-freeze-checkpoint` just merged, closing
+out the criteria-calibration checkpoint work chain (copy rewrite -> freeze checkpoint) started
+this session.
+
+Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
 `coverage-complete`. **Both steps done.** Step 1: for all four shapes (`#2 single-dominant`,
 `#4 linear-control`, `#5 front-loaded`, `#6 back-loaded`), the degree-2 refinement candidate pool
@@ -92,10 +96,15 @@ real degree-2 boundary are mutually exclusive by the threshold's own margin). Ve
 a real-driver RTL integration test (no mocked `nextAction`/`computeScoreSpreadAccuracy`) replaying
 78 real `#2 single-dominant` answers: fires at exactly 78, not 77; accuracy percentage identical
 across "Continue" (weights not reset); Blurry never appears after continuing (label not
-retroactively promoted). 333/333 tests, `tsc` clean. Full detail:
+retroactively promoted). Closes deferred-work.md's "no checkpoint and no label change for 90+
+answers" gap — the COVERAGE question behind it was already answered by the normalized-width
+diagnostic below; the SEPARATE, still-open question is whether `computeScoreSpreadAccuracy`
+itself under- or correctly reports these shapes, never investigated against ground truth by
+either diagnostic. 333/333 tests, `tsc` clean. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint.md` (Step 2),
 `docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`
-(Step 1)).
+(Step 1)), merged to `master` `--no-ff` at `f075eae` on 2026-08-26. Rollback tag:
+`pre-merge-criteria-calibration-freeze-checkpoint`.
 
 Also merged (docs/CSVs only, no code changes): `criteria-calibration-checkpoint-copy-rewrite`
 (rewrites all four checkpoint screens' copy against six rules — no em dashes, no "label" as a
