@@ -68,18 +68,25 @@ For the full branch history (including merged branches), see
 
 In progress: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
-`coverage-complete`, per the brief. **Step 1 done and confirmed**: for all four shapes
-(`#2 single-dominant`, `#4 linear-control`, `#5 front-loaded`, `#6 back-loaded`), the degree-2
-refinement candidate pool is NOT empty at round 90 (54-62 unasked candidates remain, self-checked
-against `nextAction`'s own pool-empty branch across all 10 oracle traces, zero mismatches) — a
-uniform Case B, not mixed. So the checkpoint's degree-3 continuation must use the explicit-consent
-copy path, never an automatic/unconditional transition, for these four. Step 2's copy is already
-decided and merged via `criteria-calibration-checkpoint-copy-rewrite` (Tip 4, the `'frozen'`
-variant, unwired) — **next action is to rebase this branch onto the updated `master` (now at
-`9f7eb54`), then implement the 78-answer threshold and wire `isDegree2Frozen` to that existing
-variant**; no further edits to `CalibrationCheckpoint.tsx` or `checkpointCopy.ts` should be
-needed. Full detail:
-`docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`).
+`coverage-complete`. **Both steps done.** Step 1: for all four shapes (`#2 single-dominant`,
+`#4 linear-control`, `#5 front-loaded`, `#6 back-loaded`), the degree-2 refinement candidate pool
+is NOT empty at round 90 (54-62 unasked candidates remain) — a uniform Case B, not mixed, so no
+runtime Case A/B branching was built. Step 2: `DEGREE_2_FREEZE_ANSWER_THRESHOLD = 78`
+(`degreeTiers.ts`) is 77 + 1, the smallest answer-count position that never false-triggers on any
+of the 8 healthy evidence traces (latest healthy exit: `#10 dan-approximation` at round 77) —
+chosen on POSITION rather than freeze-run length, confirmed necessary since a healthy trace's
+worst freeze (28 rounds, `#3 zero-weight-criterion`) is longer than a permanently-blocked
+trace's (23 rounds, `#4 linear-control`). Wires `isDegree2Frozen` to the already-merged
+`'frozen'` checkpoint variant/copy from `criteria-calibration-checkpoint-copy-rewrite` (no copy
+changed on this branch); reuses `acknowledgedBoundaryDegree` (safe — the freeze branch and a
+real degree-2 boundary are mutually exclusive by the threshold's own margin). Verified live via
+a real-driver RTL integration test (no mocked `nextAction`/`computeScoreSpreadAccuracy`) replaying
+78 real `#2 single-dominant` answers: fires at exactly 78, not 77; accuracy percentage identical
+across "Continue" (weights not reset); Blurry never appears after continuing (label not
+retroactively promoted). 333/333 tests, `tsc` clean. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint.md` (Step 2),
+`docs/decisions/criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`
+(Step 1)).
 
 Also merged (docs/CSVs only, no code changes): `criteria-calibration-checkpoint-copy-rewrite`
 (rewrites all four checkpoint screens' copy against six rules — no em dashes, no "label" as a
