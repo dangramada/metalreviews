@@ -42,6 +42,7 @@ import {
   completedDegrees,
   computeDegreeCoverageFill,
   computeProgressPercent,
+  isDegree2Frozen,
   isLabelChangingDegree,
   tierForCompletedDegrees,
 } from './lib/criteria-calibration/degreeTiers';
@@ -399,6 +400,13 @@ export function CriteriaCalibrationPage() {
     answers.filter((a) => profileDegree(a.profileA) === degree).length === 0;
   const degreeClarificationText = degree > 2 ? DEGREE_CLARIFICATION_TEXT[degree] : undefined;
 
+  // Freeze checkpoint (criteria-calibration-freeze-checkpoint, Step 2): counts answers logged
+  // AT degree 2 specifically, same filter as isFirstAnswerAtDegree above, so it stays correct
+  // even in the unlikely case an Undo/Redo revisits degree 2 after escalating past it.
+  const answersAtCurrentDegree = answers.filter(
+    (a) => profileDegree(a.profileA) === degree
+  ).length;
+
   // ---------------------------------------------------------------------------
   // Tier, progress and checkpoint derivation (2026-08-18). Everything here is computed during
   // render from `degree`, `action` and `solvedValues` — all pure functions of the answer log.
@@ -489,9 +497,11 @@ export function CriteriaCalibrationPage() {
   // changes only AT a boundary, so at most one screen can ever apply, and which one is a
   // function of the degree just exhausted.
   //
-  // Degrees 5 and 6 exhaust silently: they do not change the tier (degreeTiers.ts's mapping,
-  // and the evidence behind it), so there is nothing for a screen to say. The
-  // auto-progression effect below carries them.
+  // Degree 6 exhausts without a screen of its own here: it is always terminal for this catalog,
+  // routed to isTerminalExhaustion's branch instead. The auto-progression effect below carries
+  // any degree whose exhaustion produces no checkpoint at all (there is currently no such
+  // degree left among 2-5, now that degree 5 also gets a screen — see degreeTiers.ts's
+  // isLabelChangingDegree).
   let checkpoint: CheckpointVariant | null = null;
   if (atDegreeBoundary && action && acknowledgedBoundaryDegree !== action.degree) {
     if (isTerminalExhaustion) {
@@ -501,6 +511,23 @@ export function CriteriaCalibrationPage() {
       // the boundary's own degree so the screen and the header can never disagree.
       checkpoint = tierForCompletedDegrees(action.degree) as CheckpointVariant;
     }
+  } else if (
+    !atDegreeBoundary &&
+    action?.type === 'ask' &&
+    acknowledgedBoundaryDegree !== degree &&
+    isDegree2Frozen(degree, answersAtCurrentDegree)
+  ) {
+    // The freeze checkpoint (criteria-calibration-freeze-checkpoint, Step 2): degree 2 is NOT
+    // exhausted (the driver is still reporting `ask`, the candidate pool is non-empty per
+    // criteria-calibration-freeze-checkpoint-step1-pool-check.md), but DEGREE_2_FREEZE_ANSWER_THRESHOLD
+    // answers in without progress is evidence this session is one of the shapes that never
+    // completes degree 2. Reuses `acknowledgedBoundaryDegree` (set to 2 on Continue, same as
+    // every other checkpoint) rather than a second acknowledgment field — safe because this
+    // branch and the real degree-2 boundary branch above are mutually exclusive by construction
+    // of the threshold's safety margin (see DEGREE_2_FREEZE_ANSWER_THRESHOLD's own comment): a
+    // session cannot both freeze at degree 2 (still `ask`, unexhausted, past answer 78) and
+    // simultaneously sit ON degree 2's real boundary (`degree-exhausted`) in the same render.
+    checkpoint = 'frozen';
   }
 
   // Shared failure indicator across every persistence call (answer insert/delete, weights/
@@ -844,6 +871,20 @@ export function CriteriaCalibrationPage() {
     handleEscalate();
   }
 
+  // "Continue" from the freeze checkpoint (criteria-calibration-freeze-checkpoint, Step 2).
+  // Can't reuse handleEscalate: that function requires `action.type === 'degree-exhausted'`,
+  // but the freeze checkpoint fires precisely while the driver is still reporting `ask` at
+  // degree 2 (coverage never completes for these shapes — the pool isn't empty either, see
+  // criteria-calibration-freeze-checkpoint-step1-pool-check.md). The next degree is simply
+  // `degree + 1`, guarded the same way `canEscalate` guards it elsewhere.
+  function handleFreezeContinue() {
+    if (!catalog) return;
+    const nextDegree = degree + 1;
+    if (nextDegree > catalog.levelsPerCriterion.length) return;
+    setAcknowledgedBoundaryDegree(degree);
+    setDegree(nextDegree);
+  }
+
   function handleExit() {
     // No "stopped" state is persisted — resuming just picks up wherever the real answer log
     // left off. Stopping only halts interaction locally.
@@ -944,14 +985,23 @@ export function CriteriaCalibrationPage() {
               </Text>
             </Flex>
           ) : checkpoint ? (
-            // Ahead of the 'ask' branch, though the two can no longer both apply: a checkpoint
-            // only exists while the driver reports the current degree exhausted, and in that
-            // state there is no question to ask.
+            // Ahead of the 'ask' branch below, though the two can no longer both apply while a
+            // checkpoint is showing: every checkpoint EXCEPT 'frozen' exists only while the
+            // driver reports the current degree exhausted (no question to ask in that state);
+            // 'frozen' is the one exception, showing mid-degree while the driver is still
+            // reporting `ask` (see the checkpoint derivation above for why that's still
+            // mutually exclusive with a real boundary).
             <CalibrationCheckpoint
               variant={checkpoint}
               tier={tier}
               accuracyPercent={accuracyPercent}
-              onContinue={checkpoint === 'exhausted' ? undefined : handleCheckpointContinue}
+              onContinue={
+                checkpoint === 'exhausted'
+                  ? undefined
+                  : checkpoint === 'frozen'
+                    ? handleFreezeContinue
+                    : handleCheckpointContinue
+              }
               onFinish={handleFinish}
             />
           ) : action?.type === 'ask' ? (

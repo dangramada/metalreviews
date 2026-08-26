@@ -99,6 +99,42 @@ export function isLabelChangingDegree(degree: number): boolean {
 }
 
 /**
+ * The fifth checkpoint's freeze-detection threshold (criteria-calibration-freeze-checkpoint,
+ * Step 2a) — empirically derived, not guessed. Four preference shapes (#2 single-dominant, #4
+ * linear-control, #5 front-loaded, #6 back-loaded) never reach `isDegreeCoverageComplete` at
+ * degree 2 in 90 simulated rounds; the other eight traces in the evidence set all exit degree 2
+ * by round 77 at the latest (`#10 dan-approximation`). This constant is 77 + 1: the smallest
+ * round-position threshold that does not false-trigger on any of those eight healthy
+ * trajectories. See criteria-calibration-freeze-checkpoint.md's Step 2a table for the full
+ * per-trace exit-round data and why POSITION, not freeze-run LENGTH, is the discriminator (a
+ * healthy trace, `#3 zero-weight-criterion`, has a 28-round freeze that still resolves; a
+ * blocked trace, `#4 linear-control`, has a shorter 23-round max freeze that never resolves —
+ * length alone gets the two groups backwards).
+ *
+ * Counts ANSWERS LOGGED AT DEGREE 2 specifically (not total answers, though for the normal flow
+ * before any escalation the two are identical), so it stays correct if the session's degree
+ * were ever to revisit 2 after Undo.
+ */
+export const DEGREE_2_FREEZE_ANSWER_THRESHOLD = 78;
+
+/**
+ * True once the session has given at least `DEGREE_2_FREEZE_ANSWER_THRESHOLD` answers at degree
+ * 2 without the driver ever reporting it exhausted. Deliberately does NOT take
+ * `atDegreeBoundary` — a real degree-2 boundary (coverage-complete OR pool-empty) is mutually
+ * exclusive with this being true, by construction of the threshold's safety margin (see the
+ * constant's own comment): every healthy trace already exits degree 2 well before round 78, so
+ * a session that is STILL at degree 2, unexhausted, at answer 78 is presumptively one of the
+ * four blocked shapes, not a session about to resolve on its own.
+ *
+ * Scoped to degree 2 only, per the brief — this is not a general "any degree can freeze"
+ * detector, and should not be generalized to other degrees without new evidence, the same
+ * caution as `isLabelChangingDegree`'s module-header note about not adding rungs without data.
+ */
+export function isDegree2Frozen(currentDegree: number, answersAtCurrentDegree: number): boolean {
+  return currentDegree === 2 && answersAtCurrentDegree >= DEGREE_2_FREEZE_ANSWER_THRESHOLD;
+}
+
+/**
  * Continuous within-degree fill, 0..1, for the progress bar's current segment.
  *
  * This reads exactly the gate that ends a degree — elicitationDriver's isDegreeCoverageComplete
