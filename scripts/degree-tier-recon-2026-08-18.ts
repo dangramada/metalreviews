@@ -65,7 +65,7 @@ import {
 } from '../src/lib/criteria-calibration/fixtures.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DOCS = path.resolve(__dirname, '../docs/decisions/criteria-calibration');
+const DOCS = path.resolve(__dirname, '../docs/data/criteria-calibration');
 
 const NUM_CRITERIA = 6;
 const LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];

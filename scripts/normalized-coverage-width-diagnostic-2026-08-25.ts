@@ -41,7 +41,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DOCS = path.resolve(__dirname, '../docs/decisions/criteria-calibration');
+const DOCS = path.resolve(__dirname, '../docs/data/criteria-calibration');
 const WIDTHS_CSV = path.join(DOCS, 'normalized-coverage-widths-2026-08-25.csv');
 const RECON_CSV = path.join(DOCS, 'degree-tier-recon-2026-08-18.csv');
 

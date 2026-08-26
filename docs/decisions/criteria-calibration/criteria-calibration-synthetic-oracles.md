@@ -16,7 +16,7 @@ different hidden "personality," matching the brief exactly.
 
 Harness: `scripts/synthetic-calibration-oracles-2026-08-16.ts` (kept, read-only, not wired
 into any build step — same convention as `scripts/diagnose-second-session-flatness-2026-08-15.ts`).
-Full per-round trajectory (all 10 oracles): `synthetic-oracle-trajectories-2026-08-16.csv`.
+Full per-round trajectory (all 10 oracles): `docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv`.
 
 ## Headline finding, not in the original brief: a live solver crash
 

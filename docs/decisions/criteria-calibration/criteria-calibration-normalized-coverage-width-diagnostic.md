@@ -282,9 +282,9 @@ C2b makes the stuck traces harder to complete, not easier.
 | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
 | `scripts/degree-tier-recon-2026-08-18.ts`                                                  | extended with the opt-in `RECON_EMIT_WIDTHS=1` flag only; default behaviour and its CSV byte-identical (verified with `diff`) |
 | `scripts/normalized-coverage-width-diagnostic-2026-08-25.ts`                               | new; pure analysis over the width CSV — coherence check, both grids, window, structure tables                                 |
-| `docs/decisions/criteria-calibration/normalized-coverage-widths-2026-08-25.csv`            | 22 680 rows: per trace / round / degree / criterion / level — feasible width + degree-scoped touched flag                     |
-| `docs/decisions/criteria-calibration/normalized-coverage-threshold-window-2026-08-25.csv`  | 149 grid cells: completion round per trace per candidate per threshold                                                        |
-| `docs/decisions/criteria-calibration/normalized-coverage-diagnostic-output-2026-08-25.txt` | full printed output, every grid row unabridged                                                                                |
+| `docs/data/criteria-calibration/normalized-coverage-widths-2026-08-25.csv`            | 22 680 rows: per trace / round / degree / criterion / level — feasible width + degree-scoped touched flag                     |
+| `docs/data/criteria-calibration/normalized-coverage-threshold-window-2026-08-25.csv`  | 149 grid cells: completion round per trace per candidate per threshold                                                        |
+| `docs/data/criteria-calibration/normalized-coverage-diagnostic-output-2026-08-25.txt` | full printed output, every grid row unabridged                                                                                |
 
 Reproduce:
 

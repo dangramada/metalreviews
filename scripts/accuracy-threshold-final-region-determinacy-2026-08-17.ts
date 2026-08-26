@@ -201,7 +201,7 @@ async function main() {
   fs.writeFileSync(
     path.resolve(
       __dirname,
-      '../docs/decisions/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json'
+      '../docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json'
     ),
     JSON.stringify(results, null, 2) + '\n'
   );

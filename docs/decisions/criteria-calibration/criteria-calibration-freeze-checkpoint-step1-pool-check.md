@@ -54,7 +54,7 @@ decision the driver makes for them).
 | #6 back-loaded | 90 | 2 | `ask` / `ambiguity-refinement` | 57 | **B** |
 
 All four are non-boundary at round 90 (confirmed independently in the already-committed
-`degree-tier-recon-2026-08-18.csv`: `is_boundary = 0` for all four at every round from 1 to 90 —
+`docs/data/criteria-calibration/degree-tier-recon-2026-08-18.csv`: `is_boundary = 0` for all four at every round from 1 to 90 —
 they never once hit `degree-exhausted`, of either reason, in the whole 90-round window). Since
 `nextAction` only returns `type: 'ask'` after passing the `pool.length === 0` check, that
 committed CSV column already logically proves non-empty; this diagnostic adds the actual counts

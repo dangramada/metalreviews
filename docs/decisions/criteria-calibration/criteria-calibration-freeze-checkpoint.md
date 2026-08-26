@@ -23,7 +23,7 @@ through a normal cold start?
 
 **Method**: position, not freeze-run length, is the discriminator (per Dan's own calibration
 note). For each of the 12 evidence traces (10 synthetic oracles +
-`degree-tier-recon-2026-08-18.csv`'s A70/B71), find the round at which degree 2 actually ends
+`docs/data/criteria-calibration/degree-tier-recon-2026-08-18.csv`'s A70/B71), find the round at which degree 2 actually ends
 (`is_boundary = 1` with `degree = 2` in that CSV) for the 8 traces that DO leave degree 2, and
 the largest max-consecutive-no-`covered`-movement run for context. The threshold is one past the
 latest of those exit rounds — the smallest position that cannot false-trigger on any healthy
