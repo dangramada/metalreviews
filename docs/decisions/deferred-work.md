@@ -1038,9 +1038,24 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   exits degree 2 at round 77). Step 1 of that brief confirmed the candidate pool is genuinely
   non-empty at that point (54-62 unasked degree-2 pairs remain across all four shapes) — the
   copy is framed around information no longer moving, never "ran out of questions", for exactly
-  that reason. The OPEN QUESTION above (why these shapes don't reach High accuracy) is
-  UNCHANGED and still open — this closes only the UX-visibility gap (a screen and an explicit
-  choice now exist at the freeze point), not the underlying cause. Full detail:
+  that reason.
+
+  **Precisely which open question this does and does not touch** (worth being exact about,
+  since the entry above actually contains two distinct questions by now): the COVERAGE question
+  — why `isDegreeCoverageComplete` never completes for these four shapes — is answered, by the
+  2026-08-18 extension (one or more level-values never get a constraining comparison) and
+  re-confirmed by the 2026-08-25 normalized-threshold diagnostic ("stuck on variables the
+  elicitation never constrains", not on scale). This freeze checkpoint closes the UX
+  consequence of THAT answered question — a screen and an explicit choice now exist where there
+  used to be silence. The ORIGINAL 2026-08-17 question — whether `computeScoreSpreadAccuracy`
+  itself is under-reporting a model that is actually well-determined, or correctly reporting
+  genuine indeterminacy, verified against ground truth for these specific oracles — is a
+  DIFFERENT question and remains fully UNINVESTIGATED. Neither the 2026-08-18 recon nor the
+  2026-08-25 diagnostic ran the ground-truth comparison that question specifically calls for;
+  both examined coverage/width behavior, not the accuracy metric's own correctness. The two are
+  plausibly related (unconstrained variables are a natural candidate explanation for low
+  accuracy too) but relatedness is not verification — nobody has run the data-analysis session
+  the original entry asks for. Full detail:
   `criteria-calibration/criteria-calibration-freeze-checkpoint.md`,
   `criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`.
 
