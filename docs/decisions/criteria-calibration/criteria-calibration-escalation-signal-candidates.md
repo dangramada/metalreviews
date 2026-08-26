@@ -51,13 +51,13 @@ rated-album data? Two candidates were briefed:
 ## 2. Method and data
 
 Everything below was regenerated **post-Harris-fix** (`980c887`). The previously committed
-`synthetic-oracle-trajectories-2026-08-16.csv` predates that fix by ~7 hours and was not reused.
+`docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` predates that fix by ~7 hours and was not reused.
 
 **Evidence set — 12 traces:**
 
 | trace      | source                                                                                                                                                                                                   | rounds |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `A70`      | first real session, 2026-08-10→12, replayed from `docs/decisions/backups/pre-reset-dan-account-2026-08-15.json` (those rows were deleted by the 2026-08-15 reset; the backup is the only surviving copy) | 70     |
+| `A70`      | first real session, 2026-08-10→12, replayed from `docs/backups/pre-reset-dan-account-2026-08-15.json` (those rows were deleted by the 2026-08-15 reset; the backup is the only surviving copy) | 70     |
 | `B71`      | second real session, 2026-08-15, replayed read-only from live `user_calibration_answers`                                                                                                                 | 71     |
 | `#1`–`#10` | the ten synthetic oracles from `scripts/synthetic-calibration-oracles-2026-08-16.ts`, re-run with per-round `.point` vectors emitted                                                                     | 30–90  |
 
@@ -67,8 +67,8 @@ measured on one identical trajectory, not three separate runs.
 
 **Committed evidence:**
 
-- `escalation-signal-real-session-trajectories-2026-08-16.csv` — 141 rows, both real sessions.
-- `escalation-signal-oracle-trajectories-postharris-2026-08-16.csv` — 875 rows, all 10 oracles.
+- `docs/data/criteria-calibration/escalation-signal-real-session-trajectories-2026-08-16.csv` — 141 rows, both real sessions.
+- `docs/data/criteria-calibration/escalation-signal-oracle-trajectories-postharris-2026-08-16.csv` — 875 rows, all 10 oracles.
 
 Both add three columns the original oracle CSV lacked: `point_vec` (24 values = 6 criteria ×
 levels 2–5, fixed slot order, space-separated), the solved `top10`, and for oracles

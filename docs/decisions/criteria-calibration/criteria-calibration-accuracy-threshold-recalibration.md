@@ -41,8 +41,8 @@ merely assertable.
 ## 2. Method and data
 
 **No re-simulation.** The per-round solved value vectors already exist in the two committed
-post-Harris trajectory CSVs (`escalation-signal-oracle-trajectories-postharris-2026-08-16.csv`,
-875 rows; `escalation-signal-real-session-trajectories-2026-08-16.csv`, 141 rows), whose
+post-Harris trajectory CSVs (`docs/data/criteria-calibration/escalation-signal-oracle-trajectories-postharris-2026-08-16.csv`,
+875 rows; `docs/data/criteria-calibration/escalation-signal-real-session-trajectories-2026-08-16.csv`, 141 rows), whose
 `point_vec` column carries the full 24-value solved table per round. Every quantity here is a
 pure offline function of those vectors plus ground truth.
 
@@ -58,9 +58,9 @@ monotonicity on all 945 rows: 0 violations, which a level-major layout could not
 **Scripts** (committed, read-only, no writes):
 `scripts/accuracy-threshold-recalibration-2026-08-17.ts`,
 `scripts/accuracy-threshold-final-region-determinacy-2026-08-17.ts`.
-**Derived data:** `accuracy-threshold-recalibration-2026-08-17.csv` (945 rows),
-`accuracy-threshold-recalibration-fits-2026-08-17.json`,
-`accuracy-threshold-final-region-determinacy-2026-08-17.json`.
+**Derived data:** `docs/data/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` (945 rows),
+`docs/data/criteria-calibration/accuracy-threshold-recalibration-fits-2026-08-17.json`,
+`docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json`.
 
 ### 2a. The evaluation pool is independent of the metric's own sample pool
 

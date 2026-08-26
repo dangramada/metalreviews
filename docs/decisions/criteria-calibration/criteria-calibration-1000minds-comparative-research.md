@@ -6,7 +6,7 @@ levels — see aoty-ranking--paprika-scoring-model.md), captured via
 screenshots through round 29 (27 rounds of degree-2 trade-offs + 2 rounds
 into degree-3), to compare the felt experience against the punctuated
 accuracy growth already observed in this session
-(second-session-accuracy-trajectory-2026-08-15.csv).
+(docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv).
 
 ## Structural differences observed (verified directly from screenshots)
 

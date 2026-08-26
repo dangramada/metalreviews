@@ -200,3 +200,124 @@ were comment-text path strings.
 
 No application logic changed, and the `album-rating-*` files' locations and CLAUDE.md's
 (non-)indexing of them were left exactly as found, per the brief.
+
+## 2026-08-26 — Raw data files split out of `docs/decisions/` into `docs/data/`
+
+**Why.** Project Knowledge (claude.ai) syncs from this repo via the GitHub connector, whole
+folders at a time. `docs/decisions/` held both prose decision docs and large raw-data dumps
+(CSV/JSON output from calibration diagnostic scripts) that add no value as arbitrary search
+snippets and were eating into Project Knowledge capacity. Not an application need — pure
+repo hygiene so Dan can deselect a `docs/data/` folder in the connector's file picker without
+losing anything else.
+
+**Moved (11 files, all under `criteria-calibration/`, `git mv` — history preserved):**
+
+| Before | After |
+|---|---|
+| `docs/decisions/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json` | `docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json` |
+| `docs/decisions/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` | `docs/data/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` |
+| `docs/decisions/criteria-calibration/accuracy-threshold-recalibration-fits-2026-08-17.json` | `docs/data/criteria-calibration/accuracy-threshold-recalibration-fits-2026-08-17.json` |
+| `docs/decisions/criteria-calibration/degree-tier-recon-2026-08-18.csv` | `docs/data/criteria-calibration/degree-tier-recon-2026-08-18.csv` |
+| `docs/decisions/criteria-calibration/escalation-signal-oracle-trajectories-postharris-2026-08-16.csv` | `docs/data/criteria-calibration/escalation-signal-oracle-trajectories-postharris-2026-08-16.csv` |
+| `docs/decisions/criteria-calibration/escalation-signal-real-session-trajectories-2026-08-16.csv` | `docs/data/criteria-calibration/escalation-signal-real-session-trajectories-2026-08-16.csv` |
+| `docs/decisions/criteria-calibration/normalized-coverage-diagnostic-output-2026-08-25.txt` | `docs/data/criteria-calibration/normalized-coverage-diagnostic-output-2026-08-25.txt` |
+| `docs/decisions/criteria-calibration/normalized-coverage-threshold-window-2026-08-25.csv` | `docs/data/criteria-calibration/normalized-coverage-threshold-window-2026-08-25.csv` |
+| `docs/decisions/criteria-calibration/normalized-coverage-widths-2026-08-25.csv` | `docs/data/criteria-calibration/normalized-coverage-widths-2026-08-25.csv` |
+| `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` | `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` |
+| `docs/decisions/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` | `docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` |
+
+Flat destination — 11 files under one existing cluster didn't warrant further sub-splitting.
+No files were found at `docs/decisions/` root level or under `album-identity/`; the entire
+raw-data footprint was in `criteria-calibration/`.
+
+**Deliberately excluded: `docs/decisions/backups/`.** That folder is gitignored
+(`.gitignore:16`, "personal preference data — kept on disk, deliberately not versioned") —
+it never reaches GitHub and therefore never reaches the GitHub connector or Project
+Knowledge. Moving it would not serve this change's stated goal and it's a different kind of
+data (Dan's real calibration answers, not a reproducibility dump), so it was left exactly
+where it is, confirmed with the user before proceeding.
+
+**Reference sweep.** Repo-wide grep (not limited to `docs/`) for each moved filename, both
+bare and as a full `docs/decisions/criteria-calibration/...` path. Updated:
+- Functional path constants (not just comments) in 5 scripts: `degree-tier-recon-2026-08-18.ts`,
+  `normalized-coverage-width-diagnostic-2026-08-25.ts`,
+  `accuracy-threshold-recalibration-2026-08-17.ts`,
+  `accuracy-threshold-final-region-determinacy-2026-08-17.ts`,
+  `synthetic-calibration-oracles-2026-08-16.ts` — each writes (and some read) one or more of
+  the moved files via a `DOCS`-style constant or hardcoded path. Their separate reads of
+  `docs/decisions/backups/pre-reset-dan-account-2026-08-15.json` were untouched, since that
+  file didn't move.
+- Prose pointers in 9 decision docs (`criteria-calibration-accuracy-threshold-recalibration.md`,
+  `criteria-calibration-degree-tiers-and-progress.md`, `criteria-calibration-freeze-checkpoint.md`,
+  `criteria-calibration-freeze-checkpoint-step1-pool-check.md`,
+  `criteria-calibration-escalation-signal-candidates.md`,
+  `criteria-calibration-normalized-coverage-width-diagnostic.md`,
+  `criteria-calibration-second-session-reset.md`,
+  `criteria-calibration-1000minds-comparative-research.md`,
+  `criteria-calibration-synthetic-oracles.md`) and 2 index/tracker files
+  (`criteria-calibration-summary.md`, `deferred-work.md`). Most were bare filename mentions
+  (no path prefix) — each was given an explicit `docs/data/criteria-calibration/...` prefix so
+  the new location is unambiguous, matching the fuller-path style already used elsewhere in
+  those same docs.
+- `CLAUDE.md` and `finished-work.md` needed no changes — neither references any of these
+  files by path.
+- `.gitignore` needed no changes — none of the moved files were gitignored.
+
+Two files turned out to be unreferenced anywhere in the repo before this move
+(`docs/decisions/backups/calibration-archive-2026-08-10.json` and
+`docs/decisions/backups/ranking-stability-log-2026-08-10.jsonl` /
+`-2026-08-11.jsonl`) — noted for completeness; they're in the excluded `backups/` folder
+regardless, so this didn't affect the move itself.
+
+### Verification
+
+- `npx tsc -p tsconfig.app.json --noEmit` — same pre-existing Chakra v3 typing errors as on
+  unmodified `HEAD` (confirmed via `git stash`/`stash pop`), zero new errors. None of the
+  affected files (`Header.tsx`, `LoginPage.tsx`, `StyleGuide.tsx`, `supabaseClient.ts`,
+  `theme.ts`) were touched by this change.
+- `npx vitest run` — 333/333 passed, same count as before the move.
+- Final repo-wide grep for `docs/decisions/criteria-calibration/<moved-filename>` — zero
+  matches outside `docs/data/`.
+
+### Scope boundary respected
+
+File moves and path-string updates only. No application logic, script computation, or data
+content changed — every moved file is byte-identical to its pre-move version (`git mv`, no
+edits to file contents).
+
+**Superseded same day:** the "deliberately excluded" call above stood for a few hours. Dan
+then asked for `backups/` to sit alongside `docs/data/` rather than nested under
+`docs/decisions/`, for consistency — see the section immediately below. All path references
+in this document above this note describe the folder's location *before* that second move;
+they're left as historical record rather than rewritten.
+
+## 2026-08-26 (same day, follow-up) — `docs/decisions/backups/` moved to `docs/backups/`
+
+**Why.** Same motivation as the `docs/data/` split above, generalized: `docs/decisions/`
+should hold prose decision docs only, with non-prose content as sibling folders
+(`docs/data/`, now `docs/backups/`) rather than nested inside it. `docs/backups/` was never
+in scope for the earlier move (it's gitignored, so the GitHub-connector argument doesn't
+apply to it) — this is a separate, purely organizational follow-up requested directly.
+
+**Moved:** `docs/decisions/backups/` → `docs/backups/` (plain filesystem `mv`, not `git mv` —
+the folder was never tracked; `git status` confirms zero tracked paths under either name
+before or after).
+
+**Updated:**
+- `.gitignore:16` — `docs/decisions/backups/` → `docs/backups/`
+- 3 scripts' functional path constants: `archive-and-reset-calibration.ts` (`BACKUPS_DIR`),
+  `degree-tier-recon-2026-08-18.ts`, `accuracy-threshold-final-region-determinacy-2026-08-17.ts`
+- 2 comment references in `src/lib/criteria-calibration/fixtures.ts`
+- Prose pointers in 4 decision docs: `criteria-calibration-second-session-reset.md`,
+  `criteria-calibration-escalation-signal-candidates.md`,
+  `criteria-calibration-weights-write-race.md`,
+  `criteria-calibration-ranking-stability-analysis.md`
+
+**Also fixed while here:** `criteria-calibration-summary.md`'s "Supporting data" section
+listed only 1 of the 11 files moved to `docs/data/criteria-calibration/` in the earlier
+same-day move — expanded to list all 11.
+
+### Verification
+
+Repo-wide grep for `docs/decisions/backups` — zero matches outside this document's own
+historical record above. No application logic changed.
