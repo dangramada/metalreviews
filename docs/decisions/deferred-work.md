@@ -1030,6 +1030,20 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   path, and no implementation brief follows from this diagnostic.** Third empty-window result in
   this cluster, after the accuracy-threshold recalibration and the escalation-signal candidates.
 
+  **"NO CHECKPOINT AND NO LABEL CHANGE FOR 90+ ANSWERS" GAP CLOSED 2026-08-26**
+  (`criteria-calibration-freeze-checkpoint`): the fifth checkpoint now fires for all four shapes
+  at 78 answers into degree 2 (`DEGREE_2_FREEZE_ANSWER_THRESHOLD`, `isDegree2Frozen` in
+  `degreeTiers.ts`), confirmed empirically to be the smallest position that never false-triggers
+  on any of the eight healthy traces in the evidence set (the latest, `#10 dan-approximation`,
+  exits degree 2 at round 77). Step 1 of that brief confirmed the candidate pool is genuinely
+  non-empty at that point (54-62 unasked degree-2 pairs remain across all four shapes) — the
+  copy is framed around information no longer moving, never "ran out of questions", for exactly
+  that reason. The OPEN QUESTION above (why these shapes don't reach High accuracy) is
+  UNCHANGED and still open — this closes only the UX-visibility gap (a screen and an explicit
+  choice now exist at the freeze point), not the underlying cause. Full detail:
+  `criteria-calibration/criteria-calibration-freeze-checkpoint.md`,
+  `criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`.
+
 - **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
   2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
   keeps its old threshold-derived value until that user next opens calibration, then silently
