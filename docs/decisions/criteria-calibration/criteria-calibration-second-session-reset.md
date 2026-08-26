@@ -26,8 +26,8 @@ session is validated against, and `RANKING_TEST_SET` was frozen from them.
    or script reads `user_calibration_answers` live — `persistence.test.ts` fully mocks
    `supabaseClient`. Deleting the table's rows cannot affect the suite. Confirmed: 297/297
    still pass post-reset.
-4. **Backup.** `docs/decisions/backups/pre-reset-dan-account-2026-08-15.json` — 70 answers,
-   30 weights, 1 status row. Not versioned: `docs/decisions/backups/` is gitignored
+4. **Backup.** `docs/backups/pre-reset-dan-account-2026-08-15.json` — 70 answers,
+   30 weights, 1 status row. Not versioned: `docs/backups/` is gitignored
    (`.gitignore:16`), same convention as the `ranking-stability-log-*.jsonl` files that live
    in that directory. Referenced by path only, as those are.
 
@@ -131,7 +131,7 @@ Confirmed read-only against Supabase on 2026-08-16, not inferred:
 | pre-reset backup export time | 2026-08-15 10:30:54Z (19 min *before* the first answer) |
 | pre-reset backup contents | **70** answers — the wiped session, not this one |
 | `user_calibration_status` | `answer_count: 71`, `tier: very_high`, `accuracy_value: 0.999977`, `fired: true`, `last_change_answer_index: 45` |
-| `second-session-accuracy-trajectory-2026-08-15.csv` final row | `n=71`, `accuracy 0.999977`, `veryHigh`, `fired true`, `last_change_answer_index 45` |
+| `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` final row | `n=71`, `accuracy 0.999977`, `veryHigh`, `fired true`, `last_change_answer_index 45` |
 
 The status row and the trajectory CSV's last row agree to six decimal places on accuracy and
 exactly on `fired`/`last_change_answer_index`. Together with the timestamps bracketing the

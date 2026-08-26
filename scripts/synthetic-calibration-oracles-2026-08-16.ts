@@ -9,7 +9,7 @@
 // vector, NOT a pre-scripted answer sequence. No production files are imported for anything
 // other than read-only calls; nothing here writes to Supabase or touches application state.
 //
-// Output: docs/decisions/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv
+// Output: docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv
 // (one row per real answer, all 10 oracles) plus a findings summary printed to stdout, which
 // backs docs/decisions/criteria-calibration/criteria-calibration-synthetic-oracles.md.
 //
@@ -352,7 +352,7 @@ function main() {
   }
   const csvPath = path.resolve(
     __dirname,
-    '../docs/decisions/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv'
+    '../docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv'
   );
   fs.writeFileSync(csvPath, csvLines.join('\n') + '\n');
   process.stderr.write(`\nCSV written: ${csvPath} (${csvLines.length - 1} rows)\n`);

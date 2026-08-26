@@ -657,7 +657,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   points now instead of one, both single-user (Dan's own account) — real evidence, not
   yet enough to stop treating R=12 as provisional. Full numbers, plus the full
   accuracy/tier/fired trajectory:
-  `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`.
+  `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`.
 
   **Superseded numbers, 2026-08-16 (post-Harris):** the n=35 / n=45 last-top-10-change figures
   above, and the 47 / 57 firing points derived from them, were measured pre-Harris-ratio-test.
@@ -900,7 +900,7 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   0.9999+ — i.e., real user time spent past the point the model had anything left to
   learn, the concrete cost of not yet having this entry's proposed two-signal display.
   Not fixing here, just quantifying: full trajectory in
-  `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`; the fired/exhaustion
+  `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`; the fired/exhaustion
   mechanics themselves are also written up under the `REQUIRED_ANSWER_SPAN` entry above.
   Cross-reference: "Criteria Calibration header layout" above (related area, distinct
   scope — not to be merged).
@@ -1029,6 +1029,35 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   than overturns the diagnosis above. **Consequence: the UX route (Option D) remains the chosen
   path, and no implementation brief follows from this diagnostic.** Third empty-window result in
   this cluster, after the accuracy-threshold recalibration and the escalation-signal candidates.
+
+  **"NO CHECKPOINT AND NO LABEL CHANGE FOR 90+ ANSWERS" GAP CLOSED 2026-08-26**
+  (`criteria-calibration-freeze-checkpoint`): the fifth checkpoint now fires for all four shapes
+  at 78 answers into degree 2 (`DEGREE_2_FREEZE_ANSWER_THRESHOLD`, `isDegree2Frozen` in
+  `degreeTiers.ts`), confirmed empirically to be the smallest position that never false-triggers
+  on any of the eight healthy traces in the evidence set (the latest, `#10 dan-approximation`,
+  exits degree 2 at round 77). Step 1 of that brief confirmed the candidate pool is genuinely
+  non-empty at that point (54-62 unasked degree-2 pairs remain across all four shapes) — the
+  copy is framed around information no longer moving, never "ran out of questions", for exactly
+  that reason.
+
+  **Precisely which open question this does and does not touch** (worth being exact about,
+  since the entry above actually contains two distinct questions by now): the COVERAGE question
+  — why `isDegreeCoverageComplete` never completes for these four shapes — is answered, by the
+  2026-08-18 extension (one or more level-values never get a constraining comparison) and
+  re-confirmed by the 2026-08-25 normalized-threshold diagnostic ("stuck on variables the
+  elicitation never constrains", not on scale). This freeze checkpoint closes the UX
+  consequence of THAT answered question — a screen and an explicit choice now exist where there
+  used to be silence. The ORIGINAL 2026-08-17 question — whether `computeScoreSpreadAccuracy`
+  itself is under-reporting a model that is actually well-determined, or correctly reporting
+  genuine indeterminacy, verified against ground truth for these specific oracles — is a
+  DIFFERENT question and remains fully UNINVESTIGATED. Neither the 2026-08-18 recon nor the
+  2026-08-25 diagnostic ran the ground-truth comparison that question specifically calls for;
+  both examined coverage/width behavior, not the accuracy metric's own correctness. The two are
+  plausibly related (unconstrained variables are a natural candidate explanation for low
+  accuracy too) but relatedness is not verification — nobody has run the data-analysis session
+  the original entry asks for. Full detail:
+  `criteria-calibration/criteria-calibration-freeze-checkpoint.md`,
+  `criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`.
 
 - **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
   2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row

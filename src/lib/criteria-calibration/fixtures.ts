@@ -419,7 +419,7 @@ export const DEGREE_ANOMALY_SESSION_ANSWERS: RealSessionRound[] = [
 // ---------------------------------------------------------------------------------------
 // Pass 4 ranking-stability fixture (Brief 3, rankingStabilitySignal.ts) — Dan's own account,
 // 71-answer session, 2026-08-10 through 2026-08-12. Frozen directly from the raw
-// `docs/decisions/backups/ranking-stability-log-2026-08-1{0,1,2}.jsonl` snapshots (gitignored,
+// `docs/backups/ranking-stability-log-2026-08-1{0,1,2}.jsonl` snapshots (gitignored,
 // not committed — this export is the committed record of them), same convention as
 // REAL_PRODUCTION_SESSION_ANSWERS above. Each entry is one logged checkpoint: `answerCount`,
 // the accuracy tier at that checkpoint (thresholds from accuracyTiers.ts, applied at
@@ -442,7 +442,7 @@ export const DEGREE_ANOMALY_SESSION_ANSWERS: RealSessionRound[] = [
 // criteria-calibration-tiered-checkpoints.md) and rankingStabilitySignal.test.ts, this
 // fixture's last reader, was deleted with it. Kept deliberately anyway, and NOT because
 // something might use it again — it is the only committed copy of the raw
-// docs/decisions/backups/ranking-stability-log-2026-08-1{0,1,2}.jsonl snapshots, which are
+// docs/backups/ranking-stability-log-2026-08-1{0,1,2}.jsonl snapshots, which are
 // gitignored. It is evidence backing criteria-calibration-ranking-stability-analysis.md, same
 // convention as REAL_PRODUCTION_SESSION_ANSWERS above; deleting it would destroy data that
 // exists nowhere else in the repo. Do not "clean it up" as dead code.
