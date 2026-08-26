@@ -28,7 +28,7 @@ import { supabase } from './supabaseClient.js';
 const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BACKUPS_DIR = join(__dirname, '..', 'docs', 'decisions', 'backups');
+const BACKUPS_DIR = join(__dirname, '..', 'docs', 'backups');
 
 function todayStamp(): string {
   const d = new Date();

@@ -38,7 +38,7 @@ notices or repairs a stale value once it's persisted.
 
 The persisted `user_calibration_status.accuracy_value` for Dan's account was found (read-only
 query) to be **92.04%**. Cross-referencing against the ranking-stability diagnostic log
-(`docs/decisions/backups/ranking-stability-log-2026-08-12.jsonl`, which independently records
+(`docs/backups/ranking-stability-log-2026-08-12.jsonl`, which independently records
 `computeCommitState`'s accuracy at every 3rd real commit using the exact same shared
 computation `upsertWeightsAndStatus` was given) shows `92.04%` (`0.920422402480692`) matches
 the snapshot logged at **answerCount = 69** — not the session's actual final answer count

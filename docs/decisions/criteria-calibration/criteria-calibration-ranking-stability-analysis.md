@@ -10,7 +10,7 @@ against accuracy as real answers land, to evaluate whether any of the Medium/Hig
 accuracy tiers is a safe auto-stop point for Brief 3's auto-escalation design. 71 answers total
 across the session (single account, single user — see caveat at the end).
 
-Raw snapshots: `docs/decisions/backups/ranking-stability-log-{2026-08-10,2026-08-11,2026-08-12}.jsonl`
+Raw snapshots: `docs/backups/ranking-stability-log-{2026-08-10,2026-08-11,2026-08-12}.jsonl`
 (gitignored local data, one JSON line every 3rd committed answer: `answerCount`, `accuracy`,
 and the full 13-album `{albumId, score, rank}` ranking).
 
@@ -304,4 +304,4 @@ sites in `CriteriaCalibrationPage.tsx`, and the `POST /api/ranking-stability-log
 `server.ts`) was removed 2026-08-12 now that this analysis is complete. `rankingTestSet.ts`
 (the 13-album fixture) is kept — it's now referenced only as historical evidence backing this
 doc, not by any live code path. The raw `.jsonl` logs remain on disk under
-`docs/decisions/backups/` (gitignored, not committed) as backing data for the table above.
+`docs/backups/` (gitignored, not committed) as backing data for the table above.

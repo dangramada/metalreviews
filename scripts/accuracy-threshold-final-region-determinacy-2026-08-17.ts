@@ -90,7 +90,7 @@ interface AnswerRow {
 function loadA70(): SolverAnswer[] {
   const file = path.resolve(
     __dirname,
-    '../docs/decisions/backups/pre-reset-dan-account-2026-08-15.json'
+    '../docs/backups/pre-reset-dan-account-2026-08-15.json'
   );
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as {
     user_calibration_answers: (AnswerRow & { answered_at: string })[];
