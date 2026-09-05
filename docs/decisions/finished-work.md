@@ -381,3 +381,65 @@ created_at, album_id }` only — `album-identity/album-identity-ingest.md`), and
   `criteria-calibration/criteria-calibration-eps-ratio-test-diagnostic.md`.
 
   </details>
+
+- ~~**Auto-escalation signal / `RANKING_TEST_SET` per-user rework**~~ — **CLOSED
+  2026-08-17 — implemented, and this entry's whole premise is gone.** The
+  tier-gated-checkpoint pass shipped (`criteria-calibration-tiered-checkpoints.md`): the
+  auto-escalation signal is deleted outright, and with it `rankingTestSet.ts`,
+  `useRankingTestSetRatings.ts`, `rankingStabilitySignal.ts` and the 7
+  `user_calibration_status` columns. There is no longer a benchmark set to make per-user, so
+  the multi-user rework this entry was holding open **no longer needs doing** — it was
+  rework on a mechanism that no longer exists, not rework that got deferred again. The
+  write-race is retired by the same migration (see the write-race entry below). The shipped
+  design differs from Candidate C as recommended above: checkpoints are gated on accuracy
+  TIERS (degree-2 boundary, High, Very High, plus a neutral exhaustion fallback), not on
+  every degree boundary. Verified live 2026-08-17 (migration applied, browser pass on the
+  disposable QA account); eligible to move to `finished-work.md` at the next review.
+
+- ~~**CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL**~~ — **RETIRED 2026-08-17, not fixed.**
+  The entry below is kept verbatim as the record of the mechanism, but it no longer describes
+  anything reachable. `supabase/user_calibration_status-drop-stability-window.sql` drops
+  `last_eligible_top10`, `last_change_answer_index` and the `previous_` triple along with the
+  signal they fed, and narrows `upsert_calibration_status` to four parameters. Those were the
+  only fields the RPC wrote without an ordering guard, so every surviving field is covered by
+  the existing `answer_count` guard — there is no unguarded write left to race, and no signal
+  left to fire early. `verify-write-race-guard.ts`'s check #4, which reproduced the regression
+  live, is deleted with the columns. This closes the "one open correctness risk" that
+  `CLAUDE.md` and the cluster summary have carried forward every session. See
+  `criteria-calibration-tiered-checkpoints.md` §8. The migration was applied and probed on 2026-08-17 — all
+  seven columns return `undefined_column`, and the old overload is gone. Eligible to move to
+  `finished-work.md` at the next review. Original entry follows.
+- **CORRECTNESS RISK TO AN ALREADY-SHIPPED SIGNAL** (not routine cleanup — flagged distinctly
+  from this section's other accepted-not-fixed items; see `finished-work.md`'s "Weights/status
+  upsert had an unfixed write-race" entry for the 2026-08-15 fix this risk was carved out of):
+  **`last_eligible_top10`/
+  `last_change_answer_index` can regress backward via the same write-race, and this can fire
+  Brief 3's live auto-escalation signal EARLIER than the true trajectory warrants — not just
+  later.** Confirmed live (not theoretical), though narrower in practice than the
+  accuracy*value/tier race the 2026-08-15 fix closed — see the trigger-assessment note added
+  to that fix's approval for the concentration (fresh, non-resumed sessions; needs an early
+  Undo that revisits the same answer_count; needs a genuine HTTP response reordering, which is
+  real for this whole class of un-awaited writes but not guaranteed on any given commit). No
+  user-visible symptom and no self-correction if it happens — worth prioritizing over this
+  section's other items precisely because it's silent. Surfaced 2026-08-15 while scoping the
+  fix above, under direct
+  challenge to the "staleness here only delays firing, never falsely un-fires" claim from
+  the two prior migrations' headers (`user_calibration_status-add-stability-window.sql`,
+  `-add-previous-window.sql`). Mechanism, reproduced live in
+  `scripts/verify-write-race-guard.ts` check #4: `computeStabilityWindowUpdate`'s
+  ratings-null skip (`commitComputation.ts`) means a write computed *before* the
+  `RANKING_TEST_SET` ratings fetch resolves carries the client's prior (pre-advance) window
+  state; if that write's HTTP response resolves at the DB *after* a later write (e.g. the
+  same commit reached again via Undo+Redo, once ratings had resolved) already advanced
+  `last_eligible_top10`/`last_change_answer_index` forward, the stale write silently
+  overwrites them backward — `last_change_answer_index` regressed `11` → `4` in the
+  reproduction. A regressed (smaller) `last_change_answer_index` makes a later resumed
+  session compute a *larger* apparent stability span than the true trajectory, which can
+  fire Brief 3's auto-escalation signal early. `fired` itself still can't regress
+  true→false (its own OR-guard is unaffected), so this can't un-fire an already-correct
+  stop — the risk is a premature *first* fire. Deliberately left unguarded in the
+  2026-08-15 fix (out of scope for that pass's accuracy_value/tier target); a future fix
+  would need the same `answer_count`-style guard extended to these two fields specifically
+  (not a blanket widening — `previous*\*`/`last_commit_changed_window`may still be fine
+unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-race.md`'s
+  "Fix implemented" section.
