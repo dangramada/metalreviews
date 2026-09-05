@@ -136,6 +136,19 @@ rewriting them, which this reorg pass deliberately avoided.
   tokens. Dan's explicit note: real, separate concern (many hardcoded font-size values app-wide),
   not to be fixed ad-hoc inside a component brief. Scope: audit all hardcoded font-size values
   codebase-wide, decide whether/how to consolidate into tokens. Not started.
+- **Review: Favorites rate-album nudge modal (`FavoritesPage.tsx`, `gateNudgeOpen`)** — raised
+  2026-08-29, Favorites / Album Rating feature area, not part of Criteria Calibration. Small and
+  contained; needs its own review pass, not a full Concept Draft session. Two open questions:
+  1. Trigger condition is currently `hasWeights` (fires only for users with zero calibration
+     weights at all; changed 2026-08-25 from `tier === 'none'`). Confirm this still matches
+     intended product behavior, or whether a Medium-accuracy-based re-nudge is wanted after all.
+     Tradeoffs already documented in `criteria-calibration-degree-tiers-and-progress.md` §9
+     (options 1/2/3) — re-read before deciding, don't re-litigate from scratch.
+  2. Nudge dialog copy was written 2026-08-09, predates the six-rule checkpoint copy rewrite
+     (2026-08-26, `checkpointCopy.ts`). Likely still frames things around "increasing accuracy"
+     rather than the established rules (no bare percentage, no label-as-noun, etc). Needs the
+     same copy pass once the Pause flow's destination/copy is settled in the current IA session
+     (i.e. this item is blocked on that).
 
 ## B. Known code/data gaps (accepted, not fixed)
 
