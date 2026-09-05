@@ -314,6 +314,10 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
 - `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".** **Before touching degree escalation, stopping, the accuracy tiers shown to the user, or the calibration progress bar, read `criteria-calibration-degree-tiers-and-progress.md`'s "What NOT to change" first, then `criteria-calibration-tiered-checkpoints.md`'s — the newer doc reverses several of the older one's choices, and both reverse designs older still.**
+- `album-rating-page.md` — dedicated `/rate/:albumId` route replacing the drawer and rejected modal; soft-gated since the 2026-08-09 reversal; has a summary block at the top of the file itself
+- `album-rating-drawer.md` — the original flat-drawer rating UI this page replaced, plus the Criteria Calibration part-6 gate/score/rank wiring still in effect
+- `album-rating-page--concept-draft.md` — stub only; full Concept Draft content lives in Project Knowledge, not this repo
+- `album-rating-soft-gate.md` — 2026-08-09 hard→soft gate reversal and why
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
