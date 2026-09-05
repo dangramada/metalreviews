@@ -27,7 +27,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   `unknown-band-collision-audit.md`). Apply this only when a doc is both large and frequently
   re-read — not as a default for every decision doc.
 - Periodically (roughly monthly) review `deferred-work.md` for shipped items older than
-  ~30 days whose full detail already lives in a decision doc, and compress them to one-liners.
+  ~30 days whose full detail already lives in a decision doc, and compress them to one-liners
+  — and check for Project-Knowledge/repo duplication per `documentation-governance.md`.
+- Design-discovery content vs. implementation-status docs have separate, non-duplicating homes
+  (Project Knowledge vs. `docs/decisions/`), and every new `docs/decisions/` file needs an
+  index entry in the same commit — see `documentation-governance.md`.
 - Commit at the end of each individual pass in a multi-pass effort, not only at the very end —
   uncommitted work across many passes has no real save point.
 - A shipped feature's top-of-file "✅ COMPLETE" narrative is temporary, not permanent — once its
@@ -317,6 +321,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `album-rating-page.md` — dedicated `/rate/:albumId` route replacing the drawer and rejected modal; soft-gated since the 2026-08-09 reversal; has a summary block at the top of the file itself
 - `album-rating-drawer.md` — the original flat-drawer rating UI this page replaced, plus the Criteria Calibration part-6 gate/score/rank wiring still in effect
 - `album-rating-page--concept-draft.md` — stub only; full Concept Draft content lives in Project Knowledge, not this repo
+- `documentation-governance.md` — two-layer ownership rule (design-discovery vs. implementation-status docs) and same-commit indexing rule for `docs/decisions/`
 - `album-rating-soft-gate.md` — 2026-08-09 hard→soft gate reversal and why
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
