@@ -73,7 +73,12 @@ function buildLevels() {
   return levels;
 }
 const FIXTURE_CATALOG: CriteriaCatalog = {
-  entries: CRITERION_NAMES.map((name, index) => ({ index, name, levels: buildLevels() })),
+  entries: CRITERION_NAMES.map((name, index) => ({
+    index,
+    name,
+    description: `${name} description.`,
+    levels: buildLevels(),
+  })),
   levelsPerCriterion: [5, 5, 5, 5, 5, 5],
 };
 
