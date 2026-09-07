@@ -79,9 +79,18 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No branch currently in progress — `criteria-calibration-freeze-checkpoint` just merged, closing
-out the criteria-calibration checkpoint work chain (copy rewrite -> freeze checkpoint) started
-this session.
+`criteria-calibration-page-redesign` — in progress, not yet merged. Restructures the Criteria
+Calibration page onto a single `/calibration` route with a Guide/Calibration/Results tab bar
+(old route redirects, preserving query string), a new compound `TierAccuracyBadge` (neutral
+placeholder tier colors — real palette still undecided, see `deferred-work.md`), a linear
+`WorkStatusRow`/icon `ActionRail` scoped to the question view only (closing a real gap where the
+old progress header/history actions stayed mounted through checkpoints), a new full-reset
+Restart action, a real Pause dialog (replacing inline "stopped" text), a Guide-tab criteria
+carousel, a minimal Results-tab placeholder, and a fix for the solver-recovery sequence's
+unmount-safety. Tier-derivation, checkpoint precedence, and the progress-fill formula are
+unchanged. 339/339 tests, `tsc` clean. **Not yet verified live in an authenticated browser** —
+no QA-account credentials available this session; that's the one open item before merge. Full
+detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`.
 
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach

@@ -55,8 +55,12 @@ rewriting them, which this reorg pass deliberately avoided.
 - **Retrofit the new `PageBreadcrumb` component onto other pages** — built reusable
   (`{label, to?}[]` API, `components/ui/breadcrumb.tsx`) during the AlbumRatingPage desktop
   redesign (2026-08-05) but only wired up there this session, per the brief's explicit scope
-  limit. Favorites and Criteria Calibration are the next candidates, replacing their own
-  back-link patterns. `album-rating-page.md`'s 2026-08-05 entry.
+  limit. **Criteria Calibration done** (`criteria-calibration-page-redesign` branch,
+  2026-09-07) — also extracted the shared `resolveFromSource` helper
+  (`src/lib/navigation/resolveFromSource.ts`) so both pages read the same `?from=` allowlist
+  convention instead of each keeping its own copy. **Favorites still open** — its own back-link
+  pattern is untouched. `album-rating-page.md`'s 2026-08-05 entry,
+  `criteria-calibration-page-redesign.md`.
 - **AOTY ranking session (Phase 7)** — the actual public-launch differentiator.
   Design discovery was paused mid-question in a design-discovery chat; not yet
   resumed. Route already reserved (`/aoty/:shareId`, see `auth-routing.md`). The Album
@@ -798,14 +802,32 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
 
 ## C. Design/branding (open)
 
-- **Criteria Calibration header layout** — needs a dedicated reorganization pass.
-  Surfaced 2026-07-28 while building the Criteria Calibration screen UI (Phase 7);
-  current `ProgressHeader` layout (Progress ring + Accuracy status centered,
-  "Stop here" right, empty flex spacer left) works but wasn't given a real design
-  pass — out of scope for that UI-only brief. `docs/decisions/criteria-calibration/criteria-calibration-ui.md`.
-  Related, distinct scope (do **not** merge the two): "Accuracy display conflates two
-  different signals" below — that entry is about _what_ the header communicates, this one
-  about _how it is laid out_.
+- ~~**Criteria Calibration header layout** — needs a dedicated reorganization pass.~~ —
+  **DONE (2026-09-07, `criteria-calibration-page-redesign`).** The old `ProgressHeader`
+  (Progress ring + Accuracy status centered, "Stop here" right, empty flex spacer left) is
+  replaced by `CalibrationPageHeader` (breadcrumb + title/badge row + Tabs, persistent across
+  Guide/Calibration/Results) and `WorkStatusRow` (linear progress, scoped to the question view
+  only). Full detail: `criteria-calibration-page-redesign.md`. Related, distinct scope (still
+  open, do **not** merge the two): "Accuracy display conflates two different signals" below —
+  that entry is about _what_ the header communicates, this one was about _how it is laid out_.
+- **Real tier-color palette for `TierAccuracyBadge`** — surfaced 2026-09-07 building
+  `criteria-calibration-page-redesign`. The brief called for tier-specific colors
+  (Unfocused/Blurry/Clear/Sharp) but explicitly said not to invent them; no `theme.ts` mapping
+  exists. Shipped with one neutral placeholder color for all four tiers, isolated to
+  `src/lib/criteria-calibration/tierColors.ts` (a one-file swap once real colors are picked).
+  Natural landing spot once decided: a parallel `badge.tier.{unfocused,blurry,clear,sharp}`
+  group next to `theme.ts`'s existing `badge.{source,score,genre}` semantic-token convention
+  (`theme.ts:190-204`). `criteria-calibration-page-redesign.md`.
+- **Toaster component still uses unmodified Chakra CLI scaffold defaults, not the app's own
+  design tokens** — surfaced 2026-09-07 while verifying `components/ui/toaster.tsx` per the
+  `criteria-calibration-page-redesign` brief's error-states section. Functional (spinner,
+  `Toast.Root`/`Toast.Indicator`) but styled with generic Chakra defaults (`color="blue.solid"`
+  etc.) rather than this app's `text.primary`/`surface.card`/`accent.*` tokens — cosmetically
+  inconsistent with the rest of the app. Deliberately not fixed as part of that branch: the
+  toaster is global (mounted once in `main.tsx`, used by `useFeedbackToast` from every page),
+  so re-skinning it is a cross-cutting design-system change, not a Criteria-Calibration-page
+  change — bundling it in would violate the brief's own "one concern per session" convention.
+  `criteria-calibration-page-redesign.md`.
 - **Accuracy display conflates two different signals** — surfaced live 2026-08-15, during
   the second full calibration session (`dan.gramada@gmail.com` account reset,
   `criteria-calibration-second-session-reset.md`).
