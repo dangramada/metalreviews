@@ -27,10 +27,11 @@ const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const DISPLAY_SURFACES = [
   'CriteriaCalibrationPage.tsx',
-  'components/criteria-calibration/AccuracyStatus.tsx',
+  // AccuracyStatus/RoundGaugeGroup/ProgressHeader (circular progress + text tier readout) were
+  // replaced by TierAccuracyBadge (criteria-calibration-page-redesign) — one compound component
+  // now covers every tier-label display surface on this page, including the checkpoint's.
+  'components/criteria-calibration/TierAccuracyBadge.tsx',
   'components/criteria-calibration/CalibrationCheckpoint.tsx',
-  'components/criteria-calibration/RoundGaugeGroup.tsx',
-  'components/criteria-calibration/ProgressHeader.tsx',
   'components/album-rating/RatingProgressBox.tsx',
   'hooks/useCalibrationGate.ts',
 ];

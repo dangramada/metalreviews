@@ -90,6 +90,16 @@ export async function deleteAnswer(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Deletes every persisted answer for this user — the server-side half of Restart
+ *  (criteria-calibration-page-redesign's ActionRail). A full reset, not a trim: the caller is
+ *  responsible for resetting local state (answers, degree, redo buffer, acknowledged
+ *  boundary) and re-running the commit computation to zero accuracy/weights, same as any
+ *  other answers-array replacement. */
+export async function deleteAllAnswers(userId: string): Promise<void> {
+  const { error } = await supabase.from('user_calibration_answers').delete().eq('user_id', userId);
+  if (error) throw error;
+}
+
 /**
  * The app's tier identifier in the database's spelling. The two differ only in case
  * convention ('veryHigh' vs 'very_high'), which is deliberate — the column's CHECK constraint

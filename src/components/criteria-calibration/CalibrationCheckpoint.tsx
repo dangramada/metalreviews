@@ -1,6 +1,8 @@
-import { Badge, Button, HStack, Heading, Text, VStack } from '@chakra-ui/react';
-import { ACCURACY_TIER_LABELS, type AccuracyTier } from '../../lib/criteria-calibration/accuracyTierLabels';
+import { useEffect, useRef } from 'react';
+import { Button, HStack, Heading, Text, VStack } from '@chakra-ui/react';
+import type { AccuracyTier } from '../../lib/criteria-calibration/accuracyTierLabels';
 import { Tooltip } from '../ui/tooltip';
+import { TierAccuracyBadge } from './TierAccuracyBadge';
 import {
   CHECKPOINT_CEILING_HEADLINE,
   CHECKPOINT_CONTINUE_BUTTON,
@@ -74,7 +76,13 @@ interface CalibrationCheckpointProps {
    *  body copy's own subject ("you're N% clear on..."), never a bare number. */
   accuracyPercent: number;
   onContinue?: () => void;
-  onFinish: () => void;
+  /** Non-terminal "Pause here" — goes to the Results tab, stays on this page (criteria-
+   *  calibration-page-redesign §4: pause is always a temporary exit from an unfinished
+   *  process). Unused for the terminal variant, which has no Pause button. */
+  onPause?: () => void;
+  /** Terminal "Done, evaluate albums" — leaves the page entirely, since grade-6 exhaustion is
+   *  a natural end with no "back to calibration" to return to. Unused for every other variant. */
+  onFinish?: () => void;
 }
 
 function headline(variant: CheckpointVariant): string {
@@ -110,18 +118,34 @@ export function CalibrationCheckpoint({
   tier,
   accuracyPercent,
   onContinue,
+  onPause,
   onFinish,
 }: CalibrationCheckpointProps) {
   const isTerminal = variant === 'exhausted';
 
+  // Move focus to the headline whenever a checkpoint (re)appears, so screen readers reliably
+  // announce it — aria-live="polite" on the wrapper alone doesn't guarantee that if focus is
+  // sitting elsewhere (e.g. on the comparison card that was just clicked). tabIndex={-1} makes
+  // the heading programmatically focusable without adding it to normal tab order.
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    headlineRef.current?.focus();
+  }, [variant]);
+
   return (
     <VStack gap={5} align="stretch" aria-live="polite" maxW="2xl" mx="auto" textAlign="center">
       <VStack gap={2}>
-        <Heading size="md" fontFamily="heading" color="text.primary">
+        <Heading
+          ref={headlineRef}
+          tabIndex={-1}
+          size="md"
+          fontFamily="heading"
+          color="text.primary"
+        >
           {headline(variant)}
         </Heading>
         <HStack gap={1.5} justify="center">
-          <Badge>{ACCURACY_TIER_LABELS[tier]}</Badge>
+          <TierAccuracyBadge tier={tier} percent={accuracyPercent} size="lg" />
           <Tooltip content={CHECKPOINT_TIER_TOOLTIP}>
             <Text
               as="span"
@@ -149,7 +173,7 @@ export function CalibrationCheckpoint({
           <Button flex="1" maxW="12rem" colorPalette="orange" onClick={onContinue}>
             {CHECKPOINT_CONTINUE_BUTTON}
           </Button>
-          <Button flex="1" maxW="12rem" variant="outline" colorPalette="gray" onClick={onFinish}>
+          <Button flex="1" maxW="12rem" variant="outline" colorPalette="gray" onClick={onPause}>
             {CHECKPOINT_PAUSE_BUTTON}
           </Button>
         </HStack>
