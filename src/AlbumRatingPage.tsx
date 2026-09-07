@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
 import { PageBreadcrumb } from './components/ui/breadcrumb';
+import { resolveFromSource, type FromSourceEntry } from './lib/navigation/resolveFromSource';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
@@ -30,17 +31,25 @@ type AlbumRow = {
 // Reached from FavoritesPage's rate control today (?from=favorites); the future Ranked
 // Albums/AOTY hub will link here too (?from=aoty). That route doesn't exist yet, so the
 // `aoty` case falls back to /favorites for now — flagged here rather than guessed at, per
-// the brief. Update this map once the real AOTY route lands. `sourceLabel` feeds the
+// the brief. Update this map once the real AOTY route lands. The resolved `label` feeds the
 // PageBreadcrumb's shorter, arrow-free source name — the standalone "← Back to X" link this
 // used to also provide was MobileRatingLayout's own header link, removed in the mobile
 // stage-1 restructure (docs/decisions/album-rating-page.md) now that the breadcrumb above
 // both layouts covers that navigation.
+//
+// Uses the shared resolveFromSource helper (src/lib/navigation/resolveFromSource.ts),
+// extracted here on its second use (CriteriaCalibrationPage's own breadcrumb) so both pages
+// read the same `?from=` allowlist convention instead of maintaining two copies of the same
+// shape.
+const RATING_FALLBACK_SOURCE: FromSourceEntry = { href: '/favorites', label: 'Favorites' };
+const RATING_FROM_SOURCES: Record<string, FromSourceEntry> = {
+  // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
+  aoty: { href: '/favorites', label: 'AOTY' },
+  favorites: RATING_FALLBACK_SOURCE,
+};
 function resolveBackDestination(from: string | null): { href: string; sourceLabel: string } {
-  if (from === 'aoty') {
-    // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
-    return { href: '/favorites', sourceLabel: 'AOTY' };
-  }
-  return { href: '/favorites', sourceLabel: 'Favorites' };
+  const { href, label } = resolveFromSource(from, RATING_FROM_SOURCES, RATING_FALLBACK_SOURCE);
+  return { href, sourceLabel: label };
 }
 
 export function AlbumRatingPage() {
