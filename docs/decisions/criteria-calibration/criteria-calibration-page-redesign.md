@@ -87,6 +87,62 @@ runs synchronously while still mounted, or only mutates a ref (safe regardless).
 inside the hook itself (an `isMountedRef` + cleanup effect), covering every `beginWrite`/
 `endWrite` call site uniformly rather than requiring each caller to pass its own guard.
 
+## Follow-up pass, 2026-09-08 — UI integration against Album Evaluation
+
+Three problems found in the first authenticated browser pass, all layout/integration rather
+than behaviour. No calibration logic changed.
+
+**1. The page was narrower than the rest of the app.** Every return path nested a
+`Container maxW="4xl"` (896px) inside the outer `container.xl`, so the header spanned the full
+viewport while the content sat in a squeezed centre column. `AlbumRatingPage.tsx` — the page
+this one is meant to sit alongside — uses `container.xl` alone. The inner container is gone;
+blocks that genuinely want a reading measure (the Guide intro, checkpoint copy) cap their own
+width locally instead.
+
+**2. Tab content had no frame.** Album Evaluation puts its content in a flush 2px card
+(`surface.ratingCardFill` + `border.ruleStrong`, square corners — `DesktopRatingLayout.tsx:66`,
+`MobileRatingLayout.tsx:396`). Calibration now uses the same treatment around the tab body.
+Two deliberate differences: the frame carries its own padding (the rating layouts' sections are
+designed to sit flush and supply their own; these tab bodies are ordinary prose and controls),
+and it wraps the content only — not the breadcrumb/title/tab bar above it, since boxing the tab
+bar in with the panel would make it look like it belongs to the panel it switches.
+
+**3. The Guide carousel was not a carousel.** It rendered all six criteria squashed side by
+side at ~162px each with `xs` level text, and had no visible controls.
+
+Root cause, worth recording because it will bite anything else built on `components/ui/carousel.tsx`:
+**Chakra 3.36 ships no slot recipe for `carousel`** (nothing under
+`@chakra-ui/react/dist/esm/theme/slot-recipes`). Every Carousel part therefore renders
+completely unstyled, and that scaffold had been committed unused and never rendered, so nobody
+had hit it. Concretely:
+
+- `PrevTrigger`/`NextTrigger` collapsed to `0x0` — the chevron SVGs were in the DOM the whole
+  time, the buttons just had no size. They now carry explicit `IconButton` styling.
+- `ItemGroup`/`Item` consumed none of the `--slides-per-page` / `--slide-item-size` variables
+  zag publishes on the root, so `slidesPerPage` appeared to do nothing and every item laid out
+  at its natural width. The group is now the scroll/snap container and items size from
+  `--slide-item-size`.
+- `spacing="4"` was interpolated raw into `--slide-item-size`'s `calc()`, producing
+  `calc(100% / 3 - 4 * 2 / 3)` — a unitless number subtracted from a percentage, which is
+  invalid and voided the whole expression. It must be a real CSS length; it is now `1rem`.
+
+Sizing: 4 cards per page became 3, and level descriptions `xs` became `sm`. With the page now
+full-width that roughly doubles each card's measured width (~162px to ~425px).
+
+One test-only consequence: the item group is a real scroll container now, so zag calls
+`el.scrollTo` on it, which jsdom does not implement (it defines scroll methods on `window`
+only). That surfaced as two _unhandled_ errors rather than failures — the kind Vitest warns can
+mask false positives — so `src/__tests__/setup.ts` gained no-op `Element.prototype.scrollTo` /
+`scrollBy` stubs, alongside the existing `ResizeObserver`/`IntersectionObserver` ones.
+
+Verified live at 1440px, 800px and 375px on the QA account: full-width layout, framed panel on
+all three tabs, and the carousel paging correctly (`scrollLeft` 0 to 441.5 on Next, arrows
+enabling/disabling at the ends). 339/339 tests, no new type errors (203 to 205 repo-wide, both
+new ones the same pre-existing react-icons `TS2786` class as `ActionRail`'s `LuUndo2`), and
+lint on the touched files dropped 37 errors to 2 — `carousel.tsx` was a generated file that had
+never been Prettier-formatted; the 2 remaining are the page's known pre-existing
+`set-state-in-effect` pair.
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'
@@ -112,7 +168,7 @@ the header already computed and displayed this same value before (as "Detail: Bl
 was only invisible to `CriteriaCalibrationFreezeCheckpoint.test.tsx`'s exact-string assertion
 because the old text format didn't match a bare `'Blurry'` query. `TierAccuracyBadge` renders
 the label as its own standalone text node, which made the existing test notice. Test updated to
-scope its assertion to what it actually protects (no *checkpoint* screen shows an unearned tier)
+scope its assertion to what it actually protects (no _checkpoint_ screen shows an unearned tier)
 rather than the whole page, per `CalibrationPageHeader`'s new `data-testid="calibration-header"`.
 Not fixed here — tier-derivation is out of this branch's scope — but worth a line for whoever
 next touches `completedDegrees` or the freeze-checkpoint's degree-advance logic.

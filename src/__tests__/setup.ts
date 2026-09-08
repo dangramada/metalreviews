@@ -23,3 +23,14 @@ global.IntersectionObserver = class IntersectionObserver {
   rootMargin = '';
   thresholds = [];
 } as unknown as typeof IntersectionObserver;
+
+// jsdom implements neither Element.scrollTo nor Element.scrollBy (it defines them on window
+// only). @zag-js/carousel calls el.scrollTo on its item-group to page between slides — which it
+// only does now that the item group is a real scroll container: before 2026-09-08 that element
+// carried no styles at all (Chakra 3.36 ships no carousel slot recipe), so nothing ever
+// scrolled and the call was never reached. Without these stubs the call throws as an
+// *unhandled* error rather than a test failure, which Vitest correctly warns can mask false
+// positives. No-op stubs, matching the two observers above: nothing in the suite asserts on
+// scroll position, and jsdom has no layout to scroll anyway.
+Element.prototype.scrollTo = function scrollTo() {};
+Element.prototype.scrollBy = function scrollBy() {};
