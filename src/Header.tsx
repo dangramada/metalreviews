@@ -1,16 +1,6 @@
 import React from 'react';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
-import {
-  Box,
-  Button,
-  Flex,
-  Heading,
-  Icon,
-  IconButton,
-  Link,
-  Menu,
-  Portal,
-} from '@chakra-ui/react';
+import { Box, Button, Flex, Heading, Icon, IconButton, Link, Menu, Portal } from '@chakra-ui/react';
 import { LuMenu } from 'react-icons/lu';
 import { FaUserCircle } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
@@ -27,7 +17,13 @@ const navPillBase = {
   textDecoration: 'none',
 } as const;
 
-export function Header() {
+// `breadcrumb` (optional): pages that have one hand it here rather than rendering it in their
+// own body (2026-09-11). The header then owns the distance from its bottom rule to the
+// breadcrumb — 16px, identical on every breadcrumb page — instead of each page reproducing it
+// from its own stack gap and padding (the two breadcrumb pages had drifted to 36px and 76px).
+// Pages without one render exactly as before: the 12px bottom margin simply moved from the
+// inner Flex onto this wrapper.
+export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,15 +37,15 @@ export function Header() {
   const isFavoritesActive = location.pathname === '/favorites';
 
   return (
-    <Flex
-      align="center"
-      justify="space-between"
-      mb={3}
-      pb={4}
-      borderBottom="2px solid"
-      borderBottomColor="border.ruleStrong"
-    >
-      {/* Flat two-tone wordmark. The previous gradient (bgGradient + bgClip="text") is
+    <Box mb={3}>
+      <Flex
+        align="center"
+        justify="space-between"
+        pb={4}
+        borderBottom="2px solid"
+        borderBottomColor="border.ruleStrong"
+      >
+        {/* Flat two-tone wordmark. The previous gradient (bgGradient + bgClip="text") is
           retired: Slant Take's direction is explicitly zero-gradient. Note the old gradient
           used hardcoded purple.400/gray.300 — NOT the accent.start/accent.end tokens, despite
           what earlier docs claimed — so retiring it needed no token change.
@@ -57,195 +53,201 @@ export function Header() {
           textContent stays exactly "Slant Take" for getByText/textContent queries.
           Renamed from "Metal Reviews" in design-system pass 5 — see
           docs/decisions/naming-decisions.md for why now, and what's still outstanding. */}
-      <Heading
-        as="h1"
-        fontFamily="heading"
-        fontSize="4xl"
-        fontWeight={700}
-        letterSpacing="-0.02em"
-        lineHeight="1"
-        textTransform="uppercase"
-      >
-        <Box as="span" color="text.primary">
-          Slant{' '}
-        </Box>
-        <Box as="span" color="accent.border">
-          Take
-        </Box>
-      </Heading>
+        <Heading
+          as="h1"
+          fontFamily="heading"
+          fontSize="4xl"
+          fontWeight={700}
+          letterSpacing="-0.02em"
+          lineHeight="1"
+          textTransform="uppercase"
+        >
+          <Box as="span" color="text.primary">
+            Slant{' '}
+          </Box>
+          <Box as="span" color="accent.border">
+            Take
+          </Box>
+        </Heading>
 
-      {!loading && (
-        <Flex align="center" gap={6}>
-          {/* Desktop: nav links + account control.
+        {!loading && (
+          <Flex align="center" gap={6}>
+            {/* Desktop: nav links + account control.
               Visually hidden below md via CSS class; rendered in DOM at all sizes so
               screen readers and tests (jsdom) can always access links and buttons.
               Chakra responsive display props use display:none which blocks jsdom role
               queries, so we use a CSS class for breakpoint toggling instead. */}
-          <Flex
-            align="center"
-            gap={2}
-            className="header-desktop"
-            css={{
-              '@media (max-width: 47.9375em)': { display: 'none' },
-            }}
-          >
-            {/* Active tab text is accent.ink, not text.primary: same rule as the score
+            <Flex
+              align="center"
+              gap={2}
+              className="header-desktop"
+              css={{
+                '@media (max-width: 47.9375em)': { display: 'none' },
+              }}
+            >
+              {/* Active tab text is accent.ink, not text.primary: same rule as the score
                 slab's high state — dark text is required on any accent-filled background,
                 confirmed bug fixed in pass 4. Inactive/hover states are unaffected. */}
-            <Link
-              as={RouterLink}
-              to="/"
-              {...navPillBase}
-              bg={isReviewsActive ? 'accent.border' : 'transparent'}
-              color={isReviewsActive ? 'accent.ink' : 'text.dim'}
-              _hover={{
-                textDecoration: 'none',
-                bg: isReviewsActive ? 'accent.border' : 'surface.raised',
-                color: isReviewsActive ? 'accent.ink' : 'accent.start',
+              <Link
+                as={RouterLink}
+                to="/"
+                {...navPillBase}
+                bg={isReviewsActive ? 'accent.border' : 'transparent'}
+                color={isReviewsActive ? 'accent.ink' : 'text.dim'}
+                _hover={{
+                  textDecoration: 'none',
+                  bg: isReviewsActive ? 'accent.border' : 'surface.raised',
+                  color: isReviewsActive ? 'accent.ink' : 'accent.start',
+                }}
+              >
+                Reviews
+              </Link>
+              <Link
+                as={RouterLink}
+                to="/favorites"
+                {...navPillBase}
+                bg={isFavoritesActive ? 'accent.border' : 'transparent'}
+                color={isFavoritesActive ? 'accent.ink' : 'text.dim'}
+                _hover={{
+                  textDecoration: 'none',
+                  bg: isFavoritesActive ? 'accent.border' : 'surface.raised',
+                  color: isFavoritesActive ? 'accent.ink' : 'accent.start',
+                }}
+              >
+                Favorites
+              </Link>
+
+              {/* Vertical divider between nav links and account control */}
+              <Box w="1px" alignSelf="stretch" bg="whiteAlpha.400" mx={2} />
+
+              {user ? (
+                <Menu.Root>
+                  <Menu.Trigger asChild>
+                    <Button
+                      variant="ghost"
+                      {...navPillBase}
+                      fontFamily="mono"
+                      fontSize="13px"
+                      fontWeight="normal"
+                      color="text.dim"
+                      _hover={{ color: 'text.primary', bg: 'surface.raised' }}
+                      _active={{ bg: 'surface.raised', color: 'text.primary' }}
+                      css={{
+                        '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' },
+                      }}
+                    >
+                      <Icon as={FaUserCircle} boxSize={5} color="text.dim" mr={2} />
+                      {user.email?.split('@')[0]}
+                    </Button>
+                  </Menu.Trigger>
+                  <Portal>
+                    <Menu.Positioner>
+                      <Menu.Content bg="surface.card" borderColor="border.default" minW="120px">
+                        <Menu.Item
+                          value="logout"
+                          bg="surface.card"
+                          color="text.primary"
+                          _hover={{ bg: 'surface.raised' }}
+                          onSelect={handleLogout}
+                        >
+                          Log out
+                        </Menu.Item>
+                      </Menu.Content>
+                    </Menu.Positioner>
+                  </Portal>
+                </Menu.Root>
+              ) : (
+                <Link
+                  as={RouterLink}
+                  to="/login"
+                  {...navPillBase}
+                  bg="transparent"
+                  color="text.dim"
+                  _hover={{
+                    textDecoration: 'none',
+                    bg: 'surface.raised',
+                    color: 'accent.start',
+                  }}
+                >
+                  Log in
+                </Link>
+              )}
+            </Flex>
+
+            {/* Mobile: hamburger that consolidates nav + account.
+              Visually hidden above md via CSS class; always in DOM. */}
+            <Box
+              className="header-mobile"
+              css={{
+                '@media (min-width: 48em)': { display: 'none' },
               }}
             >
-              Reviews
-            </Link>
-            <Link
-              as={RouterLink}
-              to="/favorites"
-              {...navPillBase}
-              bg={isFavoritesActive ? 'accent.border' : 'transparent'}
-              color={isFavoritesActive ? 'accent.ink' : 'text.dim'}
-              _hover={{
-                textDecoration: 'none',
-                bg: isFavoritesActive ? 'accent.border' : 'surface.raised',
-                color: isFavoritesActive ? 'accent.ink' : 'accent.start',
-              }}
-            >
-              Favorites
-            </Link>
-
-            {/* Vertical divider between nav links and account control */}
-            <Box w="1px" alignSelf="stretch" bg="whiteAlpha.400" mx={2} />
-
-            {user ? (
               <Menu.Root>
                 <Menu.Trigger asChild>
-                  <Button
+                  <IconButton
                     variant="ghost"
-                    {...navPillBase}
-                    fontFamily="mono"
-                    fontSize="13px"
-                    fontWeight="normal"
+                    aria-label="Open menu"
                     color="text.dim"
                     _hover={{ color: 'text.primary', bg: 'surface.raised' }}
                     _active={{ bg: 'surface.raised', color: 'text.primary' }}
-                    css={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
+                    css={{
+                      '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' },
+                    }}
                   >
-                    <Icon as={FaUserCircle} boxSize={5} color="text.dim" mr={2} />
-                    {user.email?.split('@')[0]}
-                  </Button>
+                    <LuMenu />
+                  </IconButton>
                 </Menu.Trigger>
                 <Portal>
                   <Menu.Positioner>
-                    <Menu.Content bg="surface.card" borderColor="border.default" minW="120px">
+                    <Menu.Content bg="surface.card" borderColor="border.default">
                       <Menu.Item
-                        value="logout"
+                        value="reviews"
                         bg="surface.card"
                         color="text.primary"
                         _hover={{ bg: 'surface.raised' }}
-                        onSelect={handleLogout}
+                        onSelect={() => navigate('/')}
                       >
-                        Log out
+                        Reviews
                       </Menu.Item>
+                      <Menu.Item
+                        value="favorites"
+                        bg="surface.card"
+                        color="text.primary"
+                        _hover={{ bg: 'surface.raised' }}
+                        onSelect={() => navigate('/favorites')}
+                      >
+                        Favorites
+                      </Menu.Item>
+                      {user ? (
+                        <Menu.Item
+                          value="logout"
+                          bg="surface.card"
+                          color="text.primary"
+                          _hover={{ bg: 'surface.raised' }}
+                          onSelect={handleLogout}
+                        >
+                          Log out
+                        </Menu.Item>
+                      ) : (
+                        <Menu.Item
+                          value="login"
+                          bg="surface.card"
+                          color="text.primary"
+                          _hover={{ bg: 'surface.raised' }}
+                          onSelect={() => navigate('/login')}
+                        >
+                          Log in
+                        </Menu.Item>
+                      )}
                     </Menu.Content>
                   </Menu.Positioner>
                 </Portal>
               </Menu.Root>
-            ) : (
-              <Link
-                as={RouterLink}
-                to="/login"
-                {...navPillBase}
-                bg="transparent"
-                color="text.dim"
-                _hover={{
-                  textDecoration: 'none',
-                  bg: 'surface.raised',
-                  color: 'accent.start',
-                }}
-              >
-                Log in
-              </Link>
-            )}
+            </Box>
           </Flex>
-
-          {/* Mobile: hamburger that consolidates nav + account.
-              Visually hidden above md via CSS class; always in DOM. */}
-          <Box
-            className="header-mobile"
-            css={{
-              '@media (min-width: 48em)': { display: 'none' },
-            }}
-          >
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  variant="ghost"
-                  aria-label="Open menu"
-                  color="text.dim"
-                  _hover={{ color: 'text.primary', bg: 'surface.raised' }}
-                  _active={{ bg: 'surface.raised', color: 'text.primary' }}
-                  css={{ '&[aria-expanded=true]': { bg: 'surface.raised', color: 'text.primary' } }}
-                >
-                  <LuMenu />
-                </IconButton>
-              </Menu.Trigger>
-              <Portal>
-                <Menu.Positioner>
-                  <Menu.Content bg="surface.card" borderColor="border.default">
-                    <Menu.Item
-                      value="reviews"
-                      bg="surface.card"
-                      color="text.primary"
-                      _hover={{ bg: 'surface.raised' }}
-                      onSelect={() => navigate('/')}
-                    >
-                      Reviews
-                    </Menu.Item>
-                    <Menu.Item
-                      value="favorites"
-                      bg="surface.card"
-                      color="text.primary"
-                      _hover={{ bg: 'surface.raised' }}
-                      onSelect={() => navigate('/favorites')}
-                    >
-                      Favorites
-                    </Menu.Item>
-                    {user ? (
-                      <Menu.Item
-                        value="logout"
-                        bg="surface.card"
-                        color="text.primary"
-                        _hover={{ bg: 'surface.raised' }}
-                        onSelect={handleLogout}
-                      >
-                        Log out
-                      </Menu.Item>
-                    ) : (
-                      <Menu.Item
-                        value="login"
-                        bg="surface.card"
-                        color="text.primary"
-                        _hover={{ bg: 'surface.raised' }}
-                        onSelect={() => navigate('/login')}
-                      >
-                        Log in
-                      </Menu.Item>
-                    )}
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Portal>
-            </Menu.Root>
-          </Box>
-        </Flex>
-      )}
-    </Flex>
+        )}
+      </Flex>
+      {breadcrumb && <Box mt={4}>{breadcrumb}</Box>}
+    </Box>
   );
 }

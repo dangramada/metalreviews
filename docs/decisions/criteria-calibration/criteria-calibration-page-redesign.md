@@ -143,6 +143,74 @@ lint on the touched files dropped 37 errors to 2 — `carousel.tsx` was a genera
 never been Prettier-formatted; the 2 remaining are the page's known pre-existing
 `set-state-in-effect` pair.
 
+## Design-review pass, 2026-09-11 — header
+
+Dan compared five header variants in Figma and picked a direction that differs from the first
+build. Scoped to the header area plus one button; tier derivation, checkpoints, routing and the
+Guide/Results tabs are untouched.
+
+**1. Visible page title removed, replaced by a visually-hidden heading.** The active tab now
+anchors "you are here", and the old title repeated the breadcrumb's last segment. The hidden
+heading is an **h2, not the h1 the brief asked for**: the global `Header` already renders the
+page's one `<h1>` ("Slant Take"), and the visible title being replaced was itself an h2 (Chakra's
+`Heading` defaults to h2). h2 is the exact replacement; an h1 would give the page two top-level
+headings. `TitleStatusRow.tsx` is deleted — the title and badge were all it held — and
+`TierAccuracyBadge` moved onto the tab row, still inside `data-testid="calibration-header"`.
+
+**2. Active tab is a filled, bordered folder tab instead of an underline** (stronger non-text
+contrast on the active state). How it is built matters, because the first attempt was wrong:
+
+- Chakra styles Tabs through a **slot recipe** (`tabs`: slots root/list/trigger/content/indicator;
+  variants line/subtle/enclosed/outline/plain), not through props on each trigger.
+- First attempt: the default `line` variant with inline overrides on every `Tabs.Trigger`, plus
+  deleting `<Tabs.Indicator />` and hiding the list's baseline. That left a **2px white bar** under
+  the active tab, because `line` draws its selected indicator as a `::before` on the _trigger
+  itself_ (`layerStyle: indicator.bottom`), independently of the separate `Indicator` part.
+  Measured live: `content: ""`, 2px, white.
+- Now: the built-in **`outline` variant** — the folder-tab behaviour from the Chakra docs demo —
+  restyled once in `theme.ts`'s existing `slotRecipes` block (next to the `drawer`/`dialog`
+  overrides). The component is just `<Tabs.Root variant="outline" size="lg">` with plain triggers.
+  An override of `outline` rather than a new variant name because this repo does not run Chakra
+  typegen, so a new name would not exist in the prop types.
+- Two departures from stock `outline`, both commented in `theme.ts`: the list's own baseline is
+  hidden (the panel's 2px top border is the baseline), and the list's `minH` is released. The base
+  `list` slot sets `minH: var(--tabs-height)`, equal to the trigger's height, which absorbed the
+  trigger's `-2px` overlap inside the list — **measured 0px overlap, the panel's border still
+  visible under the active tab**. With `minH: auto` it overlaps by 2px and a hit-test on that
+  border pixel lands on the tab. The selected trigger paints its bottom edge in the panel's fill.
+- Consequence: an `outline` Tabs must sit directly on a panel with that border. So the page
+  renders the header and panel with no gap, and **"Saving…" moved from between them to below the
+  panel** — otherwise it would break the join on every answer.
+
+**3. Breadcrumb separated by spacing only, 16px below the header, on every breadcrumb page.**
+The spacing was produced independently by each page and had drifted to 76px (calibration: 12px
+header margin + 24px stack gap + 40px `py={10}`) and 36px (Album Evaluation). Breadcrumbs are now
+handed to the global `<Header breadcrumb={...} />`, which alone owns the 16px from its bottom rule.
+Pages without one render as before — the header's 12px bottom margin just moved onto a wrapper
+(re-measured on Favorites: 36px, unchanged). Calibration's extra `py={10}` is gone from all four
+return paths. The breadcrumb for this page is `CalibrationBreadcrumb`, exported from
+`CalibrationPageHeader.tsx`.
+
+**4. `EqualButton` has full visual weight** — same solid primary style as "This one" (measured
+identical fill). Label left as "About equal"; see open items.
+
+**Verification.** Live on the QA account:
+
+- **Spacing:** header rule → breadcrumb is 16px on both Calibration and Album Evaluation. Favorites is unchanged at 36px.
+- **White bar:** gone.
+- **Tab join:** the active tab overlaps the panel border by 2px and covers it. The inactive tabs overlap it with transparent bottoms, so the rule shows under them.
+- **Hidden heading:** present in the accessibility tree, and visually clipped (`position:absolute`, 1px, `clip:rect(0,0,0,0)`).
+
+339/339 tests with no test changes needed.
+
+Type-check compared by error message against HEAD, in a temporary worktree rather than `git stash` so the live page wasn't hot-reloaded mid-measurement: +1 `theme.ts` TS2741 "`slots` missing" on the tabs override, the same class the existing `drawer`/`dialog` overrides already produce (Chakra deep-merges these at runtime); −1 `Header.tsx` unused `React` import, now used. Net unchanged at 205. Lint on touched files shows only the page's two pre-existing `set-state-in-effect` errors.
+
+**Open for Dan, not changed:**
+
+- **Breadcrumb → tabs spacing:** currently 36px (the header's 12px margin plus the 24px stack gap).
+- **Equal button label:** the Figma reads "They are equal".
+- **Breadcrumb depth:** the Figma shows Home / Favorites / Criteria Calibration.
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'
