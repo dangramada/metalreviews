@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
-import { CalibrationPageHeader } from './components/criteria-calibration/CalibrationPageHeader';
+import {
+  CalibrationBreadcrumb,
+  CalibrationPageHeader,
+} from './components/criteria-calibration/CalibrationPageHeader';
 import { WorkStatusRow } from './components/criteria-calibration/WorkStatusRow';
 import { ActionRail } from './components/criteria-calibration/ActionRail';
 import { PauseDialog } from './components/criteria-calibration/PauseDialog';
@@ -198,12 +201,19 @@ const RECOVERY_TRIM_LIMIT = 5;
 // meant to match, uses container.xl alone and lets its content be as wide as the app. Individual
 // blocks that genuinely need a reading measure (the Guide intro paragraph, checkpoint copy) cap
 // their own width locally instead.
-function PageChrome({ children }: { children: React.ReactNode }) {
+function PageChrome({
+  breadcrumb,
+  children,
+}: {
+  /** Handed to the global Header, which owns the header-rule-to-breadcrumb spacing. */
+  breadcrumb?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack gap={6} align="stretch">
-          <Header />
+          <Header breadcrumb={breadcrumb} />
           {children}
           <Footer />
         </VStack>
@@ -989,7 +999,7 @@ export function CriteriaCalibrationPage() {
   if (loading) {
     return (
       <PageChrome>
-        <Box py={10}>
+        <Box>
           <Flex justify="center" align="center" minH="300px">
             <LoadingIndicator />
           </Flex>
@@ -1001,7 +1011,7 @@ export function CriteriaCalibrationPage() {
   if (error || !catalog) {
     return (
       <PageChrome>
-        <Box py={10}>
+        <Box>
           <Text textAlign="center" color="red.400">
             Failed to load calibration criteria. Please try again later.
           </Text>
@@ -1013,7 +1023,7 @@ export function CriteriaCalibrationPage() {
   if (resume.loading || !seeded) {
     return (
       <PageChrome>
-        <Box py={10}>
+        <Box>
           <Flex direction="column" gap={4} justify="center" align="center" minH="300px">
             <LoadingIndicator />
             <Text color="text.dim" fontFamily="body">
@@ -1028,27 +1038,19 @@ export function CriteriaCalibrationPage() {
   const hasStarted = answers.length > 0;
 
   return (
-    <PageChrome>
-      <Box py={10}>
-        <VStack gap={10} align="stretch">
+    <PageChrome breadcrumb={<CalibrationBreadcrumb from={searchParams.get('from')} />}>
+      <Box>
+        {/* gap={0}: the header's active tab overlaps the panel's top border by exactly its
+            width and paints over it to read as the panel's top edge (CalibrationPageHeader.tsx,
+            change 2). Any gap, or any element rendered between the two, breaks that join. */}
+        <VStack gap={0} align="stretch">
           <CalibrationPageHeader
-            from={searchParams.get('from')}
             activeStep={activeStep}
             onStepChange={setStep}
             tier={tier}
             accuracyPercent={accuracyPercent}
             hasStarted={hasStarted}
           />
-
-          {hasPendingWrites && (
-            // Visible pending-save signal, paired with the beforeunload guard above — a
-            // refresh while this is showing will trigger the browser's native "leave site?"
-            // confirmation rather than silently dropping the in-flight write. Shown regardless
-            // of which tab is active — an in-flight write isn't specific to the Calibration tab.
-            <Text textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
-              Saving…
-            </Text>
-          )}
 
           {/* Every tab's content sits inside one framed panel — the same 2px flush border
               AlbumRatingPage's Desktop/MobileRatingLayout cards use (`surface.ratingCardFill` +
@@ -1059,9 +1061,10 @@ export function CriteriaCalibrationPage() {
               to sit flush against the border and supply their own internal spacing, whereas the
               tab bodies here are ordinary prose/controls that would otherwise touch the rule.
 
-              The frame wraps the tab CONTENT only, deliberately not the header above it — the
-              breadcrumb, title and tab bar are page chrome, and boxing them in with the panel
-              would make the tab bar look like it belongs to the panel it switches. */}
+              The frame wraps the tab CONTENT only; the breadcrumb and tab bar stay outside it.
+              Since the 2026-09-11 design review the active tab deliberately JOINS this panel as a
+              filled folder tab (see CalibrationPageHeader.tsx), which is why nothing may render
+              between the header and this box. */}
           <Box
             bg="surface.ratingCardFill"
             border="2px solid"
@@ -1186,6 +1189,20 @@ export function CriteriaCalibrationPage() {
               </VStack>
             )}
           </Box>
+
+          {hasPendingWrites && (
+            // Visible pending-save signal, paired with the beforeunload guard above — a
+            // refresh while this is showing will trigger the browser's native "leave site?"
+            // confirmation rather than silently dropping the in-flight write. Shown regardless
+            // of which tab is active — an in-flight write isn't specific to the Calibration tab.
+            //
+            // Below the panel since 2026-09-11. It used to sit between the header and the panel,
+            // where it would now break the active tab's join with the panel every time a write
+            // was in flight, i.e. on every answer.
+            <Text mt={4} textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
+              Saving…
+            </Text>
+          )}
 
           <PauseDialog
             open={pauseDialogOpen}

@@ -107,7 +107,10 @@ export function AlbumRatingPage() {
     async function loadRatingsAndWeights() {
       setRatingsLoading(true);
       const [{ data: ratingRows }, { data: weightRows }] = await Promise.all([
-        supabase.from('album_criteria_ratings').select('criterion_id, level').eq('album_id', albumId),
+        supabase
+          .from('album_criteria_ratings')
+          .select('criterion_id, level')
+          .eq('album_id', albumId),
         supabase.from('user_criterion_weights').select('criterion_id, level, value'),
       ]);
       if (cancelled) return;
@@ -158,7 +161,18 @@ export function AlbumRatingPage() {
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack gap={6} align="stretch">
-          <Header />
+          {/* The breadcrumb is handed to the global Header, which owns the 16px between its
+              bottom rule and the breadcrumb — identical on every page that has one. Only once
+              the album has loaded, same as when it rendered in the body. */}
+          <Header
+            breadcrumb={
+              !loading && albumInfo ? (
+                <PageBreadcrumb
+                  items={[{ label: sourceLabel, to: backHref }, { label: 'Album Evaluation' }]}
+                />
+              ) : undefined
+            }
+          />
 
           {loading ? (
             <Flex justify="center" align="center" minH="300px">
@@ -170,9 +184,6 @@ export function AlbumRatingPage() {
             </Text>
           ) : (
             <>
-              <Box>
-                <PageBreadcrumb items={[{ label: sourceLabel, to: backHref }, { label: 'Album Evaluation' }]} />
-              </Box>
               {/* Band/album title used to render here as a shared heading above both layouts —
                   moved into DesktopRatingLayout's card per the retouch pass (2026-08-05 dated
                   entry, docs/decisions/album-rating-page.md). MobileRatingLayout renders its

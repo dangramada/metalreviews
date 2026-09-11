@@ -196,15 +196,15 @@ const system = createSystem(defaultConfig, {
         // Use the exported badge config objects below rather than referencing these directly.
         badge: {
           source: {
-            bg:   { value: { base: '{colors.gray.800}' } },
+            bg: { value: { base: '{colors.gray.800}' } },
             text: { value: { base: '{colors.purple.100}' } },
           },
           score: {
-            bg:   { value: { base: '{colors.purple.300}' } },
+            bg: { value: { base: '{colors.purple.300}' } },
             text: { value: { base: '{colors.purple.950}' } },
           },
           genre: {
-            bg:   { value: { base: '{colors.whiteAlpha.100}' } },
+            bg: { value: { base: '{colors.whiteAlpha.100}' } },
             text: { value: { base: '{colors.purple.200}' } },
           },
         },
@@ -256,6 +256,60 @@ const system = createSystem(defaultConfig, {
       dialog: {
         base: {
           content: { bg: 'surface.card', color: 'text.primary' },
+        },
+      },
+      // Tabs are styled through Chakra's `tabs` SLOT recipe (slots: root/list/trigger/content/
+      // indicator; variants: line/subtle/enclosed/outline/plain), not through props on each
+      // Tabs.Trigger. This overrides the built-in `outline` variant — the "folder tab" one from
+      // the Chakra docs demo, where the selected trigger drops its bottom border and overlaps the
+      // list's baseline so it reads as joined to the content below — to the app's square, 2px,
+      // ink-rule look. Added 2026-09-11 for CalibrationPageHeader, currently the only Tabs usage.
+      //
+      // Why override `outline` rather than add a new variant name: this repo does not run
+      // Chakra's typegen (`@chakra-ui/cli`), so a new name would not exist in the Tabs prop types.
+      //
+      // Why not the default `line` variant with per-trigger overrides (the first attempt): `line`
+      // draws its selected-state bar as a ::before pseudo-element ON THE TRIGGER (layerStyle
+      // "indicator.bottom"), independently of the separate Tabs.Indicator part. Deleting
+      // <Tabs.Indicator /> and hiding the list's baseline left that bar behind as a 2px white line
+      // under the active tab — fighting the recipe instead of choosing the variant built for this.
+      //
+      // One deliberate departure from stock `outline`: the list's own baseline (a ::before rule)
+      // is hidden, because the tabbed panel below already has a 2px top border and the two would
+      // double up. The selected trigger still overlaps by --line-offset (-2px) as `outline`
+      // intends, and paints its bottom edge in the panel's fill instead of `transparent`, so it
+      // covers exactly the stretch of the panel's border beneath it — the join in the Figma.
+      // Consequence: an `outline` Tabs must sit directly on a panel with that border.
+      tabs: {
+        variants: {
+          variant: {
+            outline: {
+              root: { '--tabs-trigger-radius': '0px' },
+              list: {
+                '--line-thickness': '2px',
+                _horizontal: { _before: { display: 'none' } },
+                // The base `list` slot sets minH: var(--tabs-height), which equals the trigger's
+                // own height. That min-height absorbed the trigger's -2px bottom margin INSIDE
+                // the list, so the trigger ended exactly at the panel's top edge instead of 2px
+                // over it — the panel's border still showed under the active tab (measured live:
+                // 0px overlap). Stock `outline` never hits this because its baseline is drawn
+                // inside the list's own bottom edge; here the baseline is the panel, outside it.
+                minH: 'auto',
+              },
+              trigger: {
+                color: 'text.dim',
+                borderWidth: 'var(--line-thickness)',
+                _hover: { color: 'text.primary' },
+                _selected: { bg: 'surface.ratingCardFill', color: 'text.primary' },
+                _horizontal: {
+                  _selected: {
+                    borderColor: 'border.ruleStrong',
+                    borderBottomColor: 'surface.ratingCardFill',
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },

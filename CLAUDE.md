@@ -88,8 +88,7 @@ old progress header/history actions stayed mounted through checkpoints), a new f
 Restart action, a real Pause dialog (replacing inline "stopped" text), a Guide-tab criteria
 carousel, a minimal Results-tab placeholder, and a fix for the solver-recovery sequence's
 unmount-safety. Tier-derivation, checkpoint precedence, and the progress-fill formula are
-unchanged. 339/339 tests, `tsc` clean. **Not yet verified live in an authenticated browser** —
-no QA-account credentials available this session; that's the one open item before merge. Full
+unchanged. Design-review header pass (2026-09-11): folder-tab active state via the theme's `tabs` slot recipe, sr-only h2, breadcrumbs moved into the global `Header` at a uniform 16px. 339/339 tests, no new `tsc` errors. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
 detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`.
 
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
