@@ -4,6 +4,7 @@ import { Carousel } from '@chakra-ui/react';
 import { Box, IconButton, Image } from '@chakra-ui/react';
 import * as React from 'react';
 import { LuChevronLeft, LuChevronRight, LuPause, LuPlay } from 'react-icons/lu';
+import { secondaryButton } from '../../theme';
 
 interface CarouselRootProps extends Carousel.RootProps {
   withAutoplay?: boolean;
@@ -40,7 +41,7 @@ export const CarouselPrevButton = React.forwardRef<HTMLButtonElement, Carousel.P
   function CarouselPrevButton(props, ref) {
     return (
       <Carousel.PrevTrigger asChild ref={ref} {...props}>
-        <IconButton aria-label="Previous" size="md" variant="outline" colorPalette="gray">
+        <IconButton aria-label="Previous" size="md" variant="outline" {...secondaryButton}>
           <LuChevronLeft />
         </IconButton>
       </Carousel.PrevTrigger>
@@ -52,7 +53,7 @@ export const CarouselNextButton = React.forwardRef<HTMLButtonElement, Carousel.N
   function CarouselNextButton(props, ref) {
     return (
       <Carousel.NextTrigger asChild ref={ref} {...props}>
-        <IconButton aria-label="Next" size="md" variant="outline" colorPalette="gray">
+        <IconButton aria-label="Next" size="md" variant="outline" {...secondaryButton}>
           <LuChevronRight />
         </IconButton>
       </Carousel.NextTrigger>
