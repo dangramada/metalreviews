@@ -88,7 +88,11 @@ old progress header/history actions stayed mounted through checkpoints), a new f
 Restart action, a real Pause dialog (replacing inline "stopped" text), a Guide-tab criteria
 carousel, a minimal Results-tab placeholder, and a fix for the solver-recovery sequence's
 unmount-safety. Tier-derivation, checkpoint precedence, and the progress-fill formula are
-unchanged. Design-review header pass (2026-09-11): folder-tab active state via the theme's `tabs` slot recipe, sr-only h2, breadcrumbs moved into the global `Header` at a uniform 16px. Content pass (2026-09-12): shared `cardTitle`/`statusReadout` text styles, `ink.900` panel via a `surface.tabPanel` token, themed progress bar (ink.300 on ink.700, 12px), grid-aligned action rail, sentence-case level names. 339/339 tests; `tsc` 206 vs master's 205, the one extra being another instance of the pre-existing "slots missing" pattern the theme's other slot-recipe overrides already produce. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
+unchanged. Design-review header pass (2026-09-11): folder-tab active state via the theme's `tabs` slot recipe, sr-only h2, breadcrumbs moved into the global `Header` at a uniform 16px. Content pass (2026-09-12): shared `cardTitle`/`statusReadout` text styles, `ink.900` panel via a `surface.tabPanel` token, themed progress bar (ink.300 on ink.700, 12px), grid-aligned action rail, sentence-case level names. Tooltip/height pass (2026-09-12): tooltips
+on the action rail (state-aware, and still shown while disabled), on Pause, and on the tier badge
+itself (its ⓘ glyph retired, copy moved to `accuracyTierLabels.ts`'s `TIER_BADGE_TOOLTIP`); the
+tab panel takes a desktop `minH` FLOOR rather than one height matched to the tallest tab, with
+640px an unmeasured starting value to check live. 339/339 tests; `tsc` 206 vs master's 205, the one extra being another instance of the pre-existing "slots missing" pattern the theme's other slot-recipe overrides already produce. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
 detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`.
 
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit

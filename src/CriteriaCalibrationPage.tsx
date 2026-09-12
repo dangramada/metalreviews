@@ -1071,6 +1071,20 @@ export function CriteriaCalibrationPage() {
             borderColor="border.ruleStrong"
             borderRadius="none"
             p={{ base: 5, md: 8 }}
+            // A FLOOR, not a fixed height (2026-09-12). The three tabs differ enormously —
+            // Guide is six 500px-plus carousel cards, Results is one sentence and a button —
+            // and the frame used to collapse to a fraction of its height on every switch. A
+            // floor stops that collapse while still letting Guide be as tall as it needs to be;
+            // matching the TALLEST tab instead would have parked Results inside several hundred
+            // pixels of empty panel to fix a problem only Results has. It also covers the
+            // states WITHIN the Calibration tab (question view, checkpoint, the recovery
+            // spinner), which vary by nearly as much as the tabs do — being on the frame rather
+            // than on any one branch, it applies to all of them for free.
+            //
+            // Desktop only: the value is sized to the Calibration tab's own natural height at
+            // full width, which is not what any of this content measures on a narrow screen,
+            // and on mobile the tabs are reached one at a time rather than compared.
+            minH={{ base: 'auto', md: '640px' }}
           >
             {unrecoverable ? (
               // Auto-recovery gave up (RECOVERY_TRIM_LIMIT trims, or nothing left to trim).

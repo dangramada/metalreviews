@@ -828,6 +828,19 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   so re-skinning it is a cross-cutting design-system change, not a Criteria-Calibration-page
   change — bundling it in would violate the brief's own "one concern per session" convention.
   `criteria-calibration-page-redesign.md`.
+- **The accuracy percentage is described by three different verbs across the app.** Surfaced
+  2026-09-12 while writing the tier badge's tooltip (`criteria-calibration-page-redesign.md`,
+  "Tooltips and a panel height floor"). The same number is "clear" in every checkpoint body
+  (`checkpointCopy.ts`: "you're N% clear on what matters most to you"), "pinned down" in
+  `TierAccuracyBadge`'s screen-reader label, and now "settled" in `TIER_BADGE_TOOLTIP`. Each is
+  defensible on its own surface and none is wrong, but a user meeting two of them has no way to
+  know they name one measurement. Picking one verb and sweeping it through was deliberately NOT
+  bundled into that pass: it edits `checkpointCopy.ts`, whose six copy rules and four screen
+  bodies are owned by `criteria-calibration-checkpoint-copy-rewrite.md` and were explicitly out
+  of the page-redesign branch's scope. Wants its own small pass, and a decision on which verb
+  survives. Note "clear" is the weakest candidate for a shared verb: **Clear** is also one of the
+  four tier names, so the word does double duty anywhere the names are visible.
+
 - **Accuracy display conflates two different signals** — surfaced live 2026-08-15, during
   the second full calibration session (`dan.gramada@gmail.com` account reset,
   `criteria-calibration-second-session-reset.md`).

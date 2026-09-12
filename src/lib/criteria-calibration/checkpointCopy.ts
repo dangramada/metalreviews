@@ -24,11 +24,6 @@
 // stacked paragraphs like the pre-rewrite copy. The four screens read as one continuous thought,
 // per the brief's own formatting.
 
-/** Shown next to every checkpoint's tier badge, every time — the badge is now permanently
- *  visible (previously conditional), so the explanation of what it means travels with it. */
-export const CHECKPOINT_TIER_TOOLTIP =
-  'Unfocused, Blurry, Clear, Sharp. Each one means a deeper level of comparison finished.';
-
 // ---------------------------------------------------------------------------------------
 // Tip 1 — a degree boundary that PROMOTES the tier (degree-2 exhaustion -> Blurry, degree-3
 // exhaustion -> Clear). The badge shown alongside this copy is the tier just reached.
