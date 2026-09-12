@@ -391,6 +391,24 @@ Verified: exactly one visible prev and one visible next (two of each in the DOM,
 zero legacy control rows, 12px clear of the cards on both sides, no overlap, and prev/card/next
 sharing a vertical centre.
 
+**Bug, found by Dan and fixed same day: Next stayed live at the end of the list**, needing one
+further no-op click to disable. The cause was ours, not zag's. zag derives its pages straight from
+the DOM's CSS scroll-snap positions — `carousel.machine.mjs` builds `pageSnapPoints` from the
+element's snap positions, and `canScrollNext = page < pageSnapPoints.length - 1`. The carousel
+scaffold put `scroll-snap-align: start` on EVERY item, so with 6 slides zag counted 6 pages while
+`slidesPerPage: 3` makes only 4 of them reachable before the scroll saturates. Reproduced exactly:
+one click scrolled to 1220 (the true maximum, `atMax: true`) while `nextDisabled` was still false;
+a second click moved 0px and only then disabled.
+
+Fixed by snapping every Nth item (`index % slidesPerPage === 0`), so one snap point marks one page
+and the index and the scroll run out together. Verified desktop (snap aligns
+`start,none,none,start,none,none`; Next disables the moment scroll hits 1220; prev correctly
+disabled at position 0) and mobile, where `slidesPerPage` is 1 so every item still snaps and the
+end arrives after exactly 5 clicks.
+
+Worth remembering for anything else built on this scaffold: because Chakra ships no carousel
+recipe, our CSS _is_ the machine's input, not just its appearance.
+
 A full grid replacing the carousel was also proposed and not taken.
 
 Verified at 1440px: rule 2px `rgb(58,58,58)` with 2px overhang each side (flush to the border, not
