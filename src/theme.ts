@@ -187,6 +187,19 @@ const system = createSystem(defaultConfig, {
           // it paints over the panel's border — the join only reads as a join while the two
           // values are identical, so they must stay one token, not two equal literals.
           tabPanel: { value: { base: '{colors.ink.900}' } },
+          // Both Criteria Calibration card types — the comparison OptionCards and the Guide
+          // carousel's cards (2026-09-12). sand.900 (#1a1a1a) against the ink.900 (#131313)
+          // panel, so a card reads as sitting ON the panel rather than being flush with it:
+          // before this they were `surface.card`, which IS ink.900, so only their border
+          // distinguished them. Same value as Album Evaluation's `ratingCardFill`, but its own
+          // token — that one is a different page's card and the two must be able to move
+          // independently.
+          //
+          // Note the lift is gentler here than on Album Evaluation, where the same fill sits on
+          // the ink.950 page: 7 steps of separation rather than 11, because this panel is
+          // lighter than a page. Deliberate — reusing an existing value beat introducing a
+          // fourth near-black to equalise the perceived step.
+          calibrationCard: { value: { base: '{colors.sand.900}' } },
           // Fifth pass (same day) correction: `criterionRow` is the resting fill for non-active
           // criteria rows and the criteria-list container — repointed from ink.800 to sand.950,
           // one step darker than the reintroduced `criterionActive` (ink.800) below, so the

@@ -318,12 +318,27 @@ Measured at 1440px: 425x503 per card, 3 per page, level names Inter 18px/500 sen
 separators per card. The height grew by roughly 40% (350 -> 503), the expected cost of level names
 going from 12px to 18px, and was accepted rather than dropping to 2 cards per page.
 
-**Still open at the time of writing:** the criterion NAME is untouched (still a Clash Display
-`Heading`) pending a decision on what "cardTitleBand" refers to — no such token or component
-exists in this repo, and the only band-like pattern (`RatingSlab`) is a data slab, a mono label
-above a large number, with no sensible shape for a bare criterion name. Card background is also
-unresolved: `surface.card` is `ink.900`, identical to the panel behind it since the panel became
-`ink.900`, so both card types currently read as cards only by their border.
+**The criterion name uses `cardTitleBand`** — the app's shared band/album title typography
+(Inter 19px/700 uppercase, `theme.ts`, from design-system-audit-2026-08.md), spread onto a
+`Heading` exactly as `AlbumMetaBlock` does. "Band" there means a musical band's name, not a
+visual strip: a first pass through this file missed the token entirely (a truncated grep) and
+reasoned from `RatingSlab` instead, which would have been the wrong component. The comparison
+card's `CriterionBadge` was explicitly rejected for this: on its own card that badge is
+deliberately the quietest element, whereas here the criterion name is the card's title and must
+outrank the five level names under it. 19px/700 uppercase over 18px/500 sentence case does that.
+
+**Card fill is `surface.calibrationCard` (sand.900) on both card types.** `surface.card` is
+ink.900, which became identical to the panel when the panel moved to ink.900 — so cards read as
+cards only by their border. sand.900 (#1a1a1a) lifts them off it. Applied to the comparison
+`OptionCard` as well as the Guide card, deliberately: fixing only one would re-split the two card
+types this pass just unified. Its own token rather than Album Evaluation's `ratingCardFill`,
+despite the identical value, since that is a different page's card and the two must be able to
+move independently. Note the lift is gentler here than on Album Evaluation, where the same fill
+sits on the ink.950 page — 7 steps of separation rather than 11, accepted over introducing a
+fourth near-black.
+
+Verified at 1440px: both card fills `rgb(26,26,26)` against a `rgb(19,19,19)` panel; criterion
+title Inter 19px/700 uppercase; level names 18px/500 sentence case; card 509px tall.
 
 ## What deliberately did NOT change
 

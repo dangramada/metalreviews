@@ -3,6 +3,7 @@ import { Heading, Separator, Text, VStack } from '@chakra-ui/react';
 import { CarouselControls, CarouselItem, CarouselItemGroup, CarouselRoot } from '../ui/carousel';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
 import { CriterionLevelDetail } from './CriterionLevelDetail';
+import { cardTitleBand } from '../../theme';
 
 interface CriteriaCarouselProps {
   catalog: CriteriaCatalog;
@@ -31,7 +32,7 @@ interface CriteriaCarouselProps {
 // level names are sentence case at the same size as the comparison card's, with the same
 // Separator rules between them that CriterionLevelList uses. No hover treatment: unlike an
 // OptionCard these are not selectable, and hover feedback on something unclickable invites a
-// click. The criterion NAME is still a Heading pending Dan's `cardTitleBand` decision.
+// click, and the criterion name uses `cardTitleBand` so it outranks the level names.
 export function CriteriaCarousel({ catalog, slidesPerPage }: CriteriaCarouselProps) {
   const showControls = catalog.entries.length > slidesPerPage;
 
@@ -52,10 +53,15 @@ export function CriteriaCarousel({ catalog, slidesPerPage }: CriteriaCarouselPro
               border="2px solid"
               borderColor="border.ruleStrong"
               borderRadius="none"
-              bg="surface.card"
+              bg="surface.calibrationCard"
             >
               <VStack align="stretch" gap={1.5}>
-                <Heading size="md" fontFamily="heading" color="text.primary">
+                {/* `cardTitleBand` — the app's shared band/album title typography (Inter
+                  19px/700 uppercase, theme.ts). The criterion name is this card's title and has
+                  to outrank the five level names below it; the comparison card's CriterionBadge
+                  would have done the opposite, since that badge is deliberately the quietest
+                  thing on its own card. Spread onto a Heading exactly as AlbumMetaBlock does. */}
+                <Heading as="h3" {...cardTitleBand} color="text.primary">
                   {entry.name}
                 </Heading>
                 <Text fontSize="sm" color="text.dim" fontFamily="body">
