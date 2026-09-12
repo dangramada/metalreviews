@@ -36,12 +36,17 @@ reads as more of an event without inventing a new scale just for this.
 
 Both action buttons spelled out `colorPalette="orange"` (Chakra's built-in ramp) and
 `colorPalette="gray"` directly, rather than the exported `primaryButton`/`secondaryButton` configs
-every other calibration surface already uses (`EqualButton`, `GuideTab`'s CTA, `ResultsTab`). Not a
-visual bug — the app's `ember` ramp reads as the same orange, confirmed by measuring the rendered
-button background before and after (`rgb(255, 106, 26)` both times, `ember.500` / `#ff6a1a`) — but
-it meant this screen alone would silently miss a future accent-colour change. Swapped to
-`{...primaryButton}` (Continue, Done) and `{...secondaryButton} variant="outline"` (Pause), no
-visual difference today, one fewer place to remember next time the accent changes.
+every other calibration surface already uses (`EqualButton`, `GuideTab`'s CTA, `ResultsTab`).
+
+**Correction (2026-09-16):** this was originally written up as a pure token-discipline change with
+no visual effect, on the claim that the rendered colour measured the same before and after. That
+measurement was only taken _after_ the change — the before state was never actually checked. It
+should have been: Chakra's stock `orange.500` is `#f97316`; the app's `ember.500`, which
+`primaryButton` resolves to, is `#ff6a1a`. Close, but a real difference (`+6R -9G +4B`), not the
+identical colour originally reported. So this button's fill did shift slightly, and the fix is
+better than described — it silently corrected a small colour mismatch, not just future-proofed
+against one. Everything else about the change stands: `{...primaryButton}` (Continue, Done) and
+`{...secondaryButton} variant="outline"` (Pause), matching every other calibration surface.
 
 Found the same pattern in `src/components/ErrorBoundary.tsx`'s reload button while making this
 change. Left alone — it's an app-wide component, not calibration-scoped — and logged to
