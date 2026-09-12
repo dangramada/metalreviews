@@ -187,7 +187,7 @@ describe('CriteriaCalibrationPage — solver-crash safety net', () => {
 
     vi.useFakeTimers();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /About equal/i }));
+      fireEvent.click(screen.getByRole('button', { name: /They are equal/i }));
     });
     await act(async () => {
       vi.runAllTimers();
