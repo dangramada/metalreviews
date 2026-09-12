@@ -263,6 +263,11 @@ Pause. Expressed with an inner flex group, so each number states what it is rath
 them being the sum of the other and a correction. Measured live: 16 / 16 / 24, with all four
 elements sharing a vertical centre.
 
+The percentage reserves no width. It was briefly `minW="4ch"` + right-aligned so the bar's
+length could not jitter as the number gained a digit, but that puts two characters in a
+four-character box — a gap visible every single round, to avoid a reflow that happens exactly
+twice in a session (9->10, 99->100). The gap is permanent; the shift is not.
+
 **The action rail aligns to the cards, exactly, without a magic offset.** The requirement was
 both "rail level with the top of the cards" and "title centred over the cards" — a flex row can
 only do one, because the rail aligns to whatever starts the column, so keeping the title there

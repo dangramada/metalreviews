@@ -34,12 +34,12 @@ export function WorkStatusRow({ round, progressPercent, onPause }: WorkStatusRow
         <ProgressRoot value={progressPercent} flex="1" size="lg">
           <Flex align="center" gap={4}>
             <ProgressBar flex="1" />
-            <ProgressValueText
-              color="text.primary"
-              textStyle="statusReadout"
-              minW="4ch"
-              textAlign="right"
-            >
+            {/* No reserved min-width. It used to be 4ch/right-aligned so the bar's length
+              couldn't jitter as the number gained a digit — but that costs a permanent gap
+              between bar and percentage (at "1%", two characters sitting in a four-character
+              box), to avoid a reflow that happens exactly twice in a session, at 9->10 and
+              99->100. The gap is visible every round; the shift is not. */}
+            <ProgressValueText color="text.primary" textStyle="statusReadout">
               {progressPercent}%
             </ProgressValueText>
           </Flex>
