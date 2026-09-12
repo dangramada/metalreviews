@@ -76,7 +76,7 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`consistency-button-tokens` — in progress, not yet merged. App-wide sweep of hardcoded `colorPalette` values found while fixing the calibration checkpoint screen. `ErrorBoundary.tsx`'s reload button moves from `colorPalette="orange"` to `primaryButton` — a real fix, not cosmetic: Chakra's stock orange (`#f97316`) and the app's `ember.500` (`#ff6a1a`) are genuinely different colours. Three live `colorPalette="gray"` action buttons (`WorkStatusRow`'s Pause, `ActionRail`'s icon rail, the Guide carousel's Prev/Next) move to `secondaryButton` — a true no-op, since that token is exactly `{ colorPalette: 'gray' }`, but now matches every other secondary button in the app. Three more `colorPalette="gray"` hits (`password-input.tsx`, `toggle-tip.tsx`, `color-mode.tsx`) were deliberately left alone: confirmed dead code, unused Chakra scaffold snippets, not wired into the app. 344/344 tests; `tsc` unchanged at 206. Full detail: `docs/decisions/consistency-button-tokens.md`.
+No branches currently in progress.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
@@ -293,7 +293,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
 - `genre-artwork-bugfixes.md` — RSS title pollution root cause, the three bugs it caused, and their fixes
 - `controls-bar.md` — score filter, review counter, responsive flex layout breakpoints
-- `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route. **Exhaustive by test** since 2026-09-12: `src/__tests__/designTokensDoc.test.ts` fails if a custom semantic colour, text style or spacing token is added without a line here
+- `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route. **Exhaustive by test** since 2026-09-12: `src/__tests__/designTokensDoc.test.ts` fails if a custom semantic colour, text style or spacing token is added without a line here. `consistency-button-tokens.md` (2026-09-16) fixed one real colour mismatch (`ErrorBoundary.tsx`'s hardcoded `orange` vs. the app's `ember`) and aligned three live `gray` buttons onto `secondaryButton`, merged to `master` `--no-ff` at `9ca0534`; rollback tag `pre-merge-consistency-button-tokens`
 - `supabase-migration.md` — ingest pipeline + frontend migration from `reviews.json` to Supabase, schema, mapping layer
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
