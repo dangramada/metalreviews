@@ -76,7 +76,7 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+`criteria-calibration-checkpoint-visual-refresh` — in progress, not yet merged. Small presentational pass on `CalibrationCheckpoint.tsx`: the milestone headline moves from Clash Display to Inter (the one title left on this feature still using the display face, which `naming-decisions.md` reserves for the wordmark/score-slab only), the Continue/Pause buttons switch from a hardcoded `colorPalette="orange"` to the app's own `primaryButton`/`secondaryButton` tokens (visually identical — confirmed `ember.500` renders the same `#ff6a1a` — but now tracks a future accent-colour change), and the three content groups move to an even 32px rhythm matching the calibration content pass instead of an ad hoc top-padding. Verified via a new "Calibration Checkpoint" section on `/style-guide` (unauthenticated, so no QA-account pass needed for a presentational-only change). 344/344 tests; `tsc` unchanged at 206. Full detail: `docs/decisions/criteria-calibration/criteria-calibration-checkpoint-visual-refresh.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
