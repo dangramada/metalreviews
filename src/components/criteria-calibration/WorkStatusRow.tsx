@@ -24,21 +24,27 @@ interface WorkStatusRowProps {
 // and showing that jumped number here would have no visible cause.
 export function WorkStatusRow({ round, progressPercent, onPause }: WorkStatusRowProps) {
   return (
-    <Flex align="center" gap={4}>
-      <RoundCounter round={round} />
-      <ProgressRoot value={progressPercent} flex="1" size="lg">
-        <Flex align="center" gap={2}>
-          <ProgressBar flex="1" />
-          <ProgressValueText
-            color="text.primary"
-            textStyle="statusReadout"
-            minW="4ch"
-            textAlign="right"
-          >
-            {progressPercent}%
-          </ProgressValueText>
-        </Flex>
-      </ProgressRoot>
+    // Two nested gaps, matching how the design groups this row (2026-09-12): the counter, bar
+    // and percentage are one unit spaced at 16px, and that whole unit sits 24px from Pause.
+    // Expressed as an inner group rather than one flat gap with a nudge on the button, so each
+    // number says what it is and neither has to be the sum of the other and something else.
+    <Flex align="center" gap={6}>
+      <Flex align="center" gap={4} flex="1">
+        <RoundCounter round={round} />
+        <ProgressRoot value={progressPercent} flex="1" size="lg">
+          <Flex align="center" gap={4}>
+            <ProgressBar flex="1" />
+            <ProgressValueText
+              color="text.primary"
+              textStyle="statusReadout"
+              minW="4ch"
+              textAlign="right"
+            >
+              {progressPercent}%
+            </ProgressValueText>
+          </Flex>
+        </ProgressRoot>
+      </Flex>
       <Button variant="outline" colorPalette="gray" size="sm" onClick={onPause}>
         Pause
       </Button>
