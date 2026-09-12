@@ -7,6 +7,11 @@ interface CriterionLevelDetailProps {
   /** Set when the containing OptionCard is selected (accent.border fill), so both lines switch
    *  to accent.ink together. Unused by the Guide, whose cards are never selectable. */
   selected?: boolean;
+  /** 1-5. Shown as "3 - Skilled", matching AlbumRatingPage's CriterionLevelPicker format
+   *  exactly, so the scale a user meets in the Guide is the one they meet when rating. Guide
+   *  only: a comparison card shows a single level per criterion, where a rank prefix would state
+   *  something the card is not about. */
+  levelNumber?: number;
 }
 
 // One level: its name and what that level means. Extracted 2026-09-12 so the comparison card
@@ -19,11 +24,12 @@ export function CriterionLevelDetail({
   levelName,
   description,
   selected,
+  levelNumber,
 }: CriterionLevelDetailProps) {
   return (
     <Box>
       <Text textStyle="cardTitle" color={selected ? 'accent.ink' : 'text.primary'}>
-        {levelName}
+        {levelNumber ? `${levelNumber} – ${levelName}` : levelName}
       </Text>
       <Text fontFamily="body" fontSize="sm" color={selected ? 'accent.ink' : 'text.dim'}>
         {formatLevelDescription(description)}

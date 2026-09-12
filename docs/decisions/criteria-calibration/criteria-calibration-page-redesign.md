@@ -340,6 +340,42 @@ fourth near-black.
 Verified at 1440px: both card fills `rgb(26,26,26)` against a `rgb(19,19,19)` panel; criterion
 title Inter 19px/700 uppercase; level names 18px/500 sentence case; card 509px tall.
 
+### Guide card, second pass (same day)
+
+Three problems Dan raised after seeing the first pass, each with a measured cause.
+
+**The header did not read as a header.** Measured: the summary sat 16px from the first level while
+levels sat 54px apart, and the header was the only block on the card with no rule under it — so it
+grouped with the list instead of heading it. Type contrast was near-nil too (19px/700 title against
+18px/500 level names), because `cardTitle` is the COMPARISON card's level style, correct there
+where a card shows one level as its hero line, but here repeated five times against one title.
+Fixed structurally rather than typographically, per Dan: a full-bleed 2px rule in the card's own
+`border.ruleStrong`, pulled past the 24px padding (`mx={-6}`) so it meets both borders and reads as
+card structure rather than another list separator. Text sizes untouched.
+
+**Nothing said the five items were a scale.** Levels are now numbered `N - Label` in
+`CriterionLevelPicker`'s exact format, so the scale a user meets in the Guide is the one they meet
+when rating, plus a quiet mono "Levels" eyebrow. Numbering carries direction (worst -> best) that
+was previously implicit. Guide-only, via an optional `levelNumber` on `CriterionLevelDetail`: a
+comparison card shows a single level per criterion, where a rank prefix would state something that
+card is not about.
+
+**Nothing said how many criteria exist.** The carousel shows 3 of 6. The intro now says "each of
+the N criteria", with N read from the catalog rather than written as "six" — the criteria set is
+data, and a hardcoded number would quietly become wrong if it changed. The prev/next controls moved
+from under a 500px-tall card onto the intro row. They live inside the carousel because zag's
+`Control` must descend from its `Root`, so the intro is passed in as a prop; GuideTab mounts the
+component twice (desktop/mobile) and the hidden copy is `display:none`, which also hides it from
+assistive tech.
+
+Floating overlay controls on the cards were considered and rejected: at 3-up they would cover the
+first and last card's content, and they are invisible until a 500px card is scrolled into view.
+A full grid replacing the carousel was also proposed and not taken.
+
+Verified at 1440px: rule 2px `rgb(58,58,58)` with 2px overhang each side (flush to the border, not
+the padding); "1 - Uninspired"; intro reading "each of the 6 criteria"; controls on the intro row.
+Card height 509 -> 559.
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'
