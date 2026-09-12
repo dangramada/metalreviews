@@ -295,6 +295,36 @@ list, so the established precedent is kept.
 views now disagree about the same words. A two-line fix (drop its `textTransform`, put its level
 names on `cardTitle`) is proposed; the wider Guide restructuring Dan mentioned is its own pass.
 
+## Guide cards adopt the comparison card's UI, 2026-09-12
+
+The Guide carousel and the calibration comparison card showed the same level labels in two
+different treatments — uppercase 12px in one, sentence-case 18px in the other, after the content
+pass. They now render through one component.
+
+**A shared `CriterionLevelDetail`** (level name + description) is what `CriterionRow` and the
+Guide card both use, rather than two lists of matching font values. The two cards hold different
+shapes of information — a comparison card is several criteria at one level each, a Guide card is
+one criterion at all five levels — so `CriterionRow` itself could not be reused directly: it
+renders a criterion badge per row, which a Guide card would repeat five times. Extracting the
+level pair is the part that is genuinely common. It owns `formatLevelDescription` too, which both
+callers previously applied themselves.
+
+**Card chrome now matches:** 2px `border.ruleStrong`, square, 24px padding (was 1px
+`border.default`, 20px), with `Separator` rules between levels as `CriterionLevelList` uses. No
+hover treatment, deliberately: unlike an `OptionCard` these are not selectable, and hover feedback
+on something unclickable invites a click.
+
+Measured at 1440px: 425x503 per card, 3 per page, level names Inter 18px/500 sentence case, 4
+separators per card. The height grew by roughly 40% (350 -> 503), the expected cost of level names
+going from 12px to 18px, and was accepted rather than dropping to 2 cards per page.
+
+**Still open at the time of writing:** the criterion NAME is untouched (still a Clash Display
+`Heading`) pending a decision on what "cardTitleBand" refers to — no such token or component
+exists in this repo, and the only band-like pattern (`RatingSlab`) is a data slab, a mono label
+above a large number, with no sensible shape for a bare criterion name. Card background is also
+unresolved: `surface.card` is `ink.900`, identical to the panel behind it since the panel became
+`ink.900`, so both card types currently read as cards only by their border.
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'
