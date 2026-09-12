@@ -368,8 +368,29 @@ from under a 500px-tall card onto the intro row. They live inside the carousel b
 component twice (desktop/mobile) and the hidden copy is `display:none`, which also hides it from
 assistive tech.
 
-Floating overlay controls on the cards were considered and rejected: at 3-up they would cover the
-first and last card's content, and they are invisible until a 500px card is scrolled into view.
+**Correction, same day: the controls ended up duplicated.** Adding the intro-row set did not
+remove the original set below the slides, and the check that was supposed to catch it queried only
+the FIRST `[data-part="control"]` match — a verification that could not see the thing it had just
+broken. Counting all matches document-wide is now the habit for anything that can legitimately
+appear more than once (this carousel mounts twice, desktop and mobile).
+
+**Resolved by moving to ONE set, flanking the slides.** Prev and next sit in gutters either side
+of the item group, vertically centred via `align="center"` so they stay level at any card height.
+Not overlaid on the cards: overlaid arrows would cover the first and last card's text, and at
+500px+ tall there is no quiet corner for them to occupy. An earlier objection that overlays would
+be "invisible until scrolled" was overstated and withdrawn — measured, the cards span roughly
+288-792px of a 900px viewport, so a centred overlay would have been perfectly visible; overlap was
+the real problem, not visibility.
+
+Cost, accepted: ~104px of width leaves the slides for the two buttons and their gaps, taking cards
+from 425px to 391px at 1440px. The intro moved back into `GuideTab` as a result — it only lived
+inside the carousel so it could share a row with the controls, and keeping it out means one copy
+in the DOM rather than one per breakpoint-mounted carousel.
+
+Verified: exactly one visible prev and one visible next (two of each in the DOM, the two mounts),
+zero legacy control rows, 12px clear of the cards on both sides, no overlap, and prev/card/next
+sharing a vertical centre.
+
 A full grid replacing the carousel was also proposed and not taken.
 
 Verified at 1440px: rule 2px `rgb(58,58,58)` with 2px overhang each side (flush to the border, not

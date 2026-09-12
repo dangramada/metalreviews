@@ -19,24 +19,25 @@ interface GuideTabProps {
 // MobileRatingLayout split — not `useBreakpointValue`, which this project avoids for jsdom
 // testability (see AlbumRatingPage.tsx, CLAUDE.md).
 export function GuideTab({ catalog, onStart }: GuideTabProps) {
-  const intro = (
-    <Text color="text.dim" fontFamily="body" maxW="2xl">
-      Criteria Calibration compares your criteria two at a time to figure out what matters most to
-      you. It builds a personal weighting used to score every album you rate — here&apos;s what each
-      of the {catalog.entries.length} criteria measures.
-    </Text>
-  );
-
   return (
     <VStack gap={8} align="stretch">
       {/* The count comes from the catalog, not the word "six": the criteria set is data, and a
         hardcoded number would quietly become a lie if it ever changed. Saying it at all is the
-        point — the carousel shows 3 at a time, so nothing otherwise tells you how many exist. */}
+        point — the carousel shows 3 at a time, so nothing otherwise tells you how many exist.
+        Rendered here rather than passed into the carousel: the controls no longer sit on this
+        row, so the intro no longer needs the carousel's context, and keeping it here means one
+        copy in the DOM instead of one per breakpoint-mounted carousel. */}
+      <Text color="text.dim" fontFamily="body" maxW="2xl">
+        Criteria Calibration compares your criteria two at a time to figure out what matters most to
+        you. It builds a personal weighting used to score every album you rate — here&apos;s what
+        each of the {catalog.entries.length} criteria measures.
+      </Text>
+
       <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
-        <CriteriaCarousel catalog={catalog} slidesPerPage={3} intro={intro} />
+        <CriteriaCarousel catalog={catalog} slidesPerPage={3} />
       </Box>
       <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
-        <CriteriaCarousel catalog={catalog} slidesPerPage={1} intro={intro} />
+        <CriteriaCarousel catalog={catalog} slidesPerPage={1} />
       </Box>
 
       <Flex justify="center">
