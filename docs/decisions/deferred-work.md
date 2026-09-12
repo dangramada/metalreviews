@@ -828,6 +828,25 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   so re-skinning it is a cross-cutting design-system change, not a Criteria-Calibration-page
   change — bundling it in would violate the brief's own "one concern per session" convention.
   `criteria-calibration-page-redesign.md`.
+- **`design-tokens.md` is no longer a complete token reference.** Surfaced 2026-09-12 while
+  recording the Criteria Calibration redesign's new tokens. The file predates the Slant Take
+  redesign, so its colour tables still describe the retired purple accent palette, and several
+  live token groups are documented in **no** file at all: the `cardTitleBand` / `cardTitleAlbum`
+  exported style objects, `surface.ratingCardFill`, and the `border.rule` / `border.ruleStrong`
+  pair (only partially covered by `slant-take-design-system.md`, which documents them as pass
+  narrative rather than as reference). `src/theme.ts` is the only authoritative source today. A
+  scope warning has been added to the top of `design-tokens.md` so nobody trusts it blind, but the
+  consolidation itself — one reference file covering colours, text styles, spacing tokens, slot
+  recipes and the exported style objects — is a pass of its own and was not bundled into the
+  calibration branch.
+
+- **The Guide card's four thin separators between levels may now be redundant.** Surfaced
+  2026-09-12, raised to Dan and not yet decided. The card gained a full-bleed 2px rule under its
+  header and "N - Label" numbering on every level, either of which delimits the five levels on its
+  own; the `Separator borderColor="border.rule"` rules between them (`CriteriaCarousel.tsx`) date
+  from before both. Worth a look next time that card is open — a one-line deletion if they read as
+  noise, no decision needed if they don't.
+
 - **The accuracy percentage is described by three different verbs across the app.** Surfaced
   2026-09-12 while writing the tier badge's tooltip (`criteria-calibration-page-redesign.md`,
   "Tooltips and a panel height floor"). The same number is "clear" in every checkpoint body
