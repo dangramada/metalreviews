@@ -36,6 +36,32 @@ export const CarouselRoot = React.forwardRef<HTMLDivElement, CarouselRootProps>(
 // grid with no way to page it (found live 2026-09-08). The triggers below are given explicit
 // IconButton styling and the control an explicit layout, since there is no theme layer to
 // inherit either from. Remove this if a future Chakra version adds the recipe.
+export const CarouselPrevButton = React.forwardRef<HTMLButtonElement, Carousel.PrevTriggerProps>(
+  function CarouselPrevButton(props, ref) {
+    return (
+      <Carousel.PrevTrigger asChild ref={ref} {...props}>
+        <IconButton aria-label="Previous" size="md" variant="outline" colorPalette="gray">
+          <LuChevronLeft />
+        </IconButton>
+      </Carousel.PrevTrigger>
+    );
+  }
+);
+
+export const CarouselNextButton = React.forwardRef<HTMLButtonElement, Carousel.NextTriggerProps>(
+  function CarouselNextButton(props, ref) {
+    return (
+      <Carousel.NextTrigger asChild ref={ref} {...props}>
+        <IconButton aria-label="Next" size="md" variant="outline" colorPalette="gray">
+          <LuChevronRight />
+        </IconButton>
+      </Carousel.NextTrigger>
+    );
+  }
+);
+
+// Both triggers in one right-aligned row. Callers that want them apart (flanking the slides,
+// say) use CarouselPrevButton / CarouselNextButton directly instead.
 export const CarouselControls = React.forwardRef<HTMLDivElement, Carousel.ControlProps>(
   function CarouselControls(props, ref) {
     return (
@@ -47,16 +73,8 @@ export const CarouselControls = React.forwardRef<HTMLDivElement, Carousel.Contro
         mt="4"
         {...props}
       >
-        <Carousel.PrevTrigger asChild>
-          <IconButton aria-label="Previous" size="sm" variant="outline" colorPalette="gray">
-            <LuChevronLeft />
-          </IconButton>
-        </Carousel.PrevTrigger>
-        <Carousel.NextTrigger asChild>
-          <IconButton aria-label="Next" size="sm" variant="outline" colorPalette="gray">
-            <LuChevronRight />
-          </IconButton>
-        </Carousel.NextTrigger>
+        <CarouselPrevButton />
+        <CarouselNextButton />
       </Carousel.Control>
     );
   }
