@@ -847,12 +847,14 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   from before both. Worth a look next time that card is open — a one-line deletion if they read as
   noise, no decision needed if they don't.
 
-- **`ErrorBoundary.tsx`'s reload button hardcodes `colorPalette="orange"` instead of
-  `primaryButton`.** Surfaced 2026-09-15 while fixing the identical pattern on the calibration
-  checkpoint screens (`criteria-calibration-checkpoint-visual-refresh.md`). Visually
-  near-identical to the app's `ember` token today, so not urgent, but it is the one place left
-  that would silently miss a future accent-colour change. App-wide component, not
-  calibration-scoped, so left alone rather than bundled into that branch.
+- ~~**`ErrorBoundary.tsx`'s reload button hardcodes `colorPalette="orange"` instead of
+  `primaryButton`.**~~ — **DONE 2026-09-16** (`consistency-button-tokens.md`). Not the no-op it
+  first looked like: Chakra's stock `orange.500` (`#f97316`) and the app's `ember.500`
+  (`#ff6a1a`) are genuinely different colours, so this button was rendering a visibly different
+  accent than every other primary action. Same pass also moved three live `colorPalette="gray"`
+  action buttons (`WorkStatusRow`'s Pause, `ActionRail`'s icon rail, the Guide carousel's
+  Prev/Next) onto `secondaryButton` — a true no-op there, since that token IS `{ colorPalette:
+'gray' }`, but now consistent with every other secondary button in the app.
 
 - **The accuracy percentage is described by three different verbs across the app.** Surfaced
   2026-09-12 while writing the tier badge's tooltip (`criteria-calibration-page-redesign.md`,

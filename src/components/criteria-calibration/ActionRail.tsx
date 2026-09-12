@@ -145,7 +145,7 @@ function RailButton({
         <IconButton
           aria-label={label}
           variant="outline"
-          colorPalette="gray"
+          {...secondaryButton}
           size="md"
           onClick={onClick}
           disabled={disabled}

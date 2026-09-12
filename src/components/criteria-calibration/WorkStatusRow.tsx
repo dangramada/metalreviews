@@ -1,4 +1,5 @@
 import { Button, Flex } from '@chakra-ui/react';
+import { secondaryButton } from '../../theme';
 import { ProgressBar, ProgressRoot, ProgressValueText } from '../ui/progress';
 import { Tooltip } from '../ui/tooltip';
 import { RoundCounter } from './RoundCounter';
@@ -60,7 +61,7 @@ export function WorkStatusRow({ round, progressPercent, onPause }: WorkStatusRow
         openDelay={200}
         contentProps={{ maxW: '18rem' }}
       >
-        <Button variant="outline" colorPalette="gray" size="sm" onClick={onPause}>
+        <Button {...secondaryButton} variant="outline" size="sm" onClick={onPause}>
           Pause
         </Button>
       </Tooltip>
