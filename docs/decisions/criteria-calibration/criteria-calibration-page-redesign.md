@@ -518,6 +518,134 @@ permanently present and still `tabIndex=0`, i.e. its explanation is reachable wi
 `master`'s apart from shifted line numbers; lint unchanged against the pre-existing baseline (the
 two errors reported on `CriteriaCalibrationPage.tsx` are present on HEAD too).
 
+## Progress bar — full spec (measured 2026-09-12)
+
+Every value below was read off the rendered element at `/style-guide` ("Progress bar" section),
+not copied from intent. Component: `WorkStatusRow.tsx`, built from `components/ui/progress.tsx`
+(`ProgressRoot` / `ProgressBar` / `ProgressValueText`), which is Chakra's unstyled scaffold.
+
+### Anatomy
+
+```
+Flex gap 24px ──────────────────────────────────────────────────────────────┐
+  Flex gap 16px flex=1                                                      │
+    RoundCounter        ProgressRoot flex=1                          Pause  │
+                          Flex gap 16px                                     │
+                            track (role=progressbar) ──── ProgressValueText │
+                              └ range                                       │
+────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Geometry
+
+| Property       | Value             | Source                                                                                     |
+| -------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| Track height   | **12px**          | `size="lg"` on `ProgressRoot` (Chakra's own size scale)                                    |
+| Track width    | Fills the row     | `flex: 1 1 0%` on both `ProgressRoot` and `ProgressBar`                                    |
+| Track radius   | **0px**           | Every radius token in the theme is zeroed (`radii`), so this is app-wide, not a local prop |
+| Track overflow | `hidden`          | Clips the range at both ends; with square corners nothing else is needed                   |
+| Range height   | 12px (full track) | —                                                                                          |
+| Range width    | `value%` of track | At 47% of a 400px track: 188px                                                             |
+
+### Colour
+
+| Part          | Token          | Ramp     | Hex       |
+| ------------- | -------------- | -------- | --------- |
+| Track (empty) | `ink.700`      | ink      | `#3a3a3a` |
+| Range (fill)  | `ink.300`      | ink      | `#bdbdbd` |
+| Value text    | `text.primary` | sand.200 | `#cac6bb` |
+
+Applied in `theme.ts`'s `slotRecipes.progress`, overriding the **`outline` variant** rather than
+`base`. That is load-bearing: an unstyled `<ProgressRoot>` resolves to `outline`, so styles placed
+in `base` are silently overridden by it. Before this override the component had no theme layer at
+all and rendered Chakra's defaults — a `bg.muted` track effectively invisible on the `ink.900`
+panel, with a white `colorPalette.solid` range.
+
+Deliberately a light fill on a dark track, not an accent fill: ember is the app's action colour,
+and progress here is a status readout, not something to act on.
+
+### Typography (the percentage)
+
+| Property      | Value                                   |
+| ------------- | --------------------------------------- |
+| Text style    | `statusReadout`                         |
+| Family        | Inter (`body`) — never the display face |
+| Size / weight | 14px / 700                              |
+| Line height   | 1.4 (19.6px)                            |
+| Colour        | `text.primary`                          |
+| Min width     | **None**                                |
+
+No reserved width is a decision, not an omission. It was 4ch/right-aligned so the bar could not
+jitter as the number gained a digit, but that costs a permanent gap between bar and percentage —
+at "1%", two characters sitting in a four-character box. The gap shows every round; the reflow
+happens exactly twice in a session (9→10, 99→100).
+
+### Spacing
+
+| Gap                                  | Value |
+| ------------------------------------ | ----- |
+| Round counter → track                | 16px  |
+| Track → percentage                   | 16px  |
+| [counter + bar + percentage] → Pause | 24px  |
+
+Expressed as two nested flex gaps rather than one flat gap with a nudge on the button, so each
+number states what it is and neither has to be the sum of the other and something else.
+
+### Motion
+
+`transition: width 0.3s, height 0.3s` (Chakra's default), **suppressed entirely under
+`prefers-reduced-motion: reduce`** — `_motionReduce: { transition: 'none' }` on the range in
+`slotRecipes.progress`.
+
+Found by measuring, not by reading the code: Chakra's recipe ships the tween with no guard of its
+own, and although this page has a `useReducedMotion` hook and uses it elsewhere, the bar never read
+it. A growing bar is exactly the "motion that conveys a change" a reduced-motion preference asks to
+suppress, and the number beside it still carries the information, so the tween is dropped rather
+than shortened. Done in CSS rather than in the component so it holds for **every** progress bar,
+not just the one whose component thought to ask. Verified in the browser: the emitted rule
+`@media (prefers-reduced-motion: reduce) { .css-1q2roqd { transition: none } }` matches the range
+element's own class.
+
+### Value semantics
+
+`progressPercent` comes from `degreeTiers.ts`'s `computeProgressPercent(currentDegree, fill,
+numCriteria)`, unchanged by this branch — only how it renders changed (bar, previously a ring).
+
+- The bar is **segmented by degree**: `segments = numCriteria - 2 + 1`, so the live 6-criteria
+  catalog gives **5 segments of 20%** each — degree 2 fills 0-20%, degree 3 fills 20-40%, and so
+  on. There is no visible tick between segments; the segmentation is in the number, not the paint.
+- Within a segment, the fill is `computeDegreeCoverageFill` — the same coverage gate that decides
+  when a degree ENDS, so the bar reaching a segment boundary and the degree completing are the
+  same event rather than two estimates of it.
+- `clampFillMonotone` prevents the fill going backwards.
+- Displayed as a rounded whole number; the underlying value is clamped to 0-100.
+
+It is **not** the accuracy percentage in `TierAccuracyBadge`. Those are independent numbers that
+happen to share a unit: this one is how much comparing is done, that one is how settled the
+weighting is. Nothing in the UI implies a relationship, deliberately.
+
+### States and scope
+
+- Rendered **only** alongside a real question (`action.type === 'ask'`). Never during a
+  checkpoint: `commitAdvance()` already moves `progressPercent` to the new degree's baseline
+  before a checkpoint renders, so the jump would appear there with no visible cause.
+- No indeterminate/loading variant is used; the value is always known.
+- At 0% the range is zero-width and the track reads as a plain 12px `ink.700` rule.
+
+### Accessibility
+
+The **track** element carries the ARIA, not the root: `role="progressbar"`, `aria-valuemin="0"`,
+`aria-valuemax="100"`, `aria-valuenow` tracking the value, and `aria-label="Calibration progress"`.
+
+That label is set explicitly, and the visible percentage is `aria-hidden`. Left alone, zag
+generates an `aria-label` of the bare percentage, so the number was announced twice — once by the
+bar, once by the text beside it. Naming the bar for what it _measures_ resolves the duplication in
+the useful direction: the bar reads as "Calibration progress, 47%", and the visible number is
+marked decorative because it is a rendering of `aria-valuenow`, not separate information.
+
+Covered by `src/__tests__/WorkStatusRow.test.tsx`, which asserts the accessible name rather than
+the markup — the name is the only thing that exposes this class of bug.
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'

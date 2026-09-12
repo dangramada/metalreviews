@@ -34,13 +34,19 @@ export function WorkStatusRow({ round, progressPercent, onPause }: WorkStatusRow
         <RoundCounter round={round} />
         <ProgressRoot value={progressPercent} flex="1" size="lg">
           <Flex align="center" gap={4}>
-            <ProgressBar flex="1" />
+            {/* The track itself carries role="progressbar" and, left alone, an auto-generated
+              aria-label of the bare percentage — so a screen reader announced the number twice,
+              once from the bar and once from the visible text below. Naming the bar for what it
+              measures fixes the duplication in the useful direction: the bar becomes
+              "Calibration progress, 47%" and the visible number is marked decorative, since it
+              is a rendering of aria-valuenow rather than separate information. */}
+            <ProgressBar flex="1" aria-label="Calibration progress" />
             {/* No reserved min-width. It used to be 4ch/right-aligned so the bar's length
               couldn't jitter as the number gained a digit — but that costs a permanent gap
               between bar and percentage (at "1%", two characters sitting in a four-character
               box), to avoid a reflow that happens exactly twice in a session, at 9->10 and
               99->100. The gap is visible every round; the shift is not. */}
-            <ProgressValueText color="text.primary" textStyle="statusReadout">
+            <ProgressValueText aria-hidden="true" color="text.primary" textStyle="statusReadout">
               {progressPercent}%
             </ProgressValueText>
           </Flex>

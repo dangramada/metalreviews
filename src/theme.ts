@@ -326,7 +326,15 @@ const system = createSystem(defaultConfig, {
           variant: {
             outline: {
               track: { bgColor: 'ink.700' },
-              range: { bgColor: 'ink.300' },
+              // Chakra's own progress recipe tweens the range's width over 300ms, with no
+              // reduced-motion guard of its own. A growing bar is precisely the "motion that
+              // conveys a change" a user asking for reduced motion wants suppressed, and the
+              // number beside it still carries the information, so the tween is dropped rather
+              // than shortened. `_motionReduce` is Chakra's own condition for
+              // `@media (prefers-reduced-motion: reduce)` — the same signal the page's
+              // useReducedMotion hook reads, applied here in CSS so it holds for every progress
+              // bar rather than only the one whose component thought to ask.
+              range: { bgColor: 'ink.300', _motionReduce: { transition: 'none' } },
             },
           },
         },
