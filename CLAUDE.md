@@ -92,7 +92,7 @@ unchanged. Design-review header pass (2026-09-11): folder-tab active state via t
 on the action rail (state-aware, and still shown while disabled), on Pause, and on the tier badge
 itself (its ⓘ glyph retired, copy moved to `accuracyTierLabels.ts`'s `TIER_BADGE_TOOLTIP`); the
 tab panel takes a desktop `minH` FLOOR rather than one height matched to the tallest tab, with
-640px an unmeasured starting value to check live. 339/339 tests; `tsc` 206 vs master's 205, the one extra being another instance of the pre-existing "slots missing" pattern the theme's other slot-recipe overrides already produce. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
+640px an unmeasured starting value to check live. Progress bar spec measured and recorded, with two fixes it surfaced: the width tween is now suppressed under `prefers-reduced-motion`, and the bar is named "Calibration progress" instead of taking zag's generated bare percentage (which had the number announced twice). Live walk-through confirmed working by Dan 2026-09-12. 344/344 tests; `tsc` 206 vs master's 205, the one extra being another instance of the pre-existing "slots missing" pattern the theme's other slot-recipe overrides already produce. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
 detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`.
 
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
