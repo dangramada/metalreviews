@@ -630,7 +630,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   **Recommendation: keep 0.55 / 0.75 / 0.85** (no better triple exists), add a ~15–20 answer
   floor so Medium cannot be reached at answer 5, and reword the checkpoint copy to claim
   determinacy rather than correctness. Constants left untouched pending Dan's decision — this
-  entry stays open until that decision is made, but it is no longer waiting on *data*.
+  entry stays open until that decision is made, but it is no longer waiting on _data_.
 
   **New, opened by the same pass — `computeScoreSpreadAccuracy` cannot detect inconsistent
   answering.** It measures how determined the model is, not whether it is right. Oracle `#8`
@@ -846,6 +846,13 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   own; the `Separator borderColor="border.rule"` rules between them (`CriteriaCarousel.tsx`) date
   from before both. Worth a look next time that card is open — a one-line deletion if they read as
   noise, no decision needed if they don't.
+
+- **`ErrorBoundary.tsx`'s reload button hardcodes `colorPalette="orange"` instead of
+  `primaryButton`.** Surfaced 2026-09-15 while fixing the identical pattern on the calibration
+  checkpoint screens (`criteria-calibration-checkpoint-visual-refresh.md`). Visually
+  near-identical to the app's `ember` token today, so not urgent, but it is the one place left
+  that would silently miss a future accent-colour change. App-wide component, not
+  calibration-scoped, so left alone rather than bundled into that branch.
 
 - **The accuracy percentage is described by three different verbs across the app.** Surfaced
   2026-09-12 while writing the tier badge's tooltip (`criteria-calibration-page-redesign.md`,
@@ -1107,7 +1114,7 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
 
   **Consequence for the exhaustion-fallback copy: keep it neutral about cause — the requirement
   stands, and now has a reason rather than an unknown.** Neutrality was originally required
-  because the cause was unknown; it is now required because the cause is *shape-dependent*, so
+  because the cause was unknown; it is now required because the cause is _shape-dependent_, so
   no single explanation would be true for all users who see that screen. The existing
   both-directions test remains correct as-is.
 
@@ -1119,9 +1126,8 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   top-10 changed", where the solved top-10 comes from the `.point` vector — the quantity
   `deferred-work` item 5 (arbitrary pick among tied optima) makes non-unique. Three concrete
   findings:
-
   1. **`A70`'s final top-10 is not uniquely determined at all.** Tested tie-break-independently
-     by maximising `score(challenger) − score(10th)` over the *final* feasible region (which
+     by maximising `score(challenger) − score(10th)` over the _final_ feasible region (which
      depends only on the answers, not on which optimal vertex the simplex reports): **25 of 190
      profiles outside the reported top-10 could still enter it, and 8 of its 9 internal
      orderings are not implied by Dan's answers.** So `A70`'s "final ranking" is largely a pivot
@@ -1141,12 +1147,12 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   **This does NOT invalidate the escalation-signal diagnostic's conclusions**
   (`criteria-calibration/criteria-calibration-escalation-signal-candidates.md`), for two
   independent reasons, and both are worth knowing before anyone re-opens that file. First, its
-  false-positive rule is "fires before settle"; finding (3) means the *true* settle is generally
+  false-positive rule is "fires before settle"; finding (3) means the _true_ settle is generally
   **later** than the published one, so every rejected candidate fired even earlier relative to
   real convergence than recorded — the rejections are strengthened, not weakened. Second, the
   2026-08-17 recalibration reached the same class of conclusion ("no fixed threshold
   generalizes") along a path that never uses `settle` at all: Kendall's tau against the oracles'
-  known true weight vectors. The conclusions stand; it is the *precision* of the individual
+  known true weight vectors. The conclusions stand; it is the _precision_ of the individual
   n-figures that should not be over-trusted.
 
   **What this means in practice:** do not calibrate a new constant against a settle figure to

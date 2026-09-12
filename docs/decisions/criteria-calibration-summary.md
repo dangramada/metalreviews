@@ -16,6 +16,8 @@ detect a good stopping point automatically, is retired (see
 
 ## Current status
 
+**2026-09-15 — checkpoint screen visual refresh (in progress):** the milestone checkpoint's title moves from Clash Display to Inter (the last title on this feature still using the display face), its buttons move from a hardcoded orange to the app's own token objects, and its spacing evens out to the calibration content pass's 32px rhythm. See `criteria-calibration-checkpoint-visual-refresh.md`.
+
 **Shipped and live in production:** the full pipeline — engine, UI, Supabase persistence,
 undo/redo, resume-on-reload, adaptive degree escalation, the two-phase-simplex/Dantzig LP
 solver rewrite, dominance/partial-tie candidate filtering, and the score-spread accuracy
