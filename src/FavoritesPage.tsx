@@ -1212,7 +1212,7 @@ export function FavoritesPage() {
                 // resolves it through an allowlist and falls back to /favorites when absent,
                 // so this is about not hardcoding the round-trip, not about it breaking
                 // without the param.
-                navigate('/criteria-calibration?from=favorites');
+                navigate('/calibration?from=favorites');
               }}
             >
               Go to calibration

@@ -1,25 +1,20 @@
 import { Button } from '@chakra-ui/react';
+import { primaryButton } from '../../theme';
 
 interface EqualButtonProps {
   onClick: () => void;
   disabled?: boolean;
 }
 
-// A real bordered/labeled button, not a plain text link — but visibly lower
-// weight than the two SelectAction buttons (gray outline vs. full-width ember
-// solid), so it reads as a subdued fallback rather than a third equal-weight
-// option alongside the two cards.
+// Same solid primary (ember) weight as the two SelectAction "This one" buttons. Changed
+// 2026-09-11 after design review: it used to be a gray outline, deliberately quieter so it read
+// as a subdued fallback. Review settled that "equal" is a third valid answer to the comparison,
+// not an escape hatch, so it must not look less choosable than the other two. Not full-width
+// like SelectAction — it sits alone and centred under both cards rather than filling one.
 export function EqualButton({ onClick, disabled }: EqualButtonProps) {
   return (
-    <Button
-      variant="outline"
-      colorPalette="gray"
-      size="sm"
-      fontWeight="normal"
-      onClick={onClick}
-      disabled={disabled}
-    >
-      About equal
+    <Button {...primaryButton} onClick={onClick} disabled={disabled}>
+      They are equal
     </Button>
   );
 }

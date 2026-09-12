@@ -56,10 +56,26 @@ persistence round-trip through the narrowed RPC.
 **Also retired by the same pass:** the `RANKING_TEST_SET` multi-user rework that
 `deferred-work.md` had been holding open. There is no benchmark set left to make per-user.
 
+**2026-09-07 — page restructured onto a single `/calibration` route with a Guide/Calibration/
+Results tab bar** (`criteria-calibration-page-redesign` branch, not yet merged to `master`).
+New: `CalibrationPageHeader` (breadcrumb + title/badge row + Tabs, always clickable, no
+forward-blocking), `TierAccuracyBadge` (compound tier+percent badge, replacing the old
+`AccuracyStatus`/circular-ring display; ships with a neutral placeholder color pending a real
+palette decision), `WorkStatusRow`/`ActionRail` (linear progress + icon Undo/Redo/Restart,
+scoped to the question view only — hidden during checkpoints, closing a real gap where the old
+`ProgressHeader`/`HistoryActions` stayed mounted throughout), a real Pause dialog (replacing an
+inline "stopped" text state), a Guide-tab criteria carousel, and a minimal Results-tab
+below-grade-2 placeholder. Checkpoint variant→tier mapping, precedence, and the progress-fill
+formula are all unchanged — see that branch's decision doc for the full pass-by-pass detail and
+what deliberately was NOT touched. Recovery-sequence unmount-safety (a real, confirmed gap) is
+also fixed on this branch, in `usePendingWritesGuard.ts`. Full detail:
+`criteria-calibration-page-redesign.md`.
+
 **Not built:** an in-product explanation of why some users see more questions than others
-(deferred, no UI planned); the "calibration results page" concept (weights/levels shown
-visually); the accuracy-display two-signal split (consistency vs. coverage) proposed
-2026-08-15. See `deferred-work.md` sections A/C for these and other open items.
+(deferred, no UI planned); the full "calibration results page" design (weights/levels shown
+visually) — the 2026-09-07 branch above ships only a minimal below-grade-2 placeholder, not
+this; the accuracy-display two-signal split (consistency vs. coverage) proposed 2026-08-15. See
+`deferred-work.md` sections A/C for these and other open items.
 
 ## File index
 
@@ -105,6 +121,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 
 - `criteria-calibration-tiered-checkpoints.md` — **read this for anything about degree escalation, stopping, or the accuracy tiers shown to the user.** Retires the auto-escalation signal and replaces it with tier-gated checkpoints (degree-2 boundary / High / Very High / neutral exhaustion fallback); deletes ~876 lines, 7 DB columns and the write-race; corrects two stale premises in its own brief (deprecated threshold constants, and an assumed-merged prerequisite that wasn't); records why tier-crossing here is NOT the thing Pass 2 rejected, and why checkpoints fire on an in-session crossing rather than a standing tier
 - `criteria-calibration-weights-write-race.md` — diagnoses and partially fixes the un-awaited-write race; **the residual risk it documents was retired 2026-08-17 by deleting the columns** (see "Current status" above)
+- `criteria-calibration-page-redesign.md` — restructures the page onto `/calibration` + a Guide/Calibration/Results tab bar (chrome only — tier-derivation, checkpoint precedence, and the progress-fill formula are unchanged); see "Current status" above
 - `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run; its "Outcome" section (added 2026-08-16) is the current source of truth for Dan's account state — that session ran and completed at 71 answers, so the account is **not** empty
 
 **Research**

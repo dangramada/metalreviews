@@ -79,9 +79,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
-No branch currently in progress — `criteria-calibration-freeze-checkpoint` just merged, closing
-out the criteria-calibration checkpoint work chain (copy rewrite -> freeze checkpoint) started
-this session.
+`criteria-calibration-page-redesign` — in progress, not yet merged. Restructures the Criteria
+Calibration page onto a single `/calibration` route with a Guide/Calibration/Results tab bar
+(old route redirects, preserving query string), a new compound `TierAccuracyBadge` (neutral
+placeholder tier colors — real palette still undecided, see `deferred-work.md`), a linear
+`WorkStatusRow`/icon `ActionRail` scoped to the question view only (closing a real gap where the
+old progress header/history actions stayed mounted through checkpoints), a new full-reset
+Restart action, a real Pause dialog (replacing inline "stopped" text), a Guide-tab criteria
+carousel, a minimal Results-tab placeholder, and a fix for the solver-recovery sequence's
+unmount-safety. Tier-derivation, checkpoint precedence, and the progress-fill formula are
+unchanged. Design-review header pass (2026-09-11): folder-tab active state via the theme's `tabs` slot recipe, sr-only h2, breadcrumbs moved into the global `Header` at a uniform 16px. Content pass (2026-09-12): shared `cardTitle`/`statusReadout` text styles, `ink.900` panel via a `surface.tabPanel` token, themed progress bar (ink.300 on ink.700, 12px), grid-aligned action rail, sentence-case level names. Tooltip/height pass (2026-09-12): tooltips
+on the action rail (state-aware, and still shown while disabled), on Pause, and on the tier badge
+itself (its ⓘ glyph retired, copy moved to `accuracyTierLabels.ts`'s `TIER_BADGE_TOOLTIP`); the
+tab panel takes a desktop `minH` FLOOR rather than one height matched to the tallest tab, with
+640px an unmeasured starting value to check live. Progress bar spec measured and recorded, with two fixes it surfaced: the width tween is now suppressed under `prefers-reduced-motion`, and the bar is named "Calibration progress" instead of taking zag's generated bare percentage (which had the number announced twice). Live walk-through confirmed working by Dan 2026-09-12. 344/344 tests; `tsc` 206 vs master's 205, the one extra being another instance of the pre-existing "slots missing" pattern the theme's other slot-recipe overrides already produce. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
+detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`.
 
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
@@ -295,7 +307,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
 - `genre-artwork-bugfixes.md` — RSS title pollution root cause, the three bugs it caused, and their fixes
 - `controls-bar.md` — score filter, review counter, responsive flex layout breakpoints
-- `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route
+- `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route. **Exhaustive by test** since 2026-09-12: `src/__tests__/designTokensDoc.test.ts` fails if a custom semantic colour, text style or spacing token is added without a line here
 - `supabase-migration.md` — ingest pipeline + frontend migration from `reviews.json` to Supabase, schema, mapping layer
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows

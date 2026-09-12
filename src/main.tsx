@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, useLocation } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
 import App from './App';
 import { LoginPage } from './LoginPage';
@@ -10,6 +10,11 @@ import { RequireAuth } from './RequireAuth';
 import { StyleGuide } from './StyleGuide';
 import { CriteriaCalibrationPage } from './CriteriaCalibrationPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+function CalibrationRouteRedirect() {
+  const location = useLocation();
+  return <Navigate to={{ pathname: '/calibration', search: location.search }} replace />;
+}
 // Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
 const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
 // Lazy-loaded for the same reason, plus this page pulls in @chakra-ui/charts/recharts —
@@ -45,8 +50,11 @@ const router = createBrowserRouter([
   },
   // Wired to the real engine + Supabase persistence (parts 5a/5b) — still unlinked from
   // the app's nav (separate IA decision). Auth-gated since progress is saved per-user.
+  // Renamed from /criteria-calibration for the criteria-calibration-page-redesign IA (single
+  // route + ?step=guide|calibration|results, see CalibrationPageHeader) — the old path is
+  // preserved just below as a redirect, since it was reachable even though unlinked.
   {
-    path: '/criteria-calibration',
+    path: '/calibration',
     // ErrorBoundary is a backstop only — the page catches its own solver failures and
     // recovers in place. Before both existed, a solver throw during render unmounted the
     // whole root and left a blank page (see the safety-net note in CriteriaCalibrationPage).
@@ -58,6 +66,9 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
   },
+  // A bare <Navigate to="/calibration"> would drop the query string (?from=, ?step=), so this
+  // small wrapper reads the current location and forwards its search along with the redirect.
+  { path: '/criteria-calibration', element: <CalibrationRouteRedirect /> },
   // { path: '/aoty/:shareId', element: <SharedList /> }  — reserved for shareable favorites
 ]);
 

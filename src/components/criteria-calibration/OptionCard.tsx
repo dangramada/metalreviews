@@ -38,7 +38,7 @@ export function OptionCard({ criteria, selected, disabled, onSelect }: OptionCar
       border="2px solid"
       borderColor={selected ? 'accent.border' : 'border.ruleStrong'}
       borderRadius="none"
-      bg={selected ? 'accent.border' : 'surface.card'}
+      bg={selected ? 'accent.border' : 'surface.calibrationCard'}
       _hover={!selected && !disabled ? { borderColor: 'border.hover' } : undefined}
     >
       <CriterionLevelList criteria={criteria} selected={selected} />

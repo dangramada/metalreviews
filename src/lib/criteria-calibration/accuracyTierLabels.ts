@@ -37,3 +37,20 @@ export type AccuracyTierLabel = (typeof ACCURACY_TIER_LABELS)[AccuracyTier];
 export function accuracyTierLabel(tier: AccuracyTier): string {
   return ACCURACY_TIER_LABELS[tier];
 }
+
+/** The badge's own explanation of itself, shown on hover wherever TierAccuracyBadge renders
+ *  (the tab row and every checkpoint). It lives here rather than in checkpointCopy.ts, where it
+ *  started, because it stopped being checkpoint copy the moment the badge became the trigger.
+ *
+ *  It is bound by this file's copy constraint above, and the second clause is where that bites:
+ *  the percentage (computeScoreSpreadAccuracy) measures how far your answers have NARROWED the
+ *  range of weightings still consistent with them. That is determinacy, not correctness — a
+ *  model converged on the wrong ranking scores high, which is exactly the inversion the
+ *  recalibration report found. "How settled your weighting is" is therefore the strongest claim
+ *  the evidence supports; anything about accuracy, confidence or trustworthiness is not.
+ *
+ *  It also says the two halves are different KINDS of measurement — the names count levels
+ *  finished, the number moves continuously inside one — since they share a border and otherwise
+ *  look like one reading split in two. */
+export const TIER_BADGE_TOOLTIP =
+  'Each name is a deeper level of comparison finished; the percentage is how settled your weighting is within that level.';
