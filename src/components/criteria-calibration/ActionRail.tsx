@@ -27,6 +27,9 @@ interface ActionRailProps {
 // click. The confirm dialog reuses Favorites' remove-confirm pattern verbatim
 // (FavoritesPage.tsx's DialogRoot role="alertdialog" + initialFocusEl on the safe action).
 //
+// Bordered (outline) rather than ghost, at md rather than sm, since 2026-09-12: ghost icons on
+// a dark panel read as decoration until hovered, and the design gives each action a visible box.
+//
 // Vertical, flush against the container's left edge (no left padding) per the brief's layout —
 // rendered only alongside the question view, never during a checkpoint, same scoping as
 // WorkStatusRow.
@@ -45,9 +48,9 @@ export function ActionRail({
       <VStack gap={2} align="flex-start">
         <IconButton
           aria-label="Undo"
-          variant="ghost"
+          variant="outline"
           colorPalette="gray"
-          size="sm"
+          size="md"
           onClick={onUndo}
           disabled={undoDisabled}
         >
@@ -55,9 +58,9 @@ export function ActionRail({
         </IconButton>
         <IconButton
           aria-label="Redo"
-          variant="ghost"
+          variant="outline"
           colorPalette="gray"
-          size="sm"
+          size="md"
           onClick={onRedo}
           disabled={redoDisabled}
         >
@@ -65,9 +68,9 @@ export function ActionRail({
         </IconButton>
         <IconButton
           aria-label="Restart calibration"
-          variant="ghost"
+          variant="outline"
           colorPalette="gray"
-          size="sm"
+          size="md"
           onClick={() => setConfirmOpen(true)}
         >
           <LuRotateCcw />

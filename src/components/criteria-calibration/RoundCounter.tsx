@@ -5,15 +5,13 @@ interface RoundCounterProps {
 }
 
 // Deliberately no "of N" — this flow has no fixed round count (spec: DoD).
+//
+// Uses the shared `statusReadout` text style — 14px bold Inter, paired with the progress
+// percentage beside it. Was mono/uppercase/letterspaced, which made a plain ordinal look like a
+// system readout; it is now plain Inter, sentence case.
 export function RoundCounter({ round }: RoundCounterProps) {
   return (
-    <Text
-      fontFamily="mono"
-      textTransform="uppercase"
-      letterSpacing="0.08em"
-      fontSize="sm"
-      color="text.primary"
-    >
+    <Text textStyle="statusReadout" color="text.primary">
       Round {round}
     </Text>
   );

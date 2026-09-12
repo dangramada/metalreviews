@@ -235,7 +235,7 @@ describe('CriteriaCalibrationPage — freeze checkpoint (live, real driver)', ()
   it('does NOT show the freeze checkpoint at 77 answers, one short of the threshold', async () => {
     renderWithAnswers(FULL_LOG.slice(0, DEGREE_2_FREEZE_ANSWER_THRESHOLD - 1));
 
-    await screen.findByText('Which of these 2 alternatives do you prefer?');
+    await screen.findByText('Which of these two alternatives do you prefer?');
     expect(screen.queryByText('Your answers have stopped narrowing this down')).toBeNull();
   }, 20000);
 

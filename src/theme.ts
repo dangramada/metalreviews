@@ -32,6 +32,33 @@ const system = createSystem(defaultConfig, {
     },
   },
   theme: {
+    // Shared type style (2026-09-12 design review). The round counter, the question title and
+    // each comparison card's level name are ONE size in the design, so they are one style here
+    // rather than three independent font/size/weight decisions that drift apart. Inter (the
+    // `body` face) at 18px — the display face is deliberately absent: it belongs to page and
+    // section headings, not to running interface text at this scale.
+    textStyles: {
+      // The work-status row's two readouts — round counter and progress percentage. Smaller and
+      // bolder than `cardTitle` on purpose (2026-09-12): they are labels for numbers you glance
+      // at, not content you read, so they sit below the content type rather than matching it.
+      // They were briefly on `cardTitle` and read far too large next to the question.
+      statusReadout: {
+        value: {
+          fontFamily: 'body',
+          fontSize: '14px',
+          fontWeight: '700',
+          lineHeight: '1.4',
+        },
+      },
+      cardTitle: {
+        value: {
+          fontFamily: 'body',
+          fontSize: '18px',
+          fontWeight: '500',
+          lineHeight: '1.4',
+        },
+      },
+    },
     tokens: {
       spacing: {
         // Page-chrome rule, 2026-09-12: the distance from the global Header's bottom rule to a
@@ -153,6 +180,13 @@ const system = createSystem(defaultConfig, {
           // reference design.
           ratingCard: { value: { base: '{colors.sand.600}' } },
           ratingCardFill: { value: { base: '{colors.sand.900}' } },
+          // The Criteria Calibration tab panel's fill (2026-09-12, Dan's spec: ink.900).
+          // Deliberately its own token rather than reusing ratingCardFill (sand.900, #1a1a1a):
+          // that one is Album Evaluation's card fill and must not move with this. The tabs slot
+          // recipe references this same token for the active tab's fill and for the bottom edge
+          // it paints over the panel's border — the join only reads as a join while the two
+          // values are identical, so they must stay one token, not two equal literals.
+          tabPanel: { value: { base: '{colors.ink.900}' } },
           // Fifth pass (same day) correction: `criterionRow` is the resting fill for non-active
           // criteria rows and the criteria-list container — repointed from ink.800 to sand.950,
           // one step darker than the reintroduced `criterionActive` (ink.800) below, so the
@@ -269,6 +303,21 @@ const system = createSystem(defaultConfig, {
           content: { bg: 'surface.card', color: 'text.primary' },
         },
       },
+      // Progress bar colours (2026-09-12). Like tabs, Progress is a slot recipe (track/range)
+      // and had no theme layer at all, so it rendered Chakra's defaults: a `bg.muted` track that
+      // was nearly invisible on this page's dark panel, with a `colorPalette.solid` (white)
+      // range. Overrides the DEFAULT `outline` variant, since that is what the unstyled
+      // <ProgressRoot> resolves to — putting these in `base` would be silently overridden by it.
+      progress: {
+        variants: {
+          variant: {
+            outline: {
+              track: { bgColor: 'ink.700' },
+              range: { bgColor: 'ink.300' },
+            },
+          },
+        },
+      },
       // Tabs are styled through Chakra's `tabs` SLOT recipe (slots: root/list/trigger/content/
       // indicator; variants: line/subtle/enclosed/outline/plain), not through props on each
       // Tabs.Trigger. This overrides the built-in `outline` variant — the "folder tab" one from
@@ -311,11 +360,11 @@ const system = createSystem(defaultConfig, {
                 color: 'text.dim',
                 borderWidth: 'var(--line-thickness)',
                 _hover: { color: 'text.primary' },
-                _selected: { bg: 'surface.ratingCardFill', color: 'text.primary' },
+                _selected: { bg: 'surface.tabPanel', color: 'text.primary' },
                 _horizontal: {
                   _selected: {
                     borderColor: 'border.ruleStrong',
-                    borderBottomColor: 'surface.ratingCardFill',
+                    borderBottomColor: 'surface.tabPanel',
                   },
                 },
               },
