@@ -16,14 +16,27 @@ export function usePendingWritesGuard() {
   const pendingCountRef = useRef(0);
   const [hasPendingWrites, setHasPendingWrites] = useState(false);
 
+  // Guards setHasPendingWrites against firing after the owning component unmounts —
+  // beginWrite/endWrite are called from write handlers all over CriteriaCalibrationPage,
+  // including inside .then/.catch/.finally chains that can resolve well after an unmount (the
+  // solver-recovery effect's deleteAnswer/applyCommitComputation calls, in particular — see
+  // criteria-calibration-page-redesign's Pass 7). Fixed once here, inside the hook itself, so
+  // every call site is covered uniformly rather than each caller passing its own guard.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   function beginWrite() {
     pendingCountRef.current++;
-    setHasPendingWrites(true);
+    if (isMountedRef.current) setHasPendingWrites(true);
   }
 
   function endWrite() {
     pendingCountRef.current = Math.max(0, pendingCountRef.current - 1);
-    if (pendingCountRef.current === 0) setHasPendingWrites(false);
+    if (pendingCountRef.current === 0 && isMountedRef.current) setHasPendingWrites(false);
   }
 
   useEffect(() => {

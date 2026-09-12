@@ -97,7 +97,12 @@ function buildLevels() {
   return levels;
 }
 const FIXTURE_CATALOG: CriteriaCatalog = {
-  entries: CRITERION_NAMES.map((name, index) => ({ index, name, levels: buildLevels() })),
+  entries: CRITERION_NAMES.map((name, index) => ({
+    index,
+    name,
+    description: `${name} description.`,
+    levels: buildLevels(),
+  })),
   levelsPerCriterion: [5, 5, 5, 5, 5, 5],
 };
 
@@ -130,7 +135,11 @@ const VERY_HIGH = 0.9; // would have been above the old 0.85 Very High threshold
 function renderPage() {
   return render(
     <ChakraProvider value={system}>
-      <MemoryRouter>
+      {/* ?step=calibration — these tests drive the calibration flow via a mocked driver
+          (actionForDegree/boundaryAt) without ever seeding real `answers`, so the page's own
+          "land on Guide until something's been answered" default would otherwise show the
+          Guide tab instead of the checkpoint/question content under test. */}
+      <MemoryRouter initialEntries={['/calibrate?step=calibration']}>
         <CriteriaCalibrationPage />
       </MemoryRouter>
     </ChakraProvider>
@@ -228,14 +237,31 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     expect(screen.getByRole('button', { name: 'Continue' })).toBeTruthy();
   });
 
-  it('the header shows the tier and the accuracy percentage as separate values', async () => {
+  it('the header shows the tier and the accuracy percentage as separate values, once the session has started', async () => {
     accuracyValue = VERY_HIGH;
     actionForDegree = () => ASK_AT_DEGREE(2);
+    // TierAccuracyBadge (replacing AccuracyStatus's "Detail: X" text) hides in the header until
+    // the session has actually started (round 0 has nothing calibrated yet) — seed one resumed
+    // answer so that's true here, same degree-2 profile shape ASK_AT_DEGREE itself generates.
+    vi.mocked(useCalibrationResume).mockReturnValue({
+      answers: [
+        {
+          localId: 'seed-1',
+          dbId: 'db-1',
+          profileA: { 0: 5, 1: 1 },
+          profileB: { 0: 1, 1: 5 },
+          result: 'A',
+        },
+      ],
+      degree: 2,
+      loading: false,
+      error: null,
+    });
     renderPage();
 
-    // Degree 2 still in progress — the base rung, regardless of a 90% accuracy reading.
-    expect(await screen.findByText(/Detail: Unfocused/)).toBeTruthy();
-    expect(screen.getByText('90%')).toBeTruthy();
+    // Degree 2 still in progress — the base rung, regardless of a 90% accuracy reading. Tier
+    // and percentage read together as one compound badge now, not "Detail: X" text.
+    expect(await screen.findByLabelText('Unfocused tier, 90 percent pinned down')).toBeTruthy();
   });
 
   it('assigns the badge from the degree, ignoring accuracy entirely', async () => {
@@ -324,15 +350,17 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     }
   });
 
-  it('shows the permanent tier badge with its info tooltip', async () => {
+  // The badge's explanation used to hang off a separate ⓘ glyph with its own aria-label, which
+  // is what this test read. Since 2026-09-12 the badge IS the tooltip trigger (TierAccuracyBadge),
+  // so what's checked now is that the badge is still permanently present and still reachable
+  // without a mouse — tabbable is the whole reason a hover-only explanation is acceptable here.
+  it('shows the permanent tier badge, focusable so its explanation is reachable by keyboard', async () => {
     boundaryAt(2);
     renderPage();
 
     await screen.findByText("You've compared everything at this level");
-    const info = screen.getByLabelText(
-      /Unfocused, Blurry, Clear, Sharp\. Each one means a deeper level of comparison finished\./
-    );
-    expect(info).toBeTruthy();
+    const badge = screen.getByRole('img', { name: /Blurry tier, \d+ percent pinned down/ });
+    expect(badge.getAttribute('tabindex')).toBe('0');
   });
 
   // The freeze checkpoint's own trigger logic lives on a separate branch
@@ -355,11 +383,11 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     expect(text).not.toMatch(/2-criteria|two.criteria|level 2/i);
   });
 
-  it('navigates to the ?from= destination when the user chooses to pause', async () => {
+  it('"Pause here" goes to the Results tab, not away from the page', async () => {
     boundaryAt(2);
     render(
       <ChakraProvider value={system}>
-        <MemoryRouter initialEntries={['/calibrate?from=favorites']}>
+        <MemoryRouter initialEntries={['/calibrate?from=favorites&step=calibration']}>
           <CriteriaCalibrationPage />
         </MemoryRouter>
       </ChakraProvider>
@@ -367,6 +395,25 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
 
     await screen.findByText("You've compared everything at this level");
     await clickButton('Pause here');
+    // Stays on this page (criteria-calibration-page-redesign §4: pause is always a temporary
+    // exit, handled by the Results tab's own soft gate) — unlike the terminal "Done, evaluate
+    // albums" button, which does leave the page (covered by the terminal-screen test below).
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Not enough data yet for a ranking/)).toBeTruthy();
+  });
+
+  it('"Done, evaluate albums" (terminal) still navigates to the ?from= destination', async () => {
+    boundaryAt(6, false);
+    render(
+      <ChakraProvider value={system}>
+        <MemoryRouter initialEntries={['/calibrate?from=favorites&step=calibration']}>
+          <CriteriaCalibrationPage />
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+
+    await screen.findByText("You've compared everything, at every level");
+    await clickButton('Done, evaluate albums');
     expect(mockNavigate).toHaveBeenCalledWith('/favorites');
   });
 });

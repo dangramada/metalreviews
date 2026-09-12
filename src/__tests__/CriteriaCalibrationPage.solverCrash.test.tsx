@@ -106,7 +106,12 @@ function buildLevels() {
   return levels;
 }
 const FIXTURE_CATALOG: CriteriaCatalog = {
-  entries: CRITERION_NAMES.map((name, index) => ({ index, name, levels: buildLevels() })),
+  entries: CRITERION_NAMES.map((name, index) => ({
+    index,
+    name,
+    description: `${name} description.`,
+    levels: buildLevels(),
+  })),
   levelsPerCriterion: SOLVER_CRASH_LEVELS_PER_CRITERION,
 };
 
@@ -182,7 +187,7 @@ describe('CriteriaCalibrationPage — solver-crash safety net', () => {
 
     vi.useFakeTimers();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /About equal/i }));
+      fireEvent.click(screen.getByRole('button', { name: /They are equal/i }));
     });
     await act(async () => {
       vi.runAllTimers();

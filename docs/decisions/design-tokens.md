@@ -13,36 +13,108 @@ Two global rules are set inside `createSystem()`:
 
 ## Token groups
 
-### Semantic tokens (`semanticTokens.colors`)
+### Semantic colour tokens (`semanticTokens.colors`)
 
-| Token | Resolves to | Purpose |
-|---|---|---|
-| `surface.page` | `gray.900` | Page background |
-| `surface.card` | `gray.800` | Card background |
-| `surface.raised` | `gray.700` | Raised element (e.g. drawer) |
-| `surface.darkest` | `gray.900` | Deepest surface (same as page) |
-| `border.default` | `gray.600` | Default border |
-| `border.hover` | `gray.400` | Hover border |
-| `text.primary` | `white` | Primary text |
-| `text.muted` | `gray.500` | Muted / secondary text |
-| `text.dim` | `gray.400` | Dim / tertiary text |
-| `accent.start` | `purple.300` | Gradient start |
-| `accent.end` | `purple.600` | Gradient end |
-| `accent.border` | `purple.500` | Accent border |
-| `accent.text` | `purple.300` | Accent text |
+Complete as of 2026-09-12, and kept that way by `src/__tests__/designTokensDoc.test.ts` — see
+"Keeping this file complete" below. Values are the ramp token each one resolves to; the ramps
+themselves (`ink`, `sand`, `ember`) are defined in `theme.ts` and shown live at `/style-guide`.
 
-### Contextual badge tokens (`semanticTokens.colors.badge`)
+#### Surface
 
-Three badge types used across the app, each with a `bg` and `text` token:
+| Token                     | Resolves to | Purpose                                                                                                                                                            |
+| ------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `surface.page`            | `ink.950`   | Page background                                                                                                                                                    |
+| `surface.card`            | `ink.900`   | Card background                                                                                                                                                    |
+| `surface.cardHover`       | `#181818`   | Card hover background. A raw hex deliberately: it sits between `ink.900` and `ink.800`, and neither read correctly                                                 |
+| `surface.raised`          | `ink.700`   | Raised element (drawer, menu)                                                                                                                                      |
+| `surface.darkest`         | `ink.950`   | Deepest surface (same value as page)                                                                                                                               |
+| `surface.ratingCard`      | `sand.600`  | AlbumRatingPage card border                                                                                                                                        |
+| `surface.ratingCardFill`  | `sand.900`  | AlbumRatingPage card background                                                                                                                                    |
+| `surface.tabPanel`        | `ink.900`   | Criteria Calibration tab panel fill. Shared with the `tabs` slot recipe, so the active tab's fill and the edge it paints over the panel border stay one token      |
+| `surface.calibrationCard` | `sand.900`  | Both Criteria Calibration card types (comparison and Guide cards). One step lighter than the panel, so a card reads as sitting **on** it rather than flush with it |
+| `surface.criterionRow`    | `sand.950`  | Criteria row resting fill                                                                                                                                          |
+| `surface.criterionHover`  | `ink.900`   | Criteria row hover fill                                                                                                                                            |
+| `surface.criterionActive` | `sand.900`  | Criteria row and level-picker active fill                                                                                                                          |
 
-| Token | Resolves to | Purpose |
-|---|---|---|
-| `badge.source.bg` | `gray.800` | Source badge background |
-| `badge.source.text` | `purple.100` | Source badge text |
-| `badge.score.bg` | `purple.300` | Score badge background |
-| `badge.score.text` | `purple.950` | Score badge text (dark purple on light purple background) |
-| `badge.genre.bg` | `whiteAlpha.100` | Genre tag background |
-| `badge.genre.text` | `purple.200` | Genre tag text |
+#### Border
+
+| Token               | Resolves to | Purpose                                                                                     |
+| ------------------- | ----------- | ------------------------------------------------------------------------------------------- |
+| `border.default`    | `gray.600`  | Pre-redesign default border. Still used by untouched decorative containers (dialogs, menus) |
+| `border.hover`      | `gray.400`  | Pre-redesign hover border                                                                   |
+| `border.rule`       | `ink.800`   | Light rule: flush-corner badges, separators inside a card                                   |
+| `border.ruleStrong` | `ink.700`   | Structural 2px rule: cards, form elements, header/footer dividers, tab panel                |
+
+#### Text
+
+| Token          | Resolves to | Purpose               |
+| -------------- | ----------- | --------------------- |
+| `text.primary` | `sand.200`  | Primary text          |
+| `text.muted`   | `sand.500`  | Muted / tertiary text |
+| `text.dim`     | `sand.300`  | Dim / secondary text  |
+
+Note the ordering is not what the names suggest: `text.dim` is **lighter** than `text.muted`.
+
+#### Accent and slab
+
+| Token           | Resolves to | Purpose                                                                   |
+| --------------- | ----------- | ------------------------------------------------------------------------- |
+| `accent.start`  | `ember.300` | Gradient start                                                            |
+| `accent.end`    | `ember.600` | Gradient end                                                              |
+| `accent.border` | `ember.500` | Accent border, high-score fill                                            |
+| `accent.text`   | `ember.300` | Accent text                                                               |
+| `accent.ink`    | `#140a03`   | Dark text on accent-filled backgrounds                                    |
+| `slab.bg`       | `#f2f2f0`   | Score slab background — the app's one light-on-dark inversion (`App.tsx`) |
+| `slab.text`     | `ink.950`   | Score slab text                                                           |
+
+#### `ember` palette contract (`semanticTokens.colors.ember`)
+
+Not swatches to pick from: these are the keys Chakra's own recipes read when a component is given
+`colorPalette="ember"` (which is what `primaryButton` does). They exist so the ember ramp can act
+as a Chakra colour palette at all, and are listed here only so this file stays exhaustive.
+
+| Token            | Resolves to  |     | Token              | Resolves to |
+| ---------------- | ------------ | --- | ------------------ | ----------- |
+| `ember.solid`    | `ember.500`  |     | `ember.subtle`     | `ember.900` |
+| `ember.fg`       | `ember.300`  |     | `ember.muted`      | `ember.800` |
+| `ember.contrast` | `accent.ink` |     | `ember.emphasized` | `ember.700` |
+| `ember.border`   | `ember.500`  |     | `ember.focusRing`  | `ember.500` |
+
+#### Dead tokens, pending deletion
+
+| Token                       | Resolves to                     | Status                                |
+| --------------------------- | ------------------------------- | ------------------------------------- |
+| `badge.source.bg` / `.text` | `gray.800` / `purple.100`       | **Dead** — zero references in the app |
+| `badge.score.bg` / `.text`  | `purple.300` / `purple.950`     | **Dead** — zero references            |
+| `badge.genre.bg` / `.text`  | `whiteAlpha.100` / `purple.200` | **Dead** — zero references            |
+
+All three are pre-redesign purple-era tokens replaced by the badge style objects below. They are
+still defined in `theme.ts`; deletion is logged in `deferred-work.md` rather than done silently,
+since a token removal is a change to the public theme surface. They are listed here because this
+file is exhaustive by test, and "documented as dead" is more useful than absent.
+
+### Text styles (`textStyles`)
+
+Added 2026-09-12 by the Criteria Calibration page redesign. Both exist because the same
+typography had to be identical across several components that don't share a parent, which an
+inline `fontSize`/`fontWeight` pair cannot guarantee.
+
+| Token           | Value                           | Purpose                                                                                                                                  |
+| --------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `cardTitle`     | Inter (`body`) 18px / 500 / 1.4 | Card and section titles: the calibration question prompt, and each criterion level's name in both the comparison card and the Guide card |
+| `statusReadout` | Inter (`body`) 14px / 700 / 1.4 | Small numeric readouts you glance at rather than read: the round counter and the progress percentage                                     |
+
+The size gap between the two is deliberate. `statusReadout` was briefly on `cardTitle` and read
+far too large beside the question — status numbers sit _below_ content type, not level with it.
+
+### Spacing tokens (`tokens.spacing`)
+
+| Token           | Value  | Purpose                                                                   |
+| --------------- | ------ | ------------------------------------------------------------------------- |
+| `breadcrumbTop` | `1rem` | The gap between the global `Header`'s bottom rule and a page's breadcrumb |
+
+Named rather than inline because `Header` alone owns that distance for **every** page with a
+breadcrumb (see `header-redesign.md`), so it is a cross-page contract, not one page's spacing.
 
 ## Border radii — use Chakra's built-in scale
 
@@ -65,12 +137,24 @@ slotRecipes: {
 }
 ```
 
+Two more were added 2026-09-11/12 (Criteria Calibration page redesign). Both are overrides of a
+**built-in variant** rather than new named variants, which is forced rather than chosen: this repo
+has no `@chakra-ui/cli` typegen step, so a new variant name cannot type-check.
+
+| Recipe     | What it overrides                                                                                                                                                     | Why in the theme rather than inline                                                                                                                                                                                                                                                                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tabs`     | The built-in `outline` variant: square corners, 2px rule, selected trigger filled with `surface.tabPanel` and its bottom border painted the same, `list` `minH: auto` | The active tab has to _join_ the panel below it — it paints over the panel's top border to read as its top edge. That join is one visual object built from two components, so both halves must read the same token. Inline props on the `line` variant were tried first and left a white bar, because `line` draws the selected indicator as a `::before` on the trigger itself |
+| `progress` | The default `outline` variant: `track` `ink.700`, `range` `ink.300`                                                                                                   | A light fill on a dark empty track, applied wherever a progress bar appears rather than per instance                                                                                                                                                                                                                                                                            |
+
+The `tabs` override requires the panel to render immediately below the tab bar with **no gap and
+nothing between them** — see `CriteriaCalibrationPage.tsx`'s `gap={0}` comment.
+
 ## Button style sets
 
 Two exported config objects define the canonical primary and secondary button props:
 
 ```ts
-export const primaryButton   = { colorPalette: 'purple' };
+export const primaryButton = { colorPalette: 'ember' };
 export const secondaryButton = { colorPalette: 'gray' };
 
 export const BUTTON_VARIANTS = ['solid', 'outline', 'surface', 'subtle', 'ghost', 'plain'] as const;
@@ -81,14 +165,14 @@ Spread onto `<Button>` and add a `variant` prop. Sizes available: `xs`, `sm`, `m
 
 ### Theme-level gray hover (compound variants in `recipes.button`)
 
-Gray buttons on the dark `gray.900` surface need explicit hover overrides — Chakra v3's default gray hover is nearly invisible. Defined as `compoundVariants` under `recipes.button` in `createSystem()`:
+Gray buttons on the dark `ink.950` surface need explicit hover overrides — Chakra v3's default gray hover is nearly invisible. Defined as `compoundVariants` under `recipes.button` in `createSystem()`:
 
-| variant | hover bg |
-|---|---|
-| `solid` | `gray.400` — distinct filled hover, intentionally different from other variants |
-| `outline` / `surface` / `subtle` / `ghost` | `whiteAlpha.200` — subtle tint |
+| variant                                    | hover bg                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------- |
+| `solid`                                    | `gray.400` — distinct filled hover, intentionally different from other variants |
+| `outline` / `surface` / `subtle` / `ghost` | `whiteAlpha.200` — subtle tint                                                  |
 
-Purple (primary) does not need overrides; its default hover is visible on dark backgrounds.
+Ember (primary) does not need overrides; its default hover is visible on dark backgrounds.
 
 **Do not** add `_hover` props directly to gray `<Button>` instances in the app — the theme handles it.
 
@@ -99,20 +183,56 @@ Purple (primary) does not need overrides; its default hover is visible on dark b
 Three badge configs are exported from `src/theme.ts` — spread onto `<Badge>` directly:
 
 ```ts
-export const sourceBadge = { bg: 'badge.source.bg', color: 'badge.source.text', borderRadius: 'base', size: 'sm', variant: 'solid' };
-export const scoreBadge  = { bg: 'badge.score.bg',  color: 'badge.score.text',  variant: 'solid' };
-export const genreBadge  = { bg: 'badge.genre.bg',  color: 'badge.genre.text',  borderRadius: 'base', size: 'sm' };
+export const sourceBadge = {
+  bg: 'badge.source.bg',
+  color: 'badge.source.text',
+  borderRadius: 'base',
+  size: 'sm',
+  variant: 'solid',
+};
+export const scoreBadge = { bg: 'badge.score.bg', color: 'badge.score.text', variant: 'solid' };
+export const genreBadge = {
+  bg: 'badge.genre.bg',
+  color: 'badge.genre.text',
+  borderRadius: 'base',
+  size: 'sm',
+};
 ```
 
-| Config | Where used |
-|---|---|
-| `sourceBadge` | Bottom-left of card artwork — review site name |
-| `scoreBadge` | Bottom-right of card artwork — normalised score string |
-| `genreBadge` | Inline in card body — one per genre tag |
+| Config        | Where used                                             |
+| ------------- | ------------------------------------------------------ |
+| `sourceBadge` | Bottom-left of card artwork — review site name         |
+| `scoreBadge`  | Bottom-right of card artwork — normalised score string |
+| `genreBadge`  | Inline in card body — one per genre tag                |
 
 ### System badges
 
 Standard Chakra `colorPalette` + `variant` props, no custom recipe overrides. Palettes: `gray`, `green`, `red`. Available variants: `solid`, `outline`, `surface`, `subtle`, `plain`.
+
+## Keeping this file complete
+
+`src/__tests__/designTokensDoc.test.ts` fails the suite if a custom token is missing from this
+file. It derives the list by diffing this project's system against Chakra's `defaultConfig`, so
+there is no hardcoded token list to forget to update — that would have been one more copy of the
+same problem.
+
+**Why a test and not a convention.** The convention already existed ("update the doc after each
+feature") and this file still drifted twice: by 2026-09-12 it described the retired purple accent
+palette and was missing nine live tokens, four of which appeared in no doc at all. A reminder
+cannot fail, so the guarantee is structural instead. The same technique, for the same reason,
+keeps the accuracy-tier labels single-sourced (`accuracyTierLabels.test.ts`).
+
+The check is deliberately loose: it asserts a token's `group.name` appears _somewhere_ in the
+file, not that the description is any good. What a token is for is a judgement the person adding
+it has to write down; a test can only insist that they wrote something.
+
+**Scope.** Semantic colours, text styles and spacing tokens. Recipe and slot-recipe overrides are
+not covered — they override existing Chakra keys rather than adding new ones, so the same diff
+cannot tell ours from the defaults. Those are documented by hand, above.
+
+**Live rendering.** `/style-guide` shows every token as an actual swatch or specimen, including
+the Tabs and Progress slot recipes and the two text styles. It cannot drift, since it renders the
+real theme — but it only exists in a running app, which is why the enumeration lives here too.
 
 ## Style guide page
 

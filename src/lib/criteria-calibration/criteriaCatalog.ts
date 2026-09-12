@@ -19,6 +19,11 @@ export interface CriterionLevelInfo {
 export interface CriterionCatalogEntry {
   index: number;
   name: string;
+  /** One-line "what this measures" summary — the `criteria.description` column, distinct
+   *  from each level's own `CriterionLevelInfo.description`. Added for the Guide tab's
+   *  criteria carousel (criteria-calibration-page-redesign); not consumed anywhere before
+   *  that. */
+  description: string;
   levels: Record<number, CriterionLevelInfo>;
 }
 
@@ -33,6 +38,7 @@ export interface CriteriaCatalog {
 export interface RawCriterionRow {
   id: number;
   name: string;
+  description: string;
   display_order: number;
   criteria_levels: { level: number; label: string; description: string }[];
 }
@@ -58,7 +64,7 @@ export function buildCriteriaCatalog(rows: RawCriterionRow[]): CriteriaCatalog {
     for (const lvl of row.criteria_levels) {
       levels[lvl.level] = { label: lvl.label, description: lvl.description };
     }
-    entries[row.id] = { index: row.id, name: row.name, levels };
+    entries[row.id] = { index: row.id, name: row.name, description: row.description, levels };
   }
   const levelsPerCriterion = entries.map((entry) => Object.keys(entry.levels).length);
   return { entries, levelsPerCriterion };

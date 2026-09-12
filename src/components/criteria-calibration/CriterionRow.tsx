@@ -1,6 +1,6 @@
-import { Box, Text } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import { CriterionBadge } from './CriterionBadge';
-import { formatLevelDescription } from '../../lib/criteria-calibration/criteriaCatalog';
+import { CriterionLevelDetail } from './CriterionLevelDetail';
 
 export interface CriterionData {
   label: string;
@@ -17,27 +17,24 @@ interface CriterionRowProps {
   selected?: boolean;
 }
 
-// Badge -> LevelName -> LevelDescription, in that visual order. LevelName is
-// the dominant element (Inter bold, large); badge and description are both
-// small/dim helper roles so they don't compete with it.
+// Badge -> LevelName -> LevelDescription, in that visual order. LevelName is the dominant
+// element; badge and description are both small/dim helper roles so they don't compete with it.
+//
+// Sentence case since 2026-09-12 (design review). The labels are ALREADY stored sentence case
+// ("Groundbreaking", "Some fresh ideas") — the shouting was purely a textTransform here, so
+// dropping it needed no data change. It now shares the `cardTitle` text style with the question
+// title and the round counter.
 export function CriterionRow({ criterion, selected }: CriterionRowProps) {
   return (
     <Box>
       <CriterionBadge selected={selected}>{criterion.label}</CriterionBadge>
-      <Text
-        mt={2}
-        fontFamily="body"
-        fontWeight="bold"
-        fontSize="xl"
-        textTransform="uppercase"
-        color={selected ? 'accent.ink' : 'text.primary'}
-        lineHeight="1.2"
-      >
-        {criterion.levelName}
-      </Text>
-      <Text fontFamily="body" fontSize="sm" color={selected ? 'accent.ink' : 'text.dim'}>
-        {formatLevelDescription(criterion.description)}
-      </Text>
+      <Box mt={2}>
+        <CriterionLevelDetail
+          levelName={criterion.levelName}
+          description={criterion.description}
+          selected={selected}
+        />
+      </Box>
     </Box>
   );
 }

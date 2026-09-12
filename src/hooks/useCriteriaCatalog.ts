@@ -10,7 +10,8 @@ import {
 // can read", no per-user state). Mirrors useFavoritesList.ts's fetch convention: plain
 // useEffect + useState, one embedded select, no caching layer beyond this component's
 // lifetime — consistent with this pass having no persistence beyond a page refresh.
-const CRITERIA_SELECT = 'id, name, display_order, criteria_levels(level, label, description)';
+const CRITERIA_SELECT =
+  'id, name, description, display_order, criteria_levels(level, label, description)';
 
 export function useCriteriaCatalog() {
   const [catalog, setCatalog] = useState<CriteriaCatalog | null>(null);

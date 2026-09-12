@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
 import { PageBreadcrumb } from './components/ui/breadcrumb';
+import { resolveFromSource, type FromSourceEntry } from './lib/navigation/resolveFromSource';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
@@ -30,17 +31,25 @@ type AlbumRow = {
 // Reached from FavoritesPage's rate control today (?from=favorites); the future Ranked
 // Albums/AOTY hub will link here too (?from=aoty). That route doesn't exist yet, so the
 // `aoty` case falls back to /favorites for now — flagged here rather than guessed at, per
-// the brief. Update this map once the real AOTY route lands. `sourceLabel` feeds the
+// the brief. Update this map once the real AOTY route lands. The resolved `label` feeds the
 // PageBreadcrumb's shorter, arrow-free source name — the standalone "← Back to X" link this
 // used to also provide was MobileRatingLayout's own header link, removed in the mobile
 // stage-1 restructure (docs/decisions/album-rating-page.md) now that the breadcrumb above
 // both layouts covers that navigation.
+//
+// Uses the shared resolveFromSource helper (src/lib/navigation/resolveFromSource.ts),
+// extracted here on its second use (CriteriaCalibrationPage's own breadcrumb) so both pages
+// read the same `?from=` allowlist convention instead of maintaining two copies of the same
+// shape.
+const RATING_FALLBACK_SOURCE: FromSourceEntry = { href: '/favorites', label: 'Favorites' };
+const RATING_FROM_SOURCES: Record<string, FromSourceEntry> = {
+  // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
+  aoty: { href: '/favorites', label: 'AOTY' },
+  favorites: RATING_FALLBACK_SOURCE,
+};
 function resolveBackDestination(from: string | null): { href: string; sourceLabel: string } {
-  if (from === 'aoty') {
-    // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
-    return { href: '/favorites', sourceLabel: 'AOTY' };
-  }
-  return { href: '/favorites', sourceLabel: 'Favorites' };
+  const { href, label } = resolveFromSource(from, RATING_FROM_SOURCES, RATING_FALLBACK_SOURCE);
+  return { href, sourceLabel: label };
 }
 
 export function AlbumRatingPage() {
@@ -98,7 +107,10 @@ export function AlbumRatingPage() {
     async function loadRatingsAndWeights() {
       setRatingsLoading(true);
       const [{ data: ratingRows }, { data: weightRows }] = await Promise.all([
-        supabase.from('album_criteria_ratings').select('criterion_id, level').eq('album_id', albumId),
+        supabase
+          .from('album_criteria_ratings')
+          .select('criterion_id, level')
+          .eq('album_id', albumId),
         supabase.from('user_criterion_weights').select('criterion_id, level, value'),
       ]);
       if (cancelled) return;
@@ -149,7 +161,18 @@ export function AlbumRatingPage() {
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack gap={6} align="stretch">
-          <Header />
+          {/* The breadcrumb is handed to the global Header, which owns the 16px between its
+              bottom rule and the breadcrumb — identical on every page that has one. Only once
+              the album has loaded, same as when it rendered in the body. */}
+          <Header
+            breadcrumb={
+              !loading && albumInfo ? (
+                <PageBreadcrumb
+                  items={[{ label: sourceLabel, to: backHref }, { label: 'Album Evaluation' }]}
+                />
+              ) : undefined
+            }
+          />
 
           {loading ? (
             <Flex justify="center" align="center" minH="300px">
@@ -161,9 +184,6 @@ export function AlbumRatingPage() {
             </Text>
           ) : (
             <>
-              <Box>
-                <PageBreadcrumb items={[{ label: sourceLabel, to: backHref }, { label: 'Album Evaluation' }]} />
-              </Box>
               {/* Band/album title used to render here as a shared heading above both layouts —
                   moved into DesktopRatingLayout's card per the retouch pass (2026-08-05 dated
                   entry, docs/decisions/album-rating-page.md). MobileRatingLayout renders its

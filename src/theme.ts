@@ -32,7 +32,45 @@ const system = createSystem(defaultConfig, {
     },
   },
   theme: {
+    // Shared type style (2026-09-12 design review). The round counter, the question title and
+    // each comparison card's level name are ONE size in the design, so they are one style here
+    // rather than three independent font/size/weight decisions that drift apart. Inter (the
+    // `body` face) at 18px — the display face is deliberately absent: it belongs to page and
+    // section headings, not to running interface text at this scale.
+    textStyles: {
+      // The work-status row's two readouts — round counter and progress percentage. Smaller and
+      // bolder than `cardTitle` on purpose (2026-09-12): they are labels for numbers you glance
+      // at, not content you read, so they sit below the content type rather than matching it.
+      // They were briefly on `cardTitle` and read far too large next to the question.
+      statusReadout: {
+        value: {
+          fontFamily: 'body',
+          fontSize: '14px',
+          fontWeight: '700',
+          lineHeight: '1.4',
+        },
+      },
+      cardTitle: {
+        value: {
+          fontFamily: 'body',
+          fontSize: '18px',
+          fontWeight: '500',
+          lineHeight: '1.4',
+        },
+      },
+    },
     tokens: {
+      spacing: {
+        // Page-chrome rule, 2026-09-12: the distance from the global Header's bottom rule to a
+        // page's breadcrumb, identical on every page that has one. Named rather than left as a
+        // bare scale step because it is a shared layout contract owned by Header (see
+        // Header.tsx), not a local spacing choice any page is free to pick. Equals spacing.4.
+        //
+        // Its counterpart — breadcrumb to page content — is deliberately NOT a token: that is
+        // just the page stack's own gap (spacing.6), the same rhythm separating every other
+        // block on the page, so naming it would imply a rule that does not exist.
+        breadcrumbTop: { value: '1rem' },
+      },
       colors: {
         // Custom Slant Take palettes (pass 1 of design system migration).
         // Values anchored to real mockup hexes where available; ramp steps
@@ -142,6 +180,26 @@ const system = createSystem(defaultConfig, {
           // reference design.
           ratingCard: { value: { base: '{colors.sand.600}' } },
           ratingCardFill: { value: { base: '{colors.sand.900}' } },
+          // The Criteria Calibration tab panel's fill (2026-09-12, Dan's spec: ink.900).
+          // Deliberately its own token rather than reusing ratingCardFill (sand.900, #1a1a1a):
+          // that one is Album Evaluation's card fill and must not move with this. The tabs slot
+          // recipe references this same token for the active tab's fill and for the bottom edge
+          // it paints over the panel's border — the join only reads as a join while the two
+          // values are identical, so they must stay one token, not two equal literals.
+          tabPanel: { value: { base: '{colors.ink.900}' } },
+          // Both Criteria Calibration card types — the comparison OptionCards and the Guide
+          // carousel's cards (2026-09-12). sand.900 (#1a1a1a) against the ink.900 (#131313)
+          // panel, so a card reads as sitting ON the panel rather than being flush with it:
+          // before this they were `surface.card`, which IS ink.900, so only their border
+          // distinguished them. Same value as Album Evaluation's `ratingCardFill`, but its own
+          // token — that one is a different page's card and the two must be able to move
+          // independently.
+          //
+          // Note the lift is gentler here than on Album Evaluation, where the same fill sits on
+          // the ink.950 page: 7 steps of separation rather than 11, because this panel is
+          // lighter than a page. Deliberate — reusing an existing value beat introducing a
+          // fourth near-black to equalise the perceived step.
+          calibrationCard: { value: { base: '{colors.sand.900}' } },
           // Fifth pass (same day) correction: `criterionRow` is the resting fill for non-active
           // criteria rows and the criteria-list container — repointed from ink.800 to sand.950,
           // one step darker than the reintroduced `criterionActive` (ink.800) below, so the
@@ -196,15 +254,15 @@ const system = createSystem(defaultConfig, {
         // Use the exported badge config objects below rather than referencing these directly.
         badge: {
           source: {
-            bg:   { value: { base: '{colors.gray.800}' } },
+            bg: { value: { base: '{colors.gray.800}' } },
             text: { value: { base: '{colors.purple.100}' } },
           },
           score: {
-            bg:   { value: { base: '{colors.purple.300}' } },
+            bg: { value: { base: '{colors.purple.300}' } },
             text: { value: { base: '{colors.purple.950}' } },
           },
           genre: {
-            bg:   { value: { base: '{colors.whiteAlpha.100}' } },
+            bg: { value: { base: '{colors.whiteAlpha.100}' } },
             text: { value: { base: '{colors.purple.200}' } },
           },
         },
@@ -256,6 +314,83 @@ const system = createSystem(defaultConfig, {
       dialog: {
         base: {
           content: { bg: 'surface.card', color: 'text.primary' },
+        },
+      },
+      // Progress bar colours (2026-09-12). Like tabs, Progress is a slot recipe (track/range)
+      // and had no theme layer at all, so it rendered Chakra's defaults: a `bg.muted` track that
+      // was nearly invisible on this page's dark panel, with a `colorPalette.solid` (white)
+      // range. Overrides the DEFAULT `outline` variant, since that is what the unstyled
+      // <ProgressRoot> resolves to — putting these in `base` would be silently overridden by it.
+      progress: {
+        variants: {
+          variant: {
+            outline: {
+              track: { bgColor: 'ink.700' },
+              // Chakra's own progress recipe tweens the range's width over 300ms, with no
+              // reduced-motion guard of its own. A growing bar is precisely the "motion that
+              // conveys a change" a user asking for reduced motion wants suppressed, and the
+              // number beside it still carries the information, so the tween is dropped rather
+              // than shortened. `_motionReduce` is Chakra's own condition for
+              // `@media (prefers-reduced-motion: reduce)` — the same signal the page's
+              // useReducedMotion hook reads, applied here in CSS so it holds for every progress
+              // bar rather than only the one whose component thought to ask.
+              range: { bgColor: 'ink.300', _motionReduce: { transition: 'none' } },
+            },
+          },
+        },
+      },
+      // Tabs are styled through Chakra's `tabs` SLOT recipe (slots: root/list/trigger/content/
+      // indicator; variants: line/subtle/enclosed/outline/plain), not through props on each
+      // Tabs.Trigger. This overrides the built-in `outline` variant — the "folder tab" one from
+      // the Chakra docs demo, where the selected trigger drops its bottom border and overlaps the
+      // list's baseline so it reads as joined to the content below — to the app's square, 2px,
+      // ink-rule look. Added 2026-09-11 for CalibrationPageHeader, currently the only Tabs usage.
+      //
+      // Why override `outline` rather than add a new variant name: this repo does not run
+      // Chakra's typegen (`@chakra-ui/cli`), so a new name would not exist in the Tabs prop types.
+      //
+      // Why not the default `line` variant with per-trigger overrides (the first attempt): `line`
+      // draws its selected-state bar as a ::before pseudo-element ON THE TRIGGER (layerStyle
+      // "indicator.bottom"), independently of the separate Tabs.Indicator part. Deleting
+      // <Tabs.Indicator /> and hiding the list's baseline left that bar behind as a 2px white line
+      // under the active tab — fighting the recipe instead of choosing the variant built for this.
+      //
+      // One deliberate departure from stock `outline`: the list's own baseline (a ::before rule)
+      // is hidden, because the tabbed panel below already has a 2px top border and the two would
+      // double up. The selected trigger still overlaps by --line-offset (-2px) as `outline`
+      // intends, and paints its bottom edge in the panel's fill instead of `transparent`, so it
+      // covers exactly the stretch of the panel's border beneath it — the join in the Figma.
+      // Consequence: an `outline` Tabs must sit directly on a panel with that border.
+      tabs: {
+        variants: {
+          variant: {
+            outline: {
+              root: { '--tabs-trigger-radius': '0px' },
+              list: {
+                '--line-thickness': '2px',
+                _horizontal: { _before: { display: 'none' } },
+                // The base `list` slot sets minH: var(--tabs-height), which equals the trigger's
+                // own height. That min-height absorbed the trigger's -2px bottom margin INSIDE
+                // the list, so the trigger ended exactly at the panel's top edge instead of 2px
+                // over it — the panel's border still showed under the active tab (measured live:
+                // 0px overlap). Stock `outline` never hits this because its baseline is drawn
+                // inside the list's own bottom edge; here the baseline is the panel, outside it.
+                minH: 'auto',
+              },
+              trigger: {
+                color: 'text.dim',
+                borderWidth: 'var(--line-thickness)',
+                _hover: { color: 'text.primary' },
+                _selected: { bg: 'surface.tabPanel', color: 'text.primary' },
+                _horizontal: {
+                  _selected: {
+                    borderColor: 'border.ruleStrong',
+                    borderBottomColor: 'surface.tabPanel',
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },

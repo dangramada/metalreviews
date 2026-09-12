@@ -13,8 +13,21 @@ import {
   VStack,
   Badge,
   Separator,
+  Tabs,
 } from '@chakra-ui/react';
-import { BUTTON_VARIANTS, primaryButton, secondaryButton, sourceBadge, scoreSlabBase, scoreSlabHigh, genreBadge, rankOverlayBadge, cardTitleBand, cardTitleAlbum } from './theme';
+import { ProgressBar, ProgressRoot, ProgressValueText } from './components/ui/progress';
+import {
+  BUTTON_VARIANTS,
+  primaryButton,
+  secondaryButton,
+  sourceBadge,
+  scoreSlabBase,
+  scoreSlabHigh,
+  genreBadge,
+  rankOverlayBadge,
+  cardTitleBand,
+  cardTitleAlbum,
+} from './theme';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -87,23 +100,81 @@ const COLOR_GROUPS = [
     swatches: [
       { token: 'surface.page', description: 'Page background (ink.950)', bg: 'surface.page' },
       { token: 'surface.card', description: 'Card background (ink.900)', bg: 'surface.card' },
-      { token: 'surface.cardHover', description: 'Card hover background (#181818)', bg: 'surface.cardHover' },
+      {
+        token: 'surface.cardHover',
+        description: 'Card hover background (#181818)',
+        bg: 'surface.cardHover',
+      },
       { token: 'surface.raised', description: 'Raised element (ink.700)', bg: 'surface.raised' },
       { token: 'surface.darkest', description: 'Deepest surface (ink.950)', bg: 'surface.darkest' },
-      { token: 'surface.ratingCard', description: 'AlbumRatingPage card border (sand.600)', bg: 'surface.ratingCard' },
-      { token: 'surface.ratingCardFill', description: 'AlbumRatingPage card background (sand.900)', bg: 'surface.ratingCardFill' },
-      { token: 'surface.criterionRow', description: 'Criteria row resting fill (sand.950)', bg: 'surface.criterionRow' },
-      { token: 'surface.criterionHover', description: 'Criteria row hover fill (ink.900)', bg: 'surface.criterionHover' },
-      { token: 'surface.criterionActive', description: 'Criteria row + level picker active fill (sand.900)', bg: 'surface.criterionActive' },
+      {
+        token: 'surface.ratingCard',
+        description: 'AlbumRatingPage card border (sand.600)',
+        bg: 'surface.ratingCard',
+      },
+      {
+        token: 'surface.ratingCardFill',
+        description: 'AlbumRatingPage card background (sand.900)',
+        bg: 'surface.ratingCardFill',
+      },
+      {
+        token: 'surface.criterionRow',
+        description: 'Criteria row resting fill (sand.950)',
+        bg: 'surface.criterionRow',
+      },
+      {
+        token: 'surface.criterionHover',
+        description: 'Criteria row hover fill (ink.900)',
+        bg: 'surface.criterionHover',
+      },
+      {
+        token: 'surface.criterionActive',
+        description: 'Criteria row + level picker active fill (sand.900)',
+        bg: 'surface.criterionActive',
+      },
+      {
+        token: 'surface.tabPanel',
+        description:
+          'Criteria Calibration tab panel fill (ink.900) — shared with the tabs slot recipe',
+        bg: 'surface.tabPanel',
+      },
+      {
+        token: 'surface.calibrationCard',
+        description:
+          'Calibration comparison + Guide cards (sand.900) — one step lighter than the panel',
+        bg: 'surface.calibrationCard',
+      },
+    ],
+  },
+  {
+    // The app's one light-on-dark inversion, so it is the one group whose swatch needs dark
+    // label text to be legible against itself.
+    label: 'Slab (score slab, App.tsx)',
+    swatches: [
+      { token: 'slab.bg', description: 'Score slab background (#f2f2f0)', bg: 'slab.bg' },
+      { token: 'slab.text', description: 'Score slab text (ink.950)', bg: 'slab.text' },
     ],
   },
   {
     label: 'Border',
     swatches: [
-      { token: 'border.default', description: 'Pre-redesign default border (gray.600) — still used by untouched decorative containers (dialogs, menus)', bg: 'border.default' },
-      { token: 'border.hover', description: 'Pre-redesign hover border (gray.400)', bg: 'border.hover' },
+      {
+        token: 'border.default',
+        description:
+          'Pre-redesign default border (gray.600) — still used by untouched decorative containers (dialogs, menus)',
+        bg: 'border.default',
+      },
+      {
+        token: 'border.hover',
+        description: 'Pre-redesign hover border (gray.400)',
+        bg: 'border.hover',
+      },
       { token: 'border.rule', description: 'Flush-corner badge rule (ink.800)', bg: 'border.rule' },
-      { token: 'border.ruleStrong', description: 'Structural 2px rule — cards, form elements, header/footer dividers (ink.700)', bg: 'border.ruleStrong' },
+      {
+        token: 'border.ruleStrong',
+        description: 'Structural 2px rule — cards, form elements, header/footer dividers (ink.700)',
+        bg: 'border.ruleStrong',
+      },
     ],
   },
   {
@@ -119,9 +190,17 @@ const COLOR_GROUPS = [
     swatches: [
       { token: 'accent.start', description: 'Gradient start (ember.300)', bg: 'accent.start' },
       { token: 'accent.end', description: 'Gradient end (ember.600)', bg: 'accent.end' },
-      { token: 'accent.border', description: 'Accent border / high-score fill (ember.500)', bg: 'accent.border' },
+      {
+        token: 'accent.border',
+        description: 'Accent border / high-score fill (ember.500)',
+        bg: 'accent.border',
+      },
       { token: 'accent.text', description: 'Accent text (ember.300)', bg: 'accent.text' },
-      { token: 'accent.ink', description: 'Dark text for accent-filled backgrounds (#140a03)', bg: 'accent.ink' },
+      {
+        token: 'accent.ink',
+        description: 'Dark text for accent-filled backgrounds (#140a03)',
+        bg: 'accent.ink',
+      },
     ],
   },
 ] as const;
@@ -151,7 +230,6 @@ export function StyleGuide() {
     <Box bg="surface.page" minH="100vh" py={12}>
       <Container maxW="5xl">
         <VStack gap={14} align="stretch">
-
           {/* Page title */}
           <Box>
             <Heading as="h1" size="3xl" color="text.primary" mb={2}>
@@ -195,19 +273,22 @@ export function StyleGuide() {
               <Box>
                 <Label>Body (md) — text.primary</Label>
                 <Text color="text.primary">
-                  Reviews pulled from Angry Metal Guy, Metal Storm, and Progressive Subway — normalized to 0–100 and stored in Supabase.
+                  Reviews pulled from Angry Metal Guy, Metal Storm, and Progressive Subway —
+                  normalized to 0–100 and stored in Supabase.
                 </Text>
               </Box>
               <Box>
                 <Label>Body (md) — text.muted</Label>
                 <Text color="text.muted">
-                  Reviews pulled from Angry Metal Guy, Metal Storm, and Progressive Subway — normalized to 0–100 and stored in Supabase.
+                  Reviews pulled from Angry Metal Guy, Metal Storm, and Progressive Subway —
+                  normalized to 0–100 and stored in Supabase.
                 </Text>
               </Box>
               <Box>
                 <Label>Body (md) — text.dim</Label>
                 <Text color="text.dim">
-                  Reviews pulled from Angry Metal Guy, Metal Storm, and Progressive Subway — normalized to 0–100 and stored in Supabase.
+                  Reviews pulled from Angry Metal Guy, Metal Storm, and Progressive Subway —
+                  normalized to 0–100 and stored in Supabase.
                 </Text>
               </Box>
               <Box>
@@ -232,6 +313,27 @@ export function StyleGuide() {
                   Blackwater Park
                 </Text>
               </Box>
+
+              {/* textStyles (theme.ts), added by the Criteria Calibration redesign. Unlike
+                  cardTitleBand/cardTitleAlbum above — which are exported style OBJECTS spread
+                  onto a component — these are real Chakra text styles applied with the
+                  `textStyle` prop. Both exist because the same typography had to be identical
+                  across components that share no parent. */}
+              <Box>
+                <Label>textStyle=&quot;cardTitle&quot; — Inter 18px / 500 / 1.4</Label>
+                <Text textStyle="cardTitle" color="text.primary">
+                  Which of these two alternatives do you prefer?
+                </Text>
+              </Box>
+              <Box>
+                <Label>
+                  textStyle=&quot;statusReadout&quot; — Inter 14px / 700 / 1.4 (glanced at, not
+                  read: sits below content type on purpose)
+                </Label>
+                <Text textStyle="statusReadout" color="text.primary">
+                  Round 12&nbsp;&nbsp;&nbsp;47%
+                </Text>
+              </Box>
             </VStack>
           </Section>
 
@@ -243,7 +345,10 @@ export function StyleGuide() {
           <Section title="Album Meta Block">
             <VStack gap={8} align="stretch">
               <Box>
-                <Label>Default (review card, rating page, favorites mobile) — titleLayout=stacked, no overrides</Label>
+                <Label>
+                  Default (review card, rating page, favorites mobile) — titleLayout=stacked, no
+                  overrides
+                </Label>
                 <Box bg="surface.card" maxW="sm">
                   <AlbumMetaBlock
                     band="Opeth"
@@ -286,8 +391,18 @@ export function StyleGuide() {
                 <HStack gap={3} flexWrap="wrap">
                   {(['xs', 'sm', 'md', 'lg', 'xl'] as const).map((size) => (
                     <Box key={size}>
-                      <Text fontSize="2xs" color="text.muted" mb={1} textAlign="center" fontFamily="mono">{size}</Text>
-                      <Button {...primaryButton} size={size} variant="solid">Label</Button>
+                      <Text
+                        fontSize="2xs"
+                        color="text.muted"
+                        mb={1}
+                        textAlign="center"
+                        fontFamily="mono"
+                      >
+                        {size}
+                      </Text>
+                      <Button {...primaryButton} size={size} variant="solid">
+                        Label
+                      </Button>
                     </Box>
                   ))}
                 </HStack>
@@ -298,8 +413,12 @@ export function StyleGuide() {
                 <Box key={variant}>
                   <Label>variant={variant}</Label>
                   <HStack gap={3} flexWrap="wrap">
-                    <Button {...primaryButton} variant={variant} size="md">Default</Button>
-                    <Button {...primaryButton} variant={variant} size="md" disabled>Disabled</Button>
+                    <Button {...primaryButton} variant={variant} size="md">
+                      Default
+                    </Button>
+                    <Button {...primaryButton} variant={variant} size="md" disabled>
+                      Disabled
+                    </Button>
                   </HStack>
                 </Box>
               ))}
@@ -317,8 +436,18 @@ export function StyleGuide() {
                 <HStack gap={3} flexWrap="wrap">
                   {(['xs', 'sm', 'md', 'lg', 'xl'] as const).map((size) => (
                     <Box key={size}>
-                      <Text fontSize="2xs" color="text.muted" mb={1} textAlign="center" fontFamily="mono">{size}</Text>
-                      <Button {...secondaryButton} size={size} variant="solid">Label</Button>
+                      <Text
+                        fontSize="2xs"
+                        color="text.muted"
+                        mb={1}
+                        textAlign="center"
+                        fontFamily="mono"
+                      >
+                        {size}
+                      </Text>
+                      <Button {...secondaryButton} size={size} variant="solid">
+                        Label
+                      </Button>
                     </Box>
                   ))}
                 </HStack>
@@ -329,8 +458,12 @@ export function StyleGuide() {
                 <Box key={variant}>
                   <Label>variant={variant}</Label>
                   <HStack gap={3} flexWrap="wrap">
-                    <Button {...secondaryButton} variant={variant} size="md">Default</Button>
-                    <Button {...secondaryButton} variant={variant} size="md" disabled>Disabled</Button>
+                    <Button {...secondaryButton} variant={variant} size="md">
+                      Default
+                    </Button>
+                    <Button {...secondaryButton} variant={variant} size="md" disabled>
+                      Disabled
+                    </Button>
                   </HStack>
                 </Box>
               ))}
@@ -373,7 +506,13 @@ export function StyleGuide() {
                       >
                         {score}
                       </Text>
-                      <Text as="span" fontFamily="mono" fontSize="10px" fontWeight="700" opacity={0.6}>
+                      <Text
+                        as="span"
+                        fontFamily="mono"
+                        fontSize="10px"
+                        fontWeight="700"
+                        opacity={0.6}
+                      >
                         /10
                       </Text>
                     </Box>
@@ -390,7 +529,9 @@ export function StyleGuide() {
                 </HStack>
               </Box>
               <Box>
-                <Label>rankOverlayBadge — favorites row desktop, flush bottom-left of artwork</Label>
+                <Label>
+                  rankOverlayBadge — favorites row desktop, flush bottom-left of artwork
+                </Label>
                 <HStack gap={2}>
                   <Badge {...rankOverlayBadge}>#1</Badge>
                   <Badge {...rankOverlayBadge}>#2</Badge>
@@ -409,9 +550,15 @@ export function StyleGuide() {
                 <Box key={variant}>
                   <Label>{variant}</Label>
                   <HStack gap={2}>
-                    <Badge colorPalette="gray" variant={variant}>Gray</Badge>
-                    <Badge colorPalette="green" variant={variant}>Green</Badge>
-                    <Badge colorPalette="red" variant={variant}>Red</Badge>
+                    <Badge colorPalette="gray" variant={variant}>
+                      Gray
+                    </Badge>
+                    <Badge colorPalette="green" variant={variant}>
+                      Green
+                    </Badge>
+                    <Badge colorPalette="red" variant={variant}>
+                      Red
+                    </Badge>
                   </HStack>
                 </Box>
               ))}
@@ -479,13 +626,77 @@ export function StyleGuide() {
               <Box>
                 <Label>Button scale — 16×16px, inherits the button's own label color</Label>
                 <HStack gap={3} flexWrap="wrap">
-                  <Button {...primaryButton} loading spinner={<LoadingIndicatorBars />} aria-label="Loading">
+                  <Button
+                    {...primaryButton}
+                    loading
+                    spinner={<LoadingIndicatorBars />}
+                    aria-label="Loading"
+                  >
                     Log in
                   </Button>
-                  <Button {...secondaryButton} variant="outline" loading spinner={<LoadingIndicatorBars />} aria-label="Loading">
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    loading
+                    spinner={<LoadingIndicatorBars />}
+                    aria-label="Loading"
+                  >
                     Cancel
                   </Button>
                 </HStack>
+              </Box>
+            </VStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              TABS + PROGRESS — the two slot-recipe overrides added by the Criteria
+              Calibration page redesign (2026-09-11/12). Both are restyles of a BUILT-IN
+              Chakra variant rather than new named variants: there is no @chakra-ui/cli
+              typegen step in this repo, so a new variant name cannot type-check.
+          ---------------------------------------------------------------- */}
+          <Section title="Tabs — folder tab (slotRecipes.tabs, variant=outline)">
+            <VStack gap={2} align="stretch">
+              <Label>
+                The active tab JOINS the panel: it is filled with surface.tabPanel and paints over
+                the panel&apos;s own top border, so the two read as one object. This only works with
+                zero gap and nothing rendered between the tab list and the panel.
+              </Label>
+              {/* gap={0} is load-bearing, not tidy-looking: the tab list and the panel are one
+                  visual object, and any gap between them exposes the panel's top border under
+                  the active tab. This mirrors CriteriaCalibrationPage's own VStack. */}
+              <VStack gap={0} align="stretch">
+                <Tabs.Root variant="outline" size="lg" defaultValue="guide">
+                  <Tabs.List>
+                    <Tabs.Trigger value="guide">Guide</Tabs.Trigger>
+                    <Tabs.Trigger value="calibration">Calibration</Tabs.Trigger>
+                    <Tabs.Trigger value="results">Results</Tabs.Trigger>
+                  </Tabs.List>
+                </Tabs.Root>
+                <Box
+                  bg="surface.tabPanel"
+                  border="2px solid"
+                  borderColor="border.ruleStrong"
+                  borderRadius="none"
+                  p={6}
+                >
+                  <Text color="text.dim">Panel content sits inside the 2px frame.</Text>
+                </Box>
+              </VStack>
+            </VStack>
+          </Section>
+
+          <Section title="Progress bar (slotRecipes.progress)">
+            <VStack gap={6} align="stretch">
+              <Box>
+                <Label>size=lg (12px) — range ink.300 on track ink.700</Label>
+                <ProgressRoot value={47} size="lg">
+                  <HStack gap={4}>
+                    <ProgressBar flex="1" />
+                    <ProgressValueText color="text.primary" textStyle="statusReadout">
+                      47%
+                    </ProgressValueText>
+                  </HStack>
+                </ProgressRoot>
               </Box>
             </VStack>
           </Section>
@@ -505,12 +716,13 @@ export function StyleGuide() {
           ---------------------------------------------------------------- */}
           <Section title="Page Breadcrumb">
             <Box>
-              <Label>Favorites → Album Evaluation — matches AlbumRatingPage's live trail</Label>
+              <Label>
+                Favorites → Album Evaluation — matches AlbumRatingPage&apos;s live trail. In the app
+                a breadcrumb is passed to &lt;Header breadcrumb=... /&gt;, which owns the 16px above
+                it (spacing.breadcrumbTop) for every page that has one.
+              </Label>
               <PageBreadcrumb
-                items={[
-                  { label: 'Favorites', to: '/favorites' },
-                  { label: 'Album Evaluation' },
-                ]}
+                items={[{ label: 'Favorites', to: '/favorites' }, { label: 'Album Evaluation' }]}
               />
             </Box>
           </Section>
@@ -523,7 +735,6 @@ export function StyleGuide() {
               <Footer lastUpdated={new Date().toISOString()} />
             </Box>
           </Section>
-
         </VStack>
       </Container>
     </Box>

@@ -1,11 +1,18 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
-import { ProgressHeader } from './components/criteria-calibration/ProgressHeader';
+import {
+  CalibrationBreadcrumb,
+  CalibrationPageHeader,
+} from './components/criteria-calibration/CalibrationPageHeader';
+import { WorkStatusRow } from './components/criteria-calibration/WorkStatusRow';
+import { ActionRail } from './components/criteria-calibration/ActionRail';
+import { PauseDialog } from './components/criteria-calibration/PauseDialog';
+import { GuideTab } from './components/criteria-calibration/GuideTab';
+import { ResultsTab } from './components/criteria-calibration/ResultsTab';
 import { QuestionPrompt } from './components/criteria-calibration/QuestionPrompt';
 import { ComparisonRow } from './components/criteria-calibration/ComparisonRow';
 import { EqualButton } from './components/criteria-calibration/EqualButton';
-import { HistoryActions } from './components/criteria-calibration/HistoryActions';
 import {
   CalibrationCheckpoint,
   type CheckpointVariant,
@@ -30,6 +37,7 @@ import { profileToCriterionData } from './lib/criteria-calibration/criteriaCatal
 import {
   insertAnswer,
   deleteAnswer,
+  deleteAllAnswers,
   upsertCalibrationStatus,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
@@ -90,6 +98,17 @@ const SELECTION_HOLD_MS = 500;
 const FADE_MS = 180;
 
 type Phase = 'idle' | 'holding' | 'fading-out' | 'fading-in';
+
+// The three tabs of the criteria-calibration-page-redesign IA. Lives in the URL (?step=), not
+// local state alone, so a refresh or shared link preserves which tab is showing — see
+// CalibrationPageHeader's Tabs.Root, which is the only writer of this param besides the
+// in-page CTAs (Guide's "Start Calibration", a checkpoint's non-terminal "Pause here", the
+// Pause dialog's "Pause and view results").
+export type CalibrationStep = 'guide' | 'calibration' | 'results';
+
+function isCalibrationStep(value: string | null): value is CalibrationStep {
+  return value === 'guide' || value === 'calibration' || value === 'results';
+}
 
 interface AnswerEntry {
   // Stable, client-generated id assigned at creation time (before any DB round-trip) — used
@@ -164,6 +183,8 @@ const SOLVER_UNDO_FAILURE_MESSAGE =
 const SOLVER_RECOVERY_MESSAGE =
   'We hit a calculation issue with your saved session and had to remove your most recent answer to recover it.';
 
+const SOLVER_RESTART_FAILURE_MESSAGE = "Couldn't restart — try again in a moment.";
+
 // Trim attempts before giving up on auto-recovery. A handful of trailing answers is a
 // plausible bad tail; a log that still fails after this many is not something to keep
 // silently eating answers over — better to stop and say so.
@@ -171,15 +192,28 @@ const RECOVERY_TRIM_LIMIT = 5;
 
 // Same outer chrome (Box/Container/VStack + Header/Footer) as App.tsx and FavoritesPage.tsx, so
 // every return path below (loading, error, resume-loading, main) gets the home page's margins
-// and nav — not just the happy path. The inner maxW="4xl" Container is the calibration flow's
-// own content width, nested inside the wider container.xl page container, unchanged from before
-// this pass.
-function PageChrome({ children }: { children: React.ReactNode }) {
+// and nav — not just the happy path.
+//
+// There is deliberately NO inner width constraint any more (2026-09-08). Every return path used
+// to nest a `Container maxW="4xl"` (896px) inside this container.xl one, which made calibration
+// visibly narrower than every other page in the app — the header spanned the full width while
+// the content sat in a squeezed centre column. AlbumRatingPage.tsx, the layout this page is
+// meant to match, uses container.xl alone and lets its content be as wide as the app. Individual
+// blocks that genuinely need a reading measure (the Guide intro paragraph, checkpoint copy) cap
+// their own width locally instead.
+function PageChrome({
+  breadcrumb,
+  children,
+}: {
+  /** Handed to the global Header, which owns the header-rule-to-breadcrumb spacing. */
+  breadcrumb?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack gap={6} align="stretch">
-          <Header />
+          <Header breadcrumb={breadcrumb} />
           {children}
           <Footer />
         </VStack>
@@ -195,13 +229,18 @@ export function CriteriaCalibrationPage() {
   const resume = useCalibrationResume(user?.id);
   const { showError } = useFeedbackToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const exitDestination = resolveExitDestination(searchParams.get('from'));
 
   const [answers, setAnswers] = useState<AnswerEntry[]>([]);
   const [redoBuffer, setRedoBuffer] = useState<AnswerEntry[]>([]);
   const [degree, setDegree] = useState(STARTING_DEGREE);
-  const [stopped, setStopped] = useState(false);
+  // Replaces the old `stopped` boolean + inline "Calibration paused" text swap — pausing is
+  // now the real PauseDialog (criteria-calibration-page-redesign §7), and confirming it
+  // navigates to the Results tab rather than halting interaction in place. Like `stopped`
+  // before it, deliberately not persisted: nothing about "paused" survives a reload, the
+  // answer log is the only durable state.
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
 
@@ -390,8 +429,32 @@ export function CriteriaCalibrationPage() {
     // screen, which is the one behaviour the old seed had to carve an exception for.
   }, [catalog, seeded, answers]);
 
-  const interactionDisabled = phase !== 'idle' || stopped;
+  const interactionDisabled = phase !== 'idle';
   const round = answers.length + 1;
+
+  // No explicit ?step= yet (first visit, or a link that didn't set one): resume mid-flow for a
+  // session with answers already logged (matches the pre-redesign behavior most closely for
+  // existing users), otherwise start on the Guide tab. Once seeded is true this reads the real
+  // resumed answer count, not the empty initial array every session starts render with.
+  const stepParam = searchParams.get('step');
+  const activeStep: CalibrationStep = isCalibrationStep(stepParam)
+    ? stepParam
+    : answers.length > 0
+      ? 'calibration'
+      : 'guide';
+
+  // `replace`, not push — switching tabs shouldn't pile up browser-history entries the way
+  // navigating between pages does.
+  function setStep(step: CalibrationStep) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('step', step);
+        return next;
+      },
+      { replace: true }
+    );
+  }
 
   // Brief 3: shown once, on the FIRST comparison at a degree above 2 — derived straight from
   // `answers` (not a separate "has this been shown" flag), so an Undo back to a degree's
@@ -403,9 +466,7 @@ export function CriteriaCalibrationPage() {
   // Freeze checkpoint (criteria-calibration-freeze-checkpoint, Step 2): counts answers logged
   // AT degree 2 specifically, same filter as isFirstAnswerAtDegree above, so it stays correct
   // even in the unlikely case an Undo/Redo revisits degree 2 after escalating past it.
-  const answersAtCurrentDegree = answers.filter(
-    (a) => profileDegree(a.profileA) === degree
-  ).length;
+  const answersAtCurrentDegree = answers.filter((a) => profileDegree(a.profileA) === degree).length;
 
   // ---------------------------------------------------------------------------
   // Tier, progress and checkpoint derivation (2026-08-18). Everything here is computed during
@@ -885,27 +946,64 @@ export function CriteriaCalibrationPage() {
     setDegree(nextDegree);
   }
 
-  function handleExit() {
-    // No "stopped" state is persisted — resuming just picks up wherever the real answer log
-    // left off. Stopping only halts interaction locally.
-    setStopped(true);
+  // Shared by the checkpoint's non-terminal "Pause here" and the PauseDialog's "Pause and view
+  // results" — both are a temporary exit from an unfinished process, so both land on the
+  // Results tab rather than leaving the page (criteria-calibration-page-redesign §4/§7). No
+  // grade-conditional routing: the Results tab's own soft-gate (ResultsTab) handles "not
+  // enough data yet" on its own.
+  function goToResults() {
+    setStep('results');
   }
 
-  // "Evaluate albums" / "Stop here — evaluate albums" from any checkpoint. Leaves the page
-  // entirely, unlike handleExit's in-place pause: the user has finished deciding, and every
-  // answer is already persisted, so there is nothing to save on the way out.
-  function handleFinish() {
+  // "Pause here" from a non-terminal checkpoint.
+  function handleCheckpointPause() {
+    goToResults();
+  }
+
+  // "Done, evaluate albums" from the terminal (grade-6-exhausted) checkpoint. Leaves the page
+  // entirely, unlike the Pause paths above: the user has finished deciding, and every answer
+  // is already persisted, so there is nothing to save on the way out.
+  function handleTerminalFinish() {
     navigate(exitDestination);
+  }
+
+  // Full reset (ActionRail's Restart, criteria-calibration-page-redesign §3): clears the
+  // entire answer log, back to round 1 / degree 2 / solver reset from scratch. Distinct from
+  // Undo — that's why ActionRail gates this behind its own confirm dialog rather than making
+  // it a single click. Compute-first, like every other mutating handler here: an empty answer
+  // log can't realistically fail to solve, but this keeps the same "never mutate state before
+  // confirming the solve succeeds" discipline as commitAdvance/handleUndo/handleRedo.
+  function handleRestart() {
+    const computation = trySolve([], SOLVER_RESTART_FAILURE_MESSAGE);
+    if (!computation) return;
+
+    setAnswers([]);
+    setRedoBuffer([]);
+    setDegree(STARTING_DEGREE);
+    setAcknowledgedBoundaryDegree(null);
+    setSelectedSide(null);
+    applyCommitComputation(computation);
+
+    if (user) {
+      beginWrite();
+      deleteAllAnswers(user.id)
+        .then(notifyPersistRecovered)
+        .catch((e) => {
+          console.warn('Failed to clear persisted calibration answers during restart', e);
+          notifyPersistFailure();
+        })
+        .finally(endWrite);
+    }
   }
 
   if (loading) {
     return (
       <PageChrome>
-        <Container maxW="4xl" py={10}>
+        <Box>
           <Flex justify="center" align="center" minH="300px">
             <LoadingIndicator />
           </Flex>
-        </Container>
+        </Box>
       </PageChrome>
     );
   }
@@ -913,11 +1011,11 @@ export function CriteriaCalibrationPage() {
   if (error || !catalog) {
     return (
       <PageChrome>
-        <Container maxW="4xl" py={10}>
+        <Box>
           <Text textAlign="center" color="red.400">
             Failed to load calibration criteria. Please try again later.
           </Text>
-        </Container>
+        </Box>
       </PageChrome>
     );
   }
@@ -925,133 +1023,229 @@ export function CriteriaCalibrationPage() {
   if (resume.loading || !seeded) {
     return (
       <PageChrome>
-        <Container maxW="4xl" py={10}>
+        <Box>
           <Flex direction="column" gap={4} justify="center" align="center" minH="300px">
             <LoadingIndicator />
             <Text color="text.dim" fontFamily="body">
               Loading your progress...
             </Text>
           </Flex>
-        </Container>
+        </Box>
       </PageChrome>
     );
   }
 
+  const hasStarted = answers.length > 0;
+
   return (
-    <PageChrome>
-      <Container maxW="4xl" py={10}>
-        <VStack gap={10} align="stretch">
-          {/* Static sibling of the fading region below — never fades itself; only its own
-            numeric/text values update, instantly, via prop changes. Three independent numbers
-            now: the round, the per-degree progress ring, and the accuracy percentage next to a
-            label that names how many degrees are finished. Passing `progressPercent` for both
-            the ring and the accuracy figure was correct until 2026-08-18, when they stopped
-            being the same quantity. */}
-          <ProgressHeader
-            round={round}
-            progressPercent={progressPercent}
+    <PageChrome breadcrumb={<CalibrationBreadcrumb from={searchParams.get('from')} />}>
+      <Box>
+        {/* gap={0}: the header's active tab overlaps the panel's top border by exactly its
+            width and paints over it to read as the panel's top edge (CalibrationPageHeader.tsx,
+            change 2). Any gap, or any element rendered between the two, breaks that join. */}
+        <VStack gap={0} align="stretch">
+          <CalibrationPageHeader
+            activeStep={activeStep}
+            onStepChange={setStep}
+            tier={tier}
             accuracyPercent={accuracyPercent}
-            accuracyTier={tier}
-            onExit={handleExit}
+            hasStarted={hasStarted}
           />
+
+          {/* Every tab's content sits inside one framed panel — the same 2px flush border
+              AlbumRatingPage's Desktop/MobileRatingLayout cards use (`surface.ratingCardFill` +
+              `border.ruleStrong`, square corners), so calibration reads as part of the same app
+              rather than as loose text on the page background. Added 2026-09-08.
+
+              Unlike those layouts the frame carries its own padding: their sections are designed
+              to sit flush against the border and supply their own internal spacing, whereas the
+              tab bodies here are ordinary prose/controls that would otherwise touch the rule.
+
+              The frame wraps the tab CONTENT only; the breadcrumb and tab bar stay outside it.
+              Since the 2026-09-11 design review the active tab deliberately JOINS this panel as a
+              filled folder tab (see CalibrationPageHeader.tsx), which is why nothing may render
+              between the header and this box. */}
+          <Box
+            bg="surface.tabPanel"
+            border="2px solid"
+            borderColor="border.ruleStrong"
+            borderRadius="none"
+            p={{ base: 5, md: 8 }}
+            // A FLOOR, not a fixed height (2026-09-12). The three tabs differ enormously —
+            // Guide is six 500px-plus carousel cards, Results is one sentence and a button —
+            // and the frame used to collapse to a fraction of its height on every switch. A
+            // floor stops that collapse while still letting Guide be as tall as it needs to be;
+            // matching the TALLEST tab instead would have parked Results inside several hundred
+            // pixels of empty panel to fix a problem only Results has. It also covers the
+            // states WITHIN the Calibration tab (question view, checkpoint, the recovery
+            // spinner), which vary by nearly as much as the tabs do — being on the frame rather
+            // than on any one branch, it applies to all of them for free.
+            //
+            // Desktop only: the value is sized to the Calibration tab's own natural height at
+            // full width, which is not what any of this content measures on a narrow screen,
+            // and on mobile the tabs are reached one at a time rather than compared.
+            minH={{ base: 'auto', md: '640px' }}
+          >
+            {unrecoverable ? (
+              // Auto-recovery gave up (RECOVERY_TRIM_LIMIT trims, or nothing left to trim).
+              // Deliberately a dead end rather than trimming further: past this point we'd be
+              // deleting real answers on a guess about what's wrong. Shown regardless of
+              // activeStep — a broken answer log isn't a per-tab concern.
+              <VStack gap={4} aria-live="polite">
+                <Text textAlign="center" color="red.400" fontFamily="body">
+                  We couldn't recover this calibration session automatically. Your saved answers are
+                  still there — please get in touch rather than starting over.
+                </Text>
+              </VStack>
+            ) : solverFailed ? (
+              <Flex direction="column" gap={4} justify="center" align="center" minH="200px">
+                <LoadingIndicator />
+                <Text color="text.dim" fontFamily="body">
+                  Recovering your session…
+                </Text>
+              </Flex>
+            ) : activeStep === 'guide' ? (
+              <GuideTab catalog={catalog} onStart={() => setStep('calibration')} />
+            ) : activeStep === 'results' ? (
+              <ResultsTab
+                hasWeights={hasStarted}
+                onBackToCalibration={() => setStep('calibration')}
+              />
+            ) : checkpoint ? (
+              // Ahead of the 'ask' branch below, though the two can no longer both apply while a
+              // checkpoint is showing: every checkpoint EXCEPT 'frozen' exists only while the
+              // driver reports the current degree exhausted (no question to ask in that state);
+              // 'frozen' is the one exception, showing mid-degree while the driver is still
+              // reporting `ask` (see the checkpoint derivation above for why that's still
+              // mutually exclusive with a real boundary).
+              <CalibrationCheckpoint
+                variant={checkpoint}
+                tier={tier}
+                accuracyPercent={accuracyPercent}
+                onContinue={
+                  checkpoint === 'exhausted'
+                    ? undefined
+                    : checkpoint === 'frozen'
+                      ? handleFreezeContinue
+                      : handleCheckpointContinue
+                }
+                onPause={checkpoint === 'exhausted' ? undefined : handleCheckpointPause}
+                onFinish={checkpoint === 'exhausted' ? handleTerminalFinish : undefined}
+              />
+            ) : action?.type === 'ask' ? (
+              <>
+                {/* Static sibling of the fading region below — never fades itself; only its own
+                numeric/text values update, instantly, via prop changes. Rendered only here, not
+                during a checkpoint: commitAdvance() already updates progressPercent to the new
+                degree's baseline before a checkpoint renders, so showing that jumped number
+                there would have no visible cause. */}
+                <WorkStatusRow
+                  round={round}
+                  progressPercent={progressPercent}
+                  onPause={() => setPauseDialogOpen(true)}
+                />
+                {/* Two-column GRID, not a flex row (2026-09-12 design review). The rail has to
+                  line up with the top of the comparison cards, not with the question title
+                  above them, while the title stays optically centred over the cards rather
+                  than over the whole panel. A flex row can only do one of those: the rail
+                  aligns to whatever starts the column, so keeping the title in that column
+                  would need the rail pushed down by the title's exact rendered height — a
+                  hardcoded offset that silently goes wrong the moment the title's size or
+                  wrapping changes (which this very pass changes).
+
+                  The grid gets both for free: the title occupies row 1 of the CARD column
+                  only, so it centres on the cards; the rail and the cards share row 2, so
+                  they align by construction, at any title height. */}
+                <Box display="grid" gridTemplateColumns="auto 1fr" columnGap={6}>
+                  {/* my={8} is the design's 32px above and below the title. Margins on grid
+                    items don't collapse, so these two are exactly what they say. */}
+                  <Box gridColumn={2} gridRow={1} my={8}>
+                    <QuestionPrompt />
+                    {isFirstAnswerAtDegree && degreeClarificationText && (
+                      <Text
+                        mt={2}
+                        textAlign="center"
+                        color="text.dim"
+                        fontSize="sm"
+                        fontFamily="body"
+                      >
+                        {degreeClarificationText}
+                      </Text>
+                    )}
+                  </Box>
+
+                  <Box gridColumn={1} gridRow={2}>
+                    <ActionRail
+                      onUndo={handleUndo}
+                      onRedo={handleRedo}
+                      onRestart={handleRestart}
+                      undoDisabled={interactionDisabled || answers.length === 0}
+                      redoDisabled={interactionDisabled || redoBuffer.length === 0}
+                    />
+                  </Box>
+
+                  <Box gridColumn={2} gridRow={2}>
+                    <VStack gap={6} align="stretch">
+                      {/* aria-live scopes to the pair that actually changes per round. The
+                        title above is static, and announcing it every round would be noise. */}
+                      <Box aria-live="polite">
+                        <ComparisonRow
+                          leftCriteria={profileToCriterionData(action.profileA, catalog)}
+                          rightCriteria={profileToCriterionData(action.profileB, catalog)}
+                          selectedSide={selectedSide}
+                          interactionDisabled={interactionDisabled}
+                          onSelectLeft={() => handleChoice('left')}
+                          onSelectRight={() => handleChoice('right')}
+                          visible={phase !== 'fading-out'}
+                          reducedMotion={reducedMotion}
+                          fadeMs={FADE_MS}
+                        />
+                      </Box>
+
+                      <Box display="flex" justifyContent="center">
+                        <EqualButton
+                          onClick={() => handleChoice('equal')}
+                          disabled={interactionDisabled}
+                        />
+                      </Box>
+                    </VStack>
+                  </Box>
+                </Box>
+              </>
+            ) : (
+              // degree-exhausted with escalation still available and no checkpoint pending —
+              // the auto-progression useLayoutEffect above moves the degree on before paint, so
+              // this should be invisible in practice. Kept as a sane fallback for the first
+              // render / edge timing, and as the honest state if `degree` somehow can't advance.
+              <VStack gap={4} aria-live="polite">
+                <Text textAlign="center" color="text.dim" fontFamily="body">
+                  Moving on to more detailed comparisons…
+                </Text>
+              </VStack>
+            )}
+          </Box>
+
           {hasPendingWrites && (
             // Visible pending-save signal, paired with the beforeunload guard above — a
             // refresh while this is showing will trigger the browser's native "leave site?"
-            // confirmation rather than silently dropping the in-flight write.
-            <Text textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
+            // confirmation rather than silently dropping the in-flight write. Shown regardless
+            // of which tab is active — an in-flight write isn't specific to the Calibration tab.
+            //
+            // Below the panel since 2026-09-11. It used to sit between the header and the panel,
+            // where it would now break the active tab's join with the panel every time a write
+            // was in flight, i.e. on every answer.
+            <Text mt={4} textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
               Saving…
             </Text>
           )}
 
-          {stopped ? (
-            <Text textAlign="center" color="text.dim">
-              Calibration paused. Your progress is saved — come back any time to continue.
-            </Text>
-          ) : unrecoverable ? (
-            // Auto-recovery gave up (RECOVERY_TRIM_LIMIT trims, or nothing left to trim).
-            // Deliberately a dead end rather than trimming further: past this point we'd be
-            // deleting real answers on a guess about what's wrong.
-            <VStack gap={4} aria-live="polite">
-              <Text textAlign="center" color="red.400" fontFamily="body">
-                We couldn't recover this calibration session automatically. Your saved answers are
-                still there — please get in touch rather than starting over.
-              </Text>
-            </VStack>
-          ) : solverFailed ? (
-            <Flex direction="column" gap={4} justify="center" align="center" minH="200px">
-              <LoadingIndicator />
-              <Text color="text.dim" fontFamily="body">
-                Recovering your session…
-              </Text>
-            </Flex>
-          ) : checkpoint ? (
-            // Ahead of the 'ask' branch below, though the two can no longer both apply while a
-            // checkpoint is showing: every checkpoint EXCEPT 'frozen' exists only while the
-            // driver reports the current degree exhausted (no question to ask in that state);
-            // 'frozen' is the one exception, showing mid-degree while the driver is still
-            // reporting `ask` (see the checkpoint derivation above for why that's still
-            // mutually exclusive with a real boundary).
-            <CalibrationCheckpoint
-              variant={checkpoint}
-              tier={tier}
-              accuracyPercent={accuracyPercent}
-              onContinue={
-                checkpoint === 'exhausted'
-                  ? undefined
-                  : checkpoint === 'frozen'
-                    ? handleFreezeContinue
-                    : handleCheckpointContinue
-              }
-              onFinish={handleFinish}
-            />
-          ) : action?.type === 'ask' ? (
-            <>
-              <Box aria-live="polite">
-                <VStack gap={6} align="stretch">
-                  <QuestionPrompt />
-                  {isFirstAnswerAtDegree && degreeClarificationText && (
-                    <Text textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
-                      {degreeClarificationText}
-                    </Text>
-                  )}
-                  <ComparisonRow
-                    leftCriteria={profileToCriterionData(action.profileA, catalog)}
-                    rightCriteria={profileToCriterionData(action.profileB, catalog)}
-                    selectedSide={selectedSide}
-                    interactionDisabled={interactionDisabled}
-                    onSelectLeft={() => handleChoice('left')}
-                    onSelectRight={() => handleChoice('right')}
-                    visible={phase !== 'fading-out'}
-                    reducedMotion={reducedMotion}
-                    fadeMs={FADE_MS}
-                  />
-                </VStack>
-              </Box>
-
-              <Box display="flex" justifyContent="center">
-                <EqualButton onClick={() => handleChoice('equal')} disabled={interactionDisabled} />
-              </Box>
-            </>
-          ) : (
-            // degree-exhausted with escalation still available and no checkpoint pending —
-            // the auto-progression useLayoutEffect above moves the degree on before paint, so
-            // this should be invisible in practice. Kept as a sane fallback for the first
-            // render / edge timing, and as the honest state if `degree` somehow can't advance.
-            <VStack gap={4} aria-live="polite">
-              <Text textAlign="center" color="text.dim" fontFamily="body">
-                Moving on to more detailed comparisons…
-              </Text>
-            </VStack>
-          )}
-
-          <HistoryActions
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            undoDisabled={interactionDisabled || answers.length === 0}
-            redoDisabled={interactionDisabled || redoBuffer.length === 0}
+          <PauseDialog
+            open={pauseDialogOpen}
+            onOpenChange={setPauseDialogOpen}
+            onConfirmPause={goToResults}
           />
         </VStack>
-      </Container>
+      </Box>
     </PageChrome>
   );
 }
