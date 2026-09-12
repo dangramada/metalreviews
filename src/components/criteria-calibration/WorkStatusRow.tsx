@@ -1,5 +1,6 @@
 import { Button, Flex } from '@chakra-ui/react';
 import { ProgressBar, ProgressRoot, ProgressValueText } from '../ui/progress';
+import { Tooltip } from '../ui/tooltip';
 import { RoundCounter } from './RoundCounter';
 
 interface WorkStatusRowProps {
@@ -45,9 +46,18 @@ export function WorkStatusRow({ round, progressPercent, onPause }: WorkStatusRow
           </Flex>
         </ProgressRoot>
       </Flex>
-      <Button variant="outline" colorPalette="gray" size="sm" onClick={onPause}>
-        Pause
-      </Button>
+      {/* Pause is the one control here whose consequence isn't guessable from its name: it
+        does not discard anything, and there is no separate save step to miss. The tooltip says
+        that rather than restating the verb, which is the whole reason this button gets one. */}
+      <Tooltip
+        content="Stop here and keep your progress. Your answers are saved as you go, so you can pick up where you left off."
+        openDelay={200}
+        contentProps={{ maxW: '18rem' }}
+      >
+        <Button variant="outline" colorPalette="gray" size="sm" onClick={onPause}>
+          Pause
+        </Button>
+      </Tooltip>
     </Flex>
   );
 }

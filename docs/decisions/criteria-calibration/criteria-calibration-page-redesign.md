@@ -415,6 +415,109 @@ Verified at 1440px: rule 2px `rgb(58,58,58)` with 2px overhang each side (flush 
 the padding); "1 - Uninspired"; intro reading "each of the 6 criteria"; controls on the intro row.
 Card height 509 -> 559.
 
+## Tooltips and a panel height floor, 2026-09-12
+
+Four controls on the Calibration tab explained themselves only by icon or by a single verb, and
+the tab frame collapsed to a fraction of its height on every tab switch. Both addressed in one
+pass.
+
+### Tooltips on the action rail and Pause
+
+`ActionRail`'s three icon buttons and `WorkStatusRow`'s Pause now carry tooltips, via the
+existing `components/ui/tooltip.tsx` wrapper already used by Favorites and the checkpoint screen.
+`aria-label` stays each button's accessible NAME; the tooltip contributes `aria-describedby`, so
+the two are additive rather than one overwriting the other. Chakra's tooltip opens on focus as
+well as hover, so keyboard users get the same explanation without extra work.
+
+Two decisions worth recording:
+
+- **The tooltip wraps a span, not the button.** A disabled button receives no pointer events, so
+  a tooltip bound directly to it goes silent exactly when it is most needed: Undo and Redo are
+  disabled for most of a session, and a greyed icon with no explanation is the case that actually
+  requires words. Wrapping in a span keeps the hover. React's `onFocus` maps to `focusin`, which
+  bubbles, so an enabled button focused by keyboard still opens the tooltip through the same
+  wrapper — one code path covers both states.
+- **The copy is state-aware**, not fixed: `Nothing to undo yet` / `Nothing to redo` when disabled,
+  `Undo your last answer` / `Redo the answer you undid` when live. A fixed string explains the
+  icon but not the state the user is looking at. Restart stays short (`Start over from round 1`)
+  because its confirm dialog already carries the real warning; repeating it on hover would make
+  the tooltip the warning and the dialog a formality. Placement is `right` on the rail, since it
+  is a vertical column and a tooltip above or below would cover the neighbouring button.
+
+Pause gets the longest copy of the four because it is the one control whose consequence is not
+guessable from its name: _"Stop here and keep your progress. Your answers are saved as you go, so
+you can pick up where you left off."_ It discards nothing and there is no separate save step to
+miss, which is precisely what a user cannot tell from the word "Pause".
+
+### The tier badge explains itself
+
+`TierAccuracyBadge` is now its own tooltip trigger. No ⓘ affordance: the glyph the checkpoint
+screens carried is **removed**, so both surfaces (the tab row and every checkpoint) get the
+explanation from one component and the copy cannot drift between them. `tabIndex={0}` is what
+makes that reachable without a mouse — the wrapper is a `role="img"` span, so without it there is
+nothing for a keyboard to focus and the explanation would exist for pointer users only.
+`cursor: help` is the only remaining visual hint that hovering does anything, the accepted cost
+of dropping the glyph.
+
+The copy moved from `checkpointCopy.ts`'s `CHECKPOINT_TIER_TOOLTIP` to
+`accuracyTierLabels.ts`'s **`TIER_BADGE_TOOLTIP`** — it stopped being checkpoint copy the moment
+the badge became the trigger, and `accuracyTierLabels.ts` is the module that already owns what
+the badge means, including the copy constraint that governs this string.
+
+New text: _"Each name is a deeper level of comparison finished; the percentage is how settled
+your weighting is within that level."_
+
+Three things that wording is doing, none of them incidental:
+
+1. **It says the two halves are different kinds of measurement.** The names count levels
+   finished; the number moves continuously within one level. They share a border and otherwise
+   look like one reading split in two.
+2. **"How settled" is the strongest claim the evidence supports.** `computeScoreSpreadAccuracy`
+   measures how far the answers have narrowed the range of weightings still consistent with them
+   — determinacy, not correctness. A model converged on the _wrong_ ranking scores high; that is
+   the inversion `criteria-calibration-accuracy-threshold-recalibration.md` found, and it
+   survives every later change. Anything about accuracy, confidence or trustworthiness would
+   violate `accuracyTierLabels.ts`'s standing copy constraint.
+3. **It avoids the word "clear".** The checkpoint bodies say "you're N% clear on what matters
+   most to you", which works in a checkpoint. Beside the badge it collides: **Clear** is one of
+   the four tier names, so "how clear" reads as "how close to the Clear rung" — the exact
+   confusion the sentence exists to remove.
+
+The earlier version enumerated the four names ("Unfocused, Blurry, Clear, Sharp."); the shipped
+one folds them into "Each name" to stay at one sentence on a hover. The cost, accepted: the user
+sees only their current name, so "each name" refers to a set not visible at that moment.
+
+### A floor, not a matched height
+
+`CriteriaCalibrationPage`'s panel takes `minH={{ base: 'auto', md: '640px' }}`.
+
+The three tabs differ enormously — Guide is six 500px-plus carousel cards, Results is one
+sentence and a button — and the frame used to collapse on every switch. The brief asked for one
+height "based on the biggest tab", which was rejected in discussion: matching the tallest would
+park Results inside several hundred pixels of empty panel to fix a problem only Results has. A
+floor stops the collapse while letting Guide be as tall as it needs to be.
+
+Being on the frame rather than on any one branch, the floor also covers the states _within_ the
+Calibration tab (question view, checkpoint, recovery spinner), which vary by nearly as much as
+the tabs do — for free, and that was the explicit ask.
+
+Desktop only: the value is sized to the Calibration tab's natural height at full width, which is
+not what this content measures on a narrow screen, and on mobile tabs are reached one at a time
+rather than compared. **640px is an unmeasured starting value** — set by reasoning about the
+content stack, not by measuring a running page, since the authenticated flow was not reachable
+this session. It should be checked and adjusted during the live walk-through that is already the
+branch's open pre-merge item.
+
+### Test and verification notes
+
+`CriteriaCalibrationCheckpoints.test.tsx`'s badge test read the ⓘ glyph's `aria-label`, which no
+longer exists. Rewritten to assert what the change actually protects: the badge is still
+permanently present and still `tabIndex=0`, i.e. its explanation is reachable without a mouse.
+
+339/339 tests; `tsc -p tsconfig.app.json --noEmit` unchanged at 206 errors, identical error set to
+`master`'s apart from shifted line numbers; lint unchanged against the pre-existing baseline (the
+two errors reported on `CriteriaCalibrationPage.tsx` are present on HEAD too).
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'

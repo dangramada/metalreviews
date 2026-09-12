@@ -350,15 +350,17 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     }
   });
 
-  it('shows the permanent tier badge with its info tooltip', async () => {
+  // The badge's explanation used to hang off a separate ⓘ glyph with its own aria-label, which
+  // is what this test read. Since 2026-09-12 the badge IS the tooltip trigger (TierAccuracyBadge),
+  // so what's checked now is that the badge is still permanently present and still reachable
+  // without a mouse — tabbable is the whole reason a hover-only explanation is acceptable here.
+  it('shows the permanent tier badge, focusable so its explanation is reachable by keyboard', async () => {
     boundaryAt(2);
     renderPage();
 
     await screen.findByText("You've compared everything at this level");
-    const info = screen.getByLabelText(
-      /Unfocused, Blurry, Clear, Sharp\. Each one means a deeper level of comparison finished\./
-    );
-    expect(info).toBeTruthy();
+    const badge = screen.getByRole('img', { name: /Blurry tier, \d+ percent pinned down/ });
+    expect(badge.getAttribute('tabindex')).toBe('0');
   });
 
   // The freeze checkpoint's own trigger logic lives on a separate branch

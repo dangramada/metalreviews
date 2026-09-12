@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
-import { Button, IconButton, VStack } from '@chakra-ui/react';
+import { useRef, useState, type ReactNode } from 'react';
+import { Box, Button, IconButton, VStack } from '@chakra-ui/react';
 import { LuRedo2, LuRotateCcw, LuUndo2 } from 'react-icons/lu';
+import { Tooltip } from '../ui/tooltip';
 import {
   DialogBody,
   DialogContent,
@@ -46,35 +47,29 @@ export function ActionRail({
   return (
     <>
       <VStack gap={2} align="flex-start">
-        <IconButton
-          aria-label="Undo"
-          variant="outline"
-          colorPalette="gray"
-          size="md"
+        <RailButton
+          label="Undo"
+          tooltip={undoDisabled ? 'Nothing to undo yet' : 'Undo your last answer'}
           onClick={onUndo}
           disabled={undoDisabled}
         >
           <LuUndo2 />
-        </IconButton>
-        <IconButton
-          aria-label="Redo"
-          variant="outline"
-          colorPalette="gray"
-          size="md"
+        </RailButton>
+        <RailButton
+          label="Redo"
+          tooltip={redoDisabled ? 'Nothing to redo' : 'Redo the answer you undid'}
           onClick={onRedo}
           disabled={redoDisabled}
         >
           <LuRedo2 />
-        </IconButton>
-        <IconButton
-          aria-label="Restart calibration"
-          variant="outline"
-          colorPalette="gray"
-          size="md"
+        </RailButton>
+        <RailButton
+          label="Restart calibration"
+          tooltip="Start over from round 1"
           onClick={() => setConfirmOpen(true)}
         >
           <LuRotateCcw />
-        </IconButton>
+        </RailButton>
       </VStack>
 
       <DialogRoot
@@ -113,5 +108,51 @@ export function ActionRail({
         </DialogContent>
       </DialogRoot>
     </>
+  );
+}
+
+// One rail button plus its tooltip. Three details are deliberate:
+//
+//   1. The tooltip wraps a SPAN, not the IconButton. A disabled button receives no pointer
+//      events, so a tooltip attached to it directly would go silent exactly when it is most
+//      needed — Undo and Redo are disabled for most of a session, and a greyed icon with no
+//      explanation is the case that actually needs words. The span still hears the hover.
+//      React's onFocus maps to focusin, which bubbles, so an ENABLED button focused by keyboard
+//      still opens its tooltip through the same wrapper: one code path for both states.
+//   2. The copy is state-aware rather than fixed, because "Undo your last answer" over a button
+//      that cannot be pressed explains the icon but not the state the user is looking at.
+//   3. Placement right: the rail is a vertical column, so a tooltip above or below would cover
+//      the neighbouring button.
+//
+// `aria-label` stays the button's accessible NAME; Tooltip contributes aria-describedby, so the
+// two are additive rather than one overwriting the other.
+function RailButton({
+  label,
+  tooltip,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  tooltip: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip content={tooltip} positioning={{ placement: 'right' }} openDelay={200}>
+      <Box as="span" display="inline-flex">
+        <IconButton
+          aria-label={label}
+          variant="outline"
+          colorPalette="gray"
+          size="md"
+          onClick={onClick}
+          disabled={disabled}
+        >
+          {children}
+        </IconButton>
+      </Box>
+    </Tooltip>
   );
 }

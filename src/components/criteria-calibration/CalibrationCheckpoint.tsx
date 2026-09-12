@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Button, HStack, Heading, Text, VStack } from '@chakra-ui/react';
 import type { AccuracyTier } from '../../lib/criteria-calibration/accuracyTierLabels';
-import { Tooltip } from '../ui/tooltip';
 import { TierAccuracyBadge } from './TierAccuracyBadge';
 import {
   CHECKPOINT_CEILING_HEADLINE,
@@ -11,7 +10,6 @@ import {
   CHECKPOINT_PAUSE_BUTTON,
   CHECKPOINT_PROMOTION_HEADLINE,
   CHECKPOINT_TERMINAL_HEADLINE,
-  CHECKPOINT_TIER_TOOLTIP,
   checkpointCeilingBody,
   checkpointFrozenBody,
   checkpointPromotionBody,
@@ -144,20 +142,11 @@ export function CalibrationCheckpoint({
         >
           {headline(variant)}
         </Heading>
-        <HStack gap={1.5} justify="center">
-          <TierAccuracyBadge tier={tier} percent={accuracyPercent} size="lg" />
-          <Tooltip content={CHECKPOINT_TIER_TOOLTIP}>
-            <Text
-              as="span"
-              cursor="help"
-              color="text.dim"
-              fontSize="sm"
-              aria-label={CHECKPOINT_TIER_TOOLTIP}
-            >
-              ⓘ
-            </Text>
-          </Tooltip>
-        </HStack>
+        {/* No ⓘ beside the badge since 2026-09-12: the badge is its own tooltip trigger now
+          (TierAccuracyBadge), so the glyph would have been a second affordance for an
+          explanation the badge already offers, and the copy would have had to live in two
+          places to stay in sync. */}
+        <TierAccuracyBadge tier={tier} percent={accuracyPercent} size="lg" />
       </VStack>
 
       <Text color="text.dim" fontFamily="body">
