@@ -307,7 +307,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
 - `genre-artwork-bugfixes.md` — RSS title pollution root cause, the three bugs it caused, and their fixes
 - `controls-bar.md` — score filter, review counter, responsive flex layout breakpoints
-- `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route
+- `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route. **Exhaustive by test** since 2026-09-12: `src/__tests__/designTokensDoc.test.ts` fails if a custom semantic colour, text style or spacing token is added without a line here
 - `supabase-migration.md` — ingest pipeline + frontend migration from `reviews.json` to Supabase, schema, mapping layer
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
