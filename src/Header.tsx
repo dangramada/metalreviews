@@ -18,11 +18,15 @@ const navPillBase = {
 } as const;
 
 // `breadcrumb` (optional): pages that have one hand it here rather than rendering it in their
-// own body (2026-09-11). The header then owns the distance from its bottom rule to the
-// breadcrumb — 16px, identical on every breadcrumb page — instead of each page reproducing it
-// from its own stack gap and padding (the two breadcrumb pages had drifted to 36px and 76px).
-// Pages without one render exactly as before: the 12px bottom margin simply moved from the
-// inner Flex onto this wrapper.
+// own body, so this component alone owns the two page-chrome distances around it — 16px from
+// the bottom rule down to the breadcrumb (the `breadcrumbTop` spacing token, see theme.ts), and
+// then the page stack's own gap from the breadcrumb down to the content. Before this, each page
+// reproduced both from its own gaps and padding and they had drifted to 36px and 76px.
+//
+// The wrapper's bottom margin is dropped when a breadcrumb is present: that 12px exists to
+// separate the header from whatever follows it, and with a breadcrumb the breadcrumb IS what
+// follows, already spaced by breadcrumbTop. Leaving it would push the content a further 12px
+// down (36px instead of the intended 24px). Pages with no breadcrumb keep it and are unchanged.
 export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -37,7 +41,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
   const isFavoritesActive = location.pathname === '/favorites';
 
   return (
-    <Box mb={3}>
+    <Box mb={breadcrumb ? 0 : 3}>
       <Flex
         align="center"
         justify="space-between"
@@ -247,7 +251,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
           </Flex>
         )}
       </Flex>
-      {breadcrumb && <Box mt={4}>{breadcrumb}</Box>}
+      {breadcrumb && <Box mt="breadcrumbTop">{breadcrumb}</Box>}
     </Box>
   );
 }

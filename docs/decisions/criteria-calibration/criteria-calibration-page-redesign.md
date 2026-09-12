@@ -205,11 +205,21 @@ identical fill). Label left as "About equal"; see open items.
 
 Type-check compared by error message against HEAD, in a temporary worktree rather than `git stash` so the live page wasn't hot-reloaded mid-measurement: +1 `theme.ts` TS2741 "`slots` missing" on the tabs override, the same class the existing `drawer`/`dialog` overrides already produce (Chakra deep-merges these at runtime); −1 `Header.tsx` unused `React` import, now used. Net unchanged at 205. Lint on touched files shows only the page's two pre-existing `set-state-in-effect` errors.
 
-**Open for Dan, not changed:**
+**Follow-ups settled 2026-09-12, all three verified manually by Dan:**
 
-- **Breadcrumb → tabs spacing:** currently 36px (the header's 12px margin plus the 24px stack gap).
-- **Equal button label:** the Figma reads "They are equal".
-- **Breadcrumb depth:** the Figma shows Home / Favorites / Criteria Calibration.
+- **Breadcrumb → tabs is 24px** (was 36px). The 12px came from the header wrapper's bottom
+  margin sitting on top of the page stack's 24px gap; that margin is now dropped when a
+  breadcrumb is present, since the breadcrumb is what follows the header and is already spaced by
+  `breadcrumbTop`. Pages without a breadcrumb keep it (verified: home unchanged at 12px / 36px).
+- **The 16px is a named token.** `spacing.breadcrumbTop` in `theme.ts`, consumed as
+  `mt="breadcrumbTop"`, verified live as the CSS var `--chakra-spacing-breadcrumb-top: 1rem`. It
+  is a layout contract one component owns across every breadcrumb page, which is what earns a
+  name. The 24px is deliberately NOT tokenized — it is the page stack's existing `gap={6}`, the
+  same rhythm between every block on the page; naming it would imply a breadcrumb-specific rule
+  that does not exist.
+- **Equal button reads "They are equal"** (was "About equal"); the solver-crash test's click
+  target was updated with it.
+- **Breadcrumb depth stays "Favorites / Criteria Calibration"** — confirmed correct as-is.
 
 ## What deliberately did NOT change
 

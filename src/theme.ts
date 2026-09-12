@@ -33,6 +33,17 @@ const system = createSystem(defaultConfig, {
   },
   theme: {
     tokens: {
+      spacing: {
+        // Page-chrome rule, 2026-09-12: the distance from the global Header's bottom rule to a
+        // page's breadcrumb, identical on every page that has one. Named rather than left as a
+        // bare scale step because it is a shared layout contract owned by Header (see
+        // Header.tsx), not a local spacing choice any page is free to pick. Equals spacing.4.
+        //
+        // Its counterpart — breadcrumb to page content — is deliberately NOT a token: that is
+        // just the page stack's own gap (spacing.6), the same rhythm separating every other
+        // block on the page, so naming it would imply a rule that does not exist.
+        breadcrumbTop: { value: '1rem' },
+      },
       colors: {
         // Custom Slant Take palettes (pass 1 of design system migration).
         // Values anchored to real mockup hexes where available; ramp steps

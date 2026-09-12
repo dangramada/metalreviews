@@ -14,7 +14,7 @@ interface EqualButtonProps {
 export function EqualButton({ onClick, disabled }: EqualButtonProps) {
   return (
     <Button {...primaryButton} onClick={onClick} disabled={disabled}>
-      About equal
+      They are equal
     </Button>
   );
 }
