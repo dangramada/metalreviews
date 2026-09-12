@@ -828,7 +828,7 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   so re-skinning it is a cross-cutting design-system change, not a Criteria-Calibration-page
   change — bundling it in would violate the brief's own "one concern per session" convention.
   `criteria-calibration-page-redesign.md`.
-- **`design-tokens.md` is no longer a complete token reference.** Surfaced 2026-09-12 while
+- ~~**`design-tokens.md` is no longer a complete token reference.**~~ — **DONE 2026-09-12.** The file was made exhaustive (all 36 custom semantic colours, 2 text styles, 1 spacing token) and `src/__tests__/designTokensDoc.test.ts` now fails the suite if a custom token is undocumented, so it cannot drift a third time. `/style-guide` gained the matching swatches, the two text styles, and Tabs/Progress sections. **Still open from this item:** the three dead purple-era badge token groups (`badge.source`/`score`/`genre`, zero references in the app) are documented as dead but not yet deleted from `theme.ts` — a deliberate call, since removing a token changes the theme's public surface. Original note: Surfaced 2026-09-12 while
   recording the Criteria Calibration redesign's new tokens. The file predates the Slant Take
   redesign, so its colour tables still describe the retired purple accent palette, and several
   live token groups are documented in **no** file at all: the `cardTitleBand` / `cardTitleAlbum`
