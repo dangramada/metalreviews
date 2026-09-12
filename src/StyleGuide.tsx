@@ -29,6 +29,7 @@ import {
   cardTitleAlbum,
 } from './theme';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
+import { CalibrationCheckpoint } from './components/criteria-calibration/CalibrationCheckpoint';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
@@ -699,6 +700,30 @@ export function StyleGuide() {
                 </ProgressRoot>
               </Box>
             </VStack>
+          </Section>
+
+          {/* ----------------------------------------------------------------
+              CALIBRATION CHECKPOINT — the milestone screen shown at each degree
+              boundary. Rendered inside the same tab-panel frame it appears in on the
+              real page (surface.tabPanel, border.ruleStrong), since its spacing is
+              tuned to sit inside that frame, not on the bare page background.
+          ---------------------------------------------------------------- */}
+          <Section title="Calibration Checkpoint">
+            <Box
+              bg="surface.tabPanel"
+              border="2px solid"
+              borderColor="border.ruleStrong"
+              borderRadius="none"
+              p={{ base: 5, md: 8 }}
+            >
+              <CalibrationCheckpoint
+                variant="veryHigh"
+                tier="veryHigh"
+                accuracyPercent={100}
+                onContinue={() => {}}
+                onPause={() => {}}
+              />
+            </Box>
           </Section>
 
           {/* ----------------------------------------------------------------

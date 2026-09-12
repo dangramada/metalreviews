@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Button, HStack, Heading, Text, VStack } from '@chakra-ui/react';
 import type { AccuracyTier } from '../../lib/criteria-calibration/accuracyTierLabels';
 import { TierAccuracyBadge } from './TierAccuracyBadge';
+import { primaryButton, secondaryButton } from '../../theme';
 import {
   CHECKPOINT_CEILING_HEADLINE,
   CHECKPOINT_CONTINUE_BUTTON,
@@ -131,15 +132,18 @@ export function CalibrationCheckpoint({
   }, [variant]);
 
   return (
-    <VStack gap={5} align="stretch" aria-live="polite" maxW="2xl" mx="auto" textAlign="center">
-      <VStack gap={2}>
-        <Heading
-          ref={headlineRef}
-          tabIndex={-1}
-          size="md"
-          fontFamily="heading"
-          color="text.primary"
-        >
+    <VStack gap={8} align="stretch" aria-live="polite" maxW="2xl" mx="auto" textAlign="center">
+      <VStack gap={3}>
+        {/* Inter, not Clash Display (2026-09-15). This screen predates the calibration content
+          pass and was the one surface in the whole feature still using the display face for a
+          title — every other title on this page (QuestionPrompt, the Guide card's
+          cardTitleBand) had already been moved off it. That wasn't a stray inconsistency:
+          naming-decisions.md reserves Clash Display for the wordmark and the score-slab number
+          ONLY, so this was the one place still violating that rule. `size="md"` here is
+          Chakra's Heading recipe size, not a `textStyle` — kept as-is since only the FAMILY was
+          wrong, not the weight or scale a milestone screen like this earns over a per-round
+          question. */}
+        <Heading ref={headlineRef} tabIndex={-1} size="md" fontFamily="body" color="text.primary">
           {headline(variant)}
         </Heading>
         {/* No ⓘ beside the badge since 2026-09-12: the badge is its own tooltip trigger now
@@ -153,16 +157,27 @@ export function CalibrationCheckpoint({
         {body(variant, accuracyPercent)}
       </Text>
 
+      {/* Buttons now spread the app's own primaryButton/secondaryButton tokens (theme.ts)
+        instead of hardcoding Chakra's built-in `colorPalette="orange"` ramp directly — this was
+        the other pre-existing inconsistency: everywhere else calibration content reached for
+        `primaryButton` (EqualButton, GuideTab's CTA, ResultsTab), this screen alone spelled out
+        the palette by hand. Visually near-identical (the app's `ember` ramp IS an orange), so
+        this is a token-discipline fix, not a restyle: a future accent-colour change now reaches
+        this screen for free instead of needing a second edit. */}
       {isTerminal ? (
-        <Button colorPalette="orange" onClick={onFinish}>
+        <Button {...primaryButton} onClick={onFinish}>
           {CHECKPOINT_DONE_BUTTON}
         </Button>
       ) : (
-        <HStack gap={3} justify="center" pt={2}>
-          <Button flex="1" maxW="12rem" colorPalette="orange" onClick={onContinue}>
+        // gap=4 (16px) between the two buttons, matching the 16px rhythm the rest of
+        // calibration content uses (WorkStatusRow's internal gaps); pt dropped in favor of the
+        // parent VStack's own gap={8}, so this row's spacing above it is the same 32px as the
+        // other two group boundaries rather than a bespoke top-padding on top of a gap.
+        <HStack gap={4} justify="center">
+          <Button {...primaryButton} flex="1" maxW="12rem" onClick={onContinue}>
             {CHECKPOINT_CONTINUE_BUTTON}
           </Button>
-          <Button flex="1" maxW="12rem" variant="outline" colorPalette="gray" onClick={onPause}>
+          <Button {...secondaryButton} variant="outline" flex="1" maxW="12rem" onClick={onPause}>
             {CHECKPOINT_PAUSE_BUTTON}
           </Button>
         </HStack>
