@@ -1,7 +1,8 @@
-import { Box, Heading, Text, VStack } from '@chakra-ui/react';
+import { Fragment } from 'react';
+import { Heading, Separator, Text, VStack } from '@chakra-ui/react';
 import { CarouselControls, CarouselItem, CarouselItemGroup, CarouselRoot } from '../ui/carousel';
 import type { CriteriaCatalog } from '../../lib/criteria-calibration/criteriaCatalog';
-import { formatLevelDescription } from '../../lib/criteria-calibration/criteriaCatalog';
+import { CriterionLevelDetail } from './CriterionLevelDetail';
 
 interface CriteriaCarouselProps {
   catalog: CriteriaCatalog;
@@ -23,8 +24,14 @@ interface CriteriaCarouselProps {
 // level descriptions, so it needs real width and real type sizes to be readable at a glance. It
 // previously sat at 4-per-page inside a 896px container, giving each card ~162px of measured
 // width with xs-sized level text — legible in principle, unreadable in practice. The page is now
-// full-width and this is 3-per-page, so the same card gets roughly twice the room; the level
-// descriptions moved xs -> sm to match.
+// full-width and this is 3-per-page, so the same card gets roughly twice the room.
+//
+// 2026-09-12: the card now matches the calibration comparison card — 2px border.ruleStrong,
+// square, 24px padding — and renders each level through the shared CriterionLevelDetail, so the
+// level names are sentence case at the same size as the comparison card's, with the same
+// Separator rules between them that CriterionLevelList uses. No hover treatment: unlike an
+// OptionCard these are not selectable, and hover feedback on something unclickable invites a
+// click. The criterion NAME is still a Heading pending Dan's `cardTitleBand` decision.
 export function CriteriaCarousel({ catalog, slidesPerPage }: CriteriaCarouselProps) {
   const showControls = catalog.entries.length > slidesPerPage;
 
@@ -40,11 +47,11 @@ export function CriteriaCarousel({ catalog, slidesPerPage }: CriteriaCarouselPro
             <VStack
               align="stretch"
               gap={4}
-              p={5}
+              p={6}
               h="full"
-              borderWidth="1px"
-              borderColor="border.default"
-              borderRadius="md"
+              border="2px solid"
+              borderColor="border.ruleStrong"
+              borderRadius="none"
               bg="surface.card"
             >
               <VStack align="stretch" gap={1.5}>
@@ -55,25 +62,18 @@ export function CriteriaCarousel({ catalog, slidesPerPage }: CriteriaCarouselPro
                   {entry.description}
                 </Text>
               </VStack>
-              <VStack align="stretch" gap={3}>
-                {[1, 2, 3, 4, 5].map((lvl) => {
+              <VStack align="stretch" gap={4}>
+                {[1, 2, 3, 4, 5].map((lvl, i) => {
                   const level = entry.levels[lvl];
                   if (!level) return null;
                   return (
-                    <Box key={lvl}>
-                      <Text
-                        fontSize="xs"
-                        fontWeight="bold"
-                        textTransform="uppercase"
-                        letterSpacing="0.04em"
-                        color="text.primary"
-                      >
-                        {level.label}
-                      </Text>
-                      <Text fontSize="sm" color="text.dim" fontFamily="body" lineHeight="1.5">
-                        {formatLevelDescription(level.description)}
-                      </Text>
-                    </Box>
+                    <Fragment key={lvl}>
+                      {i > 0 && <Separator borderColor="border.rule" />}
+                      <CriterionLevelDetail
+                        levelName={level.label}
+                        description={level.description}
+                      />
+                    </Fragment>
                   );
                 })}
               </VStack>

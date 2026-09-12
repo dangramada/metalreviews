@@ -1,6 +1,6 @@
-import { Box, Text } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import { CriterionBadge } from './CriterionBadge';
-import { formatLevelDescription } from '../../lib/criteria-calibration/criteriaCatalog';
+import { CriterionLevelDetail } from './CriterionLevelDetail';
 
 export interface CriterionData {
   label: string;
@@ -28,12 +28,13 @@ export function CriterionRow({ criterion, selected }: CriterionRowProps) {
   return (
     <Box>
       <CriterionBadge selected={selected}>{criterion.label}</CriterionBadge>
-      <Text mt={2} textStyle="cardTitle" color={selected ? 'accent.ink' : 'text.primary'}>
-        {criterion.levelName}
-      </Text>
-      <Text fontFamily="body" fontSize="sm" color={selected ? 'accent.ink' : 'text.dim'}>
-        {formatLevelDescription(criterion.description)}
-      </Text>
+      <Box mt={2}>
+        <CriterionLevelDetail
+          levelName={criterion.levelName}
+          description={criterion.description}
+          selected={selected}
+        />
+      </Box>
     </Box>
   );
 }
