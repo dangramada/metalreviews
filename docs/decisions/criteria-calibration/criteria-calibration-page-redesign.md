@@ -257,6 +257,12 @@ match, so they must be one token, not two equal literals.
 
 **The separator under the progress row is gone**, and the title carries 32px above and below.
 
+**The status row's spacing is two nested gaps, not one flat gap plus a nudge.** The design groups
+it as [counter / bar / percentage] at 16px internally, with 24px between that whole group and
+Pause. Expressed with an inner flex group, so each number states what it is rather than one of
+them being the sum of the other and a correction. Measured live: 16 / 16 / 24, with all four
+elements sharing a vertical centre.
+
 **The action rail aligns to the cards, exactly, without a magic offset.** The requirement was
 both "rail level with the top of the cards" and "title centred over the cards" — a flex row can
 only do one, because the rail aligns to whatever starts the column, so keeping the title there
