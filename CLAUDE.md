@@ -76,24 +76,10 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+No branches currently in progress.
+
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
-
-`criteria-calibration-page-redesign` — in progress, not yet merged. Restructures the Criteria
-Calibration page onto a single `/calibration` route with a Guide/Calibration/Results tab bar
-(old route redirects, preserving query string), a new compound `TierAccuracyBadge` (neutral
-placeholder tier colors — real palette still undecided, see `deferred-work.md`), a linear
-`WorkStatusRow`/icon `ActionRail` scoped to the question view only (closing a real gap where the
-old progress header/history actions stayed mounted through checkpoints), a new full-reset
-Restart action, a real Pause dialog (replacing inline "stopped" text), a Guide-tab criteria
-carousel, a minimal Results-tab placeholder, and a fix for the solver-recovery sequence's
-unmount-safety. Tier-derivation, checkpoint precedence, and the progress-fill formula are
-unchanged. Design-review header pass (2026-09-11): folder-tab active state via the theme's `tabs` slot recipe, sr-only h2, breadcrumbs moved into the global `Header` at a uniform 16px. Content pass (2026-09-12): shared `cardTitle`/`statusReadout` text styles, `ink.900` panel via a `surface.tabPanel` token, themed progress bar (ink.300 on ink.700, 12px), grid-aligned action rail, sentence-case level names. Tooltip/height pass (2026-09-12): tooltips
-on the action rail (state-aware, and still shown while disabled), on Pause, and on the tier badge
-itself (its ⓘ glyph retired, copy moved to `accuracyTierLabels.ts`'s `TIER_BADGE_TOOLTIP`); the
-tab panel takes a desktop `minH` FLOOR rather than one height matched to the tallest tab, with
-640px an unmeasured starting value to check live. Progress bar spec measured and recorded, with two fixes it surfaced: the width tween is now suppressed under `prefers-reduced-motion`, and the bar is named "Calibration progress" instead of taking zag's generated bare percentage (which had the number announced twice). Live walk-through confirmed working by Dan 2026-09-12. 344/344 tests; `tsc` 206 vs master's 205, the one extra being another instance of the pre-existing "slots missing" pattern the theme's other slot-recipe overrides already produce. Layout and header verified live on the QA account; a full authenticated walk-through of Restart/Pause/checkpoints is still open before merge. Full
-detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`.
 
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
@@ -329,7 +315,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
-- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".** **Before touching degree escalation, stopping, the accuracy tiers shown to the user, or the calibration progress bar, read `criteria-calibration-degree-tiers-and-progress.md`'s "What NOT to change" first, then `criteria-calibration-tiered-checkpoints.md`'s — the newer doc reverses several of the older one's choices, and both reverse designs older still.**
+- `criteria-calibration-summary.md` — gateway/index for the entire Criteria Calibration decision-doc cluster (24 files + supporting data, now in `docs/decisions/criteria-calibration/`); read this first for anything calibration-related. Most recent merge: `criteria-calibration-page-redesign` (single `/calibration` route with a Guide/Calibration/Results tab bar, full design-review pass, themed progress bar with reduced-motion/ARIA fixes, `design-tokens.md` made exhaustive and test-enforced), merged to `master` `--no-ff` at `028ff34` on 2026-09-12; rollback tag `pre-merge-criteria-calibration-page-redesign` — full detail: `docs/decisions/criteria-calibration/criteria-calibration-page-redesign.md`. **Before touching `simplex.ts`, read `criteria-calibration-harris-ratio-test.md`'s "What NOT to change".** **Before touching degree escalation, stopping, the accuracy tiers shown to the user, or the calibration progress bar, read `criteria-calibration-degree-tiers-and-progress.md`'s "What NOT to change" first, then `criteria-calibration-tiered-checkpoints.md`'s — the newer doc reverses several of the older one's choices, and both reverse designs older still.**
 - `album-rating-page.md` — dedicated `/rate/:albumId` route replacing the drawer and rejected modal; soft-gated since the 2026-08-09 reversal; has a summary block at the top of the file itself
 - `album-rating-drawer.md` — the original flat-drawer rating UI this page replaced, plus the Criteria Calibration part-6 gate/score/rank wiring still in effect
 - `album-rating-page--concept-draft.md` — stub only; full Concept Draft content lives in Project Knowledge, not this repo
