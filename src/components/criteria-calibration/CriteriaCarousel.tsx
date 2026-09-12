@@ -63,7 +63,19 @@ export function CriteriaCarousel({ catalog, slidesPerPage }: CriteriaCarouselPro
         <Box flex="1" minW={0}>
           <CarouselItemGroup>
             {catalog.entries.map((entry) => (
-              <CarouselItem key={entry.index} index={entry.index}>
+              // Snap points must mark PAGES, not slides. zag derives its pages straight from the
+              // DOM's CSS scroll-snap positions (carousel.machine.mjs: `pageSnapPoints` from the
+              // element's snap positions, and `canScrollNext = page < pageSnapPoints.length - 1`).
+              // The scaffold's default puts scroll-snap-align on every item, so with 6 slides zag
+              // counted 6 pages while slidesPerPage=3 makes only 4 of them reachable before the
+              // scroll saturates — leaving Next enabled at the visual end, and taking a further
+              // no-op click to disable. Snapping every Nth item gives one snap point per page, so
+              // the index and the scroll run out together.
+              <CarouselItem
+                key={entry.index}
+                index={entry.index}
+                scrollSnapAlign={entry.index % slidesPerPage === 0 ? 'start' : 'none'}
+              >
                 <VStack
                   align="stretch"
                   gap={4}
