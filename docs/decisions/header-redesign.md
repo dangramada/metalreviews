@@ -76,3 +76,18 @@ data-attributes — was logged as a minor, non-blocking open item in
 See `chakra-v3-migration-plan.md` Steps 0, 3, and 5 for full detail. This note
 exists so this file is not read in isolation as if v2's `sx` prop is still
 the live mechanism for this override.
+
+## Later change — `breadcrumb` prop (2026-09-11)
+
+`Header` takes an optional `breadcrumb: ReactNode`. When given, it renders below the header's own
+row at `spacing.breadcrumbTop` (16px, `design-tokens.md`) and the header drops its usual bottom
+margin; when absent, nothing changes.
+
+The point is ownership, not convenience. Before this, each page with a breadcrumb rendered its own
+and spaced it itself, so the distance between the header and the breadcrumb was reproduced
+per-page and drifted. `Header` now owns that one distance for every such page, which is why it is
+a named token rather than an inline value.
+
+Migrated on the same pass: `AlbumRatingPage` and the Criteria Calibration page (whose
+`CalibrationBreadcrumb` is exported from `CalibrationPageHeader.tsx` but rendered by `Header`).
+Any new page with a breadcrumb should pass it here rather than rendering one in its own body.
