@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Button, Container, Text, VStack } from '@chakra-ui/react';
+import { primaryButton } from '../theme';
 
 // Backstop for render-time throws. Added 2026-08-16 alongside the calibration solver-crash
 // safety net: the app had NO error boundary and no route errorElement anywhere, so any
@@ -50,7 +51,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <Text textAlign="center" color="text.dim" fontSize="sm" fontFamily="body">
               Your saved progress is unaffected.
             </Text>
-            <Button colorPalette="orange" onClick={() => window.location.reload()}>
+            {/* {...primaryButton} in place of a hardcoded colorPalette="orange" (2026-09-16) — the
+              built-in orange ramp (#f97316) and the app's own ember.500 (#ff6a1a) are close but
+              not the same colour, so this was the one button in the app rendering a visibly
+              different accent than everywhere else. Same finding, same fix, as
+              CalibrationCheckpoint.tsx's identical pattern
+              (criteria-calibration-checkpoint-visual-refresh.md). */}
+            <Button {...primaryButton} onClick={() => window.location.reload()}>
               Reload the page
             </Button>
           </VStack>

@@ -76,7 +76,7 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+`consistency-button-tokens` — in progress, not yet merged. App-wide sweep of hardcoded `colorPalette` values found while fixing the calibration checkpoint screen. `ErrorBoundary.tsx`'s reload button moves from `colorPalette="orange"` to `primaryButton` — a real fix, not cosmetic: Chakra's stock orange (`#f97316`) and the app's `ember.500` (`#ff6a1a`) are genuinely different colours. Three live `colorPalette="gray"` action buttons (`WorkStatusRow`'s Pause, `ActionRail`'s icon rail, the Guide carousel's Prev/Next) move to `secondaryButton` — a true no-op, since that token is exactly `{ colorPalette: 'gray' }`, but now matches every other secondary button in the app. Three more `colorPalette="gray"` hits (`password-input.tsx`, `toggle-tip.tsx`, `color-mode.tsx`) were deliberately left alone: confirmed dead code, unused Chakra scaffold snippets, not wired into the app. 344/344 tests; `tsc` unchanged at 206. Full detail: `docs/decisions/consistency-button-tokens.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
