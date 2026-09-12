@@ -221,6 +221,69 @@ Type-check compared by error message against HEAD, in a temporary worktree rathe
   target was updated with it.
 - **Breadcrumb depth stays "Favorites / Criteria Calibration"** — confirmed correct as-is.
 
+## Design-review pass, 2026-09-12 — calibration tab content
+
+Second design-review delta, scoped to the Calibration tab's own content. Nothing about the
+driver, checkpoints, tiers or persistence changes.
+
+**Two shared text styles, not per-component font props.** The design uses one size for the
+question title and each card's level name, and a second, smaller one for the round counter and
+the progress percentage. Those are now `textStyles.cardTitle` (Inter 18px/500) and
+`textStyles.statusReadout` (Inter 14px/700) in `theme.ts`, rather than four independent
+font/size/weight decisions that drift apart. The counter and percent were briefly on `cardTitle`
+and read far too large next to the question — hence the split, which is the honest shape of the
+design anyway: content type and readout type are different roles.
+
+The question title had to stop being a `Heading`: that recipe hardcodes the display face and
+overrode the shared style. It is `Text as="h2"` now — same element, same document outline, type
+the token can actually control.
+
+**Sentence-case level names cost one line.** The labels are already stored sentence case
+("Groundbreaking", "Some fresh ideas"); the shouting was purely a `textTransform` in
+`CriterionRow`. No data change.
+
+**Progress bar colours and height.** Progress is a slot recipe (track/range) that, like tabs
+before it, had no theme layer — so it rendered Chakra's defaults: a `bg.muted` track invisible on
+this panel and a white range. `theme.ts` now overrides the DEFAULT `outline` variant (putting
+them in `base` would be silently overridden by it): track `ink.700`, range `ink.300`. Height is
+`size="lg"`, which is the recipe's own 12px track (xs 6 / sm 8 / md 10 / lg 12 / xl 16px) — the
+size token rather than a hardcoded height that would drift from the recipe.
+
+**Panel fill is `ink.900`, via its own `surface.tabPanel` token.** Deliberately not reusing
+`ratingCardFill` (sand.900, Album Evaluation's card), and deliberately a token rather than an
+inline value: the tabs slot recipe needs the identical value twice — the active tab's fill, and
+the bottom edge it paints over the panel's border. That join only reads as a join while the two
+match, so they must be one token, not two equal literals.
+
+**The separator under the progress row is gone**, and the title carries 32px above and below.
+
+**The action rail aligns to the cards, exactly, without a magic offset.** The requirement was
+both "rail level with the top of the cards" and "title centred over the cards" — a flex row can
+only do one, because the rail aligns to whatever starts the column, so keeping the title there
+would need the rail pushed down by the title's exact rendered height. That offset would go wrong
+the moment the title's size changed, which this very pass changes. The row is now a two-column
+grid: the title occupies row 1 of the card column only (so it centres on the cards), and the rail
+and cards share row 2 (so they align by construction, at any title height). Rail buttons moved
+from ghost to `outline` at size `md`.
+
+**Copy:** "Which of these **two** alternatives do you prefer?" (was "2");
+`CriteriaCalibrationFreezeCheckpoint.test.tsx` asserts that string and was updated with it.
+
+**Verified live** on the QA account: counter and percent Inter 14px/700; bar track 12px with
+range `rgb(189,189,189)` and track `rgb(58,58,58)`; panel `rgb(19,19,19)`; separator `0px`; 32px
+above and below the title; **rail top vs card top = 0px**; level name rendering "Groundbreaking"
+with `text-transform: none`.
+
+339/339 tests. `tsc` goes 205 -> 206: one more "Property 'slots' is missing" on the new progress
+recipe override, the identical class the existing `drawer`/`dialog`/`tabs` overrides already
+produce (Chakra deep-merges these at runtime, which is why those work). Declaring `slots`
+explicitly would silence all four but risks REPLACING rather than extending each recipe's slot
+list, so the established precedent is kept.
+
+**Still open:** the Guide tab shows the same level labels and still uppercases them, so the two
+views now disagree about the same words. A two-line fix (drop its `textTransform`, put its level
+names on `cardTitle`) is proposed; the wider Guide restructuring Dan mentioned is its own pass.
+
 ## What deliberately did NOT change
 
 Per the plan's explicit boundaries, respecting two prior decision docs'

@@ -1066,7 +1066,7 @@ export function CriteriaCalibrationPage() {
               filled folder tab (see CalibrationPageHeader.tsx), which is why nothing may render
               between the header and this box. */}
           <Box
-            bg="surface.ratingCardFill"
+            bg="surface.tabPanel"
             border="2px solid"
             borderColor="border.ruleStrong"
             borderRadius="none"
@@ -1130,41 +1130,62 @@ export function CriteriaCalibrationPage() {
                   progressPercent={progressPercent}
                   onPause={() => setPauseDialogOpen(true)}
                 />
-                <Flex gap={6} align="flex-start">
-                  <ActionRail
-                    onUndo={handleUndo}
-                    onRedo={handleRedo}
-                    onRestart={handleRestart}
-                    undoDisabled={interactionDisabled || answers.length === 0}
-                    redoDisabled={interactionDisabled || redoBuffer.length === 0}
-                  />
-                  <Box flex="1">
+                {/* Two-column GRID, not a flex row (2026-09-12 design review). The rail has to
+                  line up with the top of the comparison cards, not with the question title
+                  above them, while the title stays optically centred over the cards rather
+                  than over the whole panel. A flex row can only do one of those: the rail
+                  aligns to whatever starts the column, so keeping the title in that column
+                  would need the rail pushed down by the title's exact rendered height — a
+                  hardcoded offset that silently goes wrong the moment the title's size or
+                  wrapping changes (which this very pass changes).
+
+                  The grid gets both for free: the title occupies row 1 of the CARD column
+                  only, so it centres on the cards; the rail and the cards share row 2, so
+                  they align by construction, at any title height. */}
+                <Box display="grid" gridTemplateColumns="auto 1fr" columnGap={6}>
+                  {/* my={8} is the design's 32px above and below the title. Margins on grid
+                    items don't collapse, so these two are exactly what they say. */}
+                  <Box gridColumn={2} gridRow={1} my={8}>
+                    <QuestionPrompt />
+                    {isFirstAnswerAtDegree && degreeClarificationText && (
+                      <Text
+                        mt={2}
+                        textAlign="center"
+                        color="text.dim"
+                        fontSize="sm"
+                        fontFamily="body"
+                      >
+                        {degreeClarificationText}
+                      </Text>
+                    )}
+                  </Box>
+
+                  <Box gridColumn={1} gridRow={2}>
+                    <ActionRail
+                      onUndo={handleUndo}
+                      onRedo={handleRedo}
+                      onRestart={handleRestart}
+                      undoDisabled={interactionDisabled || answers.length === 0}
+                      redoDisabled={interactionDisabled || redoBuffer.length === 0}
+                    />
+                  </Box>
+
+                  <Box gridColumn={2} gridRow={2}>
                     <VStack gap={6} align="stretch">
+                      {/* aria-live scopes to the pair that actually changes per round. The
+                        title above is static, and announcing it every round would be noise. */}
                       <Box aria-live="polite">
-                        <VStack gap={6} align="stretch">
-                          <QuestionPrompt />
-                          {isFirstAnswerAtDegree && degreeClarificationText && (
-                            <Text
-                              textAlign="center"
-                              color="text.dim"
-                              fontSize="sm"
-                              fontFamily="body"
-                            >
-                              {degreeClarificationText}
-                            </Text>
-                          )}
-                          <ComparisonRow
-                            leftCriteria={profileToCriterionData(action.profileA, catalog)}
-                            rightCriteria={profileToCriterionData(action.profileB, catalog)}
-                            selectedSide={selectedSide}
-                            interactionDisabled={interactionDisabled}
-                            onSelectLeft={() => handleChoice('left')}
-                            onSelectRight={() => handleChoice('right')}
-                            visible={phase !== 'fading-out'}
-                            reducedMotion={reducedMotion}
-                            fadeMs={FADE_MS}
-                          />
-                        </VStack>
+                        <ComparisonRow
+                          leftCriteria={profileToCriterionData(action.profileA, catalog)}
+                          rightCriteria={profileToCriterionData(action.profileB, catalog)}
+                          selectedSide={selectedSide}
+                          interactionDisabled={interactionDisabled}
+                          onSelectLeft={() => handleChoice('left')}
+                          onSelectRight={() => handleChoice('right')}
+                          visible={phase !== 'fading-out'}
+                          reducedMotion={reducedMotion}
+                          fadeMs={FADE_MS}
+                        />
                       </Box>
 
                       <Box display="flex" justifyContent="center">
@@ -1175,7 +1196,7 @@ export function CriteriaCalibrationPage() {
                       </Box>
                     </VStack>
                   </Box>
-                </Flex>
+                </Box>
               </>
             ) : (
               // degree-exhausted with escalation still available and no checkpoint pending —
