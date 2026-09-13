@@ -64,16 +64,20 @@ export function ResultsTab({
   const sentence = buildNarrativeSentence(leaders);
 
   return (
+    // gap={8} = var(--chakra-spacing-8) = 32px — the tab's vertical rhythm between its three
+    // top-level sections (narrative+badge, fingerprint, per-criterion detail), per design
+    // review.
     <VStack gap={8} align="stretch">
       <Box>
-        <Text fontSize="lg" fontFamily="body" color="text.primary">
+        <Text fontSize="md" fontFamily="body" color="text.primary">
           {sentence}
         </Text>
         {/* Physically separated from the sentence above — its own block, own divider — never
             merged into the same sentence or container. Direct application of "accuracy is not
             correctness": the conclusion and the confidence in it must never share one visual
-            element, or high confidence reads as "this is the right answer." */}
-        <Box borderTopWidth="1px" borderColor="border.ruleStrong" pt={3} mt={4}>
+            element, or high confidence reads as "this is the right answer." pt/mt={5} = 20px
+            (var(--chakra-spacing-5)) on both sides of the rule, 2px border, per design review. */}
+        <Box borderTopWidth="2px" borderColor="border.ruleStrong" pt={5} mt={5}>
           <TierAccuracyBadge tier={tier} percent={accuracyPercent} />
           <Text fontSize="sm" color="text.dim" fontFamily="body" mt={2}>
             Based on how far you've compared — not how "correct" this is.

@@ -79,7 +79,21 @@ export function CalibrationPageHeader({
         value={activeStep}
         onValueChange={({ value }) => onStepChange(value as CalibrationStep)}
       >
-        <Flex align="flex-end" justify="space-between" gap={4}>
+        {/* Mobile (2026-09-13): the badge used to sit to the right of the tab list on every
+            breakpoint, which left three tab labels + the badge fighting for one row — on a
+            375px viewport the badge's own percent half was pushed off-screen entirely.
+            `direction: column` on mobile stacks them instead, and `order={-1}` (badge-only,
+            mobile-only) puts the badge ABOVE the tab list without reordering the JSX — desktop
+            keeps its default order (0 == 0, so source order wins: tabs first, badge after) and
+            is otherwise untouched. The container's own `align` stays flex-start (so the tab
+            list hugs the left edge, same as before); the badge overrides that for itself via
+            `alignSelf` to sit flush right on its own row instead. */}
+        <Flex
+          direction={{ base: 'column', md: 'row' }}
+          align={{ base: 'flex-start', md: 'flex-end' }}
+          justify="space-between"
+          gap={4}
+        >
           <Tabs.List>
             <Tabs.Trigger value="guide">Guide</Tabs.Trigger>
             <Tabs.Trigger value="calibration">Calibration</Tabs.Trigger>
@@ -87,7 +101,11 @@ export function CalibrationPageHeader({
           </Tabs.List>
 
           {hasStarted && (
-            <Box pb={2}>
+            <Box
+              order={{ base: -1, md: 0 }}
+              alignSelf={{ base: 'flex-end', md: 'auto' }}
+              pb={{ base: 0, md: 2 }}
+            >
               <TierAccuracyBadge tier={tier} percent={accuracyPercent} size="sm" />
             </Box>
           )}

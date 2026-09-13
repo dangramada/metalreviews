@@ -95,7 +95,12 @@ function BarRowLabel({
 
 function LevelRow({ label, percent }: { label: string; percent: number }) {
   return (
-    <HStack gap={3} py={1} px={2} mx={-2} _hover={{ bg: 'surface.criterionHover' }}>
+    // Hover highlights the WHOLE row (this HStack's own background spans label + value
+    // columns), not just the bar — sand.900 (#1a1a1a) chosen over the old surface.criterionHover
+    // (ink.900, #131313) because that was barely distinguishable from surface.page (ink.950,
+    // #0c0c0c); sand.900 is already an established token value in this app (ratingCardFill,
+    // calibrationCard) for exactly this kind of "lift off a near-black page" contrast.
+    <HStack gap={3} py={1} px={2} mx={-2} _hover={{ bg: 'sand.900' }}>
       <BarRowLabel
         label={label}
         percent={percent}
@@ -119,7 +124,11 @@ function LevelRow({ label, percent }: { label: string; percent: number }) {
 function CriterionRow({ criterion, isOpen }: { criterion: CriterionBreakdown; isOpen: boolean }) {
   return (
     <AccordionItem value={criterion.name} borderTopWidth="1px" borderColor="border.ruleStrong">
-      <AccordionItemTrigger py={3} _hover={{ bg: 'surface.criterionHover' }}>
+      {/* pr={2} (8px) — the shared AccordionItemTrigger (components/ui/accordion.tsx) renders
+          its chevron indicator flush against the trigger's own right edge with no gap; scoped
+          to this usage only (not the shared component, which other pages also use) so the
+          chevron gets breathing room without affecting any other accordion in the app. */}
+      <AccordionItemTrigger py={3} pr={2} cursor="pointer" _hover={{ bg: 'sand.900' }}>
         <BarRowLabel
           label={criterion.name}
           percent={criterion.weightPercent}
