@@ -1108,7 +1108,10 @@ export function CriteriaCalibrationPage() {
               <GuideTab catalog={catalog} onStart={() => setStep('calibration')} />
             ) : activeStep === 'results' ? (
               <ResultsTab
-                hasWeights={hasStarted}
+                tier={tier}
+                accuracyPercent={accuracyPercent}
+                solvedValues={solvedValues}
+                catalog={catalog}
                 onBackToCalibration={() => setStep('calibration')}
               />
             ) : checkpoint ? (
