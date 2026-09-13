@@ -50,25 +50,73 @@ export function YourTasteFingerprint({ criteria }: YourTasteFingerprintProps) {
       <BarSegment.Root chart={chart} barSize="14">
         <BarSegment.Content>
           <Flex pos="relative" gap="1px">
-            {criteria.map((c, i) => (
-              <Box
-                key={c.name}
-                flex={c.weightPercent}
-                h="14"
-                bg={EMBER_GRADIENT[i % EMBER_GRADIENT.length]}
-                display="flex"
-                alignItems="flex-end"
-                p={2}
-                minW={0}
-                overflow="hidden"
-              >
-                {c.weightPercent >= FINGERPRINT_INLINE_LABEL_MIN_PERCENT && (
-                  <Text fontSize="xs" fontWeight="medium" color="accent.ink" lineClamp={1}>
-                    {c.name}
-                  </Text>
-                )}
-              </Box>
-            ))}
+            {criteria.map((c, i) => {
+              const color = EMBER_GRADIENT[i % EMBER_GRADIENT.length];
+              const isHighlighted = chart.highlightedSeries === c.name;
+              return (
+                <Box
+                  key={c.name}
+                  pos="relative"
+                  // A real stacking context on every segment (not just the hovered one), so the
+                  // hovered one's z-index bump actually has effect: without an explicit z-index
+                  // here too, all segments share z-index:auto and paint in DOM order regardless
+                  // of the bump below, letting a LATER sibling visually cover a tooltip that
+                  // spills into its box.
+                  zIndex={isHighlighted ? 2 : 1}
+                  flex={c.weightPercent}
+                  h="14"
+                  bg={color}
+                  display="flex"
+                  alignItems="flex-end"
+                  p={2}
+                  minW={0}
+                  // Deliberately NOT overflow="hidden" (the earlier version had it, copied from
+                  // the level-row label pattern where it's harmless). Here it silently clipped
+                  // the tooltip below to nothing: an absolutely-positioned descendant is clipped
+                  // by an ancestor's overflow:hidden even when positioned entirely outside that
+                  // ancestor's own box, which is exactly what `top="-8"` does. Not needed for
+                  // the on-segment name's truncation either — `lineClamp={1}` below already
+                  // ellipsizes within the flex-constrained width on its own.
+                  // BarSegmentTooltip only renders while `chart.highlightedSeries` matches this
+                  // segment's own name — the same native show/hide mechanism BarSegment.Bar
+                  // itself uses (see its onMouseMove), just wired to our hand-rolled segment
+                  // Box instead of that component (which doesn't support the on-segment name
+                  // label above). `pos="relative"` anchors the tooltip to THIS segment, not the
+                  // whole row.
+                  onMouseMove={() => chart.setHighlightedSeries(c.name)}
+                >
+                  {c.weightPercent >= FINGERPRINT_INLINE_LABEL_MIN_PERCENT && (
+                    <Text fontSize="xs" fontWeight="medium" color="accent.ink" lineClamp={1}>
+                      {c.name}
+                    </Text>
+                  )}
+                  {/* Hand-rolled, not BarSegment.Tooltip: that component always renders a
+                      color swatch + name + value with no prop to drop the value, and the
+                      brief wants the name only. Positioning carried over from the
+                      BarSegment.Tooltip override this replaced — centered above the segment,
+                      lifted 32px clear of it (`top="-8"`) rather than the library's default
+                      `top:-4, right:4` (which, anchored to one often-narrow segment, overflowed
+                      off the left edge on a 6-segment row and covered the on-segment label). */}
+                  {isHighlighted && (
+                    <Box
+                      pos="absolute"
+                      top="-8"
+                      insetStart="50%"
+                      transform="translateX(-50%)"
+                      bg="bg.panel"
+                      textStyle="xs"
+                      whiteSpace="nowrap"
+                      px="2.5"
+                      py="1"
+                      rounded="l2"
+                      shadow="md"
+                    >
+                      {c.name}
+                    </Box>
+                  )}
+                </Box>
+              );
+            })}
           </Flex>
         </BarSegment.Content>
       </BarSegment.Root>
