@@ -154,6 +154,35 @@ rewriting them, which this reorg pass deliberately avoided.
      same copy pass once the Pause flow's destination/copy is settled in the current IA session
      (i.e. this item is blocked on that).
 
+  **Update 2026-09-13:** the blocker in point 2 is lifted — the "Your Taste" tab build
+  (`criteria-calibration-results-tab-design-brief.md`) established and applied the same tone/
+  copy conventions (no bare percentage, "accuracy ≠ correctness" kept physically separate from
+  any conclusion, etc.) across its own screens. This item is unblocked whenever picked up; the
+  actual rewrite still hasn't been done.
+
+- **"Your Taste" tab (Criteria Calibration Results tab) — three items the real implementation
+  could not resolve, 2026-09-13.** Surfaced building the real tab against
+  `criteria-calibration-results-tab-design-brief.md`; full context in that doc's "Real
+  implementation" section.
+  1. **Sub-1% level-percent stability is unconfirmed.** The `<0.5%`/exact-0% display treatment
+     for small per-level values ships on an assumption that the LP solver's output is stable at
+     that granularity run-to-run — never confirmed with whoever owns the solver. If sub-1%
+     values are observed to jitter between sessions on the same answer log, this display
+     convention (and possibly the underlying precision claim) needs revisiting.
+  2. **"What changed since your last visit" (which albums moved up/down) is out of scope for
+     this tab**, not just deferred silently — it needs historical ranking snapshots that may not
+     exist yet, and the album ranking list itself lives in a future AOTY hub, not this tab.
+  3. **Mobile and very-wide-desktop layout are untouched.** The tab was built and verified
+     against a single ~720px desktop reference only (RTL component tests, no viewport variation).
+     Needs its own discovery session, not a tack-on fix — flagged here so it has an owner-shaped
+     gap on record rather than being assumed "someone else's problem."
+- **Favorites rank badge sync timing — unspecified, 2026-09-13.** How/when the rank badge shown
+  on a favorited album updates relative to progress made on the "Your Taste"/Results tab was
+  never specified during that tab's design or build. Not blocking (the badge already exists and
+  updates on *some* cadence via the existing favorites/rating wiring), but the exact relationship
+  to calibration progress is genuinely unscoped and should be named explicitly before anyone
+  relies on it being real-time or session-scoped.
+
 ## B. Known code/data gaps (accepted, not fixed)
 
 - **`useCalibrationResume.ts`'s mount-time degree inference and

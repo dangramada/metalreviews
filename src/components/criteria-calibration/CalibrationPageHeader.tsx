@@ -83,7 +83,7 @@ export function CalibrationPageHeader({
           <Tabs.List>
             <Tabs.Trigger value="guide">Guide</Tabs.Trigger>
             <Tabs.Trigger value="calibration">Calibration</Tabs.Trigger>
-            <Tabs.Trigger value="results">Results</Tabs.Trigger>
+            <Tabs.Trigger value="results">Your Taste</Tabs.Trigger>
           </Tabs.List>
 
           {hasStarted && (
