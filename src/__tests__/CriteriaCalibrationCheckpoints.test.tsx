@@ -396,10 +396,13 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     await screen.findByText("You've compared everything at this level");
     await clickButton('Pause here');
     // Stays on this page (criteria-calibration-page-redesign §4: pause is always a temporary
-    // exit, handled by the Results tab's own soft gate) — unlike the terminal "Done, evaluate
+    // exit, handled by the Your Taste tab's own soft gate) — unlike the terminal "Done, evaluate
     // albums" button, which does leave the page (covered by the terminal-screen test below).
+    // At the degree-2 boundary (boundaryAt(2) above) tier is 'medium', not 'none' — the real
+    // gate is degree-2-exhausted, so real content unlocks here rather than the empty state.
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(await screen.findByText(/Not enough data yet for a ranking/)).toBeTruthy();
+    expect(await screen.findByText('Fingerprint')).toBeTruthy();
+    expect(screen.getByText('Per-criterion detail')).toBeTruthy();
   });
 
   it('"Done, evaluate albums" (terminal) still navigates to the ?from= destination', async () => {

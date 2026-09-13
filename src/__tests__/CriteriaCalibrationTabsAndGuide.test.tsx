@@ -164,7 +164,7 @@ describe('CriteriaCalibrationPage — tabs, Guide, Results', () => {
     expect(screen.queryByRole('button', { name: 'Start Calibration' })).toBeNull();
   });
 
-  it('the Results tab is clickable with zero answers and shows the below-grade-2 soft gate, not a forward-block', async () => {
+  it('the Your Taste tab is clickable with zero answers and shows the below-grade-2 soft gate, not a forward-block', async () => {
     vi.mocked(useCalibrationResume).mockReturnValue({
       answers: [],
       degree: 2,
@@ -174,9 +174,9 @@ describe('CriteriaCalibrationPage — tabs, Guide, Results', () => {
     renderAt('/calibrate?step=guide');
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('tab', { name: 'Results' }));
+      fireEvent.click(screen.getByRole('tab', { name: 'Your Taste' }));
     });
-    expect(await screen.findByText(/Not enough data yet for a ranking/)).toBeTruthy();
+    expect(await screen.findByText(/Nothing's taken shape yet/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Back to Calibration' })).toBeTruthy();
   });
 

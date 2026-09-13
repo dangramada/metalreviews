@@ -315,10 +315,12 @@ describe('CriteriaCalibrationPage — freeze checkpoint (live, real driver)', ()
     );
     await screen.findByText('Your answers have stopped narrowing this down');
     await clickButton('Pause here');
-    // Stays on this page (criteria-calibration-page-redesign §4) — 78 real answers already
-    // logged, so the Results tab's soft gate shows the "coming soon" placeholder, not the
-    // below-grade-2 message.
+    // Stays on this page (criteria-calibration-page-redesign §4). The "Your Taste" tab's real
+    // gate is degree-2-exhausted (tier !== 'none'), not "has answered anything" — and degree 2
+    // was never actually exhausted here (it's frozen, per this suite's own point above), so
+    // tier is still 'none' despite 78 real answers logged. That's the unified empty state, not
+    // the below-grade-2-specific copy this used to be split from.
     expect(mockNavigate).not.toHaveBeenCalled();
-    expect(await screen.findByText(/A full results view is coming soon/)).toBeTruthy();
+    expect(await screen.findByText("Nothing's taken shape yet.")).toBeTruthy();
   }, 20000);
 });
