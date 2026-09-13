@@ -73,11 +73,32 @@ what deliberately was NOT touched. Recovery-sequence unmount-safety (a real, con
 also fixed on this branch, in `usePendingWritesGuard.ts`. Full detail:
 `criteria-calibration-page-redesign.md`.
 
+**2026-09-13 — the "Your Taste" tab (Results tab) is implemented and shipped**, on the
+2026-09-12 design brief below. Real solved weights (`solvedValues`) drive all three sections —
+narrative summary + `TierAccuracyBadge` (physically separated, per "accuracy ≠ correctness"),
+an ember-gradient `BarSegment` taste-fingerprint bar, and a hand-rolled one-row-per-level
+per-criterion breakdown (`BarList.Bar` was tried live and rejected — its width domain is
+per-instance-relative, incompatible with this page's one-absolute-scale requirement). The real
+content gate is `tier !== 'none'` (degree 2 exhausted), replacing the old `hasWeights`
+(`answers.length > 0`) gate and its two-variant placeholder copy with one unified empty state.
+Criterion weight and its own level percentages share one formatting function
+(`formatLevelPercent`) derived from the same unrounded solved values, so displayed level
+percentages sum exactly to the displayed criterion weight. `ResultsSpike.tsx`/`/results-spike`
+deleted. 358/358 tests, `tsc` clean. Full detail (including the spike history the real build
+carried forward — tie-handling, the 0%-baseline/precision-boundary rules, the aria-hidden fix,
+the legend-swatch contrast fix): `criteria-calibration-results-tab-design-brief.md`.
+
+**2026-09-12 — Results tab design brief resolved** (superseded by the 2026-09-13 entry above):
+the full "calibration results page" design (weights/levels shown visually) got its resolved
+brief — narrative summary + `TierAccuracyBadge`, an ember-gradient taste-fingerprint bar, and an
+expandable per-criterion/per-level breakdown — recommending a `Chart.BarList`/`Chart.BarSegment`
+spike before implementation. See `criteria-calibration-results-tab-design-brief.md` (this
+folder; the brief's own content lives in Project Knowledge per "Not in this repo" below; the
+repo file itself now also carries the real implementation's own "Real implementation" section).
+
 **Not built:** an in-product explanation of why some users see more questions than others
-(deferred, no UI planned); the full "calibration results page" design (weights/levels shown
-visually) — the 2026-09-07 branch above ships only a minimal below-grade-2 placeholder, not
-this; the accuracy-display two-signal split (consistency vs. coverage) proposed 2026-08-15. See
-`deferred-work.md` sections A/C for these and other open items.
+(deferred, no UI planned); the accuracy-display two-signal split (consistency vs. coverage)
+proposed 2026-08-15. See `deferred-work.md` sections A/C for these and other open items.
 
 ## File index
 
@@ -124,6 +145,7 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-tiered-checkpoints.md` — **read this for anything about degree escalation, stopping, or the accuracy tiers shown to the user.** Retires the auto-escalation signal and replaces it with tier-gated checkpoints (degree-2 boundary / High / Very High / neutral exhaustion fallback); deletes ~876 lines, 7 DB columns and the write-race; corrects two stale premises in its own brief (deprecated threshold constants, and an assumed-merged prerequisite that wasn't); records why tier-crossing here is NOT the thing Pass 2 rejected, and why checkpoints fire on an in-session crossing rather than a standing tier
 - `criteria-calibration-weights-write-race.md` — diagnoses and partially fixes the un-awaited-write race; **the residual risk it documents was retired 2026-08-17 by deleting the columns** (see "Current status" above)
 - `criteria-calibration-page-redesign.md` — restructures the page onto `/calibration` + a Guide/Calibration/Results tab bar (chrome only — tier-derivation, checkpoint precedence, and the progress-fill formula are unchanged); see "Current status" above
+- `criteria-calibration-results-tab-design-brief.md` — pointer stub to the Project-Knowledge-only design brief (see "Not in this repo" below), plus the real implementation's own spike-history and "Real implementation" sections — read this for anything about the "Your Taste" tab
 - `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run; its "Outcome" section (added 2026-08-16) is the current source of truth for Dan's account state — that session ran and completed at 71 answers, so the account is **not** empty
 
 **Research**
@@ -160,3 +182,8 @@ account backups (gitignored, not committed) live in the further sibling `docs/ba
 `criteria-calibration-algorithm-map.md` exists only in Project Knowledge (claude.ai) — it
 is not and has never been checked into this repo. Don't go looking for it under
 `docs/decisions/`.
+
+`criteria-calibration-results-tab--discovery-kickoff-brief.md` and
+`criteria-calibration-results-tab-design-brief.md` (the Results tab's discovery brief and its
+resolved follow-up) are likewise Project-Knowledge-only design-discovery output. The repo has
+only a pointer stub at `criteria-calibration/criteria-calibration-results-tab-design-brief.md`.
