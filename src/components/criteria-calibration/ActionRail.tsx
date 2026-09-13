@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { Box, Button, IconButton, VStack } from '@chakra-ui/react';
+import { Box, Button, IconButton, Stack } from '@chakra-ui/react';
 import { LuRedo2, LuRotateCcw, LuUndo2 } from 'react-icons/lu';
 import { Tooltip } from '../ui/tooltip';
 import {
@@ -34,6 +34,15 @@ interface ActionRailProps {
 // Vertical, flush against the container's left edge (no left padding) per the brief's layout —
 // rendered only alongside the question view, never during a checkpoint, same scoping as
 // WorkStatusRow.
+//
+// 2026-09-13 (mobile): `direction` responsive row→column, one tree, CSS-only — same technique as
+// CalibrationPageHeader.tsx's badge-stacking fix. `ActionRail` has exactly one call site
+// (CriteriaCalibrationPage.tsx), which repositions the rail's own grid cell from beside the cards
+// (desktop) to above them (mobile) — see that file's `gridTemplateAreas` — so making the internal
+// stack responsive by default, rather than adding an `orientation` prop, is safe. Tooltip
+// `placement="right"` stays fixed for both orientations: the rationale below (avoid covering the
+// next button in the stack) is a vertical-desktop concern, and hover tooltips are a secondary,
+// non-blocking affordance on touch devices anyway — not worth a second, JS-driven placement path.
 export function ActionRail({
   onUndo,
   onRedo,
@@ -46,7 +55,7 @@ export function ActionRail({
 
   return (
     <>
-      <VStack gap={2} align="flex-start">
+      <Stack direction={{ base: 'row', md: 'column' }} gap={2} align="flex-start">
         <RailButton
           label="Undo"
           tooltip={undoDisabled ? 'Nothing to undo yet' : 'Undo your last answer'}
@@ -70,7 +79,7 @@ export function ActionRail({
         >
           <LuRotateCcw />
         </RailButton>
-      </VStack>
+      </Stack>
 
       <DialogRoot
         open={confirmOpen}

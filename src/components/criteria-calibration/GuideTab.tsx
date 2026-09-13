@@ -36,8 +36,10 @@ export function GuideTab({ catalog, onStart }: GuideTabProps) {
       <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
         <CriteriaCarousel catalog={catalog} slidesPerPage={3} />
       </Box>
+      {/* inlineControls: on a narrow viewport the gutter Prev/Next buttons this carousel uses by
+        default cost more width than the card gets back — see CriteriaCarousel.tsx. */}
       <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
-        <CriteriaCarousel catalog={catalog} slidesPerPage={1} />
+        <CriteriaCarousel catalog={catalog} slidesPerPage={1} inlineControls />
       </Box>
 
       <Flex justify="center">

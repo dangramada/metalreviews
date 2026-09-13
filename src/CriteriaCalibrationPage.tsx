@@ -1158,11 +1158,33 @@ export function CriteriaCalibrationPage() {
 
                   The grid gets both for free: the title occupies row 1 of the CARD column
                   only, so it centres on the cards; the rail and the cards share row 2, so
-                  they align by construction, at any title height. */}
-                <Box display="grid" gridTemplateColumns="auto 1fr" columnGap={6}>
-                  {/* my={8} is the design's 32px above and below the title. Margins on grid
-                    items don't collapse, so these two are exactly what they say. */}
-                  <Box gridColumn={2} gridRow={1} my={8}>
+                  they align by construction, at any title height.
+
+                  2026-09-13 (mobile): named `gridTemplateAreas` instead of per-Box
+                  `gridColumn`/`gridRow`, responsive per breakpoint — one tree, CSS-only, same
+                  technique as CalibrationPageHeader.tsx's badge-stacking fix. Desktop (`md`)
+                  reproduces the exact layout above unchanged (". title" / "rail cards" is the
+                  same auto/1fr, row-1-title-only, row-2-rail-and-cards shape). Mobile (`base`)
+                  stacks title → rail → cards in one column, which turns ActionRail's own
+                  responsive `direction={{ base: 'row', md: 'column' }}` (ActionRail.tsx) into a
+                  horizontal row sitting above the comparison cards instead of a vertical column
+                  beside them. */}
+                <Box
+                  display="grid"
+                  gridTemplateColumns={{ base: '1fr', md: 'auto 1fr' }}
+                  gridTemplateAreas={{
+                    base: `"title" "rail" "cards"`,
+                    md: `". title" "rail cards"`,
+                  }}
+                  columnGap={6}
+                  rowGap={{ base: 4, md: 0 }}
+                >
+                  {/* my={8} is the design's 32px above and below the title on desktop. Margins on
+                    grid items don't collapse, so this is exactly what it says. Tighter on mobile
+                    (my=6) since title now shares a column with rail+cards below it rather than
+                    sitting beside them — full 32px both sides plus the grid's own rowGap would
+                    over-stack. */}
+                  <Box gridArea="title" my={{ base: 6, md: 8 }}>
                     <QuestionPrompt />
                     {isFirstAnswerAtDegree && degreeClarificationText && (
                       <Text
@@ -1177,7 +1199,7 @@ export function CriteriaCalibrationPage() {
                     )}
                   </Box>
 
-                  <Box gridColumn={1} gridRow={2}>
+                  <Box gridArea="rail">
                     <ActionRail
                       onUndo={handleUndo}
                       onRedo={handleRedo}
@@ -1187,7 +1209,7 @@ export function CriteriaCalibrationPage() {
                     />
                   </Box>
 
-                  <Box gridColumn={2} gridRow={2}>
+                  <Box gridArea="cards">
                     <VStack gap={6} align="stretch">
                       {/* aria-live scopes to the pair that actually changes per round. The
                         title above is static, and announcing it every round would be noise. */}

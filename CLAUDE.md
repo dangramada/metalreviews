@@ -81,6 +81,18 @@ No branches currently in progress.
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
+Most recent work landed as direct commits to `master` (no feature branch, no rollback tag —
+deviates from this project's usual branch+merge+rollback-tag convention; flagged here rather
+than silently matching the pattern below): (1) a previously-stalled, already-finished design-
+review pass on four Your Taste tab files (badge stacking, spacing, hover contrast, fingerprint
+tooltip), confirmed with Dan it was done work that just hadn't been committed; (2) a mobile
+layout pass — Guide tab's carousel drops gutter Prev/Next buttons for a full-width card with
+tappable pagination dots, Calibration tab's `ActionRail` becomes a horizontal row above the
+comparison cards on mobile instead of a vertical column beside them (desktop unchanged in both
+cases). 358/358 tests, `tsc` clean, verified live in-browser at both breakpoints on Dan's real
+account (read-only interactions — no Undo/Redo/Restart clicks). Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-mobile-guide-and-rail-layout.md`.
+
 Also merged: `criteria-calibration-freeze-checkpoint` (fifth checkpoint — explicit
 acknowledgement that degree 2 is "frozen" for the four preference shapes that never reach
 `coverage-complete`. **Both steps done.** Step 1: for all four shapes (`#2 single-dominant`,

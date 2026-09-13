@@ -16,6 +16,13 @@ detect a good stopping point automatically, is retired (see
 
 ## Current status
 
+**2026-09-13 — mobile layout pass (Guide tab + Calibration tab):** Guide tab's mobile carousel
+instance drops the gutter Prev/Next buttons for a full-width card with a row of tappable
+pagination dots (square, not round — this app's `radii.full` is 0px) below the title; Calibration
+tab's `ActionRail` (undo/redo/reset) becomes a horizontal row above the comparison cards on
+mobile instead of a vertical column beside them, via one CSS-only responsive `Stack direction`.
+Desktop unchanged in both cases. See `criteria-calibration-mobile-guide-and-rail-layout.md`.
+
 **2026-09-15 — checkpoint screen visual refresh (in progress):** the milestone checkpoint's title moves from Clash Display to Inter (the last title on this feature still using the display face), its buttons move from a hardcoded orange to the app's own token objects, and its spacing evens out to the calibration content pass's 32px rhythm. See `criteria-calibration-checkpoint-visual-refresh.md`.
 
 **Shipped and live in production:** the full pipeline — engine, UI, Supabase persistence,
@@ -147,6 +154,10 @@ Grouped by pipeline stage, roughly chronological within each group.
 - `criteria-calibration-page-redesign.md` — restructures the page onto `/calibration` + a Guide/Calibration/Results tab bar (chrome only — tier-derivation, checkpoint precedence, and the progress-fill formula are unchanged); see "Current status" above
 - `criteria-calibration-results-tab-design-brief.md` — pointer stub to the Project-Knowledge-only design brief (see "Not in this repo" below), plus the real implementation's own spike-history and "Real implementation" sections — read this for anything about the "Your Taste" tab
 - `criteria-calibration-second-session-reset.md` — wipes a completed session for a second validation run; its "Outcome" section (added 2026-08-16) is the current source of truth for Dan's account state — that session ran and completed at 71 answers, so the account is **not** empty
+- `criteria-calibration-mobile-guide-and-rail-layout.md` — Guide tab's mobile carousel gets a
+  full-width card with tappable pagination dots instead of gutter Prev/Next buttons; Calibration
+  tab's `ActionRail` becomes a horizontal row above the comparison cards on mobile via a
+  CSS-only responsive `Stack direction`; desktop unchanged in both. See "Current status" above
 
 **Research**
 
