@@ -21,19 +21,29 @@ Desktop had to stay pixel-identical in both cases — both are additive, mobile-
 
 ### Guide tab — pagination dots, not inline chevrons
 
-First pass put small chevrons + a `CarouselProgressText` "N / M" counter inline with each card's
-title (`CriteriaCarousel.tsx`, gated by a new `inlineControls` prop, wired only on `GuideTab.tsx`'s
-mobile `slidesPerPage={1}` instance). Verified live and working — but Dan's mid-implementation
-correction replaced this with the eventual shape: a row of **six tappable pagination dots**
-below the title/description, above the "LEVELS" section, and the card header reverted to a plain
-title + description block (no inline nav row).
+Two corrections landed before this settled. First pass put small chevrons + a
+`CarouselProgressText` "N / M" counter inline with each card's title (`CriteriaCarousel.tsx`,
+gated by a new `inlineControls` prop, wired only on `GuideTab.tsx`'s mobile `slidesPerPage={1}`
+instance) — verified live and working, but Dan's correction replaced it with a row of **six
+tappable pagination dots**, initially placed inside the card, below the title/description and
+above the "LEVELS" section (card header reverted to a plain title + description block, no inline
+nav row). Second correction moved the dots again: out from inside the card entirely, to below it,
+in the carousel's own container. Reasoning (Dan's): the dots represent position within the full
+6-criterion set, not any one criterion's own content, so sitting inside the card border made them
+read as belonging to that one criterion rather than to the carousel as a whole — and moving them
+out gives the card back the vertical space they used to take, which was the original point of the
+change. Same tap-to-jump behavior and per-dot `aria-label`, unchanged across both moves —
+placement-only fixes.
 
 The dots use `CarouselIndicator` (already exported unstyled from `ui/carousel.tsx` as
 `Carousel.Indicator`) rather than a hand-rolled click handler: it already wires `onClick` to jump
 straight to that page (zag's `PAGE.SET`, not sequential prev/next) and stamps `data-current` on
 the active one, styled via `&[data-current]`. Square, not round — this app's `radii.full` token is
 `0px` throughout (see `design-tokens.md`), so a "dot" here is a small square tick, same visual
-language as every other indicator in the app, not an exception to it.
+language as every other indicator in the app, not an exception to it. In their final position the
+row sits once, outside `renderItems()`'s per-card markup, below the shared `CarouselItemGroup` —
+not once per card — since the dots reflect carousel-wide position regardless of which card is on
+screen.
 
 `CarouselIndicator`'s own built-in `aria-label` is a generic "Item N" translation with no
 criterion name in it, so each dot gets an explicit override —
@@ -88,9 +98,10 @@ shares a row with the cards (full 32px both sides plus the grid's `rowGap` would
   or `ActionRail`'s stack orientation, so nothing needed updating.
 - Live browser pass on Dan's real 76-round account (not a QA account — read-only interactions
   only: no Undo/Redo/Restart clicks, no answer submissions), both viewports:
-  - Guide tab, mobile (375px): full-width card, six dots render with correct `aria-label`s
-    (confirmed via accessibility tree, not just visually), tapping a non-adjacent dot (4th,
-    "Coherence") jumps directly rather than paging sequentially, correct dot re-fills.
+  - Guide tab, mobile (375px): full-width card, six dots render below the card (outside its
+    border) with correct `aria-label`s (confirmed via accessibility tree, not just visually),
+    tapping a non-adjacent dot (5th, "Production") jumps directly rather than paging
+    sequentially, correct dot re-fills.
   - Guide tab, desktop (1280px): unchanged 3-per-page carousel with gutter arrows, no dots, no
     header change.
   - Calibration tab, mobile: Undo/Redo/Restart render as a horizontal row above the comparison

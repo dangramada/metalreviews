@@ -16,9 +16,9 @@ interface CriteriaCarouselProps {
   catalog: CriteriaCatalog;
   slidesPerPage: number;
   // Mobile only (GuideTab's slidesPerPage=1 instance): trades the gutter Prev/Next buttons for a
-  // row of tappable pagination dots below the card header, so the card can render at full width
-  // instead of ceding ~100px+ to gutters either side. Desktop (slidesPerPage=3) omits this and
-  // keeps the gutter-button layout below unchanged.
+  // row of tappable pagination dots below the card, so the card can render at full width instead
+  // of ceding ~100px+ to gutters either side. Desktop (slidesPerPage=3) omits this and keeps the
+  // gutter-button layout below unchanged.
   inlineControls?: boolean;
 }
 
@@ -67,14 +67,53 @@ export function CriteriaCarousel({
         slides with full-size Prev/Next buttons — see the ONE-set-of-controls comment inside the
         `!inlineControls` branch below. Inline mode (mobile, GuideTab's slidesPerPage=1 instance)
         skips the gutters entirely — no arrows fit a legible width in a 375px viewport once the
-        card itself needs the room — and puts small chevrons + a page counter on each card's own
-        header instead (below, in the per-entry map). Swiping the slides directly also still
+        card itself needs the room — and puts a row of pagination dots below the card instead
+        (below, outside `renderItems()`'s per-card markup — see the dots' own comment for why
+        they sit outside the card rather than inside it). Swiping the slides directly also still
         works in inline mode: CarouselItemGroupStyled's `overflowX: auto` +
         `scrollSnapType: x mandatory` (ui/carousel.tsx) already makes it a native touch-scrollable
         container, so removing the gutter buttons doesn't remove a way to page — it removes a
         *second*, space-costly way to do what a swipe already does. */}
       {inlineControls ? (
-        <CarouselItemGroup>{renderItems()}</CarouselItemGroup>
+        <VStack align="stretch" gap={4}>
+          <CarouselItemGroup>{renderItems()}</CarouselItemGroup>
+          {showControls && (
+            // Pagination dots, one per criterion, live in the carousel's own container, below
+            // the card — not inside it. They represent position within the full 6-criterion
+            // set, not any one criterion's content, so putting them inside the card border (an
+            // earlier version of this pass did) read as though they belonged to that one card;
+            // outside the border they read as carousel chrome, and the card gets back the
+            // vertical space they used to take. Square, not round — `radii.full` is 0px
+            // throughout this app's design system (see design-tokens.md), so a "dot" here is a
+            // small square tick, same language as every other indicator in the app.
+            // `CarouselIndicator` (ui/carousel.tsx, itself `Carousel.Indicator` re-exported
+            // unstyled) already wires `onClick` to jump straight to that page (zag's
+            // `PAGE.SET`) and stamps `data-current` on the active one — no custom click
+            // handling needed, just styling `&[data-current]`. Its built-in `aria-label` is a
+            // generic "Item N" translation with no criterion name in it, so each one gets an
+            // explicit `aria-label` naming the destination, same reasoning as any icon-only
+            // control needing an accessible name.
+            <Flex justify="center" gap={3}>
+              {catalog.entries.map((e) => (
+                <CarouselIndicator
+                  key={e.index}
+                  index={e.index}
+                  aria-label={`Go to ${e.name}, ${e.index + 1} of ${catalog.entries.length}`}
+                  w={3}
+                  h={3}
+                  p={0}
+                  minW={0}
+                  borderRadius="none"
+                  border="1px solid"
+                  borderColor="border.rule"
+                  bg="transparent"
+                  cursor="pointer"
+                  css={{ '&[data-current]': { bg: 'text.primary', borderColor: 'text.primary' } }}
+                />
+              ))}
+            </Flex>
+          )}
+        </VStack>
       ) : (
         <Flex align="center" gap={3}>
           {/* ONE set of controls, flanking the slides rather than sitting above or below them.
@@ -131,39 +170,6 @@ export function CriteriaCarousel({
               {entry.description}
             </Text>
           </VStack>
-
-          {inlineControls && showControls && (
-            // Pagination dots, one per criterion, replacing an earlier inline-chevrons-plus-
-            // counter header that turned out to be the wrong shape for this brief. Square, not
-            // round — `radii.full` is 0px throughout this app's design system (see
-            // design-tokens.md), so a "dot" here is a small square tick, same language as every
-            // other indicator in the app. `CarouselIndicator` (ui/carousel.tsx, itself
-            // `Carousel.Indicator` re-exported unstyled) already wires `onClick` to jump straight
-            // to that page (zag's `PAGE.SET`) and stamps `data-current` on the active one — no
-            // custom click handling needed, just styling `&[data-current]`. Its built-in
-            // `aria-label` is a generic "Item N" translation with no criterion name in it, so
-            // each one gets an explicit `aria-label` naming the destination, same reasoning as
-            // any icon-only control needing an accessible name.
-            <Flex gap={3}>
-              {catalog.entries.map((e) => (
-                <CarouselIndicator
-                  key={e.index}
-                  index={e.index}
-                  aria-label={`Go to ${e.name}, ${e.index + 1} of ${catalog.entries.length}`}
-                  w={3}
-                  h={3}
-                  p={0}
-                  minW={0}
-                  borderRadius="none"
-                  border="1px solid"
-                  borderColor="border.rule"
-                  bg="transparent"
-                  cursor="pointer"
-                  css={{ '&[data-current]': { bg: 'text.primary', borderColor: 'text.primary' } }}
-                />
-              ))}
-            </Flex>
-          )}
 
           {/* Full-bleed 2px rule in the card's own border colour, pulled out past the 24px
         padding (mx={-6}) so it meets both edges and reads as part of the card's
