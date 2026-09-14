@@ -8,6 +8,7 @@ import { AuthCallback } from './AuthCallback';
 import { AuthProvider } from './AuthContext';
 import { RequireAuth } from './RequireAuth';
 import { StyleGuide } from './StyleGuide';
+import { DevMusicBrainzStreamingCoverage } from './DevMusicBrainzStreamingCoverage';
 import { CriteriaCalibrationPage } from './CriteriaCalibrationPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
     ),
   },
   { path: '/style-guide', element: <StyleGuide /> },
+  // Throwaway dev route for the MusicBrainz streaming-link coverage spike
+  // (spike/musicbrainz-streaming-links) — remove along with DevMusicBrainzStreamingCoverage.tsx
+  // once the spike is reviewed.
+  { path: '/dev-musicbrainz-streaming-coverage', element: <DevMusicBrainzStreamingCoverage /> },
   {
     path: '/rate/:albumId',
     element: (
