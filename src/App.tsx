@@ -286,8 +286,11 @@ export function ArtworkBlock({
 
       {/* Overlay scrim standard: any icon/chip button sitting directly on cover art needs a
           fixed opaque-ish backing regardless of what's under it — a light or busy cover can
-          otherwise wash out the icon entirely. blackAlpha.750 (~75% black) is that standard;
-          apply it to any future overlay button on this card, not just these two. */}
+          otherwise wash out the icon entirely. blackAlpha.700 (~70% black) is that standard;
+          apply it to any future overlay button on this card, not just these two. NOTE:
+          Chakra's alpha color scales only define steps 50/100/200/.../900/950 — blackAlpha.750
+          isn't a real step and silently resolves to no background at all, which is what
+          shipped originally and made the scrim invisible. Stick to a defined step. */}
       <Box
         as="button"
         type="button"
@@ -295,7 +298,7 @@ export function ArtworkBlock({
         position="absolute"
         top={2}
         right={2}
-        bg="blackAlpha.750"
+        bg="blackAlpha.700"
         borderRadius="full"
         p={2}
         display="flex"
@@ -303,7 +306,7 @@ export function ArtworkBlock({
         justifyContent="center"
         border="none"
         cursor="pointer"
-        _hover={{ bg: 'blackAlpha.850' }}
+        _hover={{ bg: 'blackAlpha.800' }}
         css={{
           '&:hover .heart-outline': { opacity: 0 },
           '&:hover .heart-filled': { opacity: 1 },
@@ -345,21 +348,30 @@ export function ArtworkBlock({
           Unlike the icon-only heart this is a labeled "chip" (icon + text), so it needs
           more horizontal room; right={12} (48px) clears the heart button's own ~36px box
           plus the row's gap. Opens a Menu (non-modal, dismissible like a popover) rather
-          than a Modal — this is a lightweight, non-blocking action per the brief. Only
-          stopPropagation here (not preventDefault, unlike the heart button): Ark UI's Menu
-          trigger checks event.defaultPrevented before opening, so preventDefault would
-          silently block the menu from ever opening. stopPropagation alone is still enough
-          to stop the card's wrapping <Link> from navigating. */}
+          than a Modal — this is a lightweight, non-blocking action per the brief. Icon
+          matches the heart's own default size/opacity (boxSize 5, whiteAlpha.600) so the
+          two overlay controls read as one family; the label is sized up from the icon to
+          stay proportionate rather than looking like a caption.
+          No onClick/stopPropagation here on purpose: Ark UI's Menu trigger checks
+          event.defaultPrevented before opening, so calling preventDefault() here (needed to
+          stop the card's wrapping <Link> from navigating) would silently block the menu
+          from ever opening, and stopPropagation() alone does NOT stop a native <a> from
+          following its href — that only responds to preventDefault(), called anywhere in
+          the same click's dispatch. The fix lives on the wrapping <Link> itself instead
+          (see its onClick below, keyed off data-listen-trigger), which runs during the
+          bubble phase strictly after this trigger's own click handling has already
+          decided whether to open the menu. */}
       <MenuRoot positioning={{ placement: 'bottom-end' }}>
         <MenuTrigger asChild>
           <Box
             as="button"
             type="button"
             aria-label="Listen on a streaming platform"
+            data-listen-trigger
             position="absolute"
             top={2}
             right={12}
-            bg="blackAlpha.750"
+            bg="blackAlpha.700"
             borderRadius="full"
             px={3}
             py={2}
@@ -368,14 +380,10 @@ export function ArtworkBlock({
             gap={1.5}
             border="none"
             cursor="pointer"
-            color="whiteAlpha.900"
-            _hover={{ bg: 'blackAlpha.850' }}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-            }}
+            _hover={{ bg: 'blackAlpha.800' }}
           >
-            <Icon as={Headphones} boxSize={4} />
-            <Text as="span" fontSize="xs" fontWeight="600" lineHeight="1">
+            <Icon as={Headphones} color="whiteAlpha.600" boxSize={5} />
+            <Text as="span" fontSize="sm" fontWeight="600" lineHeight="1" color="whiteAlpha.900">
               Listen
             </Text>
           </Box>
@@ -877,6 +885,17 @@ function App() {
                     color="inherit"
                     _hover={{ textDecoration: 'none' }}
                     display="block"
+                    onClick={(e: React.MouseEvent) => {
+                      // The Listen chip is a Menu trigger nested inside this anchor (see
+                      // ArtworkBlock) and deliberately doesn't call preventDefault() itself —
+                      // doing so there would stop the menu from opening at all. Catching it
+                      // here instead, after the trigger's own click handling has already run,
+                      // stops this card-level link from following its href when the click
+                      // originated on the chip.
+                      if ((e.target as HTMLElement).closest('[data-listen-trigger]')) {
+                        e.preventDefault();
+                      }
+                    }}
                   >
                     {cardBody}
                   </Link>
