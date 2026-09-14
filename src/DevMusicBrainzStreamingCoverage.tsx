@@ -241,8 +241,20 @@ export function DevMusicBrainzStreamingCoverage() {
               {PLATFORMS.map((p) => (
                 <td key={p.key} style={{ padding: '4px 8px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                    <a href={row.fallback_links[p.key]} target="_blank" rel="noreferrer">
-                      search
+                    <a
+                      href={row.fallback_links[p.key]}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`Opens pre-filled search: ${row.fallback_links[p.key]}`}
+                      style={{
+                        display: 'block',
+                        maxWidth: 130,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      &rarr; search "{row.band} {row.album}"
                     </a>
                     <VerifyToggle
                       value={verifiedFor(row, p.key)}
