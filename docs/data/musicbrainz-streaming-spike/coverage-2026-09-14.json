@@ -16,9 +16,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Sadness%20Sunset%20Blush",
-        "spotify": "https://open.spotify.com/search/Sadness%20Sunset%20Blush"
+        "spotify": "https://open.spotify.com/search/Sadness%20Sunset%20Blush",
+        "youtubeMusic": "https://music.youtube.com/search?q=Sadness%20Sunset%20Blush"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -30,9 +36,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Nihil%20Admiral%20The%20Axes%2C%20the%20Flesh%20Hooks%20and%20the%20Spits",
-        "spotify": "https://open.spotify.com/search/Nihil%20Admiral%20The%20Axes%2C%20the%20Flesh%20Hooks%20and%20the%20Spits"
+        "spotify": "https://open.spotify.com/search/Nihil%20Admiral%20The%20Axes%2C%20the%20Flesh%20Hooks%20and%20the%20Spits",
+        "youtubeMusic": "https://music.youtube.com/search?q=Nihil%20Admiral%20The%20Axes%2C%20the%20Flesh%20Hooks%20and%20the%20Spits"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -44,9 +56,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=The%20Black%20Dahlia%20Murder%20Nocturnal",
-        "spotify": "https://open.spotify.com/search/The%20Black%20Dahlia%20Murder%20Nocturnal"
+        "spotify": "https://open.spotify.com/search/The%20Black%20Dahlia%20Murder%20Nocturnal",
+        "youtubeMusic": "https://music.youtube.com/search?q=The%20Black%20Dahlia%20Murder%20Nocturnal"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -58,9 +76,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Aspen%20Sanctum%20To%20Withhold%20the%20Need%20to%20Conquer",
-        "spotify": "https://open.spotify.com/search/Aspen%20Sanctum%20To%20Withhold%20the%20Need%20to%20Conquer"
+        "spotify": "https://open.spotify.com/search/Aspen%20Sanctum%20To%20Withhold%20the%20Need%20to%20Conquer",
+        "youtubeMusic": "https://music.youtube.com/search?q=Aspen%20Sanctum%20To%20Withhold%20the%20Need%20to%20Conquer"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -72,9 +96,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=The%20Black%20Dahlia%20Murder%20Deflorate",
-        "spotify": "https://open.spotify.com/search/The%20Black%20Dahlia%20Murder%20Deflorate"
+        "spotify": "https://open.spotify.com/search/The%20Black%20Dahlia%20Murder%20Deflorate",
+        "youtubeMusic": "https://music.youtube.com/search?q=The%20Black%20Dahlia%20Murder%20Deflorate"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -86,9 +116,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Unknown%20Graveyard%20of%20Empires",
-        "spotify": "https://open.spotify.com/search/Unknown%20Graveyard%20of%20Empires"
+        "spotify": "https://open.spotify.com/search/Unknown%20Graveyard%20of%20Empires",
+        "youtubeMusic": "https://music.youtube.com/search?q=Unknown%20Graveyard%20of%20Empires"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -100,9 +136,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Dreadnought%20Wars%20of%20Spirit%20%2F%2F%20Wards%20of%20Light",
-        "spotify": "https://open.spotify.com/search/Dreadnought%20Wars%20of%20Spirit%20%2F%2F%20Wards%20of%20Light"
+        "spotify": "https://open.spotify.com/search/Dreadnought%20Wars%20of%20Spirit%20%2F%2F%20Wards%20of%20Light",
+        "youtubeMusic": "https://music.youtube.com/search?q=Dreadnought%20Wars%20of%20Spirit%20%2F%2F%20Wards%20of%20Light"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -114,9 +156,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Vulgar%20Mephitis%20From%20Dust",
-        "spotify": "https://open.spotify.com/search/Vulgar%20Mephitis%20From%20Dust"
+        "spotify": "https://open.spotify.com/search/Vulgar%20Mephitis%20From%20Dust",
+        "youtubeMusic": "https://music.youtube.com/search?q=Vulgar%20Mephitis%20From%20Dust"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -128,9 +176,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Jupiter%20The%20Pantheon%20~Age%20of%20Heroes~",
-        "spotify": "https://open.spotify.com/search/Jupiter%20The%20Pantheon%20~Age%20of%20Heroes~"
+        "spotify": "https://open.spotify.com/search/Jupiter%20The%20Pantheon%20~Age%20of%20Heroes~",
+        "youtubeMusic": "https://music.youtube.com/search?q=Jupiter%20The%20Pantheon%20~Age%20of%20Heroes~"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -142,9 +196,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Noekk%20Vergessenes",
-        "spotify": "https://open.spotify.com/search/Noekk%20Vergessenes"
+        "spotify": "https://open.spotify.com/search/Noekk%20Vergessenes",
+        "youtubeMusic": "https://music.youtube.com/search?q=Noekk%20Vergessenes"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -156,9 +216,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Raphael%20Weinroth-Browne%20Empyrean",
-        "spotify": "https://open.spotify.com/search/Raphael%20Weinroth-Browne%20Empyrean"
+        "spotify": "https://open.spotify.com/search/Raphael%20Weinroth-Browne%20Empyrean",
+        "youtubeMusic": "https://music.youtube.com/search?q=Raphael%20Weinroth-Browne%20Empyrean"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -170,9 +236,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Jess%20By%20The%20Lake%20Human",
-        "spotify": "https://open.spotify.com/search/Jess%20By%20The%20Lake%20Human"
+        "spotify": "https://open.spotify.com/search/Jess%20By%20The%20Lake%20Human",
+        "youtubeMusic": "https://music.youtube.com/search?q=Jess%20By%20The%20Lake%20Human"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -184,9 +256,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Beseech%20Future%20Present%20Past",
-        "spotify": "https://open.spotify.com/search/Beseech%20Future%20Present%20Past"
+        "spotify": "https://open.spotify.com/search/Beseech%20Future%20Present%20Past",
+        "youtubeMusic": "https://music.youtube.com/search?q=Beseech%20Future%20Present%20Past"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -198,9 +276,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Slime%20Dimension%20Slime%20Dimension",
-        "spotify": "https://open.spotify.com/search/Slime%20Dimension%20Slime%20Dimension"
+        "spotify": "https://open.spotify.com/search/Slime%20Dimension%20Slime%20Dimension",
+        "youtubeMusic": "https://music.youtube.com/search?q=Slime%20Dimension%20Slime%20Dimension"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -212,9 +296,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Green%20Lung%20Necropolitan",
-        "spotify": "https://open.spotify.com/search/Green%20Lung%20Necropolitan"
+        "spotify": "https://open.spotify.com/search/Green%20Lung%20Necropolitan",
+        "youtubeMusic": "https://music.youtube.com/search?q=Green%20Lung%20Necropolitan"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -226,9 +316,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=A%20Night%20In%20Texas%20The%20Darkest%20Side%20of%20Humanity",
-        "spotify": "https://open.spotify.com/search/A%20Night%20In%20Texas%20The%20Darkest%20Side%20of%20Humanity"
+        "spotify": "https://open.spotify.com/search/A%20Night%20In%20Texas%20The%20Darkest%20Side%20of%20Humanity",
+        "youtubeMusic": "https://music.youtube.com/search?q=A%20Night%20In%20Texas%20The%20Darkest%20Side%20of%20Humanity"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -240,9 +336,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Sworn%20Null%20Crowned%20the%20Infinite",
-        "spotify": "https://open.spotify.com/search/Sworn%20Null%20Crowned%20the%20Infinite"
+        "spotify": "https://open.spotify.com/search/Sworn%20Null%20Crowned%20the%20Infinite",
+        "youtubeMusic": "https://music.youtube.com/search?q=Sworn%20Null%20Crowned%20the%20Infinite"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -254,9 +356,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Archgoat%20Nightbringer%2C%20Lightbringer",
-        "spotify": "https://open.spotify.com/search/Archgoat%20Nightbringer%2C%20Lightbringer"
+        "spotify": "https://open.spotify.com/search/Archgoat%20Nightbringer%2C%20Lightbringer",
+        "youtubeMusic": "https://music.youtube.com/search?q=Archgoat%20Nightbringer%2C%20Lightbringer"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -268,9 +376,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=DJ%20URUTAU%20Ornitofagia",
-        "spotify": "https://open.spotify.com/search/DJ%20URUTAU%20Ornitofagia"
+        "spotify": "https://open.spotify.com/search/DJ%20URUTAU%20Ornitofagia",
+        "youtubeMusic": "https://music.youtube.com/search?q=DJ%20URUTAU%20Ornitofagia"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -282,9 +396,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Season%20of%20Melancholy%20In%20Sleep",
-        "spotify": "https://open.spotify.com/search/Season%20of%20Melancholy%20In%20Sleep"
+        "spotify": "https://open.spotify.com/search/Season%20of%20Melancholy%20In%20Sleep",
+        "youtubeMusic": "https://music.youtube.com/search?q=Season%20of%20Melancholy%20In%20Sleep"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -296,9 +416,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Devil%20Master%20Bloody%20Dreams",
-        "spotify": "https://open.spotify.com/search/Devil%20Master%20Bloody%20Dreams"
+        "spotify": "https://open.spotify.com/search/Devil%20Master%20Bloody%20Dreams",
+        "youtubeMusic": "https://music.youtube.com/search?q=Devil%20Master%20Bloody%20Dreams"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -310,9 +436,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=The%20Emerald%20Dawn%20The%20Land%2C%20the%20Sea%2C%20the%20Air%20(Volume%20II)",
-        "spotify": "https://open.spotify.com/search/The%20Emerald%20Dawn%20The%20Land%2C%20the%20Sea%2C%20the%20Air%20(Volume%20II)"
+        "spotify": "https://open.spotify.com/search/The%20Emerald%20Dawn%20The%20Land%2C%20the%20Sea%2C%20the%20Air%20(Volume%20II)",
+        "youtubeMusic": "https://music.youtube.com/search?q=The%20Emerald%20Dawn%20The%20Land%2C%20the%20Sea%2C%20the%20Air%20(Volume%20II)"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -324,9 +456,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Rapid%20Enter%20the%20Realm%20of%20Fire",
-        "spotify": "https://open.spotify.com/search/Rapid%20Enter%20the%20Realm%20of%20Fire"
+        "spotify": "https://open.spotify.com/search/Rapid%20Enter%20the%20Realm%20of%20Fire",
+        "youtubeMusic": "https://music.youtube.com/search?q=Rapid%20Enter%20the%20Realm%20of%20Fire"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -338,9 +476,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Marceline%20In%20Spite%20of%20Time",
-        "spotify": "https://open.spotify.com/search/Marceline%20In%20Spite%20of%20Time"
+        "spotify": "https://open.spotify.com/search/Marceline%20In%20Spite%20of%20Time",
+        "youtubeMusic": "https://music.youtube.com/search?q=Marceline%20In%20Spite%20of%20Time"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -352,9 +496,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Acausal%20Intrusion%20Vomit%20Meditations",
-        "spotify": "https://open.spotify.com/search/Acausal%20Intrusion%20Vomit%20Meditations"
+        "spotify": "https://open.spotify.com/search/Acausal%20Intrusion%20Vomit%20Meditations",
+        "youtubeMusic": "https://music.youtube.com/search?q=Acausal%20Intrusion%20Vomit%20Meditations"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -366,9 +516,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Aucausal%20Intrusion%20Vomit%20Meditations",
-        "spotify": "https://open.spotify.com/search/Aucausal%20Intrusion%20Vomit%20Meditations"
+        "spotify": "https://open.spotify.com/search/Aucausal%20Intrusion%20Vomit%20Meditations",
+        "youtubeMusic": "https://music.youtube.com/search?q=Aucausal%20Intrusion%20Vomit%20Meditations"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -380,9 +536,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Green%20Carnation%20A%20Dark%20Poem%20Part%20III%3A%20The%20Messiah%20Complex",
-        "spotify": "https://open.spotify.com/search/Green%20Carnation%20A%20Dark%20Poem%20Part%20III%3A%20The%20Messiah%20Complex"
+        "spotify": "https://open.spotify.com/search/Green%20Carnation%20A%20Dark%20Poem%20Part%20III%3A%20The%20Messiah%20Complex",
+        "youtubeMusic": "https://music.youtube.com/search?q=Green%20Carnation%20A%20Dark%20Poem%20Part%20III%3A%20The%20Messiah%20Complex"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -394,9 +556,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Audrey%20Horne%20Achilles",
-        "spotify": "https://open.spotify.com/search/Audrey%20Horne%20Achilles"
+        "spotify": "https://open.spotify.com/search/Audrey%20Horne%20Achilles",
+        "youtubeMusic": "https://music.youtube.com/search?q=Audrey%20Horne%20Achilles"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -408,9 +576,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Hanternoz%20A%20Hed%20an%20Noz%2C%20a%20Noz%2C%20a%20Noz",
-        "spotify": "https://open.spotify.com/search/Hanternoz%20A%20Hed%20an%20Noz%2C%20a%20Noz%2C%20a%20Noz"
+        "spotify": "https://open.spotify.com/search/Hanternoz%20A%20Hed%20an%20Noz%2C%20a%20Noz%2C%20a%20Noz",
+        "youtubeMusic": "https://music.youtube.com/search?q=Hanternoz%20A%20Hed%20an%20Noz%2C%20a%20Noz%2C%20a%20Noz"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -422,9 +596,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Sigh%20Goh-Ka",
-        "spotify": "https://open.spotify.com/search/Sigh%20Goh-Ka"
+        "spotify": "https://open.spotify.com/search/Sigh%20Goh-Ka",
+        "youtubeMusic": "https://music.youtube.com/search?q=Sigh%20Goh-Ka"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -436,9 +616,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Xi%C3%A9%20G%C3%B2u%20%E6%97%A0%E4%BD%95%E6%9C%89%20(Wu%20He%20You)",
-        "spotify": "https://open.spotify.com/search/Xi%C3%A9%20G%C3%B2u%20%E6%97%A0%E4%BD%95%E6%9C%89%20(Wu%20He%20You)"
+        "spotify": "https://open.spotify.com/search/Xi%C3%A9%20G%C3%B2u%20%E6%97%A0%E4%BD%95%E6%9C%89%20(Wu%20He%20You)",
+        "youtubeMusic": "https://music.youtube.com/search?q=Xi%C3%A9%20G%C3%B2u%20%E6%97%A0%E4%BD%95%E6%9C%89%20(Wu%20He%20You)"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -450,9 +636,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Ninth%20Realm%20Damnation%E2%80%99s%20Veil",
-        "spotify": "https://open.spotify.com/search/Ninth%20Realm%20Damnation%E2%80%99s%20Veil"
+        "spotify": "https://open.spotify.com/search/Ninth%20Realm%20Damnation%E2%80%99s%20Veil",
+        "youtubeMusic": "https://music.youtube.com/search?q=Ninth%20Realm%20Damnation%E2%80%99s%20Veil"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -464,9 +656,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Oddland%20Unilluminate%20to%20Illuminate",
-        "spotify": "https://open.spotify.com/search/Oddland%20Unilluminate%20to%20Illuminate"
+        "spotify": "https://open.spotify.com/search/Oddland%20Unilluminate%20to%20Illuminate",
+        "youtubeMusic": "https://music.youtube.com/search?q=Oddland%20Unilluminate%20to%20Illuminate"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -478,9 +676,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Fog%20Wall%20Gloomweaver",
-        "spotify": "https://open.spotify.com/search/Fog%20Wall%20Gloomweaver"
+        "spotify": "https://open.spotify.com/search/Fog%20Wall%20Gloomweaver",
+        "youtubeMusic": "https://music.youtube.com/search?q=Fog%20Wall%20Gloomweaver"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -492,9 +696,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Vianova%20Hit%20It!",
-        "spotify": "https://open.spotify.com/search/Vianova%20Hit%20It!"
+        "spotify": "https://open.spotify.com/search/Vianova%20Hit%20It!",
+        "youtubeMusic": "https://music.youtube.com/search?q=Vianova%20Hit%20It!"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -506,9 +716,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Februus%20Construction%20of%20Conflict",
-        "spotify": "https://open.spotify.com/search/Februus%20Construction%20of%20Conflict"
+        "spotify": "https://open.spotify.com/search/Februus%20Construction%20of%20Conflict",
+        "youtubeMusic": "https://music.youtube.com/search?q=Februus%20Construction%20of%20Conflict"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -520,9 +736,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Gorod%20The%20Ember%20Gone",
-        "spotify": "https://open.spotify.com/search/Gorod%20The%20Ember%20Gone"
+        "spotify": "https://open.spotify.com/search/Gorod%20The%20Ember%20Gone",
+        "youtubeMusic": "https://music.youtube.com/search?q=Gorod%20The%20Ember%20Gone"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -534,9 +756,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Pelegrin%20The%20Curse%20of%20Nephtar",
-        "spotify": "https://open.spotify.com/search/Pelegrin%20The%20Curse%20of%20Nephtar"
+        "spotify": "https://open.spotify.com/search/Pelegrin%20The%20Curse%20of%20Nephtar",
+        "youtubeMusic": "https://music.youtube.com/search?q=Pelegrin%20The%20Curse%20of%20Nephtar"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -548,9 +776,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Ledmotiv%20The%20Ghost%20of%20Carrion",
-        "spotify": "https://open.spotify.com/search/Ledmotiv%20The%20Ghost%20of%20Carrion"
+        "spotify": "https://open.spotify.com/search/Ledmotiv%20The%20Ghost%20of%20Carrion",
+        "youtubeMusic": "https://music.youtube.com/search?q=Ledmotiv%20The%20Ghost%20of%20Carrion"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -562,9 +796,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Mohini%20Dey%20The%20Dey%20Way",
-        "spotify": "https://open.spotify.com/search/Mohini%20Dey%20The%20Dey%20Way"
+        "spotify": "https://open.spotify.com/search/Mohini%20Dey%20The%20Dey%20Way",
+        "youtubeMusic": "https://music.youtube.com/search?q=Mohini%20Dey%20The%20Dey%20Way"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -576,9 +816,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Fane%20Armageddon%20Scars",
-        "spotify": "https://open.spotify.com/search/Fane%20Armageddon%20Scars"
+        "spotify": "https://open.spotify.com/search/Fane%20Armageddon%20Scars",
+        "youtubeMusic": "https://music.youtube.com/search?q=Fane%20Armageddon%20Scars"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -590,9 +836,15 @@
       "status": "no_mbid_stored",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Bring%20Me%20The%20Horizon%20Count%20Your%20Blessings%20Repented",
-        "spotify": "https://open.spotify.com/search/Bring%20Me%20The%20Horizon%20Count%20Your%20Blessings%20Repented"
+        "spotify": "https://open.spotify.com/search/Bring%20Me%20The%20Horizon%20Count%20Your%20Blessings%20Repented",
+        "youtubeMusic": "https://music.youtube.com/search?q=Bring%20Me%20The%20Horizon%20Count%20Your%20Blessings%20Repented"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -604,9 +856,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Holissstik%20Chapter%201%3A%20This%20Endless%20Solitude",
-        "spotify": "https://open.spotify.com/search/Holissstik%20Chapter%201%3A%20This%20Endless%20Solitude"
+        "spotify": "https://open.spotify.com/search/Holissstik%20Chapter%201%3A%20This%20Endless%20Solitude",
+        "youtubeMusic": "https://music.youtube.com/search?q=Holissstik%20Chapter%201%3A%20This%20Endless%20Solitude"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     },
@@ -618,9 +876,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Mastodon%20Marrow%20Deep",
-        "spotify": "https://open.spotify.com/search/Mastodon%20Marrow%20Deep"
+        "spotify": "https://open.spotify.com/search/Mastodon%20Marrow%20Deep",
+        "youtubeMusic": "https://music.youtube.com/search?q=Mastodon%20Marrow%20Deep"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -632,9 +896,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Cancer%20Bats%20Give%20Me%20Dirt",
-        "spotify": "https://open.spotify.com/search/Cancer%20Bats%20Give%20Me%20Dirt"
+        "spotify": "https://open.spotify.com/search/Cancer%20Bats%20Give%20Me%20Dirt",
+        "youtubeMusic": "https://music.youtube.com/search?q=Cancer%20Bats%20Give%20Me%20Dirt"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -646,9 +916,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Sunscorched%20Blood%20of%20the%20Badlands",
-        "spotify": "https://open.spotify.com/search/Sunscorched%20Blood%20of%20the%20Badlands"
+        "spotify": "https://open.spotify.com/search/Sunscorched%20Blood%20of%20the%20Badlands",
+        "youtubeMusic": "https://music.youtube.com/search?q=Sunscorched%20Blood%20of%20the%20Badlands"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -660,9 +936,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Coma%20Control%20Shed%20the%20Sleep",
-        "spotify": "https://open.spotify.com/search/Coma%20Control%20Shed%20the%20Sleep"
+        "spotify": "https://open.spotify.com/search/Coma%20Control%20Shed%20the%20Sleep",
+        "youtubeMusic": "https://music.youtube.com/search?q=Coma%20Control%20Shed%20the%20Sleep"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -674,9 +956,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Triosphere%20Oceans%20Above%2C%20Stars%20Below",
-        "spotify": "https://open.spotify.com/search/Triosphere%20Oceans%20Above%2C%20Stars%20Below"
+        "spotify": "https://open.spotify.com/search/Triosphere%20Oceans%20Above%2C%20Stars%20Below",
+        "youtubeMusic": "https://music.youtube.com/search?q=Triosphere%20Oceans%20Above%2C%20Stars%20Below"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -688,9 +976,15 @@
       "status": "no_match",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Exumer%20Death%20Mask%20Messiah",
-        "spotify": "https://open.spotify.com/search/Exumer%20Death%20Mask%20Messiah"
+        "spotify": "https://open.spotify.com/search/Exumer%20Death%20Mask%20Messiah",
+        "youtubeMusic": "https://music.youtube.com/search?q=Exumer%20Death%20Mask%20Messiah"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": null
     },
@@ -702,9 +996,15 @@
       "status": "error",
       "relationType": null,
       "url": null,
-      "fallbackSearch": {
+      "fallback_links": {
         "bandcamp": "https://bandcamp.com/search?q=Kamelot%20Dark%20Asylum",
-        "spotify": "https://open.spotify.com/search/Kamelot%20Dark%20Asylum"
+        "spotify": "https://open.spotify.com/search/Kamelot%20Dark%20Asylum",
+        "youtubeMusic": "https://music.youtube.com/search?q=Kamelot%20Dark%20Asylum"
+      },
+      "verified": {
+        "bandcamp": "not_checked",
+        "spotify": "not_checked",
+        "youtubeMusic": "not_checked"
       },
       "error": "Request failed with status code 503"
     }
