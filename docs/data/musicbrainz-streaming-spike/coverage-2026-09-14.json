@@ -1,0 +1,712 @@
+{
+  "generatedAt": "2026-09-14T05:55:16.073Z",
+  "summary": {
+    "total": 50,
+    "linkFound": 0,
+    "noMatch": 30,
+    "noMbidStored": 9,
+    "error": 11
+  },
+  "albums": [
+    {
+      "albumId": "2b77a48b-e581-4c00-ae96-47aa85562ac0",
+      "band": "Sadness",
+      "album": "Sunset Blush",
+      "mbid": "98cacd54-a74e-4e36-ac18-06992f79c0e1",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Sadness%20Sunset%20Blush",
+        "spotify": "https://open.spotify.com/search/Sadness%20Sunset%20Blush"
+      },
+      "error": null
+    },
+    {
+      "albumId": "fca54beb-45f0-458a-8853-26c21ea48f03",
+      "band": "Nihil Admiral",
+      "album": "The Axes, the Flesh Hooks and the Spits",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Nihil%20Admiral%20The%20Axes%2C%20the%20Flesh%20Hooks%20and%20the%20Spits",
+        "spotify": "https://open.spotify.com/search/Nihil%20Admiral%20The%20Axes%2C%20the%20Flesh%20Hooks%20and%20the%20Spits"
+      },
+      "error": null
+    },
+    {
+      "albumId": "c27439ee-d201-4f6f-a911-3abc2537baff",
+      "band": "The Black Dahlia Murder",
+      "album": "Nocturnal",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=The%20Black%20Dahlia%20Murder%20Nocturnal",
+        "spotify": "https://open.spotify.com/search/The%20Black%20Dahlia%20Murder%20Nocturnal"
+      },
+      "error": null
+    },
+    {
+      "albumId": "a8a000be-5d43-4b9a-8404-ea2b09885ec8",
+      "band": "Aspen Sanctum",
+      "album": "To Withhold the Need to Conquer",
+      "mbid": "56fdcc63-1047-4c29-ad49-eeaf7dd0eaa5",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Aspen%20Sanctum%20To%20Withhold%20the%20Need%20to%20Conquer",
+        "spotify": "https://open.spotify.com/search/Aspen%20Sanctum%20To%20Withhold%20the%20Need%20to%20Conquer"
+      },
+      "error": null
+    },
+    {
+      "albumId": "d779d405-247e-4a33-854e-be53098bfbc7",
+      "band": "The Black Dahlia Murder",
+      "album": "Deflorate",
+      "mbid": "bb9200d5-88ca-4866-9914-abedc3305f1e",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=The%20Black%20Dahlia%20Murder%20Deflorate",
+        "spotify": "https://open.spotify.com/search/The%20Black%20Dahlia%20Murder%20Deflorate"
+      },
+      "error": null
+    },
+    {
+      "albumId": "883171b1-d47e-4ee9-874d-c903d294c067",
+      "band": "Unknown",
+      "album": "Graveyard of Empires",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Unknown%20Graveyard%20of%20Empires",
+        "spotify": "https://open.spotify.com/search/Unknown%20Graveyard%20of%20Empires"
+      },
+      "error": null
+    },
+    {
+      "albumId": "81178267-0d61-4ec3-ac8f-a9357ea72fc5",
+      "band": "Dreadnought",
+      "album": "Wars of Spirit // Wards of Light",
+      "mbid": "00609691-743a-406a-88e5-dfb4b143fd55",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Dreadnought%20Wars%20of%20Spirit%20%2F%2F%20Wards%20of%20Light",
+        "spotify": "https://open.spotify.com/search/Dreadnought%20Wars%20of%20Spirit%20%2F%2F%20Wards%20of%20Light"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "e02d8570-88d4-46c3-a9bf-8a20d99aeedf",
+      "band": "Vulgar Mephitis",
+      "album": "From Dust",
+      "mbid": "834318d6-5a0c-4a02-a079-77aa1f39499b",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Vulgar%20Mephitis%20From%20Dust",
+        "spotify": "https://open.spotify.com/search/Vulgar%20Mephitis%20From%20Dust"
+      },
+      "error": null
+    },
+    {
+      "albumId": "b18c93f9-1e10-4048-b184-8a6e98e9603b",
+      "band": "Jupiter",
+      "album": "The Pantheon ~Age of Heroes~",
+      "mbid": "6e28b8b1-5506-4d27-9a7e-0d727f115e21",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Jupiter%20The%20Pantheon%20~Age%20of%20Heroes~",
+        "spotify": "https://open.spotify.com/search/Jupiter%20The%20Pantheon%20~Age%20of%20Heroes~"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "c064e0ca-4f9e-4969-b859-1407b12a26fa",
+      "band": "Noekk",
+      "album": "Vergessenes",
+      "mbid": "e678292b-335d-4a63-83e7-3392ea2c4dd5",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Noekk%20Vergessenes",
+        "spotify": "https://open.spotify.com/search/Noekk%20Vergessenes"
+      },
+      "error": null
+    },
+    {
+      "albumId": "929d5fa0-1a79-437f-a27f-d8c04d5d7f78",
+      "band": "Raphael Weinroth-Browne",
+      "album": "Empyrean",
+      "mbid": "acd140cd-d71f-42fc-80b8-01eb03303189",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Raphael%20Weinroth-Browne%20Empyrean",
+        "spotify": "https://open.spotify.com/search/Raphael%20Weinroth-Browne%20Empyrean"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "b0d80c8c-4253-47f4-9ee5-34692d3bdf38",
+      "band": "Jess By The Lake",
+      "album": "Human",
+      "mbid": "fe13b49f-5384-4d51-9800-7fda4f2aa596",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Jess%20By%20The%20Lake%20Human",
+        "spotify": "https://open.spotify.com/search/Jess%20By%20The%20Lake%20Human"
+      },
+      "error": null
+    },
+    {
+      "albumId": "2bb69ea0-b541-48f3-848e-f0352af88fd1",
+      "band": "Beseech",
+      "album": "Future Present Past",
+      "mbid": "a06e5b6a-10a4-496b-8ee1-01552c9b77e9",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Beseech%20Future%20Present%20Past",
+        "spotify": "https://open.spotify.com/search/Beseech%20Future%20Present%20Past"
+      },
+      "error": null
+    },
+    {
+      "albumId": "161cd693-5e47-4ce0-8a77-c8124b2d8eea",
+      "band": "Slime Dimension",
+      "album": "Slime Dimension",
+      "mbid": "0db58bbc-0d47-4019-8e1c-ef6450b9831a",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Slime%20Dimension%20Slime%20Dimension",
+        "spotify": "https://open.spotify.com/search/Slime%20Dimension%20Slime%20Dimension"
+      },
+      "error": null
+    },
+    {
+      "albumId": "a7b8f0c4-8709-4393-b524-f7887ffbe59d",
+      "band": "Green Lung",
+      "album": "Necropolitan",
+      "mbid": "ebcd8232-4460-48d8-a744-37abb851f8fa",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Green%20Lung%20Necropolitan",
+        "spotify": "https://open.spotify.com/search/Green%20Lung%20Necropolitan"
+      },
+      "error": null
+    },
+    {
+      "albumId": "abae4b47-2902-4c2a-a8ef-9e88ef92ff45",
+      "band": "A Night In Texas",
+      "album": "The Darkest Side of Humanity",
+      "mbid": "8ff4eb4d-393c-424d-b4b9-3f7ffa4b6224",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=A%20Night%20In%20Texas%20The%20Darkest%20Side%20of%20Humanity",
+        "spotify": "https://open.spotify.com/search/A%20Night%20In%20Texas%20The%20Darkest%20Side%20of%20Humanity"
+      },
+      "error": null
+    },
+    {
+      "albumId": "d122ff18-9e8c-486e-b068-aa17907253f7",
+      "band": "Sworn",
+      "album": "Null Crowned the Infinite",
+      "mbid": "87f8f86a-323a-424e-8ba9-7cfee48fd654",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Sworn%20Null%20Crowned%20the%20Infinite",
+        "spotify": "https://open.spotify.com/search/Sworn%20Null%20Crowned%20the%20Infinite"
+      },
+      "error": null
+    },
+    {
+      "albumId": "b2a7a630-df05-4226-b95e-6c1cda60e725",
+      "band": "Archgoat",
+      "album": "Nightbringer, Lightbringer",
+      "mbid": "384e758a-838f-4fb3-9b70-eadf8402c1a1",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Archgoat%20Nightbringer%2C%20Lightbringer",
+        "spotify": "https://open.spotify.com/search/Archgoat%20Nightbringer%2C%20Lightbringer"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "4f474e07-2d3b-4461-bbd3-dc45ed5434c4",
+      "band": "DJ URUTAU",
+      "album": "Ornitofagia",
+      "mbid": "3f202465-f99c-4df0-b526-f0dec1bb29a3",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=DJ%20URUTAU%20Ornitofagia",
+        "spotify": "https://open.spotify.com/search/DJ%20URUTAU%20Ornitofagia"
+      },
+      "error": null
+    },
+    {
+      "albumId": "b77931c4-7d48-4bd7-992e-9387842b2e08",
+      "band": "Season of Melancholy",
+      "album": "In Sleep",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Season%20of%20Melancholy%20In%20Sleep",
+        "spotify": "https://open.spotify.com/search/Season%20of%20Melancholy%20In%20Sleep"
+      },
+      "error": null
+    },
+    {
+      "albumId": "ffe6340c-b6b3-47c8-b80b-6d2c305a6907",
+      "band": "Devil Master",
+      "album": "Bloody Dreams",
+      "mbid": "3e4b84ab-266d-4b64-b783-e472cb48e8b1",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Devil%20Master%20Bloody%20Dreams",
+        "spotify": "https://open.spotify.com/search/Devil%20Master%20Bloody%20Dreams"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "d02bda2f-5e35-4ed7-8d3e-98e048af543e",
+      "band": "The Emerald Dawn",
+      "album": "The Land, the Sea, the Air (Volume II)",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=The%20Emerald%20Dawn%20The%20Land%2C%20the%20Sea%2C%20the%20Air%20(Volume%20II)",
+        "spotify": "https://open.spotify.com/search/The%20Emerald%20Dawn%20The%20Land%2C%20the%20Sea%2C%20the%20Air%20(Volume%20II)"
+      },
+      "error": null
+    },
+    {
+      "albumId": "1f785637-1edd-4824-8db0-8d9d162f4cec",
+      "band": "Rapid",
+      "album": "Enter the Realm of Fire",
+      "mbid": "b276e44e-bf0a-4b8d-8088-8e2daa48fb42",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Rapid%20Enter%20the%20Realm%20of%20Fire",
+        "spotify": "https://open.spotify.com/search/Rapid%20Enter%20the%20Realm%20of%20Fire"
+      },
+      "error": null
+    },
+    {
+      "albumId": "3d62bacb-58b8-4e45-95e7-d465b93e447b",
+      "band": "Marceline",
+      "album": "In Spite of Time",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Marceline%20In%20Spite%20of%20Time",
+        "spotify": "https://open.spotify.com/search/Marceline%20In%20Spite%20of%20Time"
+      },
+      "error": null
+    },
+    {
+      "albumId": "9d0b4994-7620-4d84-a3ae-2f57261d3252",
+      "band": "Acausal Intrusion",
+      "album": "Vomit Meditations",
+      "mbid": "08bab062-7e93-408e-ac85-1373e0de41a3",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Acausal%20Intrusion%20Vomit%20Meditations",
+        "spotify": "https://open.spotify.com/search/Acausal%20Intrusion%20Vomit%20Meditations"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "318d03ab-aea8-4133-8b55-ee93b8841277",
+      "band": "Aucausal Intrusion",
+      "album": "Vomit Meditations",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Aucausal%20Intrusion%20Vomit%20Meditations",
+        "spotify": "https://open.spotify.com/search/Aucausal%20Intrusion%20Vomit%20Meditations"
+      },
+      "error": null
+    },
+    {
+      "albumId": "9fac6737-84ed-46c2-8144-87e923d9b784",
+      "band": "Green Carnation",
+      "album": "A Dark Poem Part III: The Messiah Complex",
+      "mbid": "0b443f13-719c-4c2e-8a13-754c1ab818f6",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Green%20Carnation%20A%20Dark%20Poem%20Part%20III%3A%20The%20Messiah%20Complex",
+        "spotify": "https://open.spotify.com/search/Green%20Carnation%20A%20Dark%20Poem%20Part%20III%3A%20The%20Messiah%20Complex"
+      },
+      "error": null
+    },
+    {
+      "albumId": "d5021ac8-c4be-4ec8-be56-60f5dcd0951f",
+      "band": "Audrey Horne",
+      "album": "Achilles",
+      "mbid": "f7ac3394-d928-4c0f-9e05-04061abef1f0",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Audrey%20Horne%20Achilles",
+        "spotify": "https://open.spotify.com/search/Audrey%20Horne%20Achilles"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "23bb214f-4145-4989-9e78-c3dbe53cb5bd",
+      "band": "Hanternoz",
+      "album": "A Hed an Noz, a Noz, a Noz",
+      "mbid": "4cb67097-9771-461b-8e99-3b39a76b465a",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Hanternoz%20A%20Hed%20an%20Noz%2C%20a%20Noz%2C%20a%20Noz",
+        "spotify": "https://open.spotify.com/search/Hanternoz%20A%20Hed%20an%20Noz%2C%20a%20Noz%2C%20a%20Noz"
+      },
+      "error": null
+    },
+    {
+      "albumId": "d4885f94-d213-4612-a92d-839e50f66072",
+      "band": "Sigh",
+      "album": "Goh-Ka",
+      "mbid": "8ba43428-d9d4-4acb-99aa-8cf807b5a002",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Sigh%20Goh-Ka",
+        "spotify": "https://open.spotify.com/search/Sigh%20Goh-Ka"
+      },
+      "error": null
+    },
+    {
+      "albumId": "3610d2a6-90d0-4cb2-acd5-cfedf00bd5a1",
+      "band": "Xié Gòu",
+      "album": "无何有 (Wu He You)",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Xi%C3%A9%20G%C3%B2u%20%E6%97%A0%E4%BD%95%E6%9C%89%20(Wu%20He%20You)",
+        "spotify": "https://open.spotify.com/search/Xi%C3%A9%20G%C3%B2u%20%E6%97%A0%E4%BD%95%E6%9C%89%20(Wu%20He%20You)"
+      },
+      "error": null
+    },
+    {
+      "albumId": "70acadb4-42d4-4a31-8d3d-2cd3df440e71",
+      "band": "Ninth Realm",
+      "album": "Damnation’s Veil",
+      "mbid": "75083601-1fc4-4077-8fa8-52c2e2bebd96",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Ninth%20Realm%20Damnation%E2%80%99s%20Veil",
+        "spotify": "https://open.spotify.com/search/Ninth%20Realm%20Damnation%E2%80%99s%20Veil"
+      },
+      "error": null
+    },
+    {
+      "albumId": "379da951-c46c-480f-8ed6-68d0bdb567b3",
+      "band": "Oddland",
+      "album": "Unilluminate to Illuminate",
+      "mbid": "6c2f5be1-7ad6-4e30-98e7-de62b6a47c78",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Oddland%20Unilluminate%20to%20Illuminate",
+        "spotify": "https://open.spotify.com/search/Oddland%20Unilluminate%20to%20Illuminate"
+      },
+      "error": null
+    },
+    {
+      "albumId": "330bd6b6-a918-4c1a-9545-74868cfe6ef5",
+      "band": "Fog Wall",
+      "album": "Gloomweaver",
+      "mbid": "29fca74e-e8aa-4e6e-894d-025a0b51efdc",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Fog%20Wall%20Gloomweaver",
+        "spotify": "https://open.spotify.com/search/Fog%20Wall%20Gloomweaver"
+      },
+      "error": null
+    },
+    {
+      "albumId": "d22b3ade-bd85-4e08-946a-a62a11e334ae",
+      "band": "Vianova",
+      "album": "Hit It!",
+      "mbid": "c27bcaf8-49ec-4d4c-87f9-fa803844c4ca",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Vianova%20Hit%20It!",
+        "spotify": "https://open.spotify.com/search/Vianova%20Hit%20It!"
+      },
+      "error": null
+    },
+    {
+      "albumId": "bdb0a5be-5ea0-47bb-b4d6-d879c625607c",
+      "band": "Februus",
+      "album": "Construction of Conflict",
+      "mbid": "cfa79ae2-b370-429e-8a06-a34e7e513690",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Februus%20Construction%20of%20Conflict",
+        "spotify": "https://open.spotify.com/search/Februus%20Construction%20of%20Conflict"
+      },
+      "error": null
+    },
+    {
+      "albumId": "71238af4-4118-43ab-a373-740ed48f4798",
+      "band": "Gorod",
+      "album": "The Ember Gone",
+      "mbid": "0f5409e7-23e8-453e-b66d-7862bc7591b6",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Gorod%20The%20Ember%20Gone",
+        "spotify": "https://open.spotify.com/search/Gorod%20The%20Ember%20Gone"
+      },
+      "error": null
+    },
+    {
+      "albumId": "9bcf015c-453f-407f-b47a-89dea6a08c18",
+      "band": "Pelegrin",
+      "album": "The Curse of Nephtar",
+      "mbid": "9453f2bf-bc94-4321-a1ed-867428190e35",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Pelegrin%20The%20Curse%20of%20Nephtar",
+        "spotify": "https://open.spotify.com/search/Pelegrin%20The%20Curse%20of%20Nephtar"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "3798d8f5-3631-482e-8208-514dffd101c8",
+      "band": "Ledmotiv",
+      "album": "The Ghost of Carrion",
+      "mbid": "e629a201-5e0e-4dab-84fc-eb0eb9446523",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Ledmotiv%20The%20Ghost%20of%20Carrion",
+        "spotify": "https://open.spotify.com/search/Ledmotiv%20The%20Ghost%20of%20Carrion"
+      },
+      "error": null
+    },
+    {
+      "albumId": "9ee6f4e1-cf53-422c-a4aa-20db9b01f686",
+      "band": "Mohini Dey",
+      "album": "The Dey Way",
+      "mbid": "ae2fa96f-ec96-4f88-bd8b-d81e018c4f51",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Mohini%20Dey%20The%20Dey%20Way",
+        "spotify": "https://open.spotify.com/search/Mohini%20Dey%20The%20Dey%20Way"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "03ed2619-71ce-4eff-a8d7-284ec1bd90cb",
+      "band": "Fane",
+      "album": "Armageddon Scars",
+      "mbid": "f364e31b-2077-49ac-90ee-a7f58d5bed17",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Fane%20Armageddon%20Scars",
+        "spotify": "https://open.spotify.com/search/Fane%20Armageddon%20Scars"
+      },
+      "error": null
+    },
+    {
+      "albumId": "34ed6b18-8ad6-45dd-846f-305b55c58fba",
+      "band": "Bring Me The Horizon",
+      "album": "Count Your Blessings Repented",
+      "mbid": null,
+      "status": "no_mbid_stored",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Bring%20Me%20The%20Horizon%20Count%20Your%20Blessings%20Repented",
+        "spotify": "https://open.spotify.com/search/Bring%20Me%20The%20Horizon%20Count%20Your%20Blessings%20Repented"
+      },
+      "error": null
+    },
+    {
+      "albumId": "18a878a3-781e-4c43-9622-d24c7b75e9d7",
+      "band": "Holissstik",
+      "album": "Chapter 1: This Endless Solitude",
+      "mbid": "ec770492-ce07-4b28-b9f2-f9efb7500977",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Holissstik%20Chapter%201%3A%20This%20Endless%20Solitude",
+        "spotify": "https://open.spotify.com/search/Holissstik%20Chapter%201%3A%20This%20Endless%20Solitude"
+      },
+      "error": "Request failed with status code 503"
+    },
+    {
+      "albumId": "9ed06969-3ea1-4dc7-b8d7-789666304988",
+      "band": "Mastodon",
+      "album": "Marrow Deep",
+      "mbid": "2c35c7fd-6447-4225-938c-051b4fbb728d",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Mastodon%20Marrow%20Deep",
+        "spotify": "https://open.spotify.com/search/Mastodon%20Marrow%20Deep"
+      },
+      "error": null
+    },
+    {
+      "albumId": "63999a37-18ed-47d8-bd1e-f2fb354213df",
+      "band": "Cancer Bats",
+      "album": "Give Me Dirt",
+      "mbid": "4c157c9f-12f4-4575-9db2-b2739e20a3e5",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Cancer%20Bats%20Give%20Me%20Dirt",
+        "spotify": "https://open.spotify.com/search/Cancer%20Bats%20Give%20Me%20Dirt"
+      },
+      "error": null
+    },
+    {
+      "albumId": "bea061b0-da0f-477d-892d-7324396ddf69",
+      "band": "Sunscorched",
+      "album": "Blood of the Badlands",
+      "mbid": "b0ccdcaf-544c-4d0c-941d-58b4854a6d80",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Sunscorched%20Blood%20of%20the%20Badlands",
+        "spotify": "https://open.spotify.com/search/Sunscorched%20Blood%20of%20the%20Badlands"
+      },
+      "error": null
+    },
+    {
+      "albumId": "289b1770-a42d-495a-8407-a30a32b26cbe",
+      "band": "Coma Control",
+      "album": "Shed the Sleep",
+      "mbid": "c06ae612-b925-4b23-b319-244259a50dfc",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Coma%20Control%20Shed%20the%20Sleep",
+        "spotify": "https://open.spotify.com/search/Coma%20Control%20Shed%20the%20Sleep"
+      },
+      "error": null
+    },
+    {
+      "albumId": "d610462c-1d02-4427-b366-e7e0221dc828",
+      "band": "Triosphere",
+      "album": "Oceans Above, Stars Below",
+      "mbid": "2f30d9f2-1ad9-4515-86e4-00b8ec129edd",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Triosphere%20Oceans%20Above%2C%20Stars%20Below",
+        "spotify": "https://open.spotify.com/search/Triosphere%20Oceans%20Above%2C%20Stars%20Below"
+      },
+      "error": null
+    },
+    {
+      "albumId": "3ffe91a0-4567-48b6-beea-f4eb53d452bf",
+      "band": "Exumer",
+      "album": "Death Mask Messiah",
+      "mbid": "4c3a7079-2092-47f7-8daa-d25e75fb12fb",
+      "status": "no_match",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Exumer%20Death%20Mask%20Messiah",
+        "spotify": "https://open.spotify.com/search/Exumer%20Death%20Mask%20Messiah"
+      },
+      "error": null
+    },
+    {
+      "albumId": "625d03e5-b0d0-4ef2-90a7-67693638b4de",
+      "band": "Kamelot",
+      "album": "Dark Asylum",
+      "mbid": "d0e5873b-c53b-44c7-9c34-ac4a4a43a2ce",
+      "status": "error",
+      "relationType": null,
+      "url": null,
+      "fallbackSearch": {
+        "bandcamp": "https://bandcamp.com/search?q=Kamelot%20Dark%20Asylum",
+        "spotify": "https://open.spotify.com/search/Kamelot%20Dark%20Asylum"
+      },
+      "error": "Request failed with status code 503"
+    }
+  ]
+}
