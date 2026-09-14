@@ -38,6 +38,11 @@ import {
 
 // Heart icons for favoriting
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
+// Headphones icon for the Listen chip (Lucide is the app's one general icon source).
+import { Headphones } from 'lucide-react';
+// Brand marks for the Listen menu — simple-icons is scoped to this one use (see PlatformIcon).
+import { siBandcamp, siSpotify, siYoutubemusic, siDeezer } from 'simple-icons';
+import type { SimpleIcon } from 'simple-icons';
 
 // Supabase client and data mapping. Post-album-identity-migration, the home page reads
 // `albums` joined to `reviews` (see docs/decisions/album-identity-frontend-homepage.md).
@@ -51,6 +56,18 @@ import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
+import { PlatformIcon } from './components/PlatformIcon';
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from './components/ui/menu';
+import { LISTEN_PLATFORMS, buildListenUrl, type ListenPlatform } from './listenLinks';
+
+// Brand icon lookup for the Listen menu — keyed by ListenPlatform so the render loop over
+// LISTEN_PLATFORMS (which owns display order) can pull the matching mark without a switch.
+const LISTEN_PLATFORM_ICONS: Record<ListenPlatform, SimpleIcon> = {
+  bandcamp: siBandcamp,
+  spotify: siSpotify,
+  youtubeMusic: siYoutubemusic,
+  deezer: siDeezer,
+};
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -267,11 +284,10 @@ export function ArtworkBlock({
         </Flex>
       )}
 
-      {/* Heart toggle — top-right corner (the one open corner: source is bottom-left,
-          score is bottom-right). Exactly-one-review cards are wrapped in an outer <Link>
-          (see the card-level link below) — e.stopPropagation()/preventDefault() stop that
-          Link from navigating when the heart is clicked. Zero- and multi-review cards have
-          no such wrapper, so these calls are no-ops there, which is harmless. */}
+      {/* Overlay scrim standard: any icon/chip button sitting directly on cover art needs a
+          fixed opaque-ish backing regardless of what's under it — a light or busy cover can
+          otherwise wash out the icon entirely. blackAlpha.750 (~75% black) is that standard;
+          apply it to any future overlay button on this card, not just these two. */}
       <Box
         as="button"
         type="button"
@@ -279,7 +295,7 @@ export function ArtworkBlock({
         position="absolute"
         top={2}
         right={2}
-        bg="blackAlpha.400"
+        bg="blackAlpha.750"
         borderRadius="full"
         p={2}
         display="flex"
@@ -287,7 +303,7 @@ export function ArtworkBlock({
         justifyContent="center"
         border="none"
         cursor="pointer"
-        _hover={{ bg: 'blackAlpha.600' }}
+        _hover={{ bg: 'blackAlpha.850' }}
         css={{
           '&:hover .heart-outline': { opacity: 0 },
           '&:hover .heart-filled': { opacity: 1 },
@@ -324,6 +340,65 @@ export function ArtworkBlock({
           </Box>
         )}
       </Box>
+
+      {/* Listen chip — top-right overlay, same row as the heart, directly to its left.
+          Unlike the icon-only heart this is a labeled "chip" (icon + text), so it needs
+          more horizontal room; right={12} (48px) clears the heart button's own ~36px box
+          plus the row's gap. Opens a Menu (non-modal, dismissible like a popover) rather
+          than a Modal — this is a lightweight, non-blocking action per the brief. Only
+          stopPropagation here (not preventDefault, unlike the heart button): Ark UI's Menu
+          trigger checks event.defaultPrevented before opening, so preventDefault would
+          silently block the menu from ever opening. stopPropagation alone is still enough
+          to stop the card's wrapping <Link> from navigating. */}
+      <MenuRoot positioning={{ placement: 'bottom-end' }}>
+        <MenuTrigger asChild>
+          <Box
+            as="button"
+            type="button"
+            aria-label="Listen on a streaming platform"
+            position="absolute"
+            top={2}
+            right={12}
+            bg="blackAlpha.750"
+            borderRadius="full"
+            px={3}
+            py={2}
+            display="flex"
+            alignItems="center"
+            gap={1.5}
+            border="none"
+            cursor="pointer"
+            color="whiteAlpha.900"
+            _hover={{ bg: 'blackAlpha.850' }}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+            }}
+          >
+            <Icon as={Headphones} boxSize={4} />
+            <Text as="span" fontSize="xs" fontWeight="600" lineHeight="1">
+              Listen
+            </Text>
+          </Box>
+        </MenuTrigger>
+        <MenuContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+          {LISTEN_PLATFORMS.map(({ id, label }) => (
+            <MenuItem key={id} value={id} asChild>
+              <Link
+                href={buildListenUrl(id, rev.band, rev.album)}
+                target="_blank"
+                rel="noopener noreferrer"
+                display="flex"
+                alignItems="center"
+                gap={2}
+                _hover={{ textDecoration: 'none' }}
+              >
+                <PlatformIcon icon={LISTEN_PLATFORM_ICONS[id]} />
+                <Text as="span">{label}</Text>
+              </Link>
+            </MenuItem>
+          ))}
+        </MenuContent>
+      </MenuRoot>
 
       {/* Badges branch on review count (see docs/decisions/album-identity-frontend-homepage.md's
           bugfix note): zero reviews shows nothing; exactly one review shows the original
