@@ -411,7 +411,18 @@ export function ArtworkBlock({
             the open menu reads as a continuation of the chip instead of a mismatched surface. */}
         <MenuContent bg="blackAlpha.800" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           {LISTEN_PLATFORMS.map(({ id, label }) => (
-            <MenuItem key={id} value={id} asChild>
+            <MenuItem
+              key={id}
+              value={id}
+              asChild
+              cursor="pointer"
+              // Default menu-item cursor token is "default" (an arrow) — these rows are
+              // real links, so override it. The default highlighted-row background
+              // (color-mix over bg-emphasized) was too subtle against this menu's own
+              // translucent blackAlpha.800 panel; whiteAlpha.300 lightens visibly
+              // regardless of what's showing through behind the menu.
+              _highlighted={{ bg: 'whiteAlpha.300' }}
+            >
               <Link
                 href={buildListenUrl(id, rev.band, rev.album)}
                 target="_blank"
