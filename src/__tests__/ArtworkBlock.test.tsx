@@ -76,4 +76,25 @@ describe('ArtworkBlock', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
+
+  it('renders a Listen chip that opens a menu with all four platform links', async () => {
+    render(<ArtworkBlock rev={mockReview} isFavorited={false} onToggle={vi.fn()} />, { wrapper });
+    const chip = screen.getByRole('button', { name: 'Listen on a streaming platform' });
+    // Chakra's Ark-UI-based Menu opens on pointer interaction, not on a bare `click` event —
+    // jsdom needs the full pointerdown/pointerup/click sequence a real click produces.
+    fireEvent.pointerDown(chip, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(chip, { button: 0, pointerId: 1 });
+    fireEvent.click(chip);
+
+    const bandcampLink = await screen.findByRole('menuitem', { name: /Bandcamp/i });
+    expect(bandcampLink).toHaveAttribute(
+      'href',
+      'https://bandcamp.com/search?q=Opeth%20Blackwater%20Park'
+    );
+    expect(bandcampLink).toHaveAttribute('target', '_blank');
+
+    expect(screen.getByRole('menuitem', { name: /Spotify/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /YouTube Music/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Deezer/i })).toBeInTheDocument();
+  });
 });
