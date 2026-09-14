@@ -194,7 +194,6 @@ export function formatReleaseDate(d: string | null): string {
 // state — tracking whether the image has finished loading — without needing
 // to pass a Map or shared state down from the parent.
 
-
 // CAA pre-generates fixed-size thumbnails at consistent paths: the full-res filename
 // with `-{size}` inserted before the extension. 500px is sufficient for the card grid
 // and meaningfully smaller than full-res (which can exceed 8 MB). The onError fallback
@@ -310,6 +309,10 @@ export function ArtworkBlock({
         css={{
           '&:hover .heart-outline': { opacity: 0 },
           '&:hover .heart-filled': { opacity: 1 },
+          // Hover feedback: both glyphs sit at whiteAlpha.600 at rest (a deliberately muted
+          // baseline so the overlay doesn't compete with the artwork); on hover they go fully
+          // opaque so the interaction reads clearly, on top of the outline→filled glyph swap.
+          '&:hover .heart-outline, &:hover .heart-filled': { color: 'white' },
         }}
         onClick={(e: React.MouseEvent) => {
           e.preventDefault();
@@ -348,10 +351,10 @@ export function ArtworkBlock({
           Unlike the icon-only heart this is a labeled "chip" (icon + text), so it needs
           more horizontal room; right={12} (48px) clears the heart button's own ~36px box
           plus the row's gap. Opens a Menu (non-modal, dismissible like a popover) rather
-          than a Modal — this is a lightweight, non-blocking action per the brief. Icon
-          matches the heart's own default size/opacity (boxSize 5, whiteAlpha.600) so the
-          two overlay controls read as one family; the label is sized up from the icon to
-          stay proportionate rather than looking like a caption.
+          than a Modal — this is a lightweight, non-blocking action per the brief. Icon and
+          label share one color (whiteAlpha.600, matching the heart's own muted resting
+          state) rather than the icon/text mismatch from the first pass; hover pushes both
+          to fully opaque white, same "clear interaction" treatment as the heart.
           No onClick/stopPropagation here on purpose: Ark UI's Menu trigger checks
           event.defaultPrevented before opening, so calling preventDefault() here (needed to
           stop the card's wrapping <Link> from navigating) would silently block the menu
@@ -381,14 +384,26 @@ export function ArtworkBlock({
             border="none"
             cursor="pointer"
             _hover={{ bg: 'blackAlpha.800' }}
+            css={{
+              '&:hover .listen-icon, &:hover .listen-label': { color: 'white' },
+            }}
           >
-            <Icon as={Headphones} color="whiteAlpha.600" boxSize={5} />
-            <Text as="span" fontSize="sm" fontWeight="600" lineHeight="1" color="whiteAlpha.900">
+            <Icon className="listen-icon" as={Headphones} color="whiteAlpha.600" boxSize={5} />
+            <Text
+              className="listen-label"
+              as="span"
+              fontSize="sm"
+              fontWeight="600"
+              lineHeight="1"
+              color="whiteAlpha.600"
+            >
               Listen
             </Text>
           </Box>
         </MenuTrigger>
-        <MenuContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+        {/* Same blackAlpha.700 as the trigger chip, rather than the default panel token, so
+            the open menu reads as a continuation of the chip instead of a mismatched surface. */}
+        <MenuContent bg="blackAlpha.700" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           {LISTEN_PLATFORMS.map(({ id, label }) => (
             <MenuItem key={id} value={id} asChild>
               <Link
