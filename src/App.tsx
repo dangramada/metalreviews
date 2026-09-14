@@ -285,13 +285,14 @@ export function ArtworkBlock({
 
       {/* Overlay scrim standard: any icon/chip button sitting directly on cover art needs a
           fixed opaque-ish backing regardless of what's under it — a light or busy cover can
-          otherwise wash out the icon entirely. blackAlpha.900 (~86% black) is that standard;
-          apply it to any future overlay button on this card, not just these two. Raised from
-          the original blackAlpha.700 after a live contrast review — .700 was legible but not
-          decisive on mid-brightness/busy covers. NOTE: Chakra's alpha color scales only define
-          steps 50/100/200/.../900/950 — blackAlpha.750 isn't a real step and silently resolves
-          to no background at all, which is what shipped originally and made the scrim
-          invisible. Stick to a defined step. */}
+          otherwise wash out the icon entirely. blackAlpha.800 (~80% black) is that standard;
+          apply it to any future overlay button on this card, not just these two. Went
+          .700 -> .900 -> .800 across two live contrast reviews: .700 wasn't decisive enough
+          on mid-brightness/busy covers, .900 read as a solid black sticker rather than a
+          tint. NOTE: Chakra's alpha color scales only define steps 50/100/200/.../900/950 —
+          blackAlpha.750 isn't a real step and silently resolves to no background at all,
+          which is what shipped originally and made the scrim invisible. Stick to a defined
+          step. */}
       <Box
         as="button"
         type="button"
@@ -299,7 +300,7 @@ export function ArtworkBlock({
         position="absolute"
         top={2}
         right={2}
-        bg="blackAlpha.900"
+        bg="blackAlpha.800"
         borderRadius="full"
         p={2}
         display="flex"
@@ -307,11 +308,11 @@ export function ArtworkBlock({
         justifyContent="center"
         border="none"
         cursor="pointer"
-        _hover={{ bg: 'blackAlpha.950' }}
+        _hover={{ bg: 'blackAlpha.900' }}
         css={{
           '&:hover .heart-outline': { opacity: 0 },
           '&:hover .heart-filled': { opacity: 1 },
-          // Hover feedback: both glyphs sit at whiteAlpha.800 at rest (still a full step below
+          // Hover feedback: both glyphs sit at whiteAlpha.700 at rest (still a step below
           // hover's solid white, so the hover transition stays visible) on top of the
           // outline→filled glyph swap.
           '&:hover .heart-outline, &:hover .heart-filled': { color: 'white' },
@@ -329,7 +330,7 @@ export function ArtworkBlock({
             <Icon
               className="heart-outline"
               as={FaRegHeart}
-              color="whiteAlpha.800"
+              color="whiteAlpha.700"
               boxSize={5}
               position="absolute"
               top={0}
@@ -338,7 +339,7 @@ export function ArtworkBlock({
             <Icon
               className="heart-filled"
               as={FaHeart}
-              color="whiteAlpha.800"
+              color="whiteAlpha.700"
               boxSize={5}
               position="absolute"
               top={0}
@@ -354,7 +355,7 @@ export function ArtworkBlock({
           more horizontal room; right={12} (48px) clears the heart button's own ~36px box
           plus the row's gap. Opens a Menu (non-modal, dismissible like a popover) rather
           than a Modal — this is a lightweight, non-blocking action per the brief. Icon and
-          label share one color (whiteAlpha.800, matching the heart's own resting state)
+          label share one color (whiteAlpha.700, matching the heart's own resting state)
           rather than the icon/text mismatch from the first pass; hover pushes both to fully
           opaque white, same "clear interaction" treatment as the heart. `gutter: 4` on the
           menu positioning matches the 4px gap already sitting between this chip and the
@@ -379,7 +380,7 @@ export function ArtworkBlock({
             position="absolute"
             top={2}
             right={12}
-            bg="blackAlpha.900"
+            bg="blackAlpha.800"
             borderRadius="full"
             px={3}
             py={2}
@@ -388,27 +389,27 @@ export function ArtworkBlock({
             gap={1.5}
             border="none"
             cursor="pointer"
-            _hover={{ bg: 'blackAlpha.950' }}
+            _hover={{ bg: 'blackAlpha.900' }}
             css={{
               '&:hover .listen-icon, &:hover .listen-label': { color: 'white' },
             }}
           >
-            <Icon className="listen-icon" as={Headphones} color="whiteAlpha.800" boxSize={5} />
+            <Icon className="listen-icon" as={Headphones} color="whiteAlpha.700" boxSize={5} />
             <Text
               className="listen-label"
               as="span"
               fontSize="sm"
               fontWeight="600"
               lineHeight="1"
-              color="whiteAlpha.800"
+              color="whiteAlpha.700"
             >
               Listen
             </Text>
           </Box>
         </MenuTrigger>
-        {/* Same blackAlpha.900 as the trigger chip, rather than the default panel token, so
+        {/* Same blackAlpha.800 as the trigger chip, rather than the default panel token, so
             the open menu reads as a continuation of the chip instead of a mismatched surface. */}
-        <MenuContent bg="blackAlpha.900" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+        <MenuContent bg="blackAlpha.800" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           {LISTEN_PLATFORMS.map(({ id, label }) => (
             <MenuItem key={id} value={id} asChild>
               <Link
