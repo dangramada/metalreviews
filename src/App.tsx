@@ -392,6 +392,14 @@ export function ArtworkBlock({
             _hover={{ bg: 'blackAlpha.900' }}
             css={{
               '&:hover .listen-icon, &:hover .listen-label': { color: 'white' },
+              // Keep the same "active" look (bg + icon/text) while the menu is open, not
+              // just on hover — Ark UI sets data-state="open" on the trigger itself, so the
+              // button doesn't fall back to its resting look once the pointer leaves it
+              // while the menu is still up.
+              '&[data-state="open"]': { bg: 'blackAlpha.900' },
+              '&[data-state="open"] .listen-icon, &[data-state="open"] .listen-label': {
+                color: 'white',
+              },
             }}
           >
             <Icon className="listen-icon" as={Headphones} color="whiteAlpha.700" boxSize={5} />
