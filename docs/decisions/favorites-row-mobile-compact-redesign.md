@@ -71,6 +71,32 @@ observe the fade) — the mechanism is a direct copy of `ArtworkBlock`'s already
 but the "first pass, expect a retouch" caveat from the brief still applies since the shimmer's
 actual on-screen contrast hasn't been eyeballed yet.
 
+## Post-implementation retouch pass
+
+Four visual fixes after the first live review, all mobile-only:
+
+1. **Band font-size reverted to 16px** (from 15px) — 15px was set to match desktop's inline
+   spec exactly, but that flattened the band/album size gap too much on the stacked layout,
+   where the two are visually separate lines rather than one joined line. 16px/14px restores
+   the original `favorites-row-mobile-layout` spec and reads clearly hierarchical again.
+2. **Separator now spans the full card width**, not just the text column. Restructured so the
+   artwork+text `Flex` and the divider+footer `Box` are siblings inside one outer card `Box`,
+   rather than nesting the divider inside the text column. The footer's buttons still start at
+   the same left offset as the text column (not the card edge) via a `128px`-wide spacer `Box`
+   inside the footer row that mirrors the artwork's width, instead of a hardcoded padding
+   value.
+3. **`hideReleaseDateLabel`** wired through to `AlbumMetaBlock` on the mobile call site — an
+   existing opt-in prop already used by `MobileRatingLayout`, no new code needed.
+4. **Buttons are content-width**, not stretched — dropped `flex={1}` from both Rate and Remove
+   buttons; they now size to their own icon+label content with a `gap={2}` between them.
+
+Re-verified: `tsc --noEmit` clean, full suite 50/50 test files passing (no test changes needed
+— DOM structure change, no assertion touched any of the moved elements' paths). Live-confirmed
+by Dan at mobile viewport (340–375px): separator touches both card edges, no "Release date:"
+text visible, buttons content-width with a visible gap right after the artwork, band/album
+hierarchy restored. Icon-only footer collapse below 400px and desktop (unaffected) re-confirmed
+at 1280px.
+
 ## What did not change
 
 Desktop's JSX structure and thumbnail size (128px / `toThumbnailUrl(url, 250)`, already

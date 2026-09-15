@@ -258,109 +258,119 @@ export function FavoriteListItemRow({
           artwork-first layout). Same raw `@media` show/hide mechanism as the desktop Box
           above — see that Box's comment for why. */}
       <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
-        <Flex
+        <Box
           bg="surface.card"
           borderRadius="none"
           overflow="hidden"
           border="2px solid"
           borderColor="border.ruleStrong"
         >
-          <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
-            {item.artworkUrl && !mobileImgFailed ? (
-              <>
-                <Image
-                  src={toThumbnailUrl(item.artworkUrl, 250)}
-                  alt={`${item.band} – ${item.album}`}
-                  w="128px"
-                  h="128px"
-                  objectFit="cover"
-                  onLoad={() => setMobileImgLoaded(true)}
-                  onError={() => setMobileImgFailed(true)}
-                />
-                <Skeleton
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  w="100%"
-                  h="100%"
-                  loading={!mobileImgLoaded}
-                  variant="shine"
-                  css={skeletonCss}
-                  opacity={mobileImgLoaded ? 0 : 1}
-                  transition="opacity 0.3s ease"
-                  pointerEvents="none"
-                />
-              </>
-            ) : (
-              <Flex w="100%" h="100%" align="center" justify="center">
-                <Text fontSize="lg" color="text.muted">
-                  ♪
-                </Text>
-              </Flex>
-            )}
-            {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
+          <Flex>
+            <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
+              {item.artworkUrl && !mobileImgFailed ? (
+                <>
+                  <Image
+                    src={toThumbnailUrl(item.artworkUrl, 250)}
+                    alt={`${item.band} – ${item.album}`}
+                    w="128px"
+                    h="128px"
+                    objectFit="cover"
+                    onLoad={() => setMobileImgLoaded(true)}
+                    onError={() => setMobileImgFailed(true)}
+                  />
+                  <Skeleton
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    w="100%"
+                    h="100%"
+                    loading={!mobileImgLoaded}
+                    variant="shine"
+                    css={skeletonCss}
+                    opacity={mobileImgLoaded ? 0 : 1}
+                    transition="opacity 0.3s ease"
+                    pointerEvents="none"
+                  />
+                </>
+              ) : (
+                <Flex w="100%" h="100%" align="center" justify="center">
+                  <Text fontSize="lg" color="text.muted">
+                    ♪
+                  </Text>
+                </Flex>
+              )}
+              {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
                 layout-agnostic (favorites-row-desktop-redesign). Warning badge uses a plain
                 title/aria-label instead of Tooltip — touch has no hover state, same
                 reasoning as the Rate/Remove buttons below. Grid, not Flex — see the desktop
                 block's comment above for why (aspectRatio is ignored on a flex row's cross-
                 stretched item, but honored by CSS Grid's track sizing). */}
-            {ratingSummary && (
-              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
-                {confidenceTier === 'none' && (
-                  <Box
-                    {...confidenceWarningBadge}
-                    aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-                    title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-                  >
-                    !
-                  </Box>
-                )}
-              </Box>
-            )}
-          </Box>
+              {ratingSummary && (
+                <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                  <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                  {confidenceTier === 'none' && (
+                    <Box
+                      {...confidenceWarningBadge}
+                      aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                      title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                    >
+                      !
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
 
-          <Box flex={1} minW={0} display="flex" flexDirection="column">
-            {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
+            <Box flex={1} minW={0}>
+              {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
                 truncateBand (band, single line, ellipsis) + clampAlbumLines (album, native
                 `lineClamp` prop) — see AlbumMetaBlock's own comment on why lineClamp, not a
-                hand-rolled WebkitLineClamp style object. Band size dropped to 15px here to
-                match desktop's exact spec (cardTitleBand's stacked default is 19px). */}
-            <AlbumMetaBlock
-              band={item.band}
-              album={item.album}
-              releaseDate={item.releaseDate}
-              genre={item.genre}
-              titleLayout="stacked"
-              bandFontSize="15px"
-              truncateBand
-              clampAlbumLines={2}
-            />
-            {(onRate || onRemove) && (
-              <Box
-                mt="auto"
-                px={4}
-                pb={4}
-                pt={3}
-                borderTop="2px solid"
-                borderColor="border.ruleStrong"
-              >
-                {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
-                    hover state. Collapses to icon-only under a secondary raw-`@media`
-                    breakpoint (400px) rather than a container query: this codebase has no
-                    existing container-query usage, and the one precedent for a responsive
-                    split (AlbumRatingPage) uses viewport `@media`, so this stays consistent
-                    with that rather than introducing a new mechanism. Known imprecision
-                    (accepted, not blocking): this can't detect the AddAlbumDrawer preview's
-                    actual rendered width if it's ever narrower than the viewport at a given
-                    breakpoint — revisit if that proves visibly wrong on live testing. */}
-                <Flex gap={2}>
+                hand-rolled WebkitLineClamp style object. bandFontSize="16px" matches the
+                original mobile spec (favorites-row-mobile-layout) — restored after a prior
+                pass briefly moved it to 15px to match desktop's inline spec, which flattened
+                the band/album size gap too much on the visually distinct stacked layout.
+                hideReleaseDateLabel drops the "Release date: " prefix — mobile's tighter
+                column has no room for it. */}
+              <AlbumMetaBlock
+                band={item.band}
+                album={item.album}
+                releaseDate={item.releaseDate}
+                genre={item.genre}
+                titleLayout="stacked"
+                bandFontSize="16px"
+                truncateBand
+                clampAlbumLines={2}
+                hideReleaseDateLabel
+              />
+            </Box>
+          </Flex>
+
+          {(onRate || onRemove) && (
+            <Box borderTop="2px solid" borderColor="border.ruleStrong" pt={3} pb={4}>
+              {/* Divider and footer are outside the artwork+text Flex above (not nested inside
+                the text column) so the divider spans the full card width, not just the text
+                column's width — a spacer Box matching the artwork's 128px width keeps the
+                buttons' left edge aligned with the text column start instead of the card
+                edge, without hardcoding the offset as a magic-number padding value. */}
+              <Flex>
+                <Box flexShrink={0} w="128px" />
+                <Flex flex={1} minW={0} px={4} gap={2}>
+                  {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
+                    hover state. Content-width (no flex stretch) with a gap between them, not
+                    edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
+                    `@media` breakpoint (400px) rather than a container query: this codebase
+                    has no existing container-query usage, and the one precedent for a
+                    responsive split (AlbumRatingPage) uses viewport `@media`, so this stays
+                    consistent with that rather than introducing a new mechanism. Known
+                    imprecision (accepted, not blocking): this can't detect the
+                    AddAlbumDrawer preview's actual rendered width if it's ever narrower than
+                    the viewport at a given breakpoint — revisit if that proves visibly wrong
+                    on live testing. */}
                   {onRate && (
                     <Button
                       {...secondaryButton}
                       variant="outline"
                       size="sm"
-                      flex={1}
                       aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
                       onClick={onRate}
                     >
@@ -376,7 +386,6 @@ export function FavoriteListItemRow({
                       {...secondaryButton}
                       variant="outline"
                       size="sm"
-                      flex={1}
                       color="text.muted"
                       _hover={{ color: 'red.400' }}
                       aria-label={removing ? 'Loading' : 'Remove from favorites'}
@@ -391,10 +400,10 @@ export function FavoriteListItemRow({
                     </Button>
                   )}
                 </Flex>
-              </Box>
-            )}
-          </Box>
-        </Flex>
+              </Flex>
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {onRemove && (
