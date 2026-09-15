@@ -276,9 +276,9 @@ change afterward; the real fix lives only in `src/FavoritesPage.tsx`'s desktop L
 
 Re-verified: `tsc --noEmit` clean, full suite 50/50 test files / 367/367 tests passing. The
 `getAnchorElement` mechanism itself was proven live via the repro above (on the public route,
-not gated behind login); the exact desktop Favorites-row button was **not** separately
-re-confirmed live on `/favorites` (still no login for this session) — flagging that gap
-explicitly rather than implying full confirmation.
+not gated behind login). **Dan has since live-tested this exact button on his real account at
+`/favorites`** and confirmed it works — menu positions correctly under the button, styled
+tooltip still shows on hover.
 
 ## What did not change
 

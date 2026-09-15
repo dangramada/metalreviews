@@ -91,9 +91,11 @@ new "Listen" footer button added, reusing the review-grid card's existing menu v
 `src/components/ListenMenuItems.tsx`, footer order Evaluate → Listen → Remove). 50/50 test
 files, 367/367 tests, `tsc` clean, both re-confirmed on `master` post-merge. The genre/layout
 retouch and the Evaluate/Listen additions were merged ahead of a live check on Dan's account
-(`/favorites` needs login, no credentials stored) — only the shared Listen menu itself was
-live-checked, via the public review grid; treat that pass's on-screen result as unconfirmed
-until Dan looks. Merged to `master` `--no-ff` at `cda29d2` on 2026-09-15. Rollback tag:
+(`/favorites` needs login, no credentials stored). Dan has since live-tested and confirmed the
+desktop Listen button/menu on his real account (including the `getAnchorElement` positioning
+fix below); the genre/layout retouch and the 3-button mobile footer collapse have not been
+separately called out as checked and should still be treated as unconfirmed until he does.
+Merged to `master` `--no-ff` at `cda29d2` on 2026-09-15. Rollback tag:
 `pre-merge-favorites-row-mobile-compact-redesign`. Full detail:
 `docs/decisions/favorites-row-mobile-compact-redesign.md`.
 
