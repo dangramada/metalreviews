@@ -251,19 +251,34 @@ the viewport origin. Desktop's Evaluate/Remove buttons don't hit this because th
 `IconButton` in `Tooltip` with no `Menu` in between; the review-grid card's Listen chip
 (`App.tsx`) doesn't hit it either because it was never wrapped in `Tooltip` to begin with.
 
-Fix: dropped the `Tooltip` wrapper from the desktop Listen `IconButton` (`src/FavoritesPage.tsx`)
-— `MenuTrigger asChild` now wraps the `IconButton` directly, one `asChild` hop, matching the
-review-grid card's already-working pattern. Hover text preserved via a plain `title` attribute
-instead (native browser tooltip, not the app's styled one) rather than removing it outright.
-`aria-label` unchanged. Mobile's Listen button was never wrapped in `Tooltip` (touch has no
-hover state, same reasoning as Evaluate/Remove there), so it needed no change.
+**First fix (superseded below):** dropped the `Tooltip` wrapper entirely and used a plain `title`
+attribute for hover text instead. Worked, but lost the app's styled tooltip for this one button.
 
-Re-verified: `tsc --noEmit` clean, full suite 50/50 test files / 367/367 tests passing (no
-assertion depended on the `Tooltip` wrapper). The fix itself was **not** re-verified live on the
-actual Favorites row (still no login for this session) — confidence comes from confirming the
-underlying mechanism (`Tooltip`'s ref target) via the live repro above and from removing the
-Tooltip wrapper matching an already-proven-working pattern, not from seeing this exact button
-positioned correctly on `/favorites`.
+**Final fix — keeps the styled Tooltip:** `MenuRoot`'s `positioning` accepts a
+`getAnchorElement` callback (from `@zag-js/popper`'s `PositioningOptions`, re-exported through
+Ark's `Menu`) that lets the menu machine ask for its anchor element directly instead of
+resolving it through the trigger's own prop/ref chain — exactly the thing `Tooltip` nesting
+breaks. Added a plain `desktopListenTriggerRef = useRef<HTMLButtonElement>(null)`, attached it
+directly to the `IconButton` (`ref={desktopListenTriggerRef}`, alongside whatever ref
+`Tooltip`/`MenuTrigger`'s own `asChild` chain also sets — Ark's `asChild` factory composes an
+incoming ref with a child's pre-existing one via `composeRefs`, it doesn't overwrite it), and
+passed `getAnchorElement: () => desktopListenTriggerRef.current` into `MenuRoot`'s
+`positioning`. The `Tooltip` wrapper is back around `MenuTrigger asChild` exactly as originally
+written; only the anchor lookup bypasses the broken chain, not the props/ref composition that
+makes the button clickable and hoverable in the first place.
+
+Verified live (repeated the same repro method as the bug report): temporarily applied
+`Tooltip` + `getAnchorElement` + a manual ref to the review-grid card's Listen chip on the
+public `/` route. Clicking positioned the menu correctly under the button (not top-left), and
+hovering still showed the styled tooltip bubble — both work at once. Reverted that temporary
+change afterward; the real fix lives only in `src/FavoritesPage.tsx`'s desktop Listen button
+(mobile was never wrapped in `Tooltip`, so it's unaffected either way).
+
+Re-verified: `tsc --noEmit` clean, full suite 50/50 test files / 367/367 tests passing. The
+`getAnchorElement` mechanism itself was proven live via the repro above (on the public route,
+not gated behind login); the exact desktop Favorites-row button was **not** separately
+re-confirmed live on `/favorites` (still no login for this session) — flagging that gap
+explicitly rather than implying full confirmation.
 
 ## What did not change
 
