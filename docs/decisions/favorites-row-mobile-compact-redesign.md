@@ -97,6 +97,38 @@ text visible, buttons content-width with a visible gap right after the artwork, 
 hierarchy restored. Icon-only footer collapse below 400px and desktop (unaffected) re-confirmed
 at 1280px.
 
+## Second retouch pass — albumFontSize bug + genre badge move
+
+A later brief (targeting this same component) got cut off mid-message after item 1 (Layout);
+its diagnostic-step instruction — grep the actual call site before editing, since prior
+sessions' narrative assumptions about current values didn't always match source — caught a
+real bug while re-verifying: **`albumFontSize` was never explicitly passed** at the mobile
+`AlbumMetaBlock` call site. The first retouch pass's own doc text claimed "album stays 14px
+unchanged," but no `albumFontSize` prop had ever been added, so it silently fell back to
+`cardTitleAlbum.fontSize`'s theme default of **18px** the whole time. Fixed: added
+`albumFontSize="14px"` explicitly.
+
+Separately, live review flagged that genre badges — still rendered inside `AlbumMetaBlock`'s
+own `genre` prop at the time — were squeezed into the ~215px text column and two-word genres
+(e.g. "PROGRESSIVE METAL") always stacked vertically instead of wrapping side-by-side. Genre
+rendering was pulled out: `AlbumMetaBlock` now gets `hideGenres` on the mobile call site, and
+the mobile block renders its own `Wrap`/`Badge` row (reusing the existing `genreBadge` token
+from `theme.ts`, same one `AlbumMetaBlock` uses internally) directly below the artwork+text
+`Flex`. Alignment was a live decision, not an assumption — asked Dan whether the new genre row
+should get the full card width (dropping the artwork-width spacer, since the row sits below the
+128px artwork and nothing would overlap) or stay aligned to the text column like the title above
+it; **he chose to keep it aligned to the text column** (same `128px` spacer + `px={4}` pattern
+already used for the footer), so the row's available wrap width is unchanged from before the
+move — the move relocates genre out of `AlbumMetaBlock` and below the release date, it doesn't
+create additional horizontal space. Two-word genres still stack vertically in a narrow column;
+that's accepted behavior, not a regression.
+
+Re-verified: `tsc --noEmit` clean, full suite 50/50 test files passing (no test changes — no
+assertion depended on genre badge placement or album font size). Live-confirmed by Dan at
+mobile viewport (375px): album title now visibly smaller than band (14px vs 16px), genre
+badges render as their own row under the release date at the same left indent as the title,
+desktop confirmed unchanged at 1280px.
+
 ## What did not change
 
 Desktop's JSX structure and thumbnail size (128px / `toThumbnailUrl(url, 250)`, already
