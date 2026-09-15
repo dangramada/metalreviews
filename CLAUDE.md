@@ -78,9 +78,10 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 `favorites-row-mobile-compact-redesign` — mobile `FavoriteListItemRow` restructured from
 vertical artwork-first to horizontal (matching desktop's row shape), plus new skeleton loading
-on both mobile and desktop artwork. 50/50 test files, `tsc` clean, verified live at mobile
-viewport on Dan's real account. Not yet merged. Full detail:
-`docs/decisions/favorites-row-mobile-compact-redesign.md`.
+on both mobile and desktop artwork; a post-review retouch pass followed (band font back to
+16px, separator now spans the full card width, release-date label hidden, buttons content-width
+not stretched). 50/50 test files, `tsc` clean, verified live at mobile viewport on Dan's real
+account. Not yet merged. Full detail: `docs/decisions/favorites-row-mobile-compact-redesign.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
