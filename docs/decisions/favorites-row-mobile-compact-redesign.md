@@ -129,6 +129,22 @@ mobile viewport (375px): album title now visibly smaller than band (14px vs 16px
 badges render as their own row under the release date at the same left indent as the title,
 desktop confirmed unchanged at 1280px.
 
+## Third retouch — genre badges moved below the separator
+
+Live review disagreed with the second retouch's placement: genre badges sat directly under the
+release date, above the divider. Moved them below the divider instead, between the separator
+and the Rate/Remove buttons. Restructured so the divider `Box` (`borderTop`) now wraps both the
+genre row and the button row as children — genre row first (own `pb={3}` only when actions
+follow, so there's no double gap when a row has no `onRate`/`onRemove`), buttons second — rather
+than the genre row sitting outside the divider `Box` before it. The divider's own show condition
+widened to `item.genre.length > 0 || onRate || onRemove` so it still appears for a genre-only
+row (no rate/remove handlers, e.g. a context that never passes them) instead of only showing
+when actions exist.
+
+Re-verified: `tsc --noEmit` clean, full suite 50/50 test files passing. Live-confirmed by Dan at
+375px: divider directly below the release date, genre badges between the divider and the
+action buttons, desktop unaffected at 1280px.
+
 ## What did not change
 
 Desktop's JSX structure and thumbnail size (128px / `toThumbnailUrl(url, 250)`, already
