@@ -714,73 +714,10 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   both traces. Treat 39/46 as current. Full numbers:
   `docs/decisions/criteria-calibration/criteria-calibration-escalation-signal-candidates.md`.
 
-- **`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is
-  currently a static, hardcoded list of Dan's own 13 albumIds — not per-user.**
-  Surfaced 2026-08-14/15 while diagnosing why Brief 3's auto-escalation signal
-  degrades to a bare "R real answers after tier-eligibility" timer on any
-  account other than Dan's (`useRankingTestSetRatings.ts`'s query is correctly
-  RLS-scoped to the current user, but the 13 albumIds themselves are frozen
-  from Dan's own ratings, so every other account gets an empty ratings map —
-  confirmed live on a disposable test account). This is a deferred multi-user
-  limitation, not a permanent single-user-by-design decision — Dan confirmed
-  (2026-08-14 chat session) the product will eventually be multi-user. Before multi-user launch, this
-  needs to become per-user: each user's own already-rated albums, fetched
-  dynamically at calibration time, instead of a shared fixed list. The
-  2026-08-14 null-guard fix (`computeTop10Set` returning `null` below 10
-  ratings) already correctly models the "new user hasn't rated enough albums
-  yet" case this future design will hit constantly — no rework needed there,
-  just the source of the ratings needs to become per-user. Full context:
-  `criteria-calibration-duration-based-window-fix.md`,
-  `criteria-calibration-ranking-stability-analysis.md`.
-  - **Update 2026-08-16 — "make it per-user" is not actually sufficient, and the two obvious
-    replacements were tested and both failed.** Calibration is gated to run _before_ a user has
-    rated anything, so a first-time user has no rated albums to build a per-user benchmark set
-    from — the mechanism can't work for anyone but Dan, whatever the ratings source. Two
-    solver-internal replacements needing no external data were evaluated against a 12-trace
-    evidence set (both real sessions + 10 synthetic oracles, all re-run post-Harris):
-    **coverage-width thresholds** have no single constant that fires at-or-after ranking-settle
-    across the set at any R ∈ {3,6,9,12} — the quantity isn't comparable across users;
-    **weight-vector stability** is worse and structurally unsound, its converged-tail jitter
-    matching still-learning movement on 5 of 11 traces (item 5 again). Recommendation on the
-    table: keep the incumbent, accept the degradation for non-Dan users, and if developing
-    further pick the coverage-width family (immune to the tie-break degeneracy). A normalised
-    coverage-width ratio and an accuracy-plateau signal are named but untested. Full analysis,
-    per-R sweeps and committed trajectory CSVs:
-    `criteria-calibration-escalation-signal-candidates.md`.
-  - **Second pass, same day — the two named follow-ups also fail; recommendation is now
-    Candidate C.** Normalised coverage ratio (A2) fails because its anchor is undefined on 3 of
-    10 oracles and set _after_ the ranking settled on 3 more — normalising against tier
-    eligibility inherits the tier gate's own unreliability. Accuracy plateau (A3) is the worst
-    variant tested either pass: early on all 12 traces at R=3 at every δ, because score-spread
-    accuracy saturates and sits flat long before the ranking settles. No family has a non-empty
-    threshold intersection at any R. **Standing recommendation: Candidate C** — delete the
-    detection problem, show an explicit "See results / Answer more questions" checkpoint at each
-    existing `isDegreeCoverageComplete` boundary (already the sole trigger; `fired` only decides
-    auto-escalate vs. show-the-button). Measured cost: **2 extra interstitial screens per real
-    session**, max 4 across 12 traces. Removes ~876 lines, 7 `user_calibration_status` columns,
-    the multi-user per-user-benchmark rework this entry has been holding open, and — because the
-    un-awaited-write race is scoped _exactly_ to `last_eligible_top10` /
-    `last_change_answer_index` — **the project's one open correctness risk stops existing rather
-    than needing a guard.** Not implemented; awaiting Dan's decision. Open sub-questions for
-    implementation are listed at the end of §12 in the decision doc.
-  - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
-    `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
-    with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account
-    as a possible cross-user pollution path for the top-10 stability signal; **checked and
-    ruled out** — `album_criteria_ratings` has RLS enabled with
-    `using (auth.uid() = user_id)` (`supabase/album_criteria_ratings.sql:35-41`), so the
-    frontend query is already per-user at the DB layer, exactly as the parent entry states.
-    What remains is only that the scoping is implicit: a reader of the hook can't see it
-    without knowing the policy, and the sibling queries in `useAlbumRatingsSummary.ts` /
-    `AlbumRatingPage.tsx` rely on the same implicit scoping. Worth an explicit filter (or at
-    minimum a comment naming the RLS dependency) when the per-user rework above happens —
-    that rework will move this query off a fixed id list anyway. **Separately and more
-    importantly:** service-key scripts (`scripts/*.ts` via `scripts/supabaseClient.ts`)
-    **bypass RLS entirely**, so any script touching this table must filter on `user_id`
-    explicitly — `scripts/verify-pre-reset-step0.ts` and
-    `scripts/reset-calibration-2026-08-15.ts` both do.
 - **Web Worker relocation for the per-commit LP computation — deliberately deferred, not
-  rejected.** Was the second of the two candidate mechanisms for the item above; the
+  rejected.** Was the second of the two candidate mechanisms considered for replacing Brief 3's
+  per-user ranking-stability signal (see the now-closed `RANKING_TEST_SET` / multi-user-benchmark
+  item, relocated to `finished-work.md` 2026-09-15); the
   diagnostic showed it addresses a different problem (hiding latency vs. removing work), so it
   was held back rather than bundled. Decision point: measure the post-warm-start per-question
   cost on Dan's actual hardware (~309ms at n=59 on the dev machine used for the fix) and
@@ -1096,34 +1033,15 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   used to be silence. The ORIGINAL 2026-08-17 question — whether `computeScoreSpreadAccuracy`
   itself is under-reporting a model that is actually well-determined, or correctly reporting
   genuine indeterminacy, verified against ground truth for these specific oracles — is a
-  DIFFERENT question and remains fully UNINVESTIGATED. Neither the 2026-08-18 recon nor the
-  2026-08-25 diagnostic ran the ground-truth comparison that question specifically calls for;
-  both examined coverage/width behavior, not the accuracy metric's own correctness. The two are
-  plausibly related (unconstrained variables are a natural candidate explanation for low
-  accuracy too) but relatedness is not verification — nobody has run the data-analysis session
-  the original entry asks for. Full detail:
+  DIFFERENT question from the coverage one above, and neither the 2026-08-18 recon nor the
+  2026-08-25 diagnostic answers it; both examined coverage/width behavior, not the accuracy
+  metric's own correctness. **[2026-09-15 reorg note: corrected — this was NOT left
+  uninvestigated. It was answered the same day it was asked (2026-08-17) by
+  `criteria-calibration-accuracy-threshold-recalibration.md` §6; that answer was misfiled under
+  a later, unrelated "Cross-reference debt" bullet elsewhere in this document and has been
+  moved here, immediately below, where it actually belongs.]** Full detail:
   `criteria-calibration/criteria-calibration-freeze-checkpoint.md`,
   `criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`.
-
-- **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
-  2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
-  keeps its old threshold-derived value until that user next opens calibration, then silently
-  recomputes degree-tied. Dan's own row is the live case: it reads `very_high` while his
-  71-answer log reaches degree 4, which the new mapping calls `high` / Clear — so his album
-  pages will show Sharp until he opens calibration again, then Clear. **Self-correcting, no
-  backfill needed** (and the soft gate no longer reads the tier), but it is a visible label
-  change on an account that did nothing. A backfill would mean replaying the driver per user;
-  deliberately not written. Full context:
-  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §12.
-
-- **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
-  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
-  `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
-  throughout — all of which live only on the still-unmerged
-  `criteria-calibration-accuracy-threshold-recalibration` branch. Read from `master`, those are
-  dangling references. **When both branches land, re-check every such citation and correct any
-  path that moved.** Noted in that document's own header too, but tracked here so it does not
-  depend on someone re-reading a header.
 
   **ANSWERED 2026-08-17** by
   `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` §6, which ran
@@ -1148,6 +1066,36 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   because the cause was unknown; it is now required because the cause is _shape-dependent_, so
   no single explanation would be true for all users who see that screen. The existing
   both-directions test remains correct as-is.
+
+- **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
+  2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
+  keeps its old threshold-derived value until that user next opens calibration, then silently
+  recomputes degree-tied. Dan's own row is the live case: it reads `very_high` while his
+  71-answer log reaches degree 4, which the new mapping calls `high` / Clear — so his album
+  pages will show Sharp until he opens calibration again, then Clear. **Self-correcting, no
+  backfill needed** (and the soft gate no longer reads the tier), but it is a visible label
+  change on an account that did nothing. A backfill would mean replaying the driver per user;
+  deliberately not written. Full context:
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §12.
+
+- **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
+  `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
+  throughout — all of which live only on the still-unmerged
+  `criteria-calibration-accuracy-threshold-recalibration` branch. Read from `master`, those are
+  dangling references. **When both branches land, re-check every such citation and correct any
+  path that moved.** Noted in that document's own header too, but tracked here so it does not
+  depend on someone re-reading a header.
+
+- **Cross-reference debt above is now actionable.** Added 2026-09-15, during a documentation
+  hygiene pass. Phase 0 of that pass confirmed via `git merge-base` that
+  `criteria-calibration-accuracy-threshold-recalibration` merged to `master` at `d88ee99` on
+  2026-08-25 — the trigger condition the entry above names ("when both branches land") has
+  occurred. The citation-by-citation re-check itself has NOT been done — that's real
+  investigative work (confirming each cited path in
+  `criteria-calibration-degree-tiers-and-progress.md` still resolves post-merge), out of scope
+  for a docs-hygiene pass. Logged as its own item so it surfaces as a task rather than staying
+  buried under the now-stale trigger condition above.
 
 - **CAVEAT FOR FUTURE SESSIONS: the `settle`-point ground truth is itself partially
   non-unique — treat "n=39", "n=46" and the oracle settles as a best-available approximation,
