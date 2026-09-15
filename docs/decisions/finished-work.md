@@ -443,3 +443,77 @@ created_at, album_id }` only — `album-identity/album-identity-ingest.md`), and
   (not a blanket widening — `previous*\*`/`last_commit_changed_window`may still be fine
 unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-race.md`'s
   "Fix implemented" section.
+
+- ~~**`RANKING_TEST_SET` (`src/lib/criteria-calibration/rankingTestSet.ts`) is currently a
+  static, hardcoded list of Dan's own 13 albumIds — not per-user.**~~ — **RESOLVED 2026-08-17,
+  moot rather than fixed.** [2026-09-15 reorg note: relocated from `deferred-work.md`'s
+  documentation-hygiene review. The entry's last update says Candidate C was "not implemented;
+  awaiting Dan's decision" — that decision shipped as `criteria-calibration-tiered-checkpoints`
+  (merged `--no-ff` `892f79c`, 2026-08-17), which deletes `rankingTestSet.ts`,
+  `useRankingTestSetRatings.ts` and `rankingStabilitySignal.ts` outright (confirmed absent from
+  the current tree) in favour of tier-gated checkpoints that need no per-user ranking-stability
+  benchmark at all. The multi-user limitation this entry tracked no longer has a mechanism to be
+  a limitation of. Original entry follows, unchanged.]
+  Surfaced 2026-08-14/15 while diagnosing why Brief 3's auto-escalation signal
+  degrades to a bare "R real answers after tier-eligibility" timer on any
+  account other than Dan's (`useRankingTestSetRatings.ts`'s query is correctly
+  RLS-scoped to the current user, but the 13 albumIds themselves are frozen
+  from Dan's own ratings, so every other account gets an empty ratings map —
+  confirmed live on a disposable test account). This is a deferred multi-user
+  limitation, not a permanent single-user-by-design decision — Dan confirmed
+  (2026-08-14 chat session) the product will eventually be multi-user. Before multi-user launch, this
+  needs to become per-user: each user's own already-rated albums, fetched
+  dynamically at calibration time, instead of a shared fixed list. The
+  2026-08-14 null-guard fix (`computeTop10Set` returning `null` below 10
+  ratings) already correctly models the "new user hasn't rated enough albums
+  yet" case this future design will hit constantly — no rework needed there,
+  just the source of the ratings needs to become per-user. Full context:
+  `criteria-calibration-duration-based-window-fix.md`,
+  `criteria-calibration-ranking-stability-analysis.md`.
+  - **Update 2026-08-16 — "make it per-user" is not actually sufficient, and the two obvious
+    replacements were tested and both failed.** Calibration is gated to run _before_ a user has
+    rated anything, so a first-time user has no rated albums to build a per-user benchmark set
+    from — the mechanism can't work for anyone but Dan, whatever the ratings source. Two
+    solver-internal replacements needing no external data were evaluated against a 12-trace
+    evidence set (both real sessions + 10 synthetic oracles, all re-run post-Harris):
+    **coverage-width thresholds** have no single constant that fires at-or-after ranking-settle
+    across the set at any R ∈ {3,6,9,12} — the quantity isn't comparable across users;
+    **weight-vector stability** is worse and structurally unsound, its converged-tail jitter
+    matching still-learning movement on 5 of 11 traces (item 5 again). Recommendation on the
+    table: keep the incumbent, accept the degradation for non-Dan users, and if developing
+    further pick the coverage-width family (immune to the tie-break degeneracy). A normalised
+    coverage-width ratio and an accuracy-plateau signal are named but untested. Full analysis,
+    per-R sweeps and committed trajectory CSVs:
+    `criteria-calibration-escalation-signal-candidates.md`.
+  - **Second pass, same day — the two named follow-ups also fail; recommendation is now
+    Candidate C.** Normalised coverage ratio (A2) fails because its anchor is undefined on 3 of
+    10 oracles and set _after_ the ranking settled on 3 more — normalising against tier
+    eligibility inherits the tier gate's own unreliability. Accuracy plateau (A3) is the worst
+    variant tested either pass: early on all 12 traces at R=3 at every δ, because score-spread
+    accuracy saturates and sits flat long before the ranking settles. No family has a non-empty
+    threshold intersection at any R. **Standing recommendation: Candidate C** — delete the
+    detection problem, show an explicit "See results / Answer more questions" checkpoint at each
+    existing `isDegreeCoverageComplete` boundary (already the sole trigger; `fired` only decides
+    auto-escalate vs. show-the-button). Measured cost: **2 extra interstitial screens per real
+    session**, max 4 across 12 traces. Removes ~876 lines, 7 `user_calibration_status` columns,
+    the multi-user per-user-benchmark rework this entry has been holding open, and — because the
+    un-awaited-write race is scoped _exactly_ to `last_eligible_top10` /
+    `last_change_answer_index` — **the project's one open correctness risk stops existing rather
+    than needing a guard.** Not implemented; awaiting Dan's decision. Open sub-questions for
+    implementation are listed at the end of §12 in the decision doc.
+  - **Sub-note (2026-08-15, low priority — readability/defence-in-depth, NOT a live bug):**
+    `useRankingTestSetRatings.ts`'s query filters only on `.in('album_id', RANKING_TEST_SET_IDS)`
+    with no explicit `.eq('user_id', ...)`. Raised during the pre-reset audit of Dan's account
+    as a possible cross-user pollution path for the top-10 stability signal; **checked and
+    ruled out** — `album_criteria_ratings` has RLS enabled with
+    `using (auth.uid() = user_id)` (`supabase/album_criteria_ratings.sql:35-41`), so the
+    frontend query is already per-user at the DB layer, exactly as the parent entry states.
+    What remains is only that the scoping is implicit: a reader of the hook can't see it
+    without knowing the policy, and the sibling queries in `useAlbumRatingsSummary.ts` /
+    `AlbumRatingPage.tsx` rely on the same implicit scoping. Worth an explicit filter (or at
+    minimum a comment naming the RLS dependency) when the per-user rework above happens —
+    that rework will move this query off a fixed id list anyway. **Separately and more
+    importantly:** service-key scripts (`scripts/*.ts` via `scripts/supabaseClient.ts`)
+    **bypass RLS entirely**, so any script touching this table must filter on `user_id`
+    explicitly — `scripts/verify-pre-reset-step0.ts` and
+    `scripts/reset-calibration-2026-08-15.ts` both do.
