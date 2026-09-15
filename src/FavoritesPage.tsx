@@ -248,19 +248,25 @@ export function FavoriteListItemRow({
             )}
 
             <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
-              <Tooltip content="Listen on a streaming platform">
-                <MenuTrigger asChild>
-                  <IconButton
-                    aria-label="Listen on a streaming platform"
-                    size="sm"
-                    variant="ghost"
-                    color="text.muted"
-                    _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
-                  >
-                    <Icon as={Headphones} />
-                  </IconButton>
-                </MenuTrigger>
-              </Tooltip>
+              {/* No Tooltip here (unlike Evaluate/Remove above) — verified live that wrapping
+                  MenuTrigger's asChild in our Tooltip component breaks the menu's floating
+                  position (it opens pinned to the window's top-left instead of anchored to
+                  this button). Root cause: Tooltip's own forwardRef targets its Content
+                  (the bubble), not its Trigger, so composing it into another asChild chain
+                  loses the anchor rect Menu needs. `title` gives the same hover text natively
+                  without going through that chain. */}
+              <MenuTrigger asChild>
+                <IconButton
+                  aria-label="Listen on a streaming platform"
+                  title="Listen on a streaming platform"
+                  size="sm"
+                  variant="ghost"
+                  color="text.muted"
+                  _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                >
+                  <Icon as={Headphones} />
+                </IconButton>
+              </MenuTrigger>
               <MenuContent bg="surface.card" color="text.primary">
                 <ListenMenuItems band={item.band} album={item.album} />
               </MenuContent>
