@@ -234,6 +234,37 @@ login-required blocker as the fourth retouch above. The 3-button mobile footer's
 the narrowest supported width has **not** been visually confirmed; flagging as an open item
 rather than an assumption.
 
+## Bugfix — desktop Listen menu opened pinned to the window's top-left
+
+Reported after merge: on desktop, opening the new Listen menu positioned it at the window's
+top-left corner instead of anchored to the trigger button (mobile was unaffected). Reproduced
+live by temporarily wrapping the review-grid card's own (already-working) Listen chip in the
+same `Tooltip` component used here, on the public `/` route — confirmed the same mispositioning,
+isolating the cause to nesting our `Tooltip` component around `MenuTrigger asChild`.
+
+Root cause: `src/components/ui/tooltip.tsx`'s `Tooltip` forwards its `ref` to
+`ChakraTooltip.Content` (the bubble), not to its `Trigger`. When something needs a real ref to
+the underlying DOM node through an intermediate `asChild` layer — here, `MenuTrigger asChild`
+reading through `Tooltip` to reach the `IconButton` — that intermediate ref never reaches the
+actual button, so Ark's Menu positioning has no anchor rect to measure against and falls back to
+the viewport origin. Desktop's Evaluate/Remove buttons don't hit this because they wrap a plain
+`IconButton` in `Tooltip` with no `Menu` in between; the review-grid card's Listen chip
+(`App.tsx`) doesn't hit it either because it was never wrapped in `Tooltip` to begin with.
+
+Fix: dropped the `Tooltip` wrapper from the desktop Listen `IconButton` (`src/FavoritesPage.tsx`)
+— `MenuTrigger asChild` now wraps the `IconButton` directly, one `asChild` hop, matching the
+review-grid card's already-working pattern. Hover text preserved via a plain `title` attribute
+instead (native browser tooltip, not the app's styled one) rather than removing it outright.
+`aria-label` unchanged. Mobile's Listen button was never wrapped in `Tooltip` (touch has no
+hover state, same reasoning as Evaluate/Remove there), so it needed no change.
+
+Re-verified: `tsc --noEmit` clean, full suite 50/50 test files / 367/367 tests passing (no
+assertion depended on the `Tooltip` wrapper). The fix itself was **not** re-verified live on the
+actual Favorites row (still no login for this session) — confidence comes from confirming the
+underlying mechanism (`Tooltip`'s ref target) via the live repro above and from removing the
+Tooltip wrapper matching an already-proven-working pattern, not from seeing this exact button
+positioned correctly on `/favorites`.
+
 ## What did not change
 
 Desktop's JSX structure and thumbnail size (128px / `toThumbnailUrl(url, 250)`, already
