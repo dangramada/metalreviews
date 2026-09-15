@@ -1,5 +1,6 @@
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
   Container,
@@ -23,12 +24,17 @@ import {
   Input,
   InputGroup,
   NativeSelect,
+  Skeleton,
   Text,
   VStack,
+  Wrap,
+  WrapItem,
   parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
 import { Tooltip } from './components/ui/tooltip';
+import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
+import { ListenMenuItems } from './components/ListenMenuItems';
 import {
   DrawerRoot,
   DrawerContent,
@@ -46,8 +52,11 @@ import {
   DialogTitle,
 } from './components/ui/dialog';
 import { Field } from './components/ui/field';
-import { FaSlidersH, FaTrash } from 'react-icons/fa';
-import { LuCalendar, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { FaTrash } from 'react-icons/fa';
+import { LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardCheck } from 'react-icons/lu';
+// Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
+// app's one general icon source.
+import { Headphones } from 'lucide-react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
@@ -61,7 +70,13 @@ import { getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { confidenceWarningBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import {
+  confidenceWarningBadge,
+  genreBadge,
+  primaryButton,
+  rankOverlayBadge,
+  secondaryButton,
+} from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
@@ -93,9 +108,19 @@ export function FavoriteListItemRow({
   confidenceTier?: CalibrationTier;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [mobileImgFailed, setMobileImgFailed] = useState(false);
+  const [mobileImgLoaded, setMobileImgLoaded] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const cancelRemoveRef = useRef<HTMLButtonElement>(null);
+
+  // First-pass palette override for the skeleton shimmer — reuses the existing ink.800/ink.700
+  // tokens (not new ones) for better contrast against the dark theme than Chakra's default gray.
+  // Flagged as first-pass in the brief: expect a contrast/visibility retouch after live review.
+  const skeletonCss = {
+    '--start-color': 'colors.ink.800',
+    '--end-color': 'colors.ink.700',
+  } as const;
 
   return (
     <>
@@ -130,15 +155,33 @@ export function FavoriteListItemRow({
         >
           <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
             {item.artworkUrl && !imgFailed ? (
-              <Image
-                src={toThumbnailUrl(item.artworkUrl, 250)}
-                alt={`${item.band} – ${item.album}`}
-                w="128px"
-                h="128px"
-                objectFit="cover"
-                transition="transform 0.3s"
-                onError={() => setImgFailed(true)}
-              />
+              <>
+                <Image
+                  src={toThumbnailUrl(item.artworkUrl, 250)}
+                  alt={`${item.band} – ${item.album}`}
+                  w="128px"
+                  h="128px"
+                  objectFit="cover"
+                  transition="transform 0.3s"
+                  onLoad={() => setImgLoaded(true)}
+                  onError={() => setImgFailed(true)}
+                />
+                {/* Overlay shimmer, faded out once loaded — same technique as ArtworkBlock
+                    (src/App.tsx). loading={!loaded}, not isLoaded — Chakra v3 inverted the prop. */}
+                <Skeleton
+                  position="absolute"
+                  top={0}
+                  left={0}
+                  w="100%"
+                  h="100%"
+                  loading={!imgLoaded}
+                  variant="shine"
+                  css={skeletonCss}
+                  opacity={imgLoaded ? 0 : 1}
+                  transition="opacity 0.3s ease"
+                  pointerEvents="none"
+                />
+              </>
             ) : (
               <Flex w="100%" h="100%" align="center" justify="center">
                 <Text fontSize="lg" color="text.muted">
@@ -190,19 +233,38 @@ export function FavoriteListItemRow({
 
           <Flex flexShrink={0} gap={1} pr={3}>
             {onRate && (
-              <Tooltip content="Rate this album">
+              <Tooltip content="Evaluate this album">
                 <IconButton
-                  aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
+                  aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
                   size="sm"
                   variant="ghost"
                   color="text.muted"
                   _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
                   onClick={onRate}
                 >
-                  <Icon as={FaSlidersH} />
+                  <Icon as={LuClipboardCheck} />
                 </IconButton>
               </Tooltip>
             )}
+
+            <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
+              <Tooltip content="Listen on a streaming platform">
+                <MenuTrigger asChild>
+                  <IconButton
+                    aria-label="Listen on a streaming platform"
+                    size="sm"
+                    variant="ghost"
+                    color="text.muted"
+                    _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                  >
+                    <Icon as={Headphones} />
+                  </IconButton>
+                </MenuTrigger>
+              </Tooltip>
+              <MenuContent bg="surface.card" color="text.primary">
+                <ListenMenuItems band={item.band} album={item.album} />
+              </MenuContent>
+            </MenuRoot>
 
             {onRemove && (
               <Tooltip content="Remove from favorites">
@@ -224,8 +286,10 @@ export function FavoriteListItemRow({
         </Flex>
       </Box>
 
-      {/* Mobile (< md): vertical card, artwork-first. Same raw `@media` show/hide
-          mechanism as the desktop Box above — see that Box's comment for why. */}
+      {/* Mobile (< md): horizontal card, matching desktop's flush-artwork-left structure
+          (favorites-row-mobile-compact-redesign — replaces the original vertical
+          artwork-first layout). Same raw `@media` show/hide mechanism as the desktop Box
+          above — see that Box's comment for why. */}
       <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
         <Box
           bg="surface.card"
@@ -234,108 +298,187 @@ export function FavoriteListItemRow({
           border="2px solid"
           borderColor="border.ruleStrong"
         >
-          <Box position="relative" w="100%" bg="surface.darkest">
-            {item.artworkUrl && !mobileImgFailed ? (
-              <Image
-                src={toThumbnailUrl(item.artworkUrl, 500)}
-                alt={`${item.band} – ${item.album}`}
-                w="100%"
-                aspectRatio="1 / 1"
-                objectFit="cover"
-                onError={() => setMobileImgFailed(true)}
-              />
-            ) : (
-              <Flex w="100%" aspectRatio="1 / 1" align="center" justify="center">
-                <Text fontSize="2xl" color="text.muted">
-                  ♪
-                </Text>
-              </Flex>
-            )}
-            {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
+          <Flex>
+            <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
+              {item.artworkUrl && !mobileImgFailed ? (
+                <>
+                  <Image
+                    src={toThumbnailUrl(item.artworkUrl, 250)}
+                    alt={`${item.band} – ${item.album}`}
+                    w="128px"
+                    h="128px"
+                    objectFit="cover"
+                    onLoad={() => setMobileImgLoaded(true)}
+                    onError={() => setMobileImgFailed(true)}
+                  />
+                  <Skeleton
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    w="100%"
+                    h="100%"
+                    loading={!mobileImgLoaded}
+                    variant="shine"
+                    css={skeletonCss}
+                    opacity={mobileImgLoaded ? 0 : 1}
+                    transition="opacity 0.3s ease"
+                    pointerEvents="none"
+                  />
+                </>
+              ) : (
+                <Flex w="100%" h="100%" align="center" justify="center">
+                  <Text fontSize="lg" color="text.muted">
+                    ♪
+                  </Text>
+                </Flex>
+              )}
+              {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
                 layout-agnostic (favorites-row-desktop-redesign). Warning badge uses a plain
                 title/aria-label instead of Tooltip — touch has no hover state, same
                 reasoning as the Rate/Remove buttons below. Grid, not Flex — see the desktop
                 block's comment above for why (aspectRatio is ignored on a flex row's cross-
                 stretched item, but honored by CSS Grid's track sizing). */}
-            {ratingSummary && (
-              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
-                {confidenceTier === 'none' && (
-                  <Box
-                    {...confidenceWarningBadge}
-                    aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-                    title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-                  >
-                    !
+              {ratingSummary && (
+                <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                  <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                  {confidenceTier === 'none' && (
+                    <Box
+                      {...confidenceWarningBadge}
+                      aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                      title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                    >
+                      !
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
+
+            <Box flex={1} minW={0} display="flex" flexDirection="column" justifyContent="center">
+              {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
+                truncateBand (band, single line, ellipsis) + clampAlbumLines (album, native
+                `lineClamp` prop) — see AlbumMetaBlock's own comment on why lineClamp, not a
+                hand-rolled WebkitLineClamp style object. bandFontSize="16px" matches the
+                original mobile spec (favorites-row-mobile-layout) — restored after a prior
+                pass briefly moved it to 15px to match desktop's inline spec, which flattened
+                the band/album size gap too much on the visually distinct stacked layout.
+                hideReleaseDateLabel drops the "Release date: " prefix — mobile's tighter
+                column has no room for it. hideGenres — genre badges are rendered separately
+                below, spanning the full card width instead of being squeezed into this ~215px
+                column, where two-word genres like "PROGRESSIVE METAL" always stacked
+                vertically instead of wrapping side by side. padding top/bottom zeroed (the
+                component's own 20px default) and the parent Box centers its content vertically
+                instead — this row's height is driven by the taller of the artwork (fixed
+                128px) or the text block itself, and a top-pinned block with 20px of dead
+                padding above and below looked visibly off-center whenever a 2-line album title
+                pushed the row taller than the artwork. */}
+              <AlbumMetaBlock
+                band={item.band}
+                album={item.album}
+                releaseDate={item.releaseDate}
+                genre={item.genre}
+                titleLayout="stacked"
+                bandFontSize="16px"
+                albumFontSize="14px"
+                truncateBand
+                clampAlbumLines={2}
+                hideReleaseDateLabel
+                hideGenres
+                padding={{ x: 4, top: 0, bottom: 0 }}
+              />
+            </Box>
+          </Flex>
+
+          {item.genre.length > 0 && (
+            <Box borderTop="1px solid" borderColor="border.rule" py={2} px={2}>
+              {/* Genre tags live in the top zone, directly below the artwork+title row — not
+                the footer. Full card width (no artwork-width spacer/offset), with 8px of
+                padding on every side (py={2} px={2}) — bracketed by a separator on each side
+                (`border.rule`, the darker ink.800 rule token, not `border.ruleStrong` which is
+                what the card's own outer border uses). */}
+              <Wrap gap={1}>
+                {item.genre.map((g) => (
+                  <WrapItem key={g}>
+                    <Badge {...genreBadge}>{g}</Badge>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            </Box>
+          )}
+
+          <Box borderTop="1px solid" borderColor="border.rule" pt={3} pb={4}>
+            {/* Divider and footer are outside the artwork+text Flex above (not nested inside
+                the text column) so the divider spans the full card width, not just the text
+                column's width. No artwork-width spacer here (unlike the genre section/original
+                footer draft) — the empty area that left under the artwork was removed per live
+                review; buttons are centered (justify="center") across the full row width
+                instead. `border.rule` (darker ink.800) matches the genre section's own
+                separators above — darker than the card's own outer border / `border.ruleStrong`. */}
+            <Flex px={4} gap={2} justify="center">
+              {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
+                    hover state. Content-width (no flex stretch) with a gap between them, not
+                    edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
+                    `@media` breakpoint (400px) rather than a container query: this codebase
+                    has no existing container-query usage, and the one precedent for a
+                    responsive split (AlbumRatingPage) uses viewport `@media`, so this stays
+                    consistent with that rather than introducing a new mechanism. Known
+                    imprecision (accepted, not blocking): this can't detect the
+                    AddAlbumDrawer preview's actual rendered width if it's ever narrower than
+                    the viewport at a given breakpoint — revisit if that proves visibly wrong
+                    on live testing. */}
+              {onRate && (
+                <Button
+                  {...secondaryButton}
+                  variant="outline"
+                  size="sm"
+                  aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
+                  onClick={onRate}
+                >
+                  <Icon as={LuClipboardCheck} />
+                  <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                    Evaluate
                   </Box>
-                )}
-              </Box>
-            )}
-          </Box>
+                </Button>
+              )}
 
-          {/* Title/date/genre now come from AlbumMetaBlock — stacked layout (matches review
-              card/AlbumRatingPage desktop), defaults apply (design-system-audit-2026-08.md
-              Pass 4). AlbumMetaBlock's own 20px bottom padding now provides the breathing
-              room before the action-button row below (dropping the old mt={3} on that row,
-              which would otherwise double up with it) — the original p={3} wrapper is gone,
-              replaced by AlbumMetaBlock's own padding plus px={4} pb={4} on the button row so
-              its edges still align. */}
-          <AlbumMetaBlock
-            band={item.band}
-            album={item.album}
-            releaseDate={item.releaseDate}
-            genre={item.genre}
-            titleLayout="stacked"
-          />
-          <Box px={4} pb={4}>
-            {(onRate || onRemove) && (
-              <Flex gap={2}>
-                {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
-                    hover state. Collapses to icon-only under a secondary raw-`@media`
-                    breakpoint (400px) rather than a container query: this codebase has no
-                    existing container-query usage, and the one precedent for a responsive
-                    split (AlbumRatingPage) uses viewport `@media`, so this stays consistent
-                    with that rather than introducing a new mechanism. Known imprecision
-                    (accepted, not blocking): this can't detect the AddAlbumDrawer preview's
-                    actual rendered width if it's ever narrower than the viewport at a given
-                    breakpoint — revisit if that proves visibly wrong on live testing. */}
-                {onRate && (
+              <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
+                <MenuTrigger asChild>
                   <Button
                     {...secondaryButton}
                     variant="outline"
                     size="sm"
-                    flex={1}
-                    aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
-                    onClick={onRate}
+                    aria-label="Listen on a streaming platform"
                   >
-                    <Icon as={FaSlidersH} />
+                    <Icon as={Headphones} />
                     <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                      Rate
+                      Listen
                     </Box>
                   </Button>
-                )}
+                </MenuTrigger>
+                <MenuContent bg="surface.card" color="text.primary">
+                  <ListenMenuItems band={item.band} album={item.album} />
+                </MenuContent>
+              </MenuRoot>
 
-                {onRemove && (
-                  <Button
-                    {...secondaryButton}
-                    variant="outline"
-                    size="sm"
-                    flex={1}
-                    color="text.muted"
-                    _hover={{ color: 'red.400' }}
-                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
-                    loading={removing}
-                    spinner={<LoadingIndicatorBars />}
-                    onClick={() => setShowRemoveConfirm(true)}
-                  >
-                    <Icon as={FaTrash} />
-                    <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                      Remove
-                    </Box>
-                  </Button>
-                )}
-              </Flex>
-            )}
+              {onRemove && (
+                <Button
+                  {...secondaryButton}
+                  variant="outline"
+                  size="sm"
+                  color="text.muted"
+                  _hover={{ color: 'red.400' }}
+                  aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                  loading={removing}
+                  spinner={<LoadingIndicatorBars />}
+                  onClick={() => setShowRemoveConfirm(true)}
+                >
+                  <Icon as={FaTrash} />
+                  <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                    Remove
+                  </Box>
+                </Button>
+              )}
+            </Flex>
           </Box>
         </Box>
       </Box>
