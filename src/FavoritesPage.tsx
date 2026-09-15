@@ -359,33 +359,34 @@ export function FavoriteListItemRow({
             </Box>
           </Flex>
 
-          {item.genre.length > 0 && (
-            <Flex pb={3}>
-              {/* Same spacer trick as the footer below — 128px matches the artwork's width so
-                  these badges' left edge lines up with the text column's own left edge
-                  (AlbumMetaBlock's default px={4} padding), not the card edge. */}
-              <Box flexShrink={0} w="128px" />
-              <Wrap gap={1} flex={1} minW={0} px={4}>
-                {item.genre.map((g) => (
-                  <WrapItem key={g}>
-                    <Badge {...genreBadge}>{g}</Badge>
-                  </WrapItem>
-                ))}
-              </Wrap>
-            </Flex>
-          )}
-
-          {(onRate || onRemove) && (
+          {(item.genre.length > 0 || onRate || onRemove) && (
             <Box borderTop="2px solid" borderColor="border.ruleStrong" pt={3} pb={4}>
-              {/* Divider and footer are outside the artwork+text Flex above (not nested inside
-                the text column) so the divider spans the full card width, not just the text
-                column's width — a spacer Box matching the artwork's 128px width keeps the
-                buttons' left edge aligned with the text column start instead of the card
-                edge, without hardcoding the offset as a magic-number padding value. */}
-              <Flex>
-                <Box flexShrink={0} w="128px" />
-                <Flex flex={1} minW={0} px={4} gap={2}>
-                  {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
+              {/* Divider and everything below it are outside the artwork+text Flex above (not
+                nested inside the text column) so the divider spans the full card width, not
+                just the text column's width. A spacer Box matching the artwork's 128px width
+                keeps both the genre badges and the action buttons' left edge aligned with the
+                text column start instead of the card edge, without hardcoding the offset as a
+                magic-number padding value. Genre badges moved here (below the separator,
+                above the buttons) per live review — previously they sat above the separator,
+                directly under the release date. */}
+              {item.genre.length > 0 && (
+                <Flex pb={onRate || onRemove ? 3 : 0}>
+                  <Box flexShrink={0} w="128px" />
+                  <Wrap gap={1} flex={1} minW={0} px={4}>
+                    {item.genre.map((g) => (
+                      <WrapItem key={g}>
+                        <Badge {...genreBadge}>{g}</Badge>
+                      </WrapItem>
+                    ))}
+                  </Wrap>
+                </Flex>
+              )}
+
+              {(onRate || onRemove) && (
+                <Flex>
+                  <Box flexShrink={0} w="128px" />
+                  <Flex flex={1} minW={0} px={4} gap={2}>
+                    {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
                     hover state. Content-width (no flex stretch) with a gap between them, not
                     edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
                     `@media` breakpoint (400px) rather than a container query: this codebase
@@ -396,41 +397,48 @@ export function FavoriteListItemRow({
                     AddAlbumDrawer preview's actual rendered width if it's ever narrower than
                     the viewport at a given breakpoint — revisit if that proves visibly wrong
                     on live testing. */}
-                  {onRate && (
-                    <Button
-                      {...secondaryButton}
-                      variant="outline"
-                      size="sm"
-                      aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
-                      onClick={onRate}
-                    >
-                      <Icon as={FaSlidersH} />
-                      <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                        Rate
-                      </Box>
-                    </Button>
-                  )}
+                    {onRate && (
+                      <Button
+                        {...secondaryButton}
+                        variant="outline"
+                        size="sm"
+                        aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
+                        onClick={onRate}
+                      >
+                        <Icon as={FaSlidersH} />
+                        <Box
+                          as="span"
+                          css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}
+                        >
+                          Rate
+                        </Box>
+                      </Button>
+                    )}
 
-                  {onRemove && (
-                    <Button
-                      {...secondaryButton}
-                      variant="outline"
-                      size="sm"
-                      color="text.muted"
-                      _hover={{ color: 'red.400' }}
-                      aria-label={removing ? 'Loading' : 'Remove from favorites'}
-                      loading={removing}
-                      spinner={<LoadingIndicatorBars />}
-                      onClick={() => setShowRemoveConfirm(true)}
-                    >
-                      <Icon as={FaTrash} />
-                      <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                        Remove
-                      </Box>
-                    </Button>
-                  )}
+                    {onRemove && (
+                      <Button
+                        {...secondaryButton}
+                        variant="outline"
+                        size="sm"
+                        color="text.muted"
+                        _hover={{ color: 'red.400' }}
+                        aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                        loading={removing}
+                        spinner={<LoadingIndicatorBars />}
+                        onClick={() => setShowRemoveConfirm(true)}
+                      >
+                        <Icon as={FaTrash} />
+                        <Box
+                          as="span"
+                          css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}
+                        >
+                          Remove
+                        </Box>
+                      </Button>
+                    )}
+                  </Flex>
                 </Flex>
-              </Flex>
+              )}
             </Box>
           )}
         </Box>
