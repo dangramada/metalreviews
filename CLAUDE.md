@@ -336,3 +336,4 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
+- `streaming-links.md` — "Listen" chip on the album card: generated (non-exact) search-links to Bandcamp/Spotify/YouTube Music/Deezer, why exact-match isn't viable, `simple-icons` dependency scoped to the menu, overlay-scrim standing pattern extended to the new chip; landed as direct commits to `master`, no feature branch merged (see the doc's own "Git history" section)
