@@ -81,6 +81,16 @@ No branches currently in progress.
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
 
+Most recent merge: `docs-hygiene-sept2026` (docs-only, no application code — five-phase
+documentation/branch hygiene pass: deleted 18 confirmed-merged stale branches per the 14-day
+policy, collapsed 13 old Active Branches narratives plus two Completed Feature Narratives into
+the existing Past-decisions index one-liners, indexed two orphaned decision docs, relocated one
+resolved `deferred-work.md` item to `finished-work.md` and fixed a self-contradicting misplaced
+paragraph found in the process. Branch kept, not deleted, per project convention until past the
+14-day window). Merged to `master` `--no-ff` at `7e5eb32` on 2026-09-15. Rollback tag:
+`pre-merge-docs-hygiene-sept2026`. Full detail: this section's own prior state plus the branch's
+5 individual commit messages (`git log docs-hygiene-sept2026`).
+
 Most recent work landed as direct commits to `master` (no feature branch, no rollback tag —
 deviates from this project's usual branch+merge+rollback-tag convention; flagged here rather
 than silently matching the pattern below): (1) a previously-stalled, already-finished design-
