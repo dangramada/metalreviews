@@ -1033,34 +1033,15 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   used to be silence. The ORIGINAL 2026-08-17 question — whether `computeScoreSpreadAccuracy`
   itself is under-reporting a model that is actually well-determined, or correctly reporting
   genuine indeterminacy, verified against ground truth for these specific oracles — is a
-  DIFFERENT question and remains fully UNINVESTIGATED. Neither the 2026-08-18 recon nor the
-  2026-08-25 diagnostic ran the ground-truth comparison that question specifically calls for;
-  both examined coverage/width behavior, not the accuracy metric's own correctness. The two are
-  plausibly related (unconstrained variables are a natural candidate explanation for low
-  accuracy too) but relatedness is not verification — nobody has run the data-analysis session
-  the original entry asks for. Full detail:
+  DIFFERENT question from the coverage one above, and neither the 2026-08-18 recon nor the
+  2026-08-25 diagnostic answers it; both examined coverage/width behavior, not the accuracy
+  metric's own correctness. **[2026-09-15 reorg note: corrected — this was NOT left
+  uninvestigated. It was answered the same day it was asked (2026-08-17) by
+  `criteria-calibration-accuracy-threshold-recalibration.md` §6; that answer was misfiled under
+  a later, unrelated "Cross-reference debt" bullet elsewhere in this document and has been
+  moved here, immediately below, where it actually belongs.]** Full detail:
   `criteria-calibration/criteria-calibration-freeze-checkpoint.md`,
   `criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`.
-
-- **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
-  2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
-  keeps its old threshold-derived value until that user next opens calibration, then silently
-  recomputes degree-tied. Dan's own row is the live case: it reads `very_high` while his
-  71-answer log reaches degree 4, which the new mapping calls `high` / Clear — so his album
-  pages will show Sharp until he opens calibration again, then Clear. **Self-correcting, no
-  backfill needed** (and the soft gate no longer reads the tier), but it is a visible label
-  change on an account that did nothing. A backfill would mean replaying the driver per user;
-  deliberately not written. Full context:
-  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §12.
-
-- **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
-  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
-  `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
-  throughout — all of which live only on the still-unmerged
-  `criteria-calibration-accuracy-threshold-recalibration` branch. Read from `master`, those are
-  dangling references. **When both branches land, re-check every such citation and correct any
-  path that moved.** Noted in that document's own header too, but tracked here so it does not
-  depend on someone re-reading a header.
 
   **ANSWERED 2026-08-17** by
   `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` §6, which ran
@@ -1085,6 +1066,36 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   because the cause was unknown; it is now required because the cause is _shape-dependent_, so
   no single explanation would be true for all users who see that screen. The existing
   both-directions test remains correct as-is.
+
+- **Pre-2026-08-18 `user_calibration_status.tier` rows are still threshold-derived.** Added
+  2026-08-18. The tier is only rewritten when the calibration page runs, so every existing row
+  keeps its old threshold-derived value until that user next opens calibration, then silently
+  recomputes degree-tied. Dan's own row is the live case: it reads `very_high` while his
+  71-answer log reaches degree 4, which the new mapping calls `high` / Clear — so his album
+  pages will show Sharp until he opens calibration again, then Clear. **Self-correcting, no
+  backfill needed** (and the soft gate no longer reads the tier), but it is a visible label
+  change on an account that did nothing. A backfill would mean replaying the driver per user;
+  deliberately not written. Full context:
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §12.
+
+- **Cross-reference debt: the degree-tier docs cite an unmerged branch.** Added 2026-08-18.
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` cites
+  `criteria-calibration-accuracy-threshold-recalibration.md` and its two committed CSVs
+  throughout — all of which live only on the still-unmerged
+  `criteria-calibration-accuracy-threshold-recalibration` branch. Read from `master`, those are
+  dangling references. **When both branches land, re-check every such citation and correct any
+  path that moved.** Noted in that document's own header too, but tracked here so it does not
+  depend on someone re-reading a header.
+
+- **Cross-reference debt above is now actionable.** Added 2026-09-15, during a documentation
+  hygiene pass. Phase 0 of that pass confirmed via `git merge-base` that
+  `criteria-calibration-accuracy-threshold-recalibration` merged to `master` at `d88ee99` on
+  2026-08-25 — the trigger condition the entry above names ("when both branches land") has
+  occurred. The citation-by-citation re-check itself has NOT been done — that's real
+  investigative work (confirming each cited path in
+  `criteria-calibration-degree-tiers-and-progress.md` still resolves post-merge), out of scope
+  for a docs-hygiene pass. Logged as its own item so it surfaces as a task rather than staying
+  buried under the now-stale trigger condition above.
 
 - **CAVEAT FOR FUTURE SESSIONS: the `settle`-point ground truth is itself partially
   non-unique — treat "n=39", "n=46" and the oracle settles as a best-available approximation,
