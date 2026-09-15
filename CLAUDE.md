@@ -76,7 +76,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+`favorites-row-mobile-compact-redesign` — mobile `FavoriteListItemRow` restructured from
+vertical artwork-first to horizontal (matching desktop's row shape), plus new skeleton loading
+on both mobile and desktop artwork. 50/50 test files, `tsc` clean, verified live at mobile
+viewport on Dan's real account. Not yet merged. Full detail:
+`docs/decisions/favorites-row-mobile-compact-redesign.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
@@ -153,6 +157,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `documentation-governance.md` — two-layer ownership rule (design-discovery vs. implementation-status docs) and same-commit indexing rule for `docs/decisions/`
 - `album-rating-soft-gate.md` — 2026-08-09 hard→soft gate reversal and why
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
-- `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07
+- `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07 (superseded by `favorites-row-mobile-compact-redesign.md`'s horizontal layout below)
+- `favorites-row-mobile-compact-redesign.md` — supersedes the above: horizontal mobile layout matching desktop's row shape (128px artwork, stacked truncated title, footer separator), plus new skeleton loading on both mobile and desktop artwork (previously absent)
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
 - `streaming-links.md` — "Listen" chip on the album card: generated (non-exact) search-links to Bandcamp/Spotify/YouTube Music/Deezer, why exact-match isn't viable, `simple-icons` dependency scoped to the menu, overlay-scrim standing pattern extended to the new chip; landed as direct commits to `master`, no feature branch merged (see the doc's own "Git history" section)
