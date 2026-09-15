@@ -145,10 +145,101 @@ Re-verified: `tsc --noEmit` clean, full suite 50/50 test files passing. Live-con
 375px: divider directly below the release date, genre badges between the divider and the
 action buttons, desktop unaffected at 1280px.
 
+## Fourth retouch — genre back to the top zone, thinner full-width dividers, vertical centering
+
+Reverses the third retouch's placement again: genre badges no longer sit between the divider
+and the action buttons. They're now their own block directly below the artwork+title `Flex` —
+back in the "top zone", not the footer — with the footer containing only the action buttons.
+Verified directly against the shipped code (this section documents `src/FavoritesPage.tsx` as
+it stands, not a recalled description of it):
+
+- **Genre block**: own `Box` (`borderTop="1px solid" borderColor="border.rule"`, `py={2} px={2}`),
+  full card width — the `128px`-wide spacer `Box` that previously offset it to align with the
+  text column (second/third retouch) is gone. Only rendered when `item.genre.length > 0`.
+- **Footer block**: now a separate, always-rendered `Box` (own `borderTop`, same `border.rule`
+  weight) directly below the genre block — no longer the single divider that wrapped both genre
+  and buttons as children (third retouch's structure). Also lost its `128px` spacer; the button
+  `Flex` uses `justify="center"` across the full row width instead of an offset start. It is
+  **unconditional** now (previously gated on `item.genre.length > 0 || onRate || onRemove`) —
+  see "New footer action" below for why: the new Listen button has no `onRate`/`onRemove`-style
+  prop gate, so the footer always has at least one button to show.
+- **Divider weight**: both dividers dropped from `2px solid border.ruleStrong` (first/third
+  retouch) to `1px solid border.rule` — a lighter rule, matching the weight already used
+  elsewhere for the genre section's own brackets in the second-retouch version of this doc.
+- **Vertical alignment** (previously an open question in this doc's earlier drafts, left for
+  live testing rather than decided up front): resolved, but not via an `align` prop on the
+  artwork+title `Flex` itself — that `Flex` still sets no `align` at all, so it defaults to CSS
+  `stretch`. Centering instead happens on the title column's own `Box`: it's now
+  `display="flex" flexDirection="column" justifyContent="center"`, with `AlbumMetaBlock`'s own
+  20px top/bottom padding zeroed via `padding={{ x: 4, top: 0, bottom: 0 }}`. The stretched
+  column (matching the artwork's 128px height) centers its own shorter content within that
+  height, rather than the row's cross-axis alignment doing the centering directly — functionally
+  equivalent output, different mechanism than a plain `align="center"` would have been.
+
+**Verification status**: `tsc --noEmit` clean and the full suite passes (50/50 test files,
+367/367 tests) with this code in the working tree — no test asserts genre/footer DOM structure
+or divider styling, so none needed changing. This pass has **not** been confirmed live in a
+browser this session (the running dev server's `/favorites` route requires login, and no
+credentials are stored anywhere for this project — Dan always logs in himself). Treat the
+layout description above as accurate-to-code, not as live-verified pixel behavior. Not
+live-tested by Dan yet — merged to master ahead of that check, per his explicit instruction;
+treat this pass's on-screen result as unconfirmed until he looks at it.
+
+## New footer action: Evaluate rename + Listen menu
+
+Two changes to the row's action buttons (`src/FavoritesPage.tsx`, both desktop `IconButton` and
+mobile `Button` trees), landed together with the fourth retouch above but logically separate:
+
+**"Rate" → "Evaluate"**: icon changed from `FaSlidersH` to `LuClipboardCheck`
+(`react-icons/lu` — confirmed to exist under that name before use, no fallback needed) and the
+visible label (mobile only; desktop's button is icon-only) from "Rate" to "Evaluate", matching
+the destination page's actual name (Evaluate Album). aria-labels/tooltip text changed from "Rate
+this album" to "Evaluate this album" to match; "Edit rating" (shown once the album already has a
+rating) was left unchanged since it never said "Rate". Applied identically to both trees.
+
+**New "Listen" button**: reuses the Listen menu built for the review-grid card
+(`docs/decisions/streaming-links.md`) — same 4 platforms (Bandcamp, Spotify, YouTube Music,
+Deezer), same generated-search-link logic (`src/listenLinks.ts`), same `simple-icons` brand
+marks, same trigger icon (`Headphones` from `lucide-react` — confirmed via the real import in
+`src/App.tsx` before reuse; not `LuHeadphones`, which doesn't exist under that name in
+`react-icons/lu`). The menu's item list was inline in `App.tsx` before this; extracted to a new
+shared `src/components/ListenMenuItems.tsx` (platform icon lookup + the 4 `MenuItem`s,
+parameterized by `band`/`album`) so both `App.tsx` and `FavoritesPage.tsx` import the same
+component rather than duplicating the link/icon logic. `App.tsx`'s own Listen chip is otherwise
+unchanged (still its own overlay-chip trigger style, still `bg="blackAlpha.800"` on its
+`MenuContent` for the image-overlay context).
+
+The new trigger is styled to match Evaluate/Remove exactly (footer button, not the review card's
+overlay-chip style) — desktop: icon-only `IconButton` in a `Tooltip`; mobile: icon+label
+`Button` collapsing to icon-only under the existing 400px breakpoint, same as Evaluate/Remove.
+Footer order, left to right: **Evaluate → Listen → Remove** (primary action first, destructive
+action isolated last, Listen as the secondary action between them). Each `MenuContent` is styled
+`bg="surface.card" color="text.primary"` — this app's existing dark-panel override pattern
+(matching `Drawer`/`Dialog` in `theme.ts`), not `App.tsx`'s translucent `blackAlpha.800`, since
+the footer button sits on a plain card background rather than over artwork.
+
+**Confirmed**: `FavoriteListItemRow` does not wrap in an outer `<a>` (verified by reading the
+component — no `Link`/anchor wraps the row), so none of the review card's click-through
+workarounds (`data-listen-trigger`, `data-menu-just-closed`, the `preventDefault()` vs
+`stopPropagation()` distinction — see `streaming-links.md`) were needed or ported here.
+
+**Verification**: `tsc --noEmit` clean. Full suite 50/50 test files, 367/367 tests passing,
+including two new assertions in `FavoritesPage.test.tsx` — the Listen menu opens with all 4
+platform links (correct `href` for a real band/album), and the footer buttons appear in
+Evaluate → Listen → Remove order. Existing "Rate this album" assertions updated to "Evaluate
+this album". Live-checked only the review-grid card's Listen chip on the running dev server
+(confirmed the `ListenMenuItems` extraction didn't break it — all 4 platforms still render with
+correct links) — the Favorites row itself was **not** live-checked this session, same
+login-required blocker as the fourth retouch above. The 3-button mobile footer's fit/collapse at
+the narrowest supported width has **not** been visually confirmed; flagging as an open item
+rather than an assumption.
+
 ## What did not change
 
 Desktop's JSX structure and thumbnail size (128px / `toThumbnailUrl(url, 250)`, already
 matched by mobile now), the split mechanism itself, `rankOverlayBadge`/
 `confidenceWarningBadge` definitions, delete-confirmation logic, the year dropdown, bulk-remove,
-`AddAlbumDrawer`'s form logic, and the desktop image-loading bug flagged as a separate
-diagnostic-first item in the brief.
+`AddAlbumDrawer`'s form logic, the desktop image-loading bug flagged as a separate
+diagnostic-first item in an earlier brief, and the review-grid card's own Listen chip/overlay
+(untouched except for the internal `ListenMenuItems` extraction, which changes no visible
+behavior there).

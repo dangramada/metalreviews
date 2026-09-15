@@ -78,10 +78,17 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 `favorites-row-mobile-compact-redesign` — mobile `FavoriteListItemRow` restructured from
 vertical artwork-first to horizontal (matching desktop's row shape), plus new skeleton loading
-on both mobile and desktop artwork; a post-review retouch pass followed (band font back to
-16px, separator now spans the full card width, release-date label hidden, buttons content-width
-not stretched). 50/50 test files, `tsc` clean, verified live at mobile viewport on Dan's real
-account. Not yet merged. Full detail: `docs/decisions/favorites-row-mobile-compact-redesign.md`.
+on both mobile and desktop artwork; several retouch passes followed (band font, separator/genre
+placement iterated a few times, ending with genre back in its own top-zone block and thinner
+full-width dividers; vertical centering resolved via the title column's own flex layout, not an
+`align` prop). Also: "Rate" button renamed to "Evaluate" (icon + label, matching the destination
+page's name), and a new "Listen" footer button reusing the review-grid card's existing menu
+(logic extracted to `src/components/ListenMenuItems.tsx` so both places share it) — footer order
+Evaluate → Listen → Remove. 50/50 test files, 367/367 tests, `tsc` clean. The genre/layout
+retouch and the Evaluate/Listen additions have **not** been live-verified on Dan's account
+(`/favorites` needs login, no credentials stored) — only the shared Listen menu itself was
+live-checked, via the public review grid. About to be merged ahead of that live check, per Dan's
+explicit instruction. Full detail: `docs/decisions/favorites-row-mobile-compact-redesign.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
@@ -159,6 +166,6 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `album-rating-soft-gate.md` — 2026-08-09 hard→soft gate reversal and why
 - `favorites-row-desktop-redesign.md` — 128px flush artwork, `rankOverlayBadge` token, delete-confirmation dialog; branch merged to `master` 2026-08-07
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07 (superseded by `favorites-row-mobile-compact-redesign.md`'s horizontal layout below)
-- `favorites-row-mobile-compact-redesign.md` — supersedes the above: horizontal mobile layout matching desktop's row shape (128px artwork, stacked truncated title, footer separator), plus new skeleton loading on both mobile and desktop artwork (previously absent)
+- `favorites-row-mobile-compact-redesign.md` — supersedes the above: horizontal mobile layout matching desktop's row shape (128px artwork, stacked truncated title, footer separator), plus new skeleton loading on both mobile and desktop artwork (previously absent); later passes moved genre placement a few times before landing back in its own top-zone block, and added an Evaluate rename + new Listen footer button (shared with the review-grid card's menu via `ListenMenuItems`) — see the doc's own "Fourth retouch" and "New footer action" sections; those two passes were merged ahead of Dan's live check, so treat their on-screen result as unverified until he looks
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
 - `streaming-links.md` — "Listen" chip on the album card: generated (non-exact) search-links to Bandcamp/Spotify/YouTube Music/Deezer, why exact-match isn't viable, `simple-icons` dependency scoped to the menu, overlay-scrim standing pattern extended to the new chip; landed as direct commits to `master`, no feature branch merged (see the doc's own "Git history" section)
