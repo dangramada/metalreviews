@@ -33,6 +33,8 @@ import {
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
 import { Tooltip } from './components/ui/tooltip';
+import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
+import { ListenMenuItems } from './components/ListenMenuItems';
 import {
   DrawerRoot,
   DrawerContent,
@@ -50,8 +52,11 @@ import {
   DialogTitle,
 } from './components/ui/dialog';
 import { Field } from './components/ui/field';
-import { FaSlidersH, FaTrash } from 'react-icons/fa';
-import { LuCalendar, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { FaTrash } from 'react-icons/fa';
+import { LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardCheck } from 'react-icons/lu';
+// Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
+// app's one general icon source.
+import { Headphones } from 'lucide-react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
@@ -228,19 +233,38 @@ export function FavoriteListItemRow({
 
           <Flex flexShrink={0} gap={1} pr={3}>
             {onRate && (
-              <Tooltip content="Rate this album">
+              <Tooltip content="Evaluate this album">
                 <IconButton
-                  aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
+                  aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
                   size="sm"
                   variant="ghost"
                   color="text.muted"
                   _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
                   onClick={onRate}
                 >
-                  <Icon as={FaSlidersH} />
+                  <Icon as={LuClipboardCheck} />
                 </IconButton>
               </Tooltip>
             )}
+
+            <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
+              <Tooltip content="Listen on a streaming platform">
+                <MenuTrigger asChild>
+                  <IconButton
+                    aria-label="Listen on a streaming platform"
+                    size="sm"
+                    variant="ghost"
+                    color="text.muted"
+                    _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                  >
+                    <Icon as={Headphones} />
+                  </IconButton>
+                </MenuTrigger>
+              </Tooltip>
+              <MenuContent bg="surface.card" color="text.primary">
+                <ListenMenuItems band={item.band} album={item.album} />
+              </MenuContent>
+            </MenuRoot>
 
             {onRemove && (
               <Tooltip content="Remove from favorites">
@@ -330,7 +354,7 @@ export function FavoriteListItemRow({
               )}
             </Box>
 
-            <Box flex={1} minW={0}>
+            <Box flex={1} minW={0} display="flex" flexDirection="column" justifyContent="center">
               {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
                 truncateBand (band, single line, ellipsis) + clampAlbumLines (album, native
                 `lineClamp` prop) — see AlbumMetaBlock's own comment on why lineClamp, not a
@@ -342,7 +366,12 @@ export function FavoriteListItemRow({
                 column has no room for it. hideGenres — genre badges are rendered separately
                 below, spanning the full card width instead of being squeezed into this ~215px
                 column, where two-word genres like "PROGRESSIVE METAL" always stacked
-                vertically instead of wrapping side by side. */}
+                vertically instead of wrapping side by side. padding top/bottom zeroed (the
+                component's own 20px default) and the parent Box centers its content vertically
+                instead — this row's height is driven by the taller of the artwork (fixed
+                128px) or the text block itself, and a top-pinned block with 20px of dead
+                padding above and below looked visibly off-center whenever a 2-line album title
+                pushed the row taller than the artwork. */}
               <AlbumMetaBlock
                 band={item.band}
                 album={item.album}
@@ -355,38 +384,38 @@ export function FavoriteListItemRow({
                 clampAlbumLines={2}
                 hideReleaseDateLabel
                 hideGenres
+                padding={{ x: 4, top: 0, bottom: 0 }}
               />
             </Box>
           </Flex>
 
-          {(item.genre.length > 0 || onRate || onRemove) && (
-            <Box borderTop="2px solid" borderColor="border.ruleStrong" pt={3} pb={4}>
-              {/* Divider and everything below it are outside the artwork+text Flex above (not
-                nested inside the text column) so the divider spans the full card width, not
-                just the text column's width. A spacer Box matching the artwork's 128px width
-                keeps both the genre badges and the action buttons' left edge aligned with the
-                text column start instead of the card edge, without hardcoding the offset as a
-                magic-number padding value. Genre badges moved here (below the separator,
-                above the buttons) per live review — previously they sat above the separator,
-                directly under the release date. */}
-              {item.genre.length > 0 && (
-                <Flex pb={onRate || onRemove ? 3 : 0}>
-                  <Box flexShrink={0} w="128px" />
-                  <Wrap gap={1} flex={1} minW={0} px={4}>
-                    {item.genre.map((g) => (
-                      <WrapItem key={g}>
-                        <Badge {...genreBadge}>{g}</Badge>
-                      </WrapItem>
-                    ))}
-                  </Wrap>
-                </Flex>
-              )}
+          {item.genre.length > 0 && (
+            <Box borderTop="1px solid" borderColor="border.rule" py={2} px={2}>
+              {/* Genre tags live in the top zone, directly below the artwork+title row — not
+                the footer. Full card width (no artwork-width spacer/offset), with 8px of
+                padding on every side (py={2} px={2}) — bracketed by a separator on each side
+                (`border.rule`, the darker ink.800 rule token, not `border.ruleStrong` which is
+                what the card's own outer border uses). */}
+              <Wrap gap={1}>
+                {item.genre.map((g) => (
+                  <WrapItem key={g}>
+                    <Badge {...genreBadge}>{g}</Badge>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            </Box>
+          )}
 
-              {(onRate || onRemove) && (
-                <Flex>
-                  <Box flexShrink={0} w="128px" />
-                  <Flex flex={1} minW={0} px={4} gap={2}>
-                    {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
+          <Box borderTop="1px solid" borderColor="border.rule" pt={3} pb={4}>
+            {/* Divider and footer are outside the artwork+text Flex above (not nested inside
+                the text column) so the divider spans the full card width, not just the text
+                column's width. No artwork-width spacer here (unlike the genre section/original
+                footer draft) — the empty area that left under the artwork was removed per live
+                review; buttons are centered (justify="center") across the full row width
+                instead. `border.rule` (darker ink.800) matches the genre section's own
+                separators above — darker than the card's own outer border / `border.ruleStrong`. */}
+            <Flex px={4} gap={2} justify="center">
+              {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
                     hover state. Content-width (no flex stretch) with a gap between them, not
                     edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
                     `@media` breakpoint (400px) rather than a container query: this codebase
@@ -397,50 +426,60 @@ export function FavoriteListItemRow({
                     AddAlbumDrawer preview's actual rendered width if it's ever narrower than
                     the viewport at a given breakpoint — revisit if that proves visibly wrong
                     on live testing. */}
-                    {onRate && (
-                      <Button
-                        {...secondaryButton}
-                        variant="outline"
-                        size="sm"
-                        aria-label={ratingSummary ? 'Edit rating' : 'Rate this album'}
-                        onClick={onRate}
-                      >
-                        <Icon as={FaSlidersH} />
-                        <Box
-                          as="span"
-                          css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}
-                        >
-                          Rate
-                        </Box>
-                      </Button>
-                    )}
-
-                    {onRemove && (
-                      <Button
-                        {...secondaryButton}
-                        variant="outline"
-                        size="sm"
-                        color="text.muted"
-                        _hover={{ color: 'red.400' }}
-                        aria-label={removing ? 'Loading' : 'Remove from favorites'}
-                        loading={removing}
-                        spinner={<LoadingIndicatorBars />}
-                        onClick={() => setShowRemoveConfirm(true)}
-                      >
-                        <Icon as={FaTrash} />
-                        <Box
-                          as="span"
-                          css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}
-                        >
-                          Remove
-                        </Box>
-                      </Button>
-                    )}
-                  </Flex>
-                </Flex>
+              {onRate && (
+                <Button
+                  {...secondaryButton}
+                  variant="outline"
+                  size="sm"
+                  aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
+                  onClick={onRate}
+                >
+                  <Icon as={LuClipboardCheck} />
+                  <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                    Evaluate
+                  </Box>
+                </Button>
               )}
-            </Box>
-          )}
+
+              <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
+                <MenuTrigger asChild>
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    aria-label="Listen on a streaming platform"
+                  >
+                    <Icon as={Headphones} />
+                    <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                      Listen
+                    </Box>
+                  </Button>
+                </MenuTrigger>
+                <MenuContent bg="surface.card" color="text.primary">
+                  <ListenMenuItems band={item.band} album={item.album} />
+                </MenuContent>
+              </MenuRoot>
+
+              {onRemove && (
+                <Button
+                  {...secondaryButton}
+                  variant="outline"
+                  size="sm"
+                  color="text.muted"
+                  _hover={{ color: 'red.400' }}
+                  aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                  loading={removing}
+                  spinner={<LoadingIndicatorBars />}
+                  onClick={() => setShowRemoveConfirm(true)}
+                >
+                  <Icon as={FaTrash} />
+                  <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                    Remove
+                  </Box>
+                </Button>
+              )}
+            </Flex>
+          </Box>
         </Box>
       </Box>
 

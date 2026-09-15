@@ -40,9 +40,6 @@ import {
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 // Headphones icon for the Listen chip (Lucide is the app's one general icon source).
 import { Headphones } from 'lucide-react';
-// Brand marks for the Listen menu — simple-icons is scoped to this one use (see PlatformIcon).
-import { siBandcamp, siSpotify, siYoutubemusic, siDeezer } from 'simple-icons';
-import type { SimpleIcon } from 'simple-icons';
 
 // Supabase client and data mapping. Post-album-identity-migration, the home page reads
 // `albums` joined to `reviews` (see docs/decisions/album-identity-frontend-homepage.md).
@@ -56,18 +53,8 @@ import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
-import { PlatformIcon } from './components/PlatformIcon';
-import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from './components/ui/menu';
-import { LISTEN_PLATFORMS, buildListenUrl, type ListenPlatform } from './listenLinks';
-
-// Brand icon lookup for the Listen menu — keyed by ListenPlatform so the render loop over
-// LISTEN_PLATFORMS (which owns display order) can pull the matching mark without a switch.
-const LISTEN_PLATFORM_ICONS: Record<ListenPlatform, SimpleIcon> = {
-  bandcamp: siBandcamp,
-  spotify: siSpotify,
-  youtubeMusic: siYoutubemusic,
-  deezer: siDeezer,
-};
+import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
+import { ListenMenuItems } from './components/ListenMenuItems';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -436,33 +423,7 @@ export function ArtworkBlock({
         {/* Same blackAlpha.800 as the trigger chip, rather than the default panel token, so
             the open menu reads as a continuation of the chip instead of a mismatched surface. */}
         <MenuContent bg="blackAlpha.800" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-          {LISTEN_PLATFORMS.map(({ id, label }) => (
-            <MenuItem
-              key={id}
-              value={id}
-              asChild
-              cursor="pointer"
-              // Default menu-item cursor token is "default" (an arrow) — these rows are
-              // real links, so override it. The default highlighted-row background
-              // (color-mix over bg-emphasized) was too subtle against this menu's own
-              // translucent blackAlpha.800 panel; whiteAlpha.300 lightens visibly
-              // regardless of what's showing through behind the menu.
-              _highlighted={{ bg: 'whiteAlpha.300' }}
-            >
-              <Link
-                href={buildListenUrl(id, rev.band, rev.album)}
-                target="_blank"
-                rel="noopener noreferrer"
-                display="flex"
-                alignItems="center"
-                gap={2}
-                _hover={{ textDecoration: 'none' }}
-              >
-                <PlatformIcon icon={LISTEN_PLATFORM_ICONS[id]} />
-                <Text as="span">{label}</Text>
-              </Link>
-            </MenuItem>
-          ))}
+          <ListenMenuItems band={rev.band} album={rev.album} />
         </MenuContent>
       </MenuRoot>
 

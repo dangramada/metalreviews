@@ -213,6 +213,45 @@ describe('FavoritesPage', () => {
     expect(screen.getAllByText(String(currentYear)).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('renders a Listen button that opens a menu with all four platform links', async () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+
+    // Desktop and mobile trees both mount (see the row's own comment on that); take the
+    // first — same convention as the Evaluate/Remove button queries above.
+    const trigger = screen.getAllByRole('button', { name: 'Listen on a streaming platform' })[0];
+    // Chakra's Ark-UI-based Menu opens on pointer interaction, not a bare `click` event —
+    // jsdom needs the full pointerdown/pointerup/click sequence a real click produces.
+    fireEvent.pointerDown(trigger, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(trigger, { button: 0, pointerId: 1 });
+    fireEvent.click(trigger);
+
+    const bandcampLink = await screen.findByRole('menuitem', { name: /Bandcamp/i });
+    expect(bandcampLink).toHaveAttribute(
+      'href',
+      'https://bandcamp.com/search?q=Opeth%20Blackwater%20Park'
+    );
+    expect(screen.getByRole('menuitem', { name: /Spotify/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /YouTube Music/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Deezer/i })).toBeInTheDocument();
+  });
+
+  it('orders the footer buttons Evaluate, Listen, Remove', () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+
+    // Desktop tree's buttons (mobile mounts the same three, hidden via CSS in jsdom).
+    const names = screen
+      .getAllByRole('button')
+      .map((btn) => btn.getAttribute('aria-label'))
+      .filter((label): label is string => !!label && /Evaluate|Listen|Remove/.test(label));
+    expect(names.slice(0, 3)).toEqual([
+      'Evaluate this album',
+      'Listen on a streaming platform',
+      'Remove from favorites',
+    ]);
+  });
+
   // Soft gate, changed 2026-08-18 (see useCalibrationGate's hasWeights comment). It used to
   // fire on `tier === 'none'`, which was a workable proxy while tiers were accuracy thresholds.
   // Degree-tied tiers broke that proxy: 'none' now means "has not finished degree 2", which for
@@ -225,7 +264,7 @@ describe('FavoritesPage', () => {
     // The gate's own fetch has to settle first: handleRate no-ops while it is loading, so
     // clicking too early would make BOTH soft-gate tests pass for the wrong reason.
     await act(async () => {});
-    fireEvent.click(screen.getAllByRole('button', { name: /Rate this album/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Evaluate this album/i })[0]);
     expect(await screen.findByText(/Calibrate your criteria first\?/i)).toBeTruthy();
   });
 
@@ -237,7 +276,7 @@ describe('FavoritesPage', () => {
     // The stubbed status row is absent, so the tier is 'none' — the exact combination the old
     // condition would have nudged on, and the one degree-tying makes common and long-lasting.
     await act(async () => {});
-    fireEvent.click(screen.getAllByRole('button', { name: /Rate this album/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Evaluate this album/i })[0]);
     expect(screen.queryByText(/Calibrate your criteria first\?/i)).toBeNull();
   });
 
