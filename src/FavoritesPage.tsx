@@ -112,6 +112,8 @@ export function FavoriteListItemRow({
   const [mobileImgFailed, setMobileImgFailed] = useState(false);
   const [mobileImgLoaded, setMobileImgLoaded] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  // Desktop Listen button only — see its own comment below for why this exists.
+  const desktopListenTriggerRef = useRef<HTMLButtonElement>(null);
   const cancelRemoveRef = useRef<HTMLButtonElement>(null);
 
   // First-pass palette override for the skeleton shimmer — reuses the existing ink.800/ink.700
@@ -247,26 +249,37 @@ export function FavoriteListItemRow({
               </Tooltip>
             )}
 
-            <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
-              {/* No Tooltip here (unlike Evaluate/Remove above) — verified live that wrapping
-                  MenuTrigger's asChild in our Tooltip component breaks the menu's floating
-                  position (it opens pinned to the window's top-left instead of anchored to
-                  this button). Root cause: Tooltip's own forwardRef targets its Content
-                  (the bubble), not its Trigger, so composing it into another asChild chain
-                  loses the anchor rect Menu needs. `title` gives the same hover text natively
-                  without going through that chain. */}
-              <MenuTrigger asChild>
-                <IconButton
-                  aria-label="Listen on a streaming platform"
-                  title="Listen on a streaming platform"
-                  size="sm"
-                  variant="ghost"
-                  color="text.muted"
-                  _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
-                >
-                  <Icon as={Headphones} />
-                </IconButton>
-              </MenuTrigger>
+            <MenuRoot
+              positioning={{
+                placement: 'bottom-end',
+                gutter: 4,
+                // Wrapping MenuTrigger's asChild in our Tooltip component breaks the menu's
+                // own anchor resolution (verified live: it opens pinned to the window's
+                // top-left instead of under this button) — Tooltip's asChild-clone chain
+                // interferes with however Menu would otherwise locate its trigger element.
+                // getAnchorElement sidesteps that entirely: Menu asks this ref directly
+                // instead of resolving the trigger itself, so positioning holds regardless of
+                // what wraps the trigger. desktopListenTriggerRef is attached below and
+                // nowhere else — Tooltip and Menu both still get their asChild-forwarded
+                // props (onClick, aria-*, hover handlers) as normal; only the anchor lookup
+                // is overridden.
+                getAnchorElement: () => desktopListenTriggerRef.current,
+              }}
+            >
+              <Tooltip content="Listen on a streaming platform">
+                <MenuTrigger asChild>
+                  <IconButton
+                    ref={desktopListenTriggerRef}
+                    aria-label="Listen on a streaming platform"
+                    size="sm"
+                    variant="ghost"
+                    color="text.muted"
+                    _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                  >
+                    <Icon as={Headphones} />
+                  </IconButton>
+                </MenuTrigger>
+              </Tooltip>
               <MenuContent bg="surface.card" color="text.primary">
                 <ListenMenuItems band={item.band} album={item.album} />
               </MenuContent>
