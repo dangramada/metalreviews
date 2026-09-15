@@ -1,5 +1,6 @@
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Badge,
   Box,
   Button,
   Container,
@@ -26,6 +27,8 @@ import {
   Skeleton,
   Text,
   VStack,
+  Wrap,
+  WrapItem,
   parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
@@ -62,7 +65,13 @@ import { getReleaseYear, toThumbnailUrl } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { confidenceWarningBadge, primaryButton, rankOverlayBadge, secondaryButton } from './theme';
+import {
+  confidenceWarningBadge,
+  genreBadge,
+  primaryButton,
+  rankOverlayBadge,
+  secondaryButton,
+} from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { computeNormKey } from '../scripts/normalizeKey';
 import { useNavigate } from 'react-router-dom';
@@ -330,7 +339,10 @@ export function FavoriteListItemRow({
                 pass briefly moved it to 15px to match desktop's inline spec, which flattened
                 the band/album size gap too much on the visually distinct stacked layout.
                 hideReleaseDateLabel drops the "Release date: " prefix — mobile's tighter
-                column has no room for it. */}
+                column has no room for it. hideGenres — genre badges are rendered separately
+                below, spanning the full card width instead of being squeezed into this ~215px
+                column, where two-word genres like "PROGRESSIVE METAL" always stacked
+                vertically instead of wrapping side by side. */}
               <AlbumMetaBlock
                 band={item.band}
                 album={item.album}
@@ -338,12 +350,30 @@ export function FavoriteListItemRow({
                 genre={item.genre}
                 titleLayout="stacked"
                 bandFontSize="16px"
+                albumFontSize="14px"
                 truncateBand
                 clampAlbumLines={2}
                 hideReleaseDateLabel
+                hideGenres
               />
             </Box>
           </Flex>
+
+          {item.genre.length > 0 && (
+            <Flex pb={3}>
+              {/* Same spacer trick as the footer below — 128px matches the artwork's width so
+                  these badges' left edge lines up with the text column's own left edge
+                  (AlbumMetaBlock's default px={4} padding), not the card edge. */}
+              <Box flexShrink={0} w="128px" />
+              <Wrap gap={1} flex={1} minW={0} px={4}>
+                {item.genre.map((g) => (
+                  <WrapItem key={g}>
+                    <Badge {...genreBadge}>{g}</Badge>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            </Flex>
+          )}
 
           {(onRate || onRemove) && (
             <Box borderTop="2px solid" borderColor="border.ruleStrong" pt={3} pb={4}>
