@@ -186,12 +186,12 @@ describe('FavoritesPage', () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
     // Desktop and mobile layouts both mount (CSS-hidden, not conditionally rendered) and
-    // request different thumbnail sizes — 250px desktop, 500px mobile.
+    // now request the same thumbnail size — 250px — since the mobile compact redesign
+    // (favorites-row-mobile-compact-redesign) dropped the 500px request to match desktop.
     const imgs = screen.getAllByRole('img');
     expect(imgs).toHaveLength(2);
     const srcs = imgs.map((img) => img.getAttribute('src'));
-    expect(srcs).toContain('https://example.com/art-250.jpg');
-    expect(srcs).toContain('https://example.com/art-500.jpg');
+    expect(srcs).toEqual(['https://example.com/art-250.jpg', 'https://example.com/art-250.jpg']);
     imgs.forEach((img) => expect(img).toHaveAttribute('alt', 'Opeth – Blackwater Park'));
   });
 
