@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Always show a plan and wait for approval before writing code
 - After each completed feature, update this file (or the relevant `docs/decisions/` file — see below) with decisions made
 - Target deployment: Render (current). Vercel migration is a possible future move — avoid permanent server dependencies where reasonably easy
-- Comment all non-trivial code: explain WHY, not just what. Prioritise scraper logic, ingestion pipeline, React state, and any API or browser quirks.
+- Code commenting style (WHY not what, what to comment, what to skip): see `docs/commenting-style-guide.md`.
 - When a session identifies new deferred or postponed work, add it to `docs/decisions/deferred-work.md` rather than only stating it inline in that session's own doc.
 - `docs/decisions/` holds prose decision docs only. Raw/generated data a diagnostic script
   produces (CSV/JSON/TXT dumps) goes in the sibling `docs/data/<cluster>/` tree instead — mirror
@@ -131,6 +131,8 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `slant-take-design-system.md` — consolidated decision doc for all nine passes plus two follow-up tweaks; Chakra v3 gotchas, badge positioning, `averageScore` vs raw `score`
 - `naming-decisions.md` — product name (Slant Take), display face, logo mark, accent-colour change
 - `deferred-work.md` — consolidated tracker of deferred/postponed work — check here first for what's outstanding
+- `finished-work.md` — the closed-items counterpart to `deferred-work.md`: items confirmed fully shipped/verified/resolved, relocated there rather than deleted
+- `auth-email-smtp.md` — Resend/SMTP findings: Supabase's default mailer refuses delivery outside the project org team; custom SMTP lifts that but hits Resend's own sandbox restriction until a domain is verified
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
 - `roundup-skip-fix.md` — RSS category-tag filtering, `skipped_posts` table, AMG allowlist
 - `stale-row-cleanup.md` — migrated 3 pre-fix stale rows into `skipped_posts`, deleted orphaned albums
