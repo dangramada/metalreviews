@@ -11,7 +11,7 @@
 // --- React core ---
 // useEffect: runs code after the component renders (used here to load reviews.json on startup)
 // useState: declares a reactive variable — when it changes, React re-renders the component
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // --- Chakra UI component library ---
@@ -216,6 +216,8 @@ export function ArtworkBlock({
   // `failed` flips to true on any image load error (e.g. archive.org 500s on CAA redirects).
   // Treated identically to artworkUrl === null — shows the same placeholder.
   const [failed, setFailed] = useState(false);
+  // See the Listen chip's MenuRoot onOpenChange below for what this is for.
+  const listenTriggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     // paddingBottom="100%" on a position="relative" box is a CSS trick for a
@@ -370,9 +372,25 @@ export function ArtworkBlock({
           (see its onClick below, keyed off data-listen-trigger), which runs during the
           bubble phase strictly after this trigger's own click handling has already
           decided whether to open the menu. */}
-      <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
+      <MenuRoot
+        positioning={{ placement: 'bottom-end', gutter: 4 }}
+        onOpenChange={(details) => {
+          // Ark's dismissable layer closes the menu on an outside pointerdown, which fires
+          // before the click event that follows it on the same interaction. Without this,
+          // that click goes on to bubble through this card's own wrapping <Link> (for
+          // single-review cards) and navigates to the review — the user only meant to
+          // dismiss the menu. Marking the nearest ancestor <a> here lets that Link's own
+          // onClick (see its data-menu-just-closed check, below in the card grid) swallow
+          // exactly that one click. No-op on multi-/zero-review cards, which have no
+          // wrapping <a> to find.
+          if (!details.open) {
+            listenTriggerRef.current?.closest('a')?.setAttribute('data-menu-just-closed', 'true');
+          }
+        }}
+      >
         <MenuTrigger asChild>
           <Box
+            ref={listenTriggerRef}
             as="button"
             type="button"
             aria-label="Listen on a streaming platform"
@@ -926,6 +944,17 @@ function App() {
                     _hover={{ textDecoration: 'none' }}
                     display="block"
                     onClick={(e: React.MouseEvent) => {
+                      // Clicking outside an open Listen menu to dismiss it (see
+                      // ArtworkBlock's MenuRoot onOpenChange, which sets this marker on this
+                      // very anchor) still lands on this anchor's own click — without this
+                      // check that click would also navigate to the review, when the user
+                      // only meant to close the menu.
+                      const anchor = e.currentTarget as HTMLElement;
+                      if (anchor.hasAttribute('data-menu-just-closed')) {
+                        anchor.removeAttribute('data-menu-just-closed');
+                        e.preventDefault();
+                        return;
+                      }
                       // The Listen chip is a Menu trigger nested inside this anchor (see
                       // ArtworkBlock) and deliberately doesn't call preventDefault() itself —
                       // doing so there would stop the menu from opening at all. Catching it
