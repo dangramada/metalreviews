@@ -76,22 +76,26 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`favorites-row-mobile-compact-redesign` — mobile `FavoriteListItemRow` restructured from
-vertical artwork-first to horizontal (matching desktop's row shape), plus new skeleton loading
-on both mobile and desktop artwork; several retouch passes followed (band font, separator/genre
-placement iterated a few times, ending with genre back in its own top-zone block and thinner
-full-width dividers; vertical centering resolved via the title column's own flex layout, not an
-`align` prop). Also: "Rate" button renamed to "Evaluate" (icon + label, matching the destination
-page's name), and a new "Listen" footer button reusing the review-grid card's existing menu
-(logic extracted to `src/components/ListenMenuItems.tsx` so both places share it) — footer order
-Evaluate → Listen → Remove. 50/50 test files, 367/367 tests, `tsc` clean. The genre/layout
-retouch and the Evaluate/Listen additions have **not** been live-verified on Dan's account
-(`/favorites` needs login, no credentials stored) — only the shared Listen menu itself was
-live-checked, via the public review grid. About to be merged ahead of that live check, per Dan's
-explicit instruction. Full detail: `docs/decisions/favorites-row-mobile-compact-redesign.md`.
+No branches currently in progress.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
+
+Most recent merge: `favorites-row-mobile-compact-redesign` (mobile `FavoriteListItemRow`
+restructured from vertical artwork-first to horizontal, matching desktop's row shape, plus new
+skeleton loading on both mobile and desktop artwork; several retouch passes followed — band
+font, separator/genre placement iterated a few times, ending with genre back in its own
+top-zone block and thinner full-width dividers, vertical centering resolved via the title
+column's own flex layout rather than an `align` prop; also "Rate" renamed to "Evaluate" and a
+new "Listen" footer button added, reusing the review-grid card's existing menu via a new shared
+`src/components/ListenMenuItems.tsx`, footer order Evaluate → Listen → Remove). 50/50 test
+files, 367/367 tests, `tsc` clean, both re-confirmed on `master` post-merge. The genre/layout
+retouch and the Evaluate/Listen additions were merged ahead of a live check on Dan's account
+(`/favorites` needs login, no credentials stored) — only the shared Listen menu itself was
+live-checked, via the public review grid; treat that pass's on-screen result as unconfirmed
+until Dan looks. Merged to `master` `--no-ff` at `cda29d2` on 2026-09-15. Rollback tag:
+`pre-merge-favorites-row-mobile-compact-redesign`. Full detail:
+`docs/decisions/favorites-row-mobile-compact-redesign.md`.
 
 Most recent merge: `docs-hygiene-sept2026` (docs-only, no application code — five-phase
 documentation/branch hygiene pass: deleted 18 confirmed-merged stale branches per the 14-day
