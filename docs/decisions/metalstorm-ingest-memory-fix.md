@@ -97,6 +97,13 @@ blocking, since a challenge page can't produce a number.
 (hours, not minutes). Only 200-status pairs count, and it should have several non-null scores.
 Tracked in `deferred-work.md` section B.
 
+**Re-run after a 3-hour wait (2026-09-16): same pattern, still blocked.** `21399` returned 200
+(null in both modes), then `21379` and `21398` returned 403 in both modes and the script
+stopped. 1 valid pair, 0 non-null. Pattern across both paced runs: the *first* page load of a
+fresh browser session passes, and the following ones are challenged. That fits Cloudflare
+bot-scoring of headless Chrome (per session or per IP reputation) better than a short
+rate-limit window that simply expires. Unconfirmed; not retried again.
+
 **Side finding, possibly relevant to production:** Cloudflare challenges headless Puppeteer after
 a burst of loads. An ingest run opening up to 20 tabs at once may itself have been served
 challenge pages, which would store `null` scores that look like "too few votes". Bounded
