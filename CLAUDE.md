@@ -76,7 +76,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+- `metalstorm-ingest-memory-fix` — **in progress, not merged.** Fixes the 2026-09-16 Render OOM:
+  bounded Metal Storm Puppeteer concurrency (2), 30s `protocolTimeout`, Chrome memory args,
+  resource blocking, close timeouts; no schema change. Tests/`tsc` clean. Resource-blocking
+  parity only partially verified (Cloudflare blocked local testing). Full detail:
+  `docs/decisions/metalstorm-ingest-memory-fix.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.
@@ -182,4 +186,5 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `favorites-row-mobile-layout.md` — vertical artwork-first mobile layout for `FavoriteListItemRow`, 768px `@media` split; branch merged to `master` 2026-08-07 (superseded by `favorites-row-mobile-compact-redesign.md`'s horizontal layout below)
 - `favorites-row-mobile-compact-redesign.md` — supersedes the above: horizontal mobile layout matching desktop's row shape (128px artwork, stacked truncated title, footer separator), plus new skeleton loading on both mobile and desktop artwork (previously absent); later passes moved genre placement a few times before landing back in its own top-zone block, and added an Evaluate rename + new Listen footer button (shared with the review-grid card's menu via `ListenMenuItems`) — see the doc's own "Fourth retouch" and "New footer action" sections; those two passes were merged ahead of Dan's live check, so treat their on-screen result as unverified until he looks
 - `design-system-audit-2026-08.md` — read-only token/consistency audit across the whole app; 3 open items await Dan's decision (card shadow, radius token naming, proposed tokens)
+- `metalstorm-ingest-memory-fix.md` — 2026-09-16 Render OOM: unbounded Metal Storm tab concurrency (not a leak) → bounded pool, 30s `protocolTimeout`, Chrome memory args, resource blocking, close timeouts; RSS window already caps retries so no schema change; Cloudflare challenge pages yield `null` scores
 - `streaming-links.md` — "Listen" chip on the album card: generated (non-exact) search-links to Bandcamp/Spotify/YouTube Music/Deezer, why exact-match isn't viable, `simple-icons` dependency scoped to the menu, overlay-scrim standing pattern extended to the new chip; landed as direct commits to `master`, no feature branch merged (see the doc's own "Git history" section)

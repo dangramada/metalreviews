@@ -185,6 +185,23 @@ rewriting them, which this reorg pass deliberately avoided.
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **Metal Storm ingest memory fix: three verifications pending, 2026-09-16.**
+  Bounded Puppeteer concurrency, 30s `protocolTimeout`, Chrome memory args, resource blocking and
+  close timeouts shipped on branch `metalstorm-ingest-memory-fix`
+  (`metalstorm-ingest-memory-fix.md`). Still open:
+  (1) **Resource-blocking parity not fully proven.** 3/3 non-null scores matched with blocking
+  on vs off, but most samples were invalidated by Metal Storm's Cloudflare returning 403
+  challenge pages after ~130 local test loads. Re-run the paced, HTTP-status-recording check
+  once the block expires, counting only 200/200 pairs.
+  (2) **Render memory graph** across at least two scheduled runs after deploy: confirm the
+  spike is gone, not just smaller. Correlate with the new `Metal Storm: fetching N of M` log line.
+  (3) **Supabase check of 2026-09-16 incident rows:** Metal Storm reviews written by the crashed
+  runs should have `score`/`normalized_score` `null` (not `''`/`0`), and should be re-fetched
+  and scored on the next successful run. Note: the crashed process may have died before its
+  final upsert, in which case nothing was written. Needs Dan's session (no stored credentials).
+  Also note the side finding in the decision doc: Cloudflare challenge pages yield `null`
+  scores indistinguishable from "too few votes".
+
 - **`useCalibrationResume.ts`'s mount-time degree inference and
   `preferenceGraph.ts`'s `inferDegreeFromAnswers` are two independent
   implementations of the same formula — drift risk, not fixed, 2026-08-16.**
@@ -498,7 +515,10 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   session. Close this out once a future ingest run naturally hits a Metal
   Storm navigation timeout and the resulting row is confirmed to have
   `normalized_score: null` (not `0`). Check via Supabase directly after any
-  ingest run that logs a Metal Storm timeout error.
+  ingest run that logs a Metal Storm timeout error. (2026-09-16: the Render OOM
+  incident's `Runtime.callFunctionOn` *protocol* timeouts go through the same
+  catch → `null` → `score: null` path, so rows from that incident are also valid
+  evidence for this item. See the Metal Storm memory-fix item above.)
 - **`docs/decisions/refresh-button.md` is stale and undated as such** — surfaced
   2026-07-25 (design-system pass 8's audit). The manual refresh button and
   `GET /api/ingest/status` it polled were both removed on 2026-07-21 when ingest
