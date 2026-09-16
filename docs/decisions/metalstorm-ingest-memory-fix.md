@@ -2,8 +2,16 @@
 
 ## Source
 
-Render restarted the `metalreviews` web service twice on 2026-09-16 (12:25 and 12:36 UTC)
-after exceeding its memory limit. The crash logs showed six Metal Storm review fetches failing
+Render restarted the `metalreviews` web service after it exceeded its memory limit on 2026-09-16.
+(Originally recorded as two restarts at 12:25 and 12:36 UTC. The full logs Dan supplied later
+show that 12:25:53 was a free-tier cold start woken by the Action's POST (same blank-line +
+`Server listening` pattern as the 2026-09-15 21:55 wake, with no `Running 'npm run server'`
+line). The only OOM restart was 12:36:03, and that run never logged a completion. The
+2026-09-15 21:55 run, with 8 Metal Storm failures including 7 simultaneous protocol timeouts,
+completed normally, so the crash sits near the memory limit rather than being deterministic.
+Scheduled runs landed ~3h and ~5.5h after their `0 7,19 * * *` cron slots, which is GitHub
+Actions schedule delay. Null-row classification and the "is Render's IP blocked?" question
+are in `deferred-work.md` section B, items (3) and (5).) The crash logs showed six Metal Storm review fetches failing
 with `ProtocolError: Runtime.callFunctionOn timed out` within ~2 seconds. The 12:25 restart
 lines up with a normal `schedule`-triggered "Scheduled ingest" GitHub Actions run, not a
 `workflow_dispatch`. (The Action is fire-and-forget: it gets a 202 from `/api/ingest` in under

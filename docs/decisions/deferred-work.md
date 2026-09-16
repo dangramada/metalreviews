@@ -216,6 +216,26 @@ rewriting them, which this reorg pass deliberately avoided.
   many votes that was stored `null` with no timeout log → most likely Cloudflare (or votes
   arrived since; the vote count at write time is unknown, so state this as inference). Page with
   no user score → insufficient votes.
+
+  **Done 2026-09-16 (Render logs from Dan + read-only Supabase select).** Exactly 8 Metal Storm
+  rows are `null`, and they are exactly the 8 URLs logged as failing in the 2026-09-15 21:55 UTC
+  run, which completed its upsert. Classification: `21377` navigation timeout; `21378`, `21379`,
+  `21380`, `21381`, `21382`, `21383`, `21398` protocol timeout. **0 unlogged nulls**, so no
+  row is attributable to insufficient votes or a silent Cloudflare challenge. The 2026-09-16
+  run wrote nothing (OOM-killed, no completion line); `21399` (newest) has no row at all.
+  All 8 have `normalized_score: null`, not `0`, which is live evidence for the score-collapse
+  item below (Dan to close it out). Open question moved to (5).
+  (5) **Is Render's IP failing every Metal Storm fetch?** Every Metal Storm review published
+  after 2026-09-06 (`21385`, the last scored row) is `null`: the 2026-09-15 run fetched exactly
+  those 8 and all 8 failed; 2026-09-16 re-fetched them plus `21399` and 6 of 9 logged failures
+  before the OOM. So this looks like a 100% failure rate on recent fetches, not a random 8-of-20.
+  The same pages are **not** structurally broken: locally `21379` scored 6.4 and `21398` 7.3.
+  The recurring subset is partly a selection effect (only unscored items are re-fetched), so it
+  doesn't by itself prove a systematic block. But combined with the local Cloudflare behaviour,
+  a Render-IP challenge hanging the renderer (challenge JS → `callFunctionOn` never answers) is a
+  plausible upstream cause of both the timeouts and the memory spike. Unconfirmed. Deciding
+  evidence: the next post-fix run's log. If all fetches still fail (now as 30s protocol
+  timeouts), or scores stay `null` silently, it's the block, and (4) becomes a prerequisite.
   (4) **Follow-up code change (separate branch, not started):** make the causes distinguishable
   at write time. In `fetchMetalStormRating`, log the main-document status and flag a challenge
   page (403 / title "Just a moment...") distinctly from "200 but no user score". Without this,
