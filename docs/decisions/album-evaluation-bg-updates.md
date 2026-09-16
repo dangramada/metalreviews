@@ -18,5 +18,5 @@ Two small background-color tweaks to the `/rate/:albumId` page (Dan's request, 2
 
 No new tokens, no schema/logic changes. `tsc` clean, 367/367 tests pass. The route sits behind
 `RequireAuth` — no credentials are stored for this project (see the QA-account convention), so
-this was not live-verified in a logged-in session; Dan should confirm both changes on his own
-account at both breakpoints before treating this as verified.
+this was not live-verified before merge. Dan has since confirmed both changes on his own account
+(2026-09-16) — verified.

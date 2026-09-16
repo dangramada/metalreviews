@@ -85,9 +85,8 @@ Most recent merge: `album-evaluation-bg-updates` (mobile header on `/rate/:album
 band/album — moves from the inherited `surface.ratingCardFill` to `surface.card`, matching
 desktop's existing convention there; the "Evaluation progress" slab, shared by mobile and
 desktop via `RatingSlab.tsx`, moves from `ember.950` to `sand.800`). `tsc` clean, 367/367 tests.
-Not live-verified in a logged-in session (route needs auth, no credentials stored) — Dan should
-confirm both changes at both breakpoints. Merged to `master` `--no-ff` at `eac0794` on
-2026-09-16. Rollback tag: `pre-merge-album-evaluation-bg-updates`. Full detail:
+Dan has since live-verified both changes on his own account. Merged to `master` `--no-ff` at
+`eac0794` on 2026-09-16. Rollback tag: `pre-merge-album-evaluation-bg-updates`. Full detail:
 `docs/decisions/album-evaluation-bg-updates.md`.
 
 Most recent merge: `favorites-row-mobile-compact-redesign` (mobile `FavoriteListItemRow`
