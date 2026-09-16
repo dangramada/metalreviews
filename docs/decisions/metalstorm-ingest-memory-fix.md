@@ -23,7 +23,7 @@ a minute, so its green checkmark says nothing about what happened on Render afte
 - **Batch size is capped by the RSS window, not unbounded.** Only items still in
   `metalstorm.net/rss/reviews.xml` (20 items when checked) can be re-fetched. Unscored items are
   retried every run while in the feed and never again once they drop off. So failures push the
-  next batch *toward* 20 but never beyond it. (The audit initially described this as unbounded
+  next batch _toward_ 20 but never beyond it. (The audit initially described this as unbounded
   growth; corrected before the fix was scoped.)
 - The "Skipping SputnikMusic source due to inaccessible page." log line is unrelated: a stub that
   prints on every run.
@@ -78,12 +78,12 @@ blocking), "on" used `launchMetalStormBrowser()` plus blocking.
 
 **Result: partial. No mismatches, but too few valid samples to call it proven.**
 
-| Run | URLs | Match | Non-null in both modes |
-|---|---|---|---|
-| Current RSS feed, concurrency 2 | 20 | 20/20 | 1 (`21379`: 6.4 / 6.4) |
-| Older IDs, concurrency 2 | 12 | 12/12 | 2 (`21254`: 7.5 / 7.5, `21200`: 7.7 / 7.7) |
-| Older IDs 21170–21260, concurrency 2 | 31 | 31/31 | 0, **invalid: Cloudflare-blocked** |
-| Paced, one at a time, HTTP status recorded | 12 | 1 valid, 11 blocked (403) | 0 |
+| Run                                        | URLs | Match                     | Non-null in both modes                     |
+| ------------------------------------------ | ---- | ------------------------- | ------------------------------------------ |
+| Current RSS feed, concurrency 2            | 20   | 20/20                     | 1 (`21379`: 6.4 / 6.4)                     |
+| Older IDs, concurrency 2                   | 12   | 12/12                     | 2 (`21254`: 7.5 / 7.5, `21200`: 7.7 / 7.7) |
+| Older IDs 21170–21260, concurrency 2       | 31   | 31/31                     | 0, **invalid: Cloudflare-blocked**         |
+| Paced, one at a time, HTTP status recorded | 12   | 1 valid, 11 blocked (403) | 0                                          |
 
 **What invalidated most of it:** after ~130 page loads, Metal Storm's Cloudflare started serving
 **403 "Just a moment..."** challenge pages to headless Chrome. `extractRating` returns `null` on
