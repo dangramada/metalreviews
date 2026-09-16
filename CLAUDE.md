@@ -76,11 +76,16 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-- `metalstorm-ingest-memory-fix` — **in progress, not merged.** Fixes the 2026-09-16 Render OOM:
-  bounded Metal Storm Puppeteer concurrency (2), 30s `protocolTimeout`, Chrome memory args,
-  resource blocking, close timeouts; no schema change. Tests/`tsc` clean. Resource-blocking
-  parity only partially verified (Cloudflare blocked local testing). Full detail:
-  `docs/decisions/metalstorm-ingest-memory-fix.md`.
+No branches currently in progress.
+
+Most recent merge: `metalstorm-ingest-memory-fix` — fixes the 2026-09-16 Render OOM: bounded
+Metal Storm Puppeteer concurrency (2), 30s `protocolTimeout`, Chrome memory args, resource
+blocking, close timeouts; no schema change. 51/51 files, 375/375 tests, `tsc` clean on `master`
+post-merge. Merged by Dan's decision ahead of full resource-blocking parity (3/3 non-null scores
+matched; the rest was invalidated by Cloudflare blocking local testing). Three verifications
+open in `deferred-work.md` section B. Merged to `master` `--no-ff` at `7e248b4` on 2026-09-16.
+Rollback tag: `pre-merge-metalstorm-ingest-memory-fix`. Full detail:
+`docs/decisions/metalstorm-ingest-memory-fix.md`.
 
 For the full branch history (including merged branches), see
 `docs/decisions/branch-log.md`.

@@ -195,12 +195,31 @@ rewriting them, which this reorg pass deliberately avoided.
   once the block expires, counting only 200/200 pairs.
   (2) **Render memory graph** across at least two scheduled runs after deploy: confirm the
   spike is gone, not just smaller. Correlate with the new `Metal Storm: fetching N of M` log line.
-  (3) **Supabase check of 2026-09-16 incident rows:** Metal Storm reviews written by the crashed
-  runs should have `score`/`normalized_score` `null` (not `''`/`0`), and should be re-fetched
-  and scored on the next successful run. Note: the crashed process may have died before its
-  final upsert, in which case nothing was written. Needs Dan's session (no stored credentials).
-  Also note the side finding in the decision doc: Cloudflare challenge pages yield `null`
-  scores indistinguishable from "too few votes".
+  (3) **Supabase check of 2026-09-16 incident rows: classify every `null` by cause.** Dan's
+  instruction (2026-09-16): keep the three `null` causes distinct, since they're different
+  problems now that the Cloudflare block is known:
+  - **Insufficient votes:** page returned 200, `.album-rating` present, no user score span.
+    Expected, self-healing: retried while in the feed.
+  - **Protocol timeout** (`Runtime.callFunctionOn timed out`) **or navigation timeout:** the only
+    cause that is *logged*, as `Failed to fetch Metal Storm rating for <url>: ...` in Render
+    logs. Match on URL.
+  - **Cloudflare challenge** (403 "Just a moment..."): **silent.** `goto` doesn't throw on 403,
+    the swallowed `waitForSelector` timeout isn't logged, and `extractRating` returns `null`.
+    Indistinguishable from insufficient votes in both logs and DB.
+
+  Method and its limits: (a) `reviews` has no `updated_at`, so rows written *by* the incident
+  runs can't be selected directly. Both runs were OOM-killed during the Metal Storm fetch, which
+  happens before the final upsert, so they likely wrote nothing. Confirm by checking whether any
+  Metal Storm review for a feed item first seen that day exists. (b) Cause of a *past* `null` can
+  only be inferred: a URL with a timeout log line → timeout; otherwise re-fetch now (paced, status
+  recorded, after the block expires) and read the page's user-vote count. A page with a score and
+  many votes that was stored `null` with no timeout log → most likely Cloudflare (or votes
+  arrived since; the vote count at write time is unknown, so state this as inference). Page with
+  no user score → insufficient votes.
+  (4) **Follow-up code change (separate branch, not started):** make the causes distinguishable
+  at write time. In `fetchMetalStormRating`, log the main-document status and flag a challenge
+  page (403 / title "Just a moment...") distinctly from "200 but no user score". Without this,
+  future Cloudflare blocks keep masquerading as insufficient votes.
 
 - **`useCalibrationResume.ts`'s mount-time degree inference and
   `preferenceGraph.ts`'s `inferDegreeFromAnswers` are two independent
