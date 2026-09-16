@@ -4,6 +4,10 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `metalstorm-ingest-memory-fix` — active, not merged, started 2026-09-16 — bounded Metal Storm
+  Puppeteer concurrency + timeouts to stop Render OOM — full detail:
+  `docs/decisions/metalstorm-ingest-memory-fix.md`
+
 - `favorites-row-mobile-compact-redesign` — merged to master `cda29d2` (`--no-ff`), 2026-09-15;
   rollback tag `pre-merge-favorites-row-mobile-compact-redesign` — horizontal mobile
   `FavoriteListItemRow` restructure matching desktop's row shape, skeleton loading, four

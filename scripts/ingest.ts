@@ -359,19 +359,29 @@ async function fetchMetalStorm(scoreByNormKey: Map<string, string>): Promise<Raw
   const scoreMap = new Map<string, string>(); // normKey -> fetched score string
 
   if (needsFetch.length > 0) {
+    // Batch size is naturally capped by the RSS window (~20 items): unscored items are
+    // retried every run while still in the feed, and never again once they age off.
+    // Logged so batch sizes are visible in Render logs when correlating memory spikes.
+    console.log(
+      `Metal Storm: fetching ${needsFetch.length} of ${itemsWithMeta.length} feed items (concurrency ${METAL_STORM_PAGE_CONCURRENCY})`
+    );
     // Launch a single browser shared across all new review pages to minimise overhead.
     let browser;
     try {
-      browser = await puppeteer.launch({ headless: true });
+      browser = await launchMetalStormBrowser();
       try {
-        await Promise.all(
-          needsFetch.map(async ({ normKey, item }) => {
+        // Bounded, not Promise.all: one tab per item at once OOM'd the shared Render
+        // container (2026-09-16) — see docs/decisions/metalstorm-ingest-memory-fix.md.
+        await mapWithConcurrency(
+          needsFetch,
+          METAL_STORM_PAGE_CONCURRENCY,
+          async ({ normKey, item }) => {
             const rating = await fetchMetalStormRating(browser!, item.link ?? '');
             scoreMap.set(normKey, rating !== null ? `${rating}/10` : '');
-          })
+          }
         );
       } finally {
-        await browser.close();
+        await closeBrowserWithTimeout(browser);
       }
     } catch (e) {
       // If Puppeteer fails to launch, skip new reviews but still return known ones below.
@@ -425,14 +435,96 @@ function extractScore(content: string): string {
   return match ? match[1] : '';
 }
 
-async function fetchMetalStormRating(
-  browser: Awaited<ReturnType<typeof puppeteer.launch>>,
-  reviewUrl: string
+type Browser = Awaited<ReturnType<typeof puppeteer.launch>>;
+
+// Memory budget for the Metal Storm Puppeteer pass. Chrome shares the Render web
+// service's container with Express, so these trade run time for peak memory.
+export const METAL_STORM_PAGE_CONCURRENCY = 2;
+// Puppeteer's default is 180s, which kept memory-starved tabs alive for 3 minutes.
+// Must stay above the longest single CDP call we make: waitForSelector holds one
+// Runtime.callFunctionOn open for its full 7s wait, and goto can run up to 15s.
+const METAL_STORM_PROTOCOL_TIMEOUT_MS = 30_000;
+const PAGE_CLOSE_TIMEOUT_MS = 5_000;
+const BROWSER_CLOSE_TIMEOUT_MS = 10_000;
+// The rating is read from raw HTML (inline style attribute selector), so nothing
+// visual is needed — only scripts, since the score is JS-rendered.
+const METAL_STORM_BLOCKED_RESOURCE_TYPES = new Set(['image', 'font', 'media', 'stylesheet']);
+
+// Runs fn over items with at most `limit` in flight, preserving result order.
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    // Safe without a lock: next++ runs synchronously between awaits.
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+export const TIMED_OUT = Symbol('timed out');
+
+// Races a promise against a timer. The original promise gets its own no-op catch so
+// that if it rejects after the timeout already won (e.g. browser.close() failing once
+// Chrome has been SIGKILLed), that late rejection isn't reported as unhandled.
+// Promise.race's internal subscription also happens to mark it handled today; the
+// explicit catch makes that guarantee independent of how the race is implemented.
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  promise.catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+export function launchMetalStormBrowser(): Promise<Browser> {
+  return puppeteer.launch({
+    headless: true,
+    protocolTimeout: METAL_STORM_PROTOCOL_TIMEOUT_MS,
+    // --disable-dev-shm-usage: container /dev/shm is typically tiny, and Chrome falls
+    // back to hanging renderers when it fills. --no-sandbox deliberately NOT added.
+    args: ['--disable-dev-shm-usage', '--disable-gpu'],
+  });
+}
+
+// Under memory pressure close() itself can hang for the full protocol timeout; if it
+// doesn't finish in time, kill the Chrome process outright so it can't keep holding memory.
+export async function closeBrowserWithTimeout(browser: Browser): Promise<void> {
+  const result = await withTimeout(browser.close(), BROWSER_CLOSE_TIMEOUT_MS).catch(
+    () => TIMED_OUT
+  );
+  if (result === TIMED_OUT) {
+    console.warn('Metal Storm browser.close() did not finish in time — sending SIGKILL');
+    browser.process()?.kill('SIGKILL');
+  }
+}
+
+export async function fetchMetalStormRating(
+  browser: Browser,
+  reviewUrl: string,
+  // Exposed only so the resource-blocking parity check can compare both modes.
+  { blockResources = true }: { blockResources?: boolean } = {}
 ): Promise<number | null> {
   if (!reviewUrl) return null;
   let page;
   try {
     page = await browser.newPage();
+    if (blockResources) {
+      await page.setRequestInterception(true);
+      page.on('request', (req) => {
+        if (req.isInterceptResolutionHandled()) return;
+        if (METAL_STORM_BLOCKED_RESOURCE_TYPES.has(req.resourceType())) req.abort();
+        else req.continue();
+      });
+    }
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     );
@@ -453,7 +545,7 @@ async function fetchMetalStormRating(
     return null;
   } finally {
     if (page) {
-      await page.close().catch(() => {});
+      await withTimeout(page.close(), PAGE_CLOSE_TIMEOUT_MS).catch(() => {});
     }
   }
 }
