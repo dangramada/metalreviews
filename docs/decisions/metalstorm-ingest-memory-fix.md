@@ -93,7 +93,7 @@ the first feed run. So the `null == null` matches in the unpaced runs can't be t
 the **3 non-null matches** (6.4, 7.5, 7.7) are real evidence. Those are unaffected by
 blocking, since a challenge page can't produce a number.
 
-**To close out:** re-run the paced, status-recording variant after the Cloudflare block expires
+**To close out:** re-run `scratch/check_metalstorm_blocking_parity.mts` (the paced, status-recording variant) after the Cloudflare block expires
 (hours, not minutes). Only 200-status pairs count, and it should have several non-null scores.
 Tracked in `deferred-work.md` section B.
 

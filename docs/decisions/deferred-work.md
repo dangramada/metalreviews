@@ -191,7 +191,7 @@ rewriting them, which this reorg pass deliberately avoided.
   (`metalstorm-ingest-memory-fix.md`). Still open:
   (1) **Resource-blocking parity not fully proven.** 3/3 non-null scores matched with blocking
   on vs off, but most samples were invalidated by Metal Storm's Cloudflare returning 403
-  challenge pages after ~130 local test loads. Re-run the paced, HTTP-status-recording check
+  challenge pages after ~130 local test loads. Re-run `npx tsx scratch/check_metalstorm_blocking_parity.mts` (paced, HTTP-status-recording)
   once the block expires, counting only 200/200 pairs.
   (2) **Render memory graph** across at least two scheduled runs after deploy: confirm the
   spike is gone, not just smaller. Correlate with the new `Metal Storm: fetching N of M` log line.
