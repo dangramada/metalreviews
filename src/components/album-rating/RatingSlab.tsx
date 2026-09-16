@@ -14,7 +14,7 @@ import { scoreSlabBase, scoreSlabHigh } from '../../theme';
 // Rank/Score pair while rating is incomplete. Not a theme.ts style object like scoreSlabBase/
 // High since it's only ever used here, not shared with the review card.
 const scoreSlabProgress = {
-  bg: 'ember.950',
+  bg: 'sand.800',
   color: 'sand.200',
   px: '12px',
 } as const;

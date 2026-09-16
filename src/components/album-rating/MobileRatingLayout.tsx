@@ -194,7 +194,7 @@ export function MobileRatingLayout({
   // tree (FavoritesPage.tsx, the >=768px `Flex` there) rather than shared/extracted this pass —
   // 110px here vs. that row's 128px, hideGenres since this page shows genre nowhere else either.
   const albumInfo = (
-    <Flex align="center" gap={4} p={0}>
+    <Flex align="center" gap={4} p={0} bg="surface.card">
       <Box flexShrink={0}>
         <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="110px" />
       </Box>
