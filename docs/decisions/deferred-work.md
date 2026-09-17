@@ -70,12 +70,13 @@ rewriting them, which this reorg pass deliberately avoided.
 - **Admin merge tooling for manual album dedup** — select two `albums` rows,
   reassign `reviews`/`favorites` foreign keys, delete the loser. Named only, not
   scheduled. `album-identity/album-identity-decisions.md` §5 Layer 2.
-- **Album data staleness / admin data-quality view** — surfaced 2026-07-17.
-  **Could not locate a source doc for this.** Searched `docs/decisions/` and
-  `CLAUDE.md`'s index for any "log-tags-decision-and-staleness-question" file or
-  equivalent staleness/data-quality content and found nothing. Flagging as a named
-  item with no confirmed home doc — if one exists outside `docs/decisions/`, it
-  should be cross-referenced here instead of this note.
+- **Album data staleness / admin data-quality view** — surfaced 2026-07-17. No longer
+  orphaned: `artwork.md`'s "Artwork rot: manual revalidation script (2026-09-17)"
+  section is now its source doc for the artwork-staleness case (dead CAA URLs never
+  self-heal without the new manual `revalidate-artwork-2026-09-17.ts` script). A
+  general admin data-quality view still doesn't exist; once it does, a per-row
+  "recheck this album's artwork" admin action is the natural single-album version of
+  that script's logic.
 - **Live MusicBrainz autocomplete on `AddAlbumDrawer`** — debounced search-as-you-
   type, Layer 1 of the manual-add duplicate-prevention design. Named follow-up in
   `album-identity/album-identity-decisions.md` §5 / `album-identity/album-identity-frontend-favorites.md`.

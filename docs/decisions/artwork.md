@@ -430,3 +430,44 @@ to hand-write the URL directly.
 items are the 5 rows left unresolved by Concern D.1 (not a tracked gap — just needs a later
 diagnostic re-run when MB isn't degraded) and confirming Weinroth-Browne resolves on the next
 scheduled ingest run (read-only diagnostic check, not required before merge).
+
+## Artwork rot: manual revalidation script (2026-09-17)
+
+**Confirmed live:** Sigh — *Goh-Ka*'s stored `artwork_url` pointed at a CAA image that returns
+`404` (both full-res and the `-500` thumbnail) — the image was removed from CAA sometime after
+ingest stored the URL. `isAlbumEnriched()` in `ingest.ts` treats any non-null `artwork_url` as
+permanently done, so a dead URL stays dead forever — neither the RSS loop nor
+`selectAlbumBackfillCandidates` ever reconsiders a row once artwork is set.
+
+**Fix: `scripts/diagnostics/revalidate-artwork-2026-09-17.ts`**, a standalone `--report`/
+`--apply` script (same convention as `backfill-artwork-2026-09-17.ts`), run manually and
+**deliberately not wired into `ingest-cli.ts` or any cron schedule** — CAA image removal is
+rare enough (reverted edits, rights issues, community cleanup) that it doesn't warrant
+scheduled infrastructure. Checks every `albums` row with a non-null `artwork_url` via `GET`
+(CAA doesn't respond cleanly to `HEAD`), 8000ms timeout matching the existing CAA calls in
+`musicbrainz.ts`, one retry after a 5s backoff before concluding "dead" (network error, bad
+status, and non-image content-type all feed the same retry path). Confirmed-dead rows get
+`artwork_url` reset to `null` only — `genre`, `release_date`, and `mb_release_group_id`
+untouched. No new fetch logic: a reset row naturally re-enters the existing pipeline
+(`isAlbumEnriched` → `false` → `selectAlbumBackfillCandidates` picks it up on the next ingest
+run).
+
+**Live-verified:** `--report` then `--apply` found 7 dead rows in the current 250-row artwork
+set (Sigh, Sojourner, Left To Die, Ok Goodnight, Vision Divine, Oddland, Sworn) and reset all
+7. A manually-triggered `npm run ingest` immediately after re-resolved fresh, live artwork for
+5 of the 7 (including the target case, Sigh — *Goh-Ka*, now pointing at a different CAA image
+id, confirmed `200` after CAA's redirect); the other 2 hit MB's `503 busy` response that
+session and will pick up on a later run — expected, not a bug (same MB flakiness documented
+elsewhere in this file).
+
+**Note on retry noise:** two independent `--report` runs minutes apart returned 6 and 7 dead
+rows respectively (one row flipped), consistent with CAA/archive.org's documented
+intermittent-degradation behavior (see "CAA request timeout" above) rather than a script bug.
+Not treated as a problem to over-engineer around — a false-dead reset is harmless by design
+(the row just re-resolves, likely to the same image, on the next ingest run), so the brief's
+single-retry policy was kept as specified rather than adding multi-run consensus checking.
+
+**Forward-looking, not built now:** cross-referenced as the source doc for the previously
+orphaned "Album data staleness / admin data-quality view" item in `deferred-work.md` — once
+that view exists, a per-row "recheck this album's artwork" admin action is the natural
+single-album version of this same logic, small enough to lift over without rework.
