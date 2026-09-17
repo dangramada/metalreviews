@@ -993,7 +993,11 @@ export async function runIngestion() {
         published_at: rv.published_at ?? new Date().toISOString(),
         published_date: rv.published_date ?? '',
         album_id: rv.album_id,
-        mb_lookup_attempts: (rv.mb_lookup_attempts ?? 0) + 1,
+        // A request error ('error') doesn't consume retry budget the way a confirmed-empty
+        // search ('not_found') does — a bad run of transient network/rate-limit failures
+        // shouldn't exhaust the same 5-attempt cap as a genuine "not on MB" result. See
+        // docs/decisions/artwork.md, Concern A.
+        mb_lookup_attempts: (rv.mb_lookup_attempts ?? 0) + (mbData.status === 'error' ? 0 : 1),
       });
     }
     await sleep(1000);
