@@ -533,9 +533,12 @@ export interface MetalStormPageClassification {
   votes: string | null;
 }
 
-// Decides why a fetched page did or didn't yield a rating. Challenge detection runs
-// first because a Cloudflare interstitial can come back as 403/503 *or* as a 200 whose
-// only tells are the "Just a moment..." title and its challenge-platform script/markup.
+// Decides why a fetched page did or didn't yield a rating. Challenge detection uses only
+// status (403/503) and the interstitial's "Just a moment..." title — NOT page markup:
+// Cloudflare injects its /cdn-cgi/challenge-platform/ script into normal, scored review
+// pages too, which misclassified a real 7.3 page as a challenge (live check, 2026-09-17).
+// A 200 challenge with some other title falls through to unexpected-page, still logged
+// with status + title rather than hiding as no-user-score.
 export function classifyMetalStormPage({
   status,
   title,
@@ -555,11 +558,7 @@ export function classifyMetalStormPage({
     .match(/(\d+)\s*users?/i);
   const votes = votesMatch ? `${votesMatch[1]} users` : null;
 
-  const looksLikeChallenge =
-    status === 403 ||
-    status === 503 ||
-    /just a moment/i.test(title) ||
-    /challenge-platform|cf-chl/.test(html);
+  const looksLikeChallenge = status === 403 || status === 503 || /just a moment/i.test(title);
   if (looksLikeChallenge) return { outcome: 'cloudflare-challenge', votes };
   if (rating !== null) return { outcome: 'scored', votes };
   if (albumRating.length > 0) return { outcome: 'no-user-score', votes };

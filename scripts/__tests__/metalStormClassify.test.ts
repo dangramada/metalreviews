@@ -45,7 +45,7 @@ describe('classifyMetalStormPage', () => {
     ).toBe('cloudflare-challenge');
   });
 
-  it('classifies a 200 challenge interstitial by title/markup, not status', () => {
+  it('classifies a 200 challenge interstitial by its title', () => {
     expect(
       classifyMetalStormPage({
         status: 200,
@@ -54,9 +54,29 @@ describe('classifyMetalStormPage', () => {
         rating: null,
       }).outcome
     ).toBe('cloudflare-challenge');
+  });
+
+  // Regression: live check 2026-09-17 — Cloudflare injects its challenge-platform script
+  // into normal review pages, and markup-based detection labelled a real 7.3 as a challenge.
+  it('does not treat challenge-platform markup on a real scored page as a challenge', () => {
+    const scoredWithCfScript = scoredHtml.replace(
+      '</body>',
+      '<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script></body>'
+    );
+    expect(
+      classifyMetalStormPage({
+        status: 200,
+        title: 'Kamelot - Dark Asylum - review - Metal Storm',
+        html: scoredWithCfScript,
+        rating: 7.3,
+      })
+    ).toEqual({ outcome: 'scored', votes: '114 users' });
+  });
+
+  it('logs a 200 challenge with an unrecognised title as unexpected-page, not no-user-score', () => {
     expect(
       classifyMetalStormPage({ status: 200, title: '', html: challengeHtml, rating: null }).outcome
-    ).toBe('cloudflare-challenge');
+    ).toBe('unexpected-page');
   });
 
   it('classifies a 503 as a Cloudflare challenge', () => {
