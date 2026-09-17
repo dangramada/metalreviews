@@ -234,12 +234,72 @@ applied cleanly and confirmed live against Supabase:
 - slq — *Crown Shyness*: artwork only (genre still empty on MB)
 - Xenith — *To No Avail*: artwork only (genre/date/MBID already present)
 
-**Not actioned — left for a later run:** the 7 rows still erroring after retry (MB was
-genuinely degraded during this session, not a code issue) and the 36 genuine `not_found` rows
-(each would need individual manual investigation — typo, too new for MB, or genuinely
-unlisted — out of scope for an automated backfill).
+**Closing the 7 `error` rows (second pass, same day).** Per explicit instruction: never
+classify an `error` row as `not_found` — that's the exact mistake this session already caught
+once. Added `--ids=<comma-separated>` to the diagnostic script so a re-run could be scoped to
+just these 7 instead of re-sweeping all 70 (cheaper, less MB load). Waited ~2 minutes before
+retrying, to reduce the chance of hitting the same session-cumulative flakiness again.
 
-**Definition-of-done status:** Concerns A, B, D shipped; Concern C closed as a diagnostic
-finding with no code change (see above) and reconfirmed by this run's clean `status` read. The
-`releases[0]` arbitrary-pick issue remains tracked, unfixed, in
-`docs/decisions/deferred-work.md`.
+*Bug found and fixed mid-pass:* the scoped `--ids` run's first execution wrote to the same
+output path as a full sweep, silently overwriting the 70-row CSV with only 7 rows — the file
+was restored from git history and the script fixed to write scoped runs to a separate
+`-output-rescope.csv` file going forward.
+
+*Two rows (TDW, Nirriti) gave conflicting results across repeated live checks* — resolved
+cleanly on one attempt, `error` on another, for the same exact query. Rather than trust either
+result alone, each was re-checked a third time and classified by majority of clean (non-error)
+signal, on the reasoning that a successful MB response is real data while a request failure is
+pure noise, not evidence of anything:
+
+| Row | Attempts | Final classification |
+|---|---|---|
+| TDW — Bane of the Talebearer OST | ok/no-art, error, ok/no-art (tie-break) | no approved CAA art |
+| Nirriti — Dhrupad Anutpada... | not_found, error, not_found (tie-break, exact title) | genuine `not_found` |
+| Solothurn — High Priestess | ok/no-art, ok/no-art | no approved CAA art |
+| Ruin and Reverie — The Seed of Chaos | not_found, not_found | genuine `not_found` |
+| Aaron Myers-Brooks — Fictional Planetoids | not_found, not_found | genuine `not_found` |
+| Die Entweihung — Worldwide Terror | not_found, not_found | genuine `not_found` |
+| Bees Made Honey In The Vein Tree — In Between Strides | ok/artwork, ok/artwork | **new backfill candidate** |
+
+All 7 resolved to a real classification — **none were left ambiguous or defaulted to
+`not_found`/organic-retry**, since every row got at least one clean, trustworthy signal across
+the attempts.
+
+**Bees Made Honey In The Vein Tree backfilled too.** Added to
+`backfill-artwork-2026-09-17.ts`'s target list, `--report`'d, then `--apply`'d — confirmed live:
+artwork + genre (doom metal/psychedelic rock/stoner rock on the `--report` pass) +
+`mb_release_group_id`. One data-quality observation, not actioned: the `--report` and `--apply`
+runs (minutes apart) returned different `genre`/`release_date` for this same album (empty vs.
+populated) despite both reading `status: 'ok'` — `lookupMusicBrainz`'s internal
+`Promise.allSettled` for the release-detail sub-fetch can silently fail without flipping the
+top-level `status` away from `'ok'`, since only the outer `try/catch` is tracked. `artwork_url`
+itself was consistent both times. Not fixed in this pass (out of Concern D's scope, and a
+narrower version of the same class of problem Concern A solved for the top-level call) — noted
+here for future reference if it recurs.
+
+**Final, fully-clean counts (all 70 rows have a settled, real classification — zero left in
+`error`):**
+
+| Count | Verdict |
+|---|---|
+| 6 | Backfilled — all applied and confirmed live in Supabase |
+| 24 | MB knows the release, genuinely no approved CAA art anywhere in the group |
+| 40 | Genuine MB miss (`not_found`) |
+| 0 | Still `error` |
+
+The 6 backfilled: Astral Alchemy, Sinamort, Hours of Worship, slq, Xenith, Bees Made Honey In
+The Vein Tree. Full row-level detail (merged, final):
+`docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output.csv`. The intermediate
+7-row rescope data is kept at
+`docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output-rescope.csv` as supporting
+evidence for the tie-break reasoning above, not as the source of truth (the main CSV is).
+
+**Not actioned — left for organic/manual handling:** the 40 genuine `not_found` rows each need
+individual manual investigation (typo, too new for MB, genuinely unlisted) — out of scope for
+an automated backfill.
+
+**Definition-of-done status: Concern D is complete.** Concerns A, B, D shipped; Concern C
+closed as a diagnostic finding with no code change and reconfirmed twice on clean data (BBC
+Proms and Nine Inch Nails both read `not_found`, not `error`, across this run). The only
+remaining open item from this entire brief is the `releases[0]` arbitrary-pick issue, tracked,
+unfixed, and deliberately deferred in `docs/decisions/deferred-work.md`.

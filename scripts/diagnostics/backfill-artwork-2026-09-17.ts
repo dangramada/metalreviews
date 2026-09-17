@@ -21,17 +21,19 @@ import { applyAlbumEnrichment, isAlbumEnriched, type AlbumRow } from '../ingest'
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// The 5 rows diagnose-missing-artwork-2026-09-17.ts classified as "Already fixable today" in
-// its 2026-09-17 clean re-run (mb_status: 'ok', found_by_shipped_filter: true). Hardcoded
-// rather than re-querying "artwork_url IS NULL" generically — this script is scoped to exactly
-// the rows that diagnostic already confirmed, not a general sweep (that's what the diagnostic
-// itself is for).
+// The rows diagnose-missing-artwork-2026-09-17.ts classified as "Already fixable today".
+// Hardcoded rather than re-querying "artwork_url IS NULL" generically — this script is scoped
+// to exactly the rows that diagnostic already confirmed, not a general sweep (that's what the
+// diagnostic itself is for). The first 5 were from the initial clean 70-row re-run and applied
+// 2026-09-17. The 6th (Bees Made Honey In The Vein Tree) surfaced from the follow-up 7-row
+// error re-check (2 of 2 runs on that row found artwork cleanly) and is applied separately below.
 const TARGET_ALBUM_IDS = [
-  'abd104a7-17bc-4b5c-b124-d09bcc4d7f34', // Astral Alchemy — Weaving Chilling Magical Dreamworlds
-  '6ccae594-c763-4f1b-85e6-a78024ed197d', // Sinamort — Breathing Cargo
-  'f142f543-92f9-4518-a6ef-1b56b3a8414a', // Hours of Worship — Resignation
-  '624cd022-9297-4845-a64e-f9347a821374', // slq — Crown Shyness
-  'de5f4a5d-ade9-4f1f-840e-7881e8b6d2a8', // Xenith — To No Avail
+  'abd104a7-17bc-4b5c-b124-d09bcc4d7f34', // Astral Alchemy — Weaving Chilling Magical Dreamworlds (applied)
+  '6ccae594-c763-4f1b-85e6-a78024ed197d', // Sinamort — Breathing Cargo (applied)
+  'f142f543-92f9-4518-a6ef-1b56b3a8414a', // Hours of Worship — Resignation (applied)
+  '624cd022-9297-4845-a64e-f9347a821374', // slq — Crown Shyness (applied)
+  'de5f4a5d-ade9-4f1f-840e-7881e8b6d2a8', // Xenith — To No Avail (applied)
+  'c6c1937d-2332-4754-810d-b52c33f88b62', // Bees Made Honey In The Vein Tree — In Between Strides
 ];
 
 async function lookupWithRetry(band: string, album: string) {

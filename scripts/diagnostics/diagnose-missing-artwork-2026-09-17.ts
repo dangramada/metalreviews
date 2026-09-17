@@ -130,14 +130,25 @@ function classify(
 }
 
 async function main() {
-  const { data, error } = await supabase
+  // Optional --ids=<comma-separated album ids> to re-scope a re-run to only the rows that
+  // need it (e.g. Concern D's 7 rows still in 'error' after the first clean pass) instead of
+  // re-sweeping all 70 — cheaper and avoids re-adding MB request volume for rows already
+  // cleanly classified.
+  const idsArg = process.argv.find((a) => a.startsWith('--ids='));
+  const idFilter = idsArg ? idsArg.slice('--ids='.length).split(',') : null;
+
+  let query = supabase
     .from('albums')
     .select('id, band, album, artwork_url, mb_release_group_id, created_at')
     .is('artwork_url', null);
+  if (idFilter) query = query.in('id', idFilter);
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = data as Row[];
-  console.log(`Diagnosing ${rows.length} albums with artwork_url IS NULL...\n`);
+  console.log(
+    `Diagnosing ${rows.length} album(s)${idFilter ? ' (scoped via --ids)' : ' with artwork_url IS NULL'}...\n`
+  );
 
   const results: DiagnosisRow[] = [];
 
@@ -216,7 +227,12 @@ async function main() {
       ].join(',')
     );
   }
-  const outPath = 'docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output.csv';
+  // A scoped --ids run writes to its own file rather than the full-sweep output — the first
+  // Concern D re-run (--ids on the 7 error rows) clobbered the 70-row CSV with just 7 rows,
+  // silently discarding the other 63's history from the tracked file until restored from git.
+  const outPath = idFilter
+    ? 'docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output-rescope.csv'
+    : 'docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output.csv';
   writeFileSync(outPath, lines.join('\n'));
   console.log(`\nFull results written to ${outPath}`);
 }
