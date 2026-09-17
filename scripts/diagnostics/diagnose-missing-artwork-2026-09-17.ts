@@ -32,6 +32,19 @@ function pickArtworkRelaxed(images: any[]): string | null {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// MB has been observed 503-ing intermittently under this session's cumulative request volume
+// (confirmed live: back-to-back calls for different albums returned status:'error' then 'ok').
+// lookupMusicBrainz's status field (Concern A) distinguishes a genuine empty search from a
+// request failure, but this diagnostic originally didn't consume it — treating both as
+// identical "not found" contaminated the first 2026-09-17 re-run with false negatives. Retry
+// once with extra backoff before accepting an 'error' as a real result.
+async function lookupWithRetry(band: string, album: string) {
+  const first = await lookupMusicBrainz(band, album);
+  if (first.status !== 'error') return first;
+  await sleep(5000);
+  return lookupMusicBrainz(band, album);
+}
+
 // Full sweep: enumerate every release in the group (one extra MB request, rate-limited),
 // then check each release individually on CAA with the relaxed picker. This is deliberately
 // more thorough than the shipped code — it's what tells us whether issue #2 (arbitrary
@@ -79,6 +92,7 @@ type Row = {
 };
 
 type DiagnosisRow = Row & {
+  mbStatus: 'ok' | 'not_found' | 'error';
   liveFoundReleaseGroup: boolean;
   foundByShippedFilter: boolean; // current front:true-only logic in musicbrainz.ts
   foundByRelaxedFilter: boolean; // relaxed filter, swept across every release in the group
@@ -95,10 +109,14 @@ function csvEscape(value: string): string {
 }
 
 function classify(
+  mbStatus: 'ok' | 'not_found' | 'error',
   liveFoundReleaseGroup: boolean,
   foundByShippedFilter: boolean,
   foundByRelaxedFilter: boolean
 ): string {
+  if (mbStatus === 'error') {
+    return 'MB request error even after retry — transient failure, not a real verdict, re-run later';
+  }
   if (foundByShippedFilter) {
     return 'Already fixable today — shipped code should have found this (re-check for a transient failure)';
   }
@@ -125,7 +143,7 @@ async function main() {
 
   for (const [i, row] of rows.entries()) {
     process.stdout.write(`[${i + 1}/${rows.length}] ${row.band} — ${row.album} ... `);
-    const mb = await lookupMusicBrainz(row.band, row.album);
+    const mb = await lookupWithRetry(row.band, row.album);
     const liveFoundReleaseGroup = !!mb.releaseGroupId;
     const foundByShippedFilter = !!mb.artworkUrl;
 
@@ -133,17 +151,18 @@ async function main() {
     // a release-group to search within — otherwise there's nothing to sweep.
     let foundByRelaxedFilter = false;
     let releasesInGroup = 0;
-    if (!foundByShippedFilter && liveFoundReleaseGroup) {
+    if (mb.status !== 'error' && !foundByShippedFilter && liveFoundReleaseGroup) {
       const sweep = await checkRelaxedArtworkAcrossGroup(mb.releaseGroupId);
       foundByRelaxedFilter = sweep.found;
       releasesInGroup = sweep.releasesChecked;
     }
 
-    const verdict = classify(liveFoundReleaseGroup, foundByShippedFilter, foundByRelaxedFilter);
+    const verdict = classify(mb.status, liveFoundReleaseGroup, foundByShippedFilter, foundByRelaxedFilter);
     console.log(verdict);
 
     results.push({
       ...row,
+      mbStatus: mb.status,
       liveFoundReleaseGroup,
       foundByShippedFilter,
       foundByRelaxedFilter,
@@ -169,6 +188,7 @@ async function main() {
     'created_at',
     'db_had_release_group',
     'db_had_artwork',
+    'mb_status',
     'live_found_release_group',
     'found_by_shipped_filter',
     'found_by_relaxed_filter',
@@ -186,6 +206,7 @@ async function main() {
         r.created_at,
         String(!!r.mb_release_group_id),
         String(!!r.artwork_url),
+        r.mbStatus,
         String(r.liveFoundReleaseGroup),
         String(r.foundByShippedFilter),
         String(r.foundByRelaxedFilter),
