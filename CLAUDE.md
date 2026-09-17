@@ -91,6 +91,15 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent merge: `artwork-mb-status-field` — Concern A of the 2026-09-17 artwork/MB-
+enrichment diagnostic brief: `MusicBrainzData` gains a `status: 'ok' | 'not_found' | 'error'`
+field so the backfill loop's `mb_lookup_attempts` retry budget no longer burns equally on a
+transient request error as on a confirmed-empty MB search (errors no longer increment the
+counter). No schema change. 52/52 files, 388/388 tests, `tsc` clean on `master` post-merge.
+Merged to `master` `--no-ff` at `5a276c5` on 2026-09-17. Rollback tag:
+`pre-merge-artwork-mb-status-field`. Full detail: `docs/decisions/artwork.md` ("`lookupMusicBrainz`
+status field: not_found vs error").
+
 Most recent merge: `metalstorm-fetch-status-logging` — classifies and logs why a Metal Storm
 fetch yielded no score (`cloudflare-challenge` by status/title only, `no-user-score`,
 `unexpected-page`, `fetch-error`) plus a per-run summary line; no change to stored data.
