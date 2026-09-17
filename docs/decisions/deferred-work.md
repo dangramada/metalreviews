@@ -185,6 +185,18 @@ rewriting them, which this reorg pass deliberately avoided.
 
 ## B. Known code/data gaps (accepted, not fixed)
 
+- **`lookupMusicBrainz`'s `releases[0]` arbitrary pick — live-confirmed blocking a real row,
+  2026-09-17.** MB's release search (`scripts/musicbrainz.ts` Step A) has no relevance sort, and
+  the code always takes `releases[0]`. Flagged as a known issue in the 2026-09-17 artwork/MB-
+  enrichment diagnostic brief and explicitly kept out of scope for that brief's Concerns A–D.
+  Live-confirmed blocking one real row during Concern B's verification: Raphael Weinroth-Browne
+  — *Empyrean* has 3 candidate releases; `releases[0]` resolves to
+  `0a1681b0-95e1-4fca-a683-a072fed8c0f6` (no CAA entry, 404), while
+  `d13afb14-38d0-452b-b986-e3003c385856` (a sibling release in the search results) has real,
+  approved artwork. The shared `pickArtwork()` fix from Concern B (see `artwork.md`) is correct
+  and doesn't help here — it never gets a chance to run against the release that actually has
+  art. Needs its own scoped change to Step A (e.g. checking CAA across all candidate releases,
+  or preferring release-group-level lookups more aggressively) — not folded into Concerns A–D.
 - **Metal Storm ingest memory fix: three verifications pending, 2026-09-16.**
   Bounded Puppeteer concurrency, 30s `protocolTimeout`, Chrome memory args, resource blocking and
   close timeouts shipped on branch `metalstorm-ingest-memory-fix`

@@ -91,6 +91,17 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent merge: `artwork-picker-approved-fallback` — Concern B of the 2026-09-17 artwork/MB-
+enrichment diagnostic brief: shared `pickArtwork()` helper (front-preferred, falls back to the
+first `approved:true` CAA image) applied at both CAA call sites in `lookupMusicBrainz`,
+replacing the duplicated `front:true`-only filter. No schema change. 52/52 files, 392/392
+tests, `tsc` clean on `master` post-merge. Live-verified post-fix: 1 of 2 confirmed rows
+(slq — *Crown Shyness*) now resolves real artwork; the other (Raphael Weinroth-Browne —
+*Empyrean*) still doesn't, but that's the separate, already-flagged `releases[0]`-arbitrary-
+pick issue, not a regression in this fix. Merged to `master` `--no-ff` at `b4e95d2` on
+2026-09-17. Rollback tag: `pre-merge-artwork-picker-approved-fallback`. Full detail:
+`docs/decisions/artwork.md` ("Artwork picker: front-preferred, approved-fallback").
+
 Most recent merge: `artwork-mb-status-field` — Concern A of the 2026-09-17 artwork/MB-
 enrichment diagnostic brief: `MusicBrainzData` gains a `status: 'ok' | 'not_found' | 'error'`
 field so the backfill loop's `mb_lookup_attempts` retry budget no longer burns equally on a
