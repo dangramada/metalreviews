@@ -12,7 +12,7 @@ completed normally, so the crash sits near the memory limit rather than being de
 Scheduled runs landed ~3h and ~5.5h after their `0 7,19 * * *` cron slots, which is GitHub
 Actions schedule delay. Null-row classification and the "is Render's IP blocked?" question
 are in `deferred-work.md` section B, items (3) and (5).) The crash logs showed six Metal Storm review fetches failing
-with `ProtocolError: Runtime.callFunctionOn timed out` within ~2 seconds. The 12:25 restart
+with `ProtocolError: Runtime.callFunctionOn timed out` within ~2 seconds. The 12:25 cold start
 lines up with a normal `schedule`-triggered "Scheduled ingest" GitHub Actions run, not a
 `workflow_dispatch`. (The Action is fire-and-forget: it gets a 202 from `/api/ingest` in under
 a minute, so its green checkmark says nothing about what happened on Render afterwards.)
@@ -107,7 +107,7 @@ Tracked in `deferred-work.md` section B.
 
 **Re-run after a 3-hour wait (2026-09-16): same pattern, still blocked.** `21399` returned 200
 (null in both modes), then `21379` and `21398` returned 403 in both modes and the script
-stopped. 1 valid pair, 0 non-null. Pattern across both paced runs: the *first* page load of a
+stopped. 1 valid pair, 0 non-null. Pattern across both paced runs: the _first_ page load of a
 fresh browser session passes, and the following ones are challenged. That fits Cloudflare
 bot-scoring of headless Chrome (per session or per IP reputation) better than a short
 rate-limit window that simply expires. Unconfirmed; not retried again.
@@ -127,6 +127,37 @@ concurrency should make this less likely, but it hasn't been observed from Rende
 - Don't remove the `.catch` inside `withTimeout` just because the test passes without it (see
   item 5).
 - Don't unblock `script` resources: the score is JS-rendered.
+
+## Fetch-outcome logging (follow-up branch `metalstorm-fetch-status-logging`, 2026-09-17)
+
+**Why:** the first run after the memory fix deployed (Render, 2026-09-16 21:53 UTC) confirmed
+the memory fix: `Metal Storm: fetching 9 of 20 feed items (concurrency 2)`, no timeouts,
+`✅ Ingestion completed`. But a read-only Supabase select afterwards showed all 9
+(`21377`–`21383`, `21398`, `21399`) still `null`, with **nothing logged**. `goto` doesn't throw
+on a 403, and the swallowed `waitForSelector` timeout looks the same as a real page with too
+few votes. Locally `21398` has a 7.3 score (116 votes), so these are silent failures, most
+likely Cloudflare. Unproven until this logging runs on Render.
+
+**What:** `classifyMetalStormPage({ status, title, html, rating })` returns one of `scored`,
+`cloudflare-challenge` (status 403/503 or title "Just a moment..."), `no-user-score` (rating
+block present, with vote count), or `unexpected-page`. Thrown failures are `fetch-error`.
+`fetchMetalStormRating` reads the status from `goto`'s response, warns once per non-scored
+page (URL, outcome, status, title, votes), and returns `{ rating, outcome }`. `fetchMetalStorm`
+logs one summary line per run. **What gets written to Supabase is unchanged.**
+
+**Live correction (Dan's rule: stop and report on a mismatch before adjusting):** the first
+version also matched `challenge-platform|cf-chl` in the HTML. A single live load of `21398`
+(200, real title, 116 votes, rating 7.3) came back `cloudflare-challenge`: Cloudflare injects
+its `/cdn-cgi/challenge-platform/` script into **normal** pages. Reported, Dan approved
+removing markup detection; a regression test covers it. Trade-off: a 200 challenge with an
+unrecognised title surfaces as `unexpected-page`, still logged with status and title, never as
+`no-user-score`. A second single load after the fix returned `{ rating: 7.3, outcome: 'scored' }`.
+This load also showed the local IP is no longer blocked, and it's a 4th blocking-on score
+match (7.3). No real challenge page has been observed through the classifier yet: the 403
+fixtures are hand-written from yesterday's inspection.
+
+**What NOT to change:** don't reintroduce markup-based challenge detection
+(`challenge-platform`, `cf-chl`, `cdn-cgi`), since it's present on normal pages.
 
 ## Open follow-ups
 

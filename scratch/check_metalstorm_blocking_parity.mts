@@ -47,11 +47,13 @@ let nonNull = 0;
 let consecutiveBlocked = 0;
 for (const url of urls) {
   statusByUrl.delete(url);
-  const off = await fetchMetalStormRating(offBrowser, url, { blockResources: false });
+  const { rating: off, outcome: offOutcome } = await fetchMetalStormRating(offBrowser, url, {
+    blockResources: false,
+  });
   const offStatus = statusByUrl.get(url);
   statusByUrl.delete(url);
   await sleep(PAUSE_MS);
-  const on = await fetchMetalStormRating(onBrowser, url);
+  const { rating: on, outcome: onOutcome } = await fetchMetalStormRating(onBrowser, url);
   const onStatus = statusByUrl.get(url);
 
   const isValid = offStatus === 200 && onStatus === 200;
@@ -64,7 +66,9 @@ for (const url of urls) {
     consecutiveBlocked++;
   }
   const label = !isValid ? 'BLOCKED ' : off === on ? 'MATCH   ' : 'MISMATCH';
-  console.log(`${label} off=${off}(${offStatus}) on=${on}(${onStatus}) ${url}`);
+  console.log(
+    `${label} off=${off}(${offStatus}, ${offOutcome}) on=${on}(${onStatus}, ${onOutcome}) ${url}`
+  );
   // Hammering a challenged IP only extends the block.
   if (consecutiveBlocked >= 2) {
     console.log('Two consecutive blocked pages — stopping.');
