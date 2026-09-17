@@ -236,10 +236,12 @@ rewriting them, which this reorg pass deliberately avoided.
   plausible upstream cause of both the timeouts and the memory spike. Unconfirmed. Deciding
   evidence: the next post-fix run's log. If all fetches still fail (now as 30s protocol
   timeouts), or scores stay `null` silently, it's the block, and (4) becomes a prerequisite.
-  (4) **Follow-up code change (separate branch, not started):** make the causes distinguishable
-  at write time. In `fetchMetalStormRating`, log the main-document status and flag a challenge
-  page (403 / title "Just a moment...") distinctly from "200 but no user score". Without this,
-  future Cloudflare blocks keep masquerading as insufficient votes.
+  (4) **Fetch-outcome logging: in progress on branch `metalstorm-fetch-status-logging`,
+  2026-09-17.** Triggered because the first post-fix Render run (2026-09-16 21:53 UTC) was
+  memory-clean (`fetching 9 of 20`, completed) but stored all 9 as `null` with nothing logged.
+  `classifyMetalStormPage` plus a per-run `Metal Storm: N fetched — scored …, cloudflare-challenge
+  …` summary line. See the decision doc's "Fetch-outcome logging" section. **Remaining:** merge,
+  deploy, and read the summary line of the next Render run to answer (5).
 
 - **`useCalibrationResume.ts`'s mount-time degree inference and
   `preferenceGraph.ts`'s `inferDegreeFromAnswers` are two independent

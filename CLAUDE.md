@@ -76,7 +76,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+- `metalstorm-fetch-status-logging` — **in progress, not merged.** Classifies and logs why a
+  Metal Storm fetch yielded no score (Cloudflare challenge vs. no user score vs. unexpected page
+  vs. fetch error) plus a per-run summary line; no change to stored data. Tests/`tsc` clean, one
+  live load verified. Full detail: `docs/decisions/metalstorm-ingest-memory-fix.md`
+  ("Fetch-outcome logging").
 
 Most recent merge: `metalstorm-ingest-memory-fix` — fixes the 2026-09-16 Render OOM: bounded
 Metal Storm Puppeteer concurrency (2), 30s `protocolTimeout`, Chrome memory args, resource
