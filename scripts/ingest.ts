@@ -372,14 +372,18 @@ async function fetchMetalStorm(scoreByNormKey: Map<string, string>): Promise<Raw
       try {
         // Bounded, not Promise.all: one tab per item at once OOM'd the shared Render
         // container (2026-09-16) — see docs/decisions/metalstorm-ingest-memory-fix.md.
-        await mapWithConcurrency(
+        const outcomes = await mapWithConcurrency(
           needsFetch,
           METAL_STORM_PAGE_CONCURRENCY,
           async ({ normKey, item }) => {
-            const rating = await fetchMetalStormRating(browser!, item.link ?? '');
+            const { rating, outcome } = await fetchMetalStormRating(browser!, item.link ?? '');
             scoreMap.set(normKey, rating !== null ? `${rating}/10` : '');
+            return outcome;
           }
         );
+        // One line per run: a stored null alone can't say whether votes were missing or
+        // Cloudflare silently served a challenge page (all 9 nulls on 2026-09-16 logged nothing).
+        console.log(formatMetalStormOutcomeSummary(outcomes));
       } finally {
         await closeBrowserWithTimeout(browser);
       }
@@ -507,13 +511,73 @@ export async function closeBrowserWithTimeout(browser: Browser): Promise<void> {
   }
 }
 
+export type MetalStormOutcome =
+  | 'scored'
+  | 'cloudflare-challenge'
+  | 'no-user-score'
+  | 'unexpected-page'
+  | 'fetch-error';
+
+const METAL_STORM_OUTCOMES: MetalStormOutcome[] = [
+  'scored',
+  'cloudflare-challenge',
+  'no-user-score',
+  'unexpected-page',
+  'fetch-error',
+];
+
+export interface MetalStormPageClassification {
+  outcome: Exclude<MetalStormOutcome, 'fetch-error'>;
+  // Text of the "N users" link inside .album-rating, when present — distinguishes
+  // "too few votes" from a page that has votes but no score rendered.
+  votes: string | null;
+}
+
+// Decides why a fetched page did or didn't yield a rating. Challenge detection runs
+// first because a Cloudflare interstitial can come back as 403/503 *or* as a 200 whose
+// only tells are the "Just a moment..." title and its challenge-platform script/markup.
+export function classifyMetalStormPage({
+  status,
+  title,
+  html,
+  rating,
+}: {
+  status: number | null;
+  title: string;
+  html: string;
+  rating: number | null;
+}): MetalStormPageClassification {
+  const $ = cheerio.load(html);
+  const albumRating = $('.album-rating');
+  const votesMatch = albumRating
+    .find('a[href*="rating.php"]')
+    .text()
+    .match(/(\d+)\s*users?/i);
+  const votes = votesMatch ? `${votesMatch[1]} users` : null;
+
+  const looksLikeChallenge =
+    status === 403 ||
+    status === 503 ||
+    /just a moment/i.test(title) ||
+    /challenge-platform|cf-chl/.test(html);
+  if (looksLikeChallenge) return { outcome: 'cloudflare-challenge', votes };
+  if (rating !== null) return { outcome: 'scored', votes };
+  if (albumRating.length > 0) return { outcome: 'no-user-score', votes };
+  return { outcome: 'unexpected-page', votes };
+}
+
+export function formatMetalStormOutcomeSummary(outcomes: MetalStormOutcome[]): string {
+  const counts = METAL_STORM_OUTCOMES.map((o) => `${o} ${outcomes.filter((x) => x === o).length}`);
+  return `Metal Storm: ${outcomes.length} fetched — ${counts.join(', ')}`;
+}
+
 export async function fetchMetalStormRating(
   browser: Browser,
   reviewUrl: string,
   // Exposed only so the resource-blocking parity check can compare both modes.
   { blockResources = true }: { blockResources?: boolean } = {}
-): Promise<number | null> {
-  if (!reviewUrl) return null;
+): Promise<{ rating: number | null; outcome: MetalStormOutcome }> {
+  if (!reviewUrl) return { rating: null, outcome: 'fetch-error' };
   let page;
   try {
     page = await browser.newPage();
@@ -528,7 +592,9 @@ export async function fetchMetalStormRating(
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     );
-    await page.goto(reviewUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    // goto doesn't throw on 4xx/5xx, so the status has to be read off the response —
+    // otherwise a 403 challenge page is indistinguishable from a real page with no score.
+    const response = await page.goto(reviewUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     try {
       await page.waitForSelector('.album-rating span.bold[style*="color:#eebb00"]', {
         timeout: 7000,
@@ -539,10 +605,19 @@ export async function fetchMetalStormRating(
       // fallback tiers + null-return handle it. Not a loggable error.
     }
     const html = await page.content();
-    return extractMSRating(html);
+    const rating = extractMSRating(html);
+    const status = response?.status() ?? null;
+    const title = await page.title();
+    const { outcome, votes } = classifyMetalStormPage({ status, title, html, rating });
+    if (outcome !== 'scored') {
+      console.warn(
+        `Metal Storm ${outcome} for ${reviewUrl} (status ${status}, title ${JSON.stringify(title)}, votes ${votes ?? 'n/a'})`
+      );
+    }
+    return { rating, outcome };
   } catch (e) {
     console.warn(`Failed to fetch Metal Storm rating for ${reviewUrl}:`, e);
-    return null;
+    return { rating: null, outcome: 'fetch-error' };
   } finally {
     if (page) {
       await withTimeout(page.close(), PAGE_CLOSE_TIMEOUT_MS).catch(() => {});
