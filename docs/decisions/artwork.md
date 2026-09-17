@@ -84,3 +84,45 @@ options independently, so this was a two-line, CAA-only change.
 **Scope note:** this only makes failure detection faster — it does not change what
 happens after a failure. `artwork_url` still ends up `null` and gets retried on the next
 scheduled ingest run via the existing backfill logic; no retry-on-timeout loop was added.
+
+## `lookupMusicBrainz` status field: not_found vs error (2026-09-17, Concern A)
+
+**Root cause found:** a 2026-09-17 diagnostic pass (`scripts/diagnose-missing-artwork-2026-09-17.ts`
+— full findings in the session brief, not committed to this repo) found 70 `albums` rows with
+`artwork_url IS NULL`. Of the 57 where a fresh MB search found nothing, 10 previously had a
+`mb_release_group_id` already stored — meaning a past ingest run *had* resolved them, which
+means the "nothing found" result on this run is far more likely a transient failure (timeout,
+rate-limit, network hiccup) than the release having vanished from MusicBrainz. Before this fix,
+`lookupMusicBrainz`'s outer `try { ... } catch { return { artworkUrl: null, ... } }` in
+`scripts/musicbrainz.ts` returned the exact same null/empty shape for a genuine zero-result
+search as for a thrown network/HTTP error — nothing downstream could tell them apart.
+
+**Why this mattered:** `selectAlbumBackfillCandidates` (`scripts/ingest.ts`) stops retrying an
+album once an attached review has `mb_lookup_attempts >= 5` and is more than 14 days old. A run
+of bad luck with transient errors burned through that budget exactly as fast as genuine
+"not on MB" results — and once burned, the album was never looked at again even if it was a
+real, findable release the whole time.
+
+**Fix:** `MusicBrainzData` now carries `status: 'ok' | 'not_found' | 'error'` alongside the
+existing fields — `'not_found'` for a confirmed empty release search, `'error'` for the outer
+catch (request/network failure), `'ok'` on success. In the backfill loop
+(`scripts/ingest.ts`), `mb_lookup_attempts` only increments when `status !== 'error'`:
+
+```ts
+mb_lookup_attempts: (rv.mb_lookup_attempts ?? 0) + (mbData.status === 'error' ? 0 : 1),
+```
+
+A transient failure no longer consumes the same 5-attempt/14-day budget as a confirmed
+"not on MB" result — the album stays eligible for retry on the next run regardless of how many
+times it previously errored. The RSS ingest loop was untouched — it already never increments
+`mb_lookup_attempts` (see the existing comment at its write site).
+
+**What NOT to change without re-reading this:** don't add retry/backoff logic inside
+`lookupMusicBrainz` itself as an extension of this fix — that's a separate, larger design
+decision (explicitly out of scope for this pass, see the session brief). This fix only stops
+conflating errors with empty results; it does not change *when* or *how often* a retry happens
+beyond the one-line budget change above.
+
+**Scope note:** this pass did not touch the artwork-picker `front:true`-only filter, MB search
+query normalization, or the exhausted-rows backfill script — those are separate concerns (B, C,
+D) from the same 2026-09-17 diagnostic, each its own branch/session.

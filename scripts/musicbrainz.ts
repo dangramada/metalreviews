@@ -13,6 +13,11 @@ export interface MusicBrainzData {
   // Release-group MBID — the strong album-identity key (see docs/decisions/album-identity/album-identity-decisions.md
   // §4). Comes free on the default release search response (no extra request/rate-limit cost).
   releaseGroupId: string | null;
+  // Distinguishes a confirmed-empty MB search ('not_found') from a request/network failure
+  // ('error') — both previously returned the identical null/empty shape, so a caller couldn't
+  // tell "genuinely not on MB" from "transient failure, worth retrying without penalty". See
+  // docs/decisions/artwork.md, Concern A.
+  status: 'ok' | 'not_found' | 'error';
 }
 
 /**
@@ -39,7 +44,13 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
     });
     const releases: any[] = mbSearch.data?.releases ?? [];
     if (releases.length === 0)
-      return { artworkUrl: null, genres: [], releaseDate: null, releaseGroupId: null };
+      return {
+        artworkUrl: null,
+        genres: [],
+        releaseDate: null,
+        releaseGroupId: null,
+        status: 'not_found',
+      };
 
     const mbid: string = releases[0].id;
     const releaseGroupId: string | null = releases[0]['release-group']?.id ?? null;
@@ -135,8 +146,8 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
       }
     }
 
-    return { artworkUrl, genres: topGenres, releaseDate, releaseGroupId };
+    return { artworkUrl, genres: topGenres, releaseDate, releaseGroupId, status: 'ok' };
   } catch {
-    return { artworkUrl: null, genres: [], releaseDate: null, releaseGroupId: null };
+    return { artworkUrl: null, genres: [], releaseDate: null, releaseGroupId: null, status: 'error' };
   }
 }
