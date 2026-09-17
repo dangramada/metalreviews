@@ -6,6 +6,17 @@ import axios from 'axios';
 const MB_USER_AGENT = 'SlantTake/1.0 (dan.gramada@gmail.com)';
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// An image can be approved on CAA without being tagged front:true — front:true-only was
+// missing real artwork for confirmed-approved images (e.g. MBID
+// d13afb14-38d0-452b-b986-e3003c385856). Prefer front, fall back to the first approved image.
+// See docs/decisions/artwork.md, Concern B.
+function pickArtwork(images: any[]): string | null {
+  const front = images.find((img: any) => img.front === true);
+  if (front) return front.image;
+  const approved = images.find((img: any) => img.approved === true);
+  return approved?.image ?? null;
+}
+
 export interface MusicBrainzData {
   artworkUrl: string | null;
   genres: string[];
@@ -92,8 +103,7 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
     let artworkUrl: string | null = null;
     if (caaRes.status === 'fulfilled') {
       const images: any[] = caaRes.value.data?.images ?? [];
-      const front = images.find((img: any) => img.front === true);
-      artworkUrl = front?.image ?? null;
+      artworkUrl = pickArtwork(images);
     }
 
     // Fallback: CAA docs don't guarantee the release-group lookup succeeds whenever the
@@ -107,8 +117,7 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
           timeout: 8000,
         });
         const images: any[] = releaseCaaRes.data?.images ?? [];
-        const front = images.find((img: any) => img.front === true);
-        artworkUrl = front?.image ?? null;
+        artworkUrl = pickArtwork(images);
       } catch {
         // No art available at either the release-group or release level.
       }
