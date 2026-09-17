@@ -4,8 +4,9 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
-- `metalstorm-fetch-status-logging` — active, not merged, started 2026-09-17 — classify/log why
-  a Metal Storm fetch yielded no score — full detail: `docs/decisions/metalstorm-ingest-memory-fix.md`
+- `metalstorm-fetch-status-logging` — merged to master `f54c25b` (`--no-ff`), 2026-09-17;
+  rollback tag `pre-merge-metalstorm-fetch-status-logging` — classify/log why a Metal Storm fetch
+  yielded no score — full detail: `docs/decisions/metalstorm-ingest-memory-fix.md`
 
 - `metalstorm-ingest-memory-fix` — merged to master `7e248b4` (`--no-ff`), 2026-09-16; rollback
   tag `pre-merge-metalstorm-ingest-memory-fix` — bounded Metal Storm Puppeteer concurrency +
