@@ -190,3 +190,56 @@ the suffix) — no special-cased fix is planned for it.
 **If this resurfaces:** if a future diagnostic finds a *second* square-bracket or MS-specific
 title-tag case, re-open this with both data points before writing a stripping rule — one
 occurrence was correctly judged insufficient evidence of a real pattern.
+
+**Reconfirmed by Concern D's clean re-run (below):** `Nine Inch Nails — Nine Inch Noize
+[Collaboration]` came back `status: 'not_found'`, not `'error'` — a genuine MB miss under
+non-flaky conditions, not a transient-failure false negative. This closure stands.
+
+## Concern D — exhausted-rows backfill (2026-09-17)
+
+**First re-run was contaminated, root-caused, fixed.** The first post-A+B diagnostic re-run
+(`scripts/diagnostics/diagnose-missing-artwork-2026-09-17.ts`) reported 0 "already fixable"
+rows out of 70 — contradicted immediately by a manual live check showing `slq — Crown Shyness`
+resolves. Root cause: MB was intermittently 503-ing under this session's cumulative request
+volume (confirmed live: two back-to-back calls for different albums returned `status: 'error'`
+then `'ok'`), and the diagnostic's `classify()` never read `lookupMusicBrainz`'s `status` field
+(Concern A) — an `'error'` verdict looked identical to a genuine `'not_found'`. Fixed: added a
+`lookupWithRetry` wrapper (one retry after a 5s backoff) and a distinct `'error'` verdict bucket
+excluded from real conclusions, applied to both the CSV output and the summary counts.
+
+**Clean re-run results (70 albums with `artwork_url IS NULL`):**
+
+| Count | Verdict |
+|---|---|
+| 5 | Already fixable today — shipped code (post A+B) resolves these; stale stored state hadn't caught up |
+| 22 | MB knows the release, genuinely no approved CAA art anywhere in the group |
+| 36 | Genuine MB miss (`not_found`) |
+| 7 | Still `error` even after retry — MB genuinely degraded during this run, not actionable yet |
+
+Full row-level detail: `docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output.csv`
+(now includes an `mb_status` column).
+
+**Backfill applied.** `scripts/diagnostics/backfill-artwork-2026-09-17.ts` (`--report` then
+`--apply`, following the report-then-apply convention from
+`scripts/migrations/2026-07-album-identity-backfill-albums.ts`) re-verified each of the 5
+"already fixable" rows live at run time (not just trusted from the CSV, given MB's flakiness
+this session) and wrote the resulting enrichment via the existing `applyAlbumEnrichment`. All 5
+applied cleanly and confirmed live against Supabase:
+
+- Astral Alchemy — *Weaving Chilling Magical Dreamworlds*: artwork + genre (`black metal`) +
+  `mb_release_group_id`
+- Sinamort — *Breathing Cargo*: artwork + genre (doom/metal/progressive metal) + release date
+  (2026-06-15) + `mb_release_group_id`
+- Hours of Worship — *Resignation*: artwork only (genre still empty on MB)
+- slq — *Crown Shyness*: artwork only (genre still empty on MB)
+- Xenith — *To No Avail*: artwork only (genre/date/MBID already present)
+
+**Not actioned — left for a later run:** the 7 rows still erroring after retry (MB was
+genuinely degraded during this session, not a code issue) and the 36 genuine `not_found` rows
+(each would need individual manual investigation — typo, too new for MB, or genuinely
+unlisted — out of scope for an automated backfill).
+
+**Definition-of-done status:** Concerns A, B, D shipped; Concern C closed as a diagnostic
+finding with no code change (see above) and reconfirmed by this run's clean `status` read. The
+`releases[0]` arbitrary-pick issue remains tracked, unfixed, in
+`docs/decisions/deferred-work.md`.
