@@ -91,6 +91,19 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent merge: `artwork-releases0-tier3-fallback` — Concern E of the 2026-09-17 artwork/MB-
+enrichment diagnostic brief, closing out the full brief (Concerns A–E): a third artwork tier in
+`lookupMusicBrainz`, reached only when the release-group and `releases[0]` CAA lookups both
+fail, sweeps up to 10 other releases in the group via `pickArtwork()`, fixing MB search's
+no-relevance-sort `releases[0]` arbitrary pick. Isolated in its own `try/catch` so a tier-3
+failure can't flip the outer `status` away from `'ok'`. No schema change. 52/52 files, 395/395
+tests, `tsc` clean on `master` post-merge. Live-verified post-fix: Raphael Weinroth-Browne —
+*Empyrean* now resolves real artwork via the exact sibling release (`d13afb14-...`) identified
+during Concern B. No backfill script — resolves via the existing organic ingest path. Merged to
+`master` `--no-ff` at `9f4839b` on 2026-09-17. Rollback tag:
+`pre-merge-artwork-releases0-tier3-fallback`. Full detail: `docs/decisions/artwork.md` ("Concern
+E — `releases[0]` arbitrary pick, tier-3 artwork fallback").
+
 Most recent merge: `artwork-picker-approved-fallback` — Concern B of the 2026-09-17 artwork/MB-
 enrichment diagnostic brief: shared `pickArtwork()` helper (front-preferred, falls back to the
 first `approved:true` CAA image) applied at both CAA call sites in `lookupMusicBrainz`,
