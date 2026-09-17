@@ -10,6 +10,26 @@ open sub-item and were deliberately left there rather than split.
 
 ---
 
+- ~~**`lookupMusicBrainz`'s `releases[0]` arbitrary pick — live-confirmed blocking a real row,
+  2026-09-17.**~~ — **DONE (2026-09-17, Concern E).** MB's release search
+  (`scripts/musicbrainz.ts` Step A) has no relevance sort, and the code always takes
+  `releases[0]`. Flagged as a known issue in the 2026-09-17 artwork/MB-enrichment diagnostic
+  brief and explicitly kept out of scope for Concerns A–D. Live-confirmed blocking one real row
+  during Concern B's verification: Raphael Weinroth-Browne — *Empyrean* has 3 candidate
+  releases; `releases[0]` resolves to `0a1681b0-95e1-4fca-a683-a072fed8c0f6` (no CAA entry,
+  404), while `d13afb14-38d0-452b-b986-e3003c385856` (a sibling release) has real, approved
+  artwork. Reconfirmed 2026-09-17 during Concern D.1's release-group sweep as the *only* row of
+  70 originally affected where this pattern actually hides real artwork. **Fixed by Concern E:**
+  a third artwork tier in `lookupMusicBrainz`, reached only when tiers 1–2 both fail, sweeps up
+  to 10 other releases in the release group via CAA, isolated in its own `try/catch` so a
+  failure can't flip the outer `status` away from `'ok'`. Live-verified post-fix: Weinroth-Browne
+  now resolves `artworkUrl` via release `d13afb14-...`, the exact MBID identified above. No
+  backfill script — resolves through the existing organic ingest/backfill path automatically.
+  Full detail: `artwork.md`, "Concern E — `releases[0]` arbitrary pick, tier-3 artwork
+  fallback".
+
+---
+
 - ~~**GitHub Actions cron for scheduled ingest**~~ — **DONE (2026-07-21)**.
   Implemented as `.github/workflows/ingest.yml` (`0 7,19 * * *` UTC +
   `workflow_dispatch`), calling `POST /api/ingest` with a server-only

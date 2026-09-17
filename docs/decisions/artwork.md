@@ -372,3 +372,61 @@ data. The remaining open items from this entire brief are: the `releases[0]` arb
 issue (Concern E, tracked in `docs/decisions/deferred-work.md`, now additionally motivated by
 the confirmed Weinroth-Browne case), and the 5 rows left unresolved above (not a new tracked
 item — just needs a later re-run of the existing diagnostic).
+
+## Concern E — `releases[0]` arbitrary pick, tier-3 artwork fallback (2026-09-17)
+
+**Root cause (already established by Concern B and reconfirmed by D.1):** MB's release
+search (Step A, `scripts/musicbrainz.ts`) has no relevance sort, and the code always took
+`releases[0]`. Across the full 70-row set, this was confirmed the *only* row where a full
+release-by-release sweep finds real artwork shipped code can't reach — small, real, confirmed
+hit rate 1-in-70, worth fixing properly without over-engineering it.
+
+**Fix:** a third artwork tier, reached only when tiers 1 (release-group CAA) and 2
+(`releases[0]`'s own CAA entry) both fail. Fetches the release group's full release list
+(`GET /ws/2/release-group/{id}?inc=releases`, one extra MB request — the docstring's "up to 3"
+becomes "up to 4"), checks up to 10 other releases individually on CAA with the existing
+`pickArtwork()`, stops at the first hit. Reuses `pickArtwork()` as-is — no change to Concern B's
+logic, no change to the `status: 'ok' | 'not_found' | 'error'` contract from Concern A.
+
+**Two correctness requirements, both learned earlier this session:**
+
+- The entire tier is wrapped in its own `try/catch`, isolated from the outer function's
+  `catch`. A failure fetching the release list or checking one release's CAA entry cannot flip
+  `status` away from `'ok'` after Step A/B already succeeded — verified by a dedicated test
+  (tier-3's own MB request rejects; `status` stays `'ok'`, `genres`/`releaseDate`/
+  `releaseGroupId` from Step A/B are all still returned intact).
+- The `inc=releases` request's own failure is not treated the same as a genuine empty release
+  list (Concern D.1's mistake, now avoided here too) — it's caught in its own inner
+  `try/catch` and logged via `console.warn` so it stays observable/distinguishable, rather than
+  silently collapsing into "0 other releases" the way the diagnostic script's pre-D.1 bug did.
+  No full `status` enum needed for this internal detail (unlike Concern A's public contract) —
+  the log is enough per the brief's own scoping.
+
+**Cost bound:** capped at `MAX_TIER3_RELEASES_CHECKED = 10` additional releases, so a
+reissue-heavy legacy artist's release group can't turn this into an unbounded sweep. `releases[0]`
+itself is excluded from the tier-3 sweep (already checked in tier 2) — confirmed by a test that
+counts exactly one CAA call against it total.
+
+**Tests** (`scripts/__tests__/musicbrainz.test.ts`, 3 new): tier-3 finds artwork on a
+non-`releases[0]` release when tiers 1–2 fail; tier-3's own release-list failure doesn't flip
+`status` or discard already-resolved fields; the 10-release cap is respected (15 siblings
+offered, exactly 10 CAA calls made). All pass; 52/52 files, 395/395 tests, `tsc` clean.
+
+**Live-verified against Raphael Weinroth-Browne — Empyrean post-fix** (not trusted from unit
+tests alone): `lookupMusicBrainz` now returns `artworkUrl` pointing at release
+`d13afb14-38d0-452b-b986-e3003c385856` — the exact MBID Concern B's diagnostic identified as
+holding the real, approved artwork, not the `releases[0]` pick
+(`0a1681b0-95e1-4fca-a683-a072fed8c0f6`, no CAA entry). First live attempt hit the same
+session-wide MB flakiness as everything else today (`status: 'error'`); a retry after a 60s
+pause resolved cleanly.
+
+**No backfill script written, deliberately.** Now that this album goes through the same
+`lookupMusicBrainz` call as every other album, it resolves through the *existing* organic
+ingest/backfill path (`selectAlbumBackfillCandidates` in `scripts/ingest.ts`) automatically on
+the next run that revisits it — no special-case write needed, which is exactly why D.1 declined
+to hand-write the URL directly.
+
+**Definition-of-done: this brief (Concerns A–E) is now fully complete.** The only remaining
+items are the 5 rows left unresolved by Concern D.1 (not a tracked gap — just needs a later
+diagnostic re-run when MB isn't degraded) and confirming Weinroth-Browne resolves on the next
+scheduled ingest run (read-only diagnostic check, not required before merge).
