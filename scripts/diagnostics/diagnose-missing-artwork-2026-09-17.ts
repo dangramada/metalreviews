@@ -45,27 +45,46 @@ async function lookupWithRetry(band: string, album: string) {
   return lookupMusicBrainz(band, album);
 }
 
+// Fetches the release-group's release list, retrying once after a 5s backoff on failure —
+// same discipline as lookupWithRetry (Concern A/D), applied here to a second location that
+// had the identical error/empty conflation bug: a request failure and a genuine 0-release
+// group both used to return releaseIds: [], making a false negative (e.g. Raphael
+// Weinroth-Browne — Empyrean, confirmed live 2026-09-17: 3 real releases, but a transient MB
+// failure made this function report 0) indistinguishable from a true one. Returns status so
+// the caller can tell them apart instead of silently repeating the conflation a third time.
+async function fetchReleaseGroupIds(
+  releaseGroupId: string
+): Promise<{ status: 'ok' | 'error'; releaseIds: string[] }> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await sleep(5000);
+    try {
+      await sleep(1000); // MB rate limit — this is an extra MB request beyond lookupMusicBrainz's own
+      const res = await axios.get(`https://musicbrainz.org/ws/2/release-group/${releaseGroupId}`, {
+        params: { inc: 'releases', fmt: 'json' },
+        headers: { 'User-Agent': MB_USER_AGENT },
+      });
+      const releaseIds = (res.data?.releases ?? []).map((r: any) => r.id).filter(Boolean);
+      return { status: 'ok', releaseIds };
+    } catch {
+      // retry once, then fall through to reporting 'error'
+    }
+  }
+  return { status: 'error', releaseIds: [] };
+}
+
 // Full sweep: enumerate every release in the group (one extra MB request, rate-limited),
 // then check each release individually on CAA with the relaxed picker. This is deliberately
 // more thorough than the shipped code — it's what tells us whether issue #2 (arbitrary
 // releases[0] pick) and issue #1 (front:true-only filter) are hiding real artwork that a
-// smarter lookup would find. Returns { found, releasesChecked } for visibility into cost.
+// smarter lookup would find. Returns { found, releasesChecked, status } — status distinguishes
+// a genuine 0-release group from a request failure that never got a real answer.
 async function checkRelaxedArtworkAcrossGroup(
   releaseGroupId: string | null
-): Promise<{ found: boolean; releasesChecked: number }> {
-  if (!releaseGroupId) return { found: false, releasesChecked: 0 };
+): Promise<{ found: boolean; releasesChecked: number; status: 'ok' | 'error' | 'no_group' }> {
+  if (!releaseGroupId) return { found: false, releasesChecked: 0, status: 'no_group' };
 
-  let releaseIds: string[] = [];
-  try {
-    await sleep(1000); // MB rate limit — this is an extra MB request beyond lookupMusicBrainz's own
-    const res = await axios.get(`https://musicbrainz.org/ws/2/release-group/${releaseGroupId}`, {
-      params: { inc: 'releases', fmt: 'json' },
-      headers: { 'User-Agent': MB_USER_AGENT },
-    });
-    releaseIds = (res.data?.releases ?? []).map((r: any) => r.id).filter(Boolean);
-  } catch {
-    return { found: false, releasesChecked: 0 };
-  }
+  const { status, releaseIds } = await fetchReleaseGroupIds(releaseGroupId);
+  if (status === 'error') return { found: false, releasesChecked: 0, status: 'error' };
 
   for (const releaseId of releaseIds) {
     try {
@@ -74,12 +93,13 @@ async function checkRelaxedArtworkAcrossGroup(
         timeout: 8000,
       });
       const images: any[] = caaRes.data?.images ?? [];
-      if (pickArtworkRelaxed(images)) return { found: true, releasesChecked: releaseIds.length };
+      if (pickArtworkRelaxed(images))
+        return { found: true, releasesChecked: releaseIds.length, status: 'ok' };
     } catch {
       // this release has no CAA entry — try the next one
     }
   }
-  return { found: false, releasesChecked: releaseIds.length };
+  return { found: false, releasesChecked: releaseIds.length, status: 'ok' };
 }
 
 type Row = {
@@ -97,6 +117,7 @@ type DiagnosisRow = Row & {
   foundByShippedFilter: boolean; // current front:true-only logic in musicbrainz.ts
   foundByRelaxedFilter: boolean; // relaxed filter, swept across every release in the group
   releasesInGroup: number;
+  sweepStatus: 'ok' | 'error' | 'no_group' | 'skipped'; // 'skipped' = sweep wasn't attempted (already found, or no release group)
   liveGenres: string;
   verdict: string;
 };
@@ -112,7 +133,8 @@ function classify(
   mbStatus: 'ok' | 'not_found' | 'error',
   liveFoundReleaseGroup: boolean,
   foundByShippedFilter: boolean,
-  foundByRelaxedFilter: boolean
+  foundByRelaxedFilter: boolean,
+  sweepStatus: 'ok' | 'error' | 'no_group' | 'skipped'
 ): string {
   if (mbStatus === 'error') {
     return 'MB request error even after retry — transient failure, not a real verdict, re-run later';
@@ -122,6 +144,9 @@ function classify(
   }
   if (foundByRelaxedFilter) {
     return 'FIX CONFIRMED: relaxed filter finds artwork the shipped front:true filter misses';
+  }
+  if (sweepStatus === 'error') {
+    return 'Release-group sweep errored even after retry — "no CAA art" NOT confirmed, re-check this row';
   }
   if (liveFoundReleaseGroup) {
     return 'MB knows the release, but genuinely no approved artwork on CAA for any release in the group';
@@ -162,13 +187,21 @@ async function main() {
     // a release-group to search within — otherwise there's nothing to sweep.
     let foundByRelaxedFilter = false;
     let releasesInGroup = 0;
+    let sweepStatus: 'ok' | 'error' | 'no_group' | 'skipped' = 'skipped';
     if (mb.status !== 'error' && !foundByShippedFilter && liveFoundReleaseGroup) {
       const sweep = await checkRelaxedArtworkAcrossGroup(mb.releaseGroupId);
       foundByRelaxedFilter = sweep.found;
       releasesInGroup = sweep.releasesChecked;
+      sweepStatus = sweep.status;
     }
 
-    const verdict = classify(mb.status, liveFoundReleaseGroup, foundByShippedFilter, foundByRelaxedFilter);
+    const verdict = classify(
+      mb.status,
+      liveFoundReleaseGroup,
+      foundByShippedFilter,
+      foundByRelaxedFilter,
+      sweepStatus
+    );
     console.log(verdict);
 
     results.push({
@@ -178,6 +211,7 @@ async function main() {
       foundByShippedFilter,
       foundByRelaxedFilter,
       releasesInGroup,
+      sweepStatus,
       liveGenres: mb.genres.join('; '),
       verdict,
     });
@@ -204,6 +238,7 @@ async function main() {
     'found_by_shipped_filter',
     'found_by_relaxed_filter',
     'releases_in_group_checked',
+    'sweep_status',
     'live_genres',
     'verdict',
   ];
@@ -222,6 +257,7 @@ async function main() {
         String(r.foundByShippedFilter),
         String(r.foundByRelaxedFilter),
         String(r.releasesInGroup),
+        r.sweepStatus,
         csvEscape(r.liveGenres),
         csvEscape(r.verdict),
       ].join(',')

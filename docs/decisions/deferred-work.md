@@ -197,6 +197,12 @@ rewriting them, which this reorg pass deliberately avoided.
   and doesn't help here — it never gets a chance to run against the release that actually has
   art. Needs its own scoped change to Step A (e.g. checking CAA across all candidate releases,
   or preferring release-group-level lookups more aggressively) — not folded into Concerns A–D.
+  **Reconfirmed 2026-09-17 during Concern D.1** (the diagnostic's own release-group sweep,
+  after its own error/empty conflation bug was fixed): this is the *only* row, of 70 originally
+  affected, where a full sweep across all releases in the group finds real artwork that shipped
+  code still cannot reach — everything else is either a genuine MB miss, genuinely no CAA art
+  anywhere in the group, or still legitimately unresolved due to MB errors. This is now the
+  next logical piece of work once Concern E is picked up.
 - **Metal Storm ingest memory fix: three verifications pending, 2026-09-16.**
   Bounded Puppeteer concurrency, 30s `protocolTimeout`, Chrome memory args, resource blocking and
   close timeouts shipped on branch `metalstorm-ingest-memory-fix`

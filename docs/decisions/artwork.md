@@ -277,8 +277,7 @@ itself was consistent both times. Not fixed in this pass (out of Concern D's sco
 narrower version of the same class of problem Concern A solved for the top-level call) — noted
 here for future reference if it recurs.
 
-**Final, fully-clean counts (all 70 rows have a settled, real classification — zero left in
-`error`):**
+**Counts at this point (revised below — see Concern D.1):**
 
 | Count | Verdict |
 |---|---|
@@ -288,18 +287,88 @@ here for future reference if it recurs.
 | 0 | Still `error` |
 
 The 6 backfilled: Astral Alchemy, Sinamort, Hours of Worship, slq, Xenith, Bees Made Honey In
-The Vein Tree. Full row-level detail (merged, final):
-`docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output.csv`. The intermediate
-7-row rescope data is kept at
-`docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output-rescope.csv` as supporting
-evidence for the tie-break reasoning above, not as the source of truth (the main CSV is).
+The Vein Tree.
 
 **Not actioned — left for organic/manual handling:** the 40 genuine `not_found` rows each need
 individual manual investigation (typo, too new for MB, genuinely unlisted) — out of scope for
 an automated backfill.
 
-**Definition-of-done status: Concern D is complete.** Concerns A, B, D shipped; Concern C
-closed as a diagnostic finding with no code change and reconfirmed twice on clean data (BBC
-Proms and Nine Inch Nails both read `not_found`, not `error`, across this run). The only
-remaining open item from this entire brief is the `releases[0]` arbitrary-pick issue, tracked,
-unfixed, and deliberately deferred in `docs/decisions/deferred-work.md`.
+## Concern D.1 — the "24 no-CAA-art" count wasn't verified, same bug at a second location
+
+**Finding.** `Raphael Weinroth-Browne — Empyrean` gave different verdicts across two
+diagnostic runs: pre-Concern-D-fix, `FIX CONFIRMED, releases_checked: 3`; the clean re-run
+above, `genuinely no CAA art, releases_in_group_checked: 0`. A `0` here is not a true reading
+of a 3-release group — it's the exact error/empty conflation Concern A fixed at the top level,
+present again, unfixed, in `checkRelaxedArtworkAcrossGroup`'s own `inc=releases` MB request:
+its `try/catch` returned `{ found: false, releasesChecked: 0 }` on any request failure,
+indistinguishable from a genuine empty group. `lookupWithRetry` (added for Concern D) only
+wrapped the top-level `lookupMusicBrainz` call — this second, separate MB request had no such
+protection.
+
+**Quantified exposure:** of the 24 "no approved CAA art" rows, 14 had the same suspicious
+`releases_in_group_checked: 0` signature (the brief that flagged this counted 12; 14 is the
+true count against live data at merge time — TDW and Solothurn had been re-added with this
+exact signature by Concern D's second pass, after the brief's count was taken).
+
+**Fix (diagnostic-script-only, no production code touched — see scope boundary below):**
+extracted `fetchReleaseGroupIds()` with the same retry-after-5s-backoff discipline as
+`lookupWithRetry`, returning `status: 'ok' | 'error'` so a request failure can no longer be
+silently read as "0 releases." `checkRelaxedArtworkAcrossGroup` and `classify()` now propagate
+this as a `sweep_status` column, with a new verdict bucket ("sweep errored, NOT confirmed")
+distinct from a genuinely-verified "no CAA art."
+
+**Re-verification of all 14 suspicious rows** (`--ids`, two passes with a pause between, same
+discipline as Concern D's original 7 `error` rows):
+
+| Outcome | Count | Rows |
+|---|---|---|
+| Confirmed genuine no-CAA-art (verified sweep, ≥1 release actually checked) | 8 | TDW, Solothurn, Imperium, Only Echoes, Utilize the Remains, Fane, Urakka, Grey Shores |
+| **Flipped — real artwork confirmed by the sweep** | 1 | Raphael Weinroth-Browne — Empyrean |
+| Still unresolved after 2 independent attempts each — left unresolved, not forced | 5 | A World Worth Burning, Volubilis, Coma Control, Lord Carrion, W.M.D. |
+
+**Weinroth-Browne is confirmed but NOT backfilled in this pass.** Its relaxed-sweep artwork
+lives on release `d13afb14-38d0-452b-b986-e3003c385856` — a *different* release than
+`releases[0]` (production's arbitrary pick) resolves to. Re-verified live immediately before
+any write: the shipped `lookupMusicBrainz` still returns `artworkUrl: null` for this album (its
+`releases[0]` pick has no CAA entry at all). `backfill-artwork-2026-09-17.ts` only ever writes
+what the shipped code path resolves — adding this row to its target list would be a guaranteed
+no-op `SKIP`, and hand-writing the sweep-found URL directly would mean writing production data
+from a code path production doesn't actually run, undocumented and unreproducible by any
+scheduled ingest. Per this pass's explicit scope boundary (no production code changes — that's
+Concern E's job), this row stays unapplied until Concern E ships the `releases[0]` fix, at
+which point it should resolve automatically through the normal organic/backfill path.
+
+**The 5 still-unresolved rows are intentionally left unclassified**, not defaulted to
+`not_found` or "no CAA art" — per explicit instruction, an `error` is noise, not evidence, and
+this session already corrected one false "no CAA art" (Weinroth-Browne) that resulted from
+exactly that mistake. MB was measurably more degraded for these specific queries across both
+attempts (a mix of top-level and sweep-level failures) than for the other 9 rows checked in the
+same window. Re-check in a later, separate session.
+
+**Corrected, true final counts (70 rows):**
+
+| Count | Verdict |
+|---|---|
+| 6 | Backfilled — applied and confirmed live in Supabase |
+| 1 | Confirmed real artwork exists, blocked on Concern E (`releases[0]` fix) — not yet applied |
+| 18 | Confirmed genuine no-CAA-art (sweep actually verified, not just assumed) |
+| 40 | Genuine MB miss (`not_found`) |
+| 5 | Unresolved — MB request/sweep errored on repeated attempts, needs a later re-check |
+
+Full row-level detail (final, merged twice — Concern D's backfill classifications and Concern
+D.1's re-verified sweep results): `docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output.csv`.
+Intermediate rescope-run data (both D and D.1 passes) kept at
+`docs/data/missing-artwork/diagnose-missing-artwork-2026-09-17-output-rescope.csv` as
+supporting evidence, not as the source of truth.
+
+**What NOT to do with the 5 unresolved rows:** don't re-run them in a tight loop hoping for a
+clean pass — this session already made a very large number of MB requests today, which is the
+suspected cause of the flakiness in the first place. Give it real time (a different session) or
+production's own scheduled retry before checking again.
+
+**Definition-of-done status: Concern D (including D.1) is complete.** Concerns A, B, D shipped;
+Concern C closed as a diagnostic finding with no code change and reconfirmed twice on clean
+data. The remaining open items from this entire brief are: the `releases[0]` arbitrary-pick
+issue (Concern E, tracked in `docs/decisions/deferred-work.md`, now additionally motivated by
+the confirmed Weinroth-Browne case), and the 5 rows left unresolved above (not a new tracked
+item — just needs a later re-run of the existing diagnostic).
