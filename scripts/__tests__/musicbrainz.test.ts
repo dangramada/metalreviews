@@ -135,3 +135,69 @@ describe('lookupMusicBrainz — status field (Concern A: not_found vs error)', (
     expect(result.artworkUrl).toBe('art.jpg');
   });
 });
+
+describe('lookupMusicBrainz — artwork picker (Concern B: front-preferred, approved-fallback)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function mockSearchAndCaa(images: any[]) {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (url === 'https://musicbrainz.org/ws/2/release/' && config?.params?.query) {
+        return Promise.resolve({
+          data: {
+            releases: [
+              {
+                id: 'release-mbid',
+                'release-group': { id: 'rg-mbid' },
+                'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+              },
+            ],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-mbid') {
+        return Promise.resolve({ data: { date: '2020-01-01', genres: [] } });
+      }
+      if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
+        return Promise.resolve({ data: { images } });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+  }
+
+  it('still prefers a front:true image over an approved-but-not-front one', async () => {
+    mockSearchAndCaa([
+      { front: false, approved: true, image: 'approved-non-front.jpg' },
+      { front: true, approved: true, image: 'front.jpg' },
+    ]);
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.artworkUrl).toBe('front.jpg');
+  });
+
+  it('falls back to an approved:true image when no front:true image exists', async () => {
+    mockSearchAndCaa([{ front: false, approved: true, image: 'approved-non-front.jpg' }]);
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.artworkUrl).toBe('approved-non-front.jpg');
+  });
+
+  it('returns null artworkUrl when no image is front or approved', async () => {
+    mockSearchAndCaa([{ front: false, approved: false, image: 'unapproved.jpg' }]);
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.artworkUrl).toBeNull();
+  });
+
+  it('returns null artworkUrl when there are no images at all', async () => {
+    mockSearchAndCaa([]);
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.artworkUrl).toBeNull();
+  });
+});

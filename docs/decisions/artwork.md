@@ -126,3 +126,32 @@ beyond the one-line budget change above.
 **Scope note:** this pass did not touch the artwork-picker `front:true`-only filter, MB search
 query normalization, or the exhausted-rows backfill script — those are separate concerns (B, C,
 D) from the same 2026-09-17 diagnostic, each its own branch/session.
+
+## Artwork picker: front-preferred, approved-fallback (2026-09-17, Concern B)
+
+**Root cause found:** both CAA lookups in `lookupMusicBrainz` (release-group primary, release-
+level fallback) did `images.find((img) => img.front === true)` and nothing else. An image can
+be `approved: true` on CAA without being tagged `front: true` — confirmed live on MBID
+`d13afb14-38d0-452b-b986-e3003c385856`. The 2026-09-17 diagnostic found 2 of 70 affected rows
+(Raphael Weinroth-Browne — *Empyrean*; slq — *Crown Shyness*) had real, approved artwork that
+the front-only filter was silently discarding.
+
+**Fix:** extracted a shared `pickArtwork(images)` helper (prefers `front: true`, falls back to
+the first `approved: true` image) and applied it at both CAA call sites, removing the
+duplicated filter logic.
+
+**Live verification (2026-09-17, post-fix):**
+- `slq — Crown Shyness` — **confirmed fixed.** `lookupMusicBrainz` now returns a real
+  `artworkUrl` (`https://coverartarchive.org/release/1a8800a9-.../45538565449.jpg`).
+- `Raphael Weinroth-Browne — Empyrean` — **still returns `artworkUrl: null`,** but not because
+  the picker fix failed: MB's release search for this album returns 3 releases with no
+  relevance sort, and `releases[0]` resolves to `0a1681b0-95e1-4fca-a683-a072fed8c0f6` (no CAA
+  entry at all — confirmed 404), not `d13afb14-38d0-452b-b986-e3003c385856` (the MBID with the
+  approved image the diagnostic found). This is the separate, already-flagged "`releases[0]`
+  arbitrary pick" issue — explicitly out of scope for both Concern A and B (see the session
+  brief's scope boundary) and unaffected by this fix. This row will need that separate,
+  larger change to `lookupMusicBrainz`'s Step A before it resolves.
+
+MB was also observed 503-ing intermittently during this verification (one clean pass out of
+three attempts) — consistent with Concern A's premise that MB failures are transient, not
+"release doesn't exist."
