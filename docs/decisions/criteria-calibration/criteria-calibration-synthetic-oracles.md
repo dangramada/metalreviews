@@ -14,8 +14,8 @@ driver actually offers, answered from a fixed known ground-truth weight/level ve
 a pre-scripted answer sequence: every oracle is a closed loop over the production code with a
 different hidden "personality," matching the brief exactly.
 
-Harness: `scripts/synthetic-calibration-oracles-2026-08-16.ts` (kept, read-only, not wired
-into any build step — same convention as `scripts/diagnose-second-session-flatness-2026-08-15.ts`).
+Harness: `scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts` (kept, read-only, not wired
+into any build step — same convention as `scripts/diagnostics/diagnose-second-session-flatness-2026-08-15.ts`).
 Full per-round trajectory (all 10 oracles): `docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv`.
 
 ## Headline finding, not in the original brief: a live solver crash
@@ -297,8 +297,8 @@ a future Concept Draft session and a future solver-hardening session, per the br
 
 ## Reproducing
 
-`ORACLE_DEBUG=1 ORACLE_ONLY=<id> ORACLE_MAX_ROUNDS=<n> npx tsx scripts/synthetic-calibration-oracles-2026-08-16.ts`
+`ORACLE_DEBUG=1 ORACLE_ONLY=<id> ORACLE_MAX_ROUNDS=<n> npx tsx scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts`
 — env vars are optional (filters to one oracle, overrides the round cap, and prints per-round
-timing respectively). Full run: `npx tsx scripts/synthetic-calibration-oracles-2026-08-16.ts`,
+timing respectively). Full run: `npx tsx scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts`,
 ~4.5 minutes wall time on the dev machine used here. Regenerates the CSV in place; findings
 above are frozen from the 2026-08-16 run and won't auto-update if re-run.

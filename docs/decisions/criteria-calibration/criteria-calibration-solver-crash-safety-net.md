@@ -130,7 +130,7 @@ are not vacuous.
 Confirmed in a real browser against real Supabase, on a throwaway account
 (`usertest@gmail.com`), after the jsdom-only gap flagged below was raised. Dan signed in
 manually; the fixture was seeded straight into `user_calibration_answers` via the service-key
-client (`scripts/seed-solver-crash-session.ts`, guarded against Dan's own user id and against
+client (`scripts/diagnostics/seed-solver-crash-session.ts`, guarded against Dan's own user id and against
 non-empty accounts), never through the UI.
 
 **Ran three times, identical each time.** Before: 44 rows, no status row, no weights. After:

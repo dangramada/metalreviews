@@ -18,7 +18,7 @@
 // branch) carry per-round solved point vectors but NOT the per-round feasible-range widths
 // per variable, and the per-degree coverage COUNT that the progress bar needs cannot be
 // recovered from a point vector. So the ten oracles are replayed against the real driver,
-// exactly as scripts/synthetic-calibration-oracles-2026-08-16.ts does, with the oracle specs
+// exactly as scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts does, with the oracle specs
 // and answering rule copied verbatim from it (cited at each site below) so the replay is the
 // same experiment, not a similar one.
 //
@@ -42,30 +42,30 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CalibrationSession } from '../src/lib/criteria-calibration/calibrationSession.js';
+import { CalibrationSession } from '../../src/lib/criteria-calibration/calibrationSession.js';
 import {
   nextAction,
   type DriverAction,
-} from '../src/lib/criteria-calibration/elicitationDriver.js';
+} from '../../src/lib/criteria-calibration/elicitationDriver.js';
 import {
   solveValues,
   type SolverAnswer,
   type ValueSolverResult,
-} from '../src/lib/criteria-calibration/solver.js';
-import { computeScoreSpreadAccuracy } from '../src/lib/criteria-calibration/scoreSpreadAccuracy.js';
+} from '../../src/lib/criteria-calibration/solver.js';
+import { computeScoreSpreadAccuracy } from '../../src/lib/criteria-calibration/scoreSpreadAccuracy.js';
 import {
   profileKey,
   profileDegree,
   type ComparisonResult,
   type Profile,
-} from '../src/lib/criteria-calibration/preferenceGraph.js';
+} from '../../src/lib/criteria-calibration/preferenceGraph.js';
 import {
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
-} from '../src/lib/criteria-calibration/fixtures.js';
+} from '../../src/lib/criteria-calibration/fixtures.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DOCS = path.resolve(__dirname, '../docs/data/criteria-calibration');
+const DOCS = path.resolve(__dirname, '../../docs/data/criteria-calibration');
 
 const NUM_CRITERIA = 6;
 const LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];
@@ -132,7 +132,7 @@ function buildEvalPool(): Profile[] {
 
 // ---------------------------------------------------------------------------------------
 // Ground truth + oracle specs — replicated verbatim from
-// scripts/synthetic-calibration-oracles-2026-08-16.ts (same constants, same order, same ids).
+// scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts (same constants, same order, same ids).
 // ---------------------------------------------------------------------------------------
 type GroundTruth = number[][];
 
@@ -517,7 +517,7 @@ interface AnswerRow {
 function loadA70(): SolverAnswer[] {
   const file = path.resolve(
     __dirname,
-    '../docs/backups/pre-reset-dan-account-2026-08-15.json'
+    '../../docs/backups/pre-reset-dan-account-2026-08-15.json'
   );
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as {
     user_calibration_answers: AnswerRow[];
@@ -609,7 +609,7 @@ async function main() {
     process.stderr.write(`[A70] ${a70.length} rounds, ${Date.now() - t0}ms\n`);
 
     if (process.env.RECON_INCLUDE_B71 === '1') {
-      const { supabase } = await import('./supabaseClient.js');
+      const { supabase } = await import('../supabaseClient.js');
       // Same id the 2026-08-17 determinacy script used; read-only select, no writes.
       const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';
       const { data, error } = await supabase

@@ -11,7 +11,7 @@
 // brief asked for: the full real driver (nextAction, CalibrationSession, solveValues,
 // computeScoreSpreadAccuracy) runs against a REAL 78-round answer log for the `#2
 // single-dominant` oracle shape — the same ground truth used in
-// scripts/freeze-checkpoint-pool-recon-2026-08-25.ts and degree-tier-recon-2026-08-18.ts,
+// scripts/diagnostics/freeze-checkpoint-pool-recon-2026-08-25.ts and degree-tier-recon-2026-08-18.ts,
 // confirmed in Step 1 to never reach coverage-complete at degree 2. The 78-round sequence is
 // generated once, at module load, by replaying the real driver exactly as those scripts do —
 // not fabricated — so the seeded resume answers are indistinguishable from a real session's.
@@ -100,8 +100,8 @@ const FIXTURE_CATALOG: CriteriaCatalog = {
 
 // ---------------------------------------------------------------------------------------
 // The #2 single-dominant ground truth — copied verbatim (same constants, same construction)
-// from scripts/degree-tier-recon-2026-08-18.ts / freeze-checkpoint-pool-recon-2026-08-25.ts,
-// which both replicate scripts/synthetic-calibration-oracles-2026-08-16.ts. Confirmed in
+// from scripts/diagnostics/degree-tier-recon-2026-08-18.ts / freeze-checkpoint-pool-recon-2026-08-25.ts,
+// which both replicate scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts. Confirmed in
 // criteria-calibration-freeze-checkpoint-step1-pool-check.md to still have 62 unasked degree-2
 // candidates at round 90 (never reaches coverage-complete) — the exact shape this checkpoint
 // exists for.

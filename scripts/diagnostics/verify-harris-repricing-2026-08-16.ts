@@ -13,10 +13,10 @@
 // client is scripts/supabaseClient.ts (service key, same as every other committed diagnostic
 // script here) — the key bypasses RLS to READ, it does not make this script mutating.
 //
-// Run:  npx tsx scripts/verify-harris-repricing-2026-08-16.ts
-import { supabase } from './supabaseClient.js';
-import { solveValues, type SolverAnswer } from '../src/lib/criteria-calibration/solver.js';
-import type { Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
+// Run:  npx tsx scripts/diagnostics/verify-harris-repricing-2026-08-16.ts
+import { supabase } from '../supabaseClient.js';
+import { solveValues, type SolverAnswer } from '../../src/lib/criteria-calibration/solver.js';
+import type { Profile } from '../../src/lib/criteria-calibration/preferenceGraph.js';
 
 const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';
 const LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];

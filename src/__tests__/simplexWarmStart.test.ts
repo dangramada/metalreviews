@@ -1,7 +1,7 @@
 // Parity tests for the LP warm start: prepareLP + solveFromPrepared must agree with a plain
 // solveLP on every path, and a single PreparedLP must stay reusable across many objectives.
 //
-// scripts/verify-lp-warm-start.ts covers the bit-identity claim broadly (2314 solves over
+// scripts/diagnostics/verify-lp-warm-start.ts covers the bit-identity claim broadly (2314 solves over
 // every real and synthetic constraint set the calibration path builds). What lives HERE is
 // the part that script cannot reach: the failure paths. Those matter disproportionately
 // because the split moved the Phase 1 diagnostics accumulators (minPivotMagnitude,

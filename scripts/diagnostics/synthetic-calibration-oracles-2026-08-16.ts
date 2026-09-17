@@ -27,28 +27,28 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CalibrationSession } from '../src/lib/criteria-calibration/calibrationSession.js';
+import { CalibrationSession } from '../../src/lib/criteria-calibration/calibrationSession.js';
 import {
   nextAction,
   type DriverAction,
-} from '../src/lib/criteria-calibration/elicitationDriver.js';
+} from '../../src/lib/criteria-calibration/elicitationDriver.js';
 import {
   solveValues,
   type SolverAnswer,
   type ValueSolverResult,
-} from '../src/lib/criteria-calibration/solver.js';
-import { computeCommitState } from '../src/lib/criteria-calibration/commitComputation.js';
+} from '../../src/lib/criteria-calibration/solver.js';
+import { computeCommitState } from '../../src/lib/criteria-calibration/commitComputation.js';
 import {
   solverAccuracyTier,
   SCORE_SPREAD_HIGH_THRESHOLD,
   SCORE_SPREAD_VERY_HIGH_THRESHOLD,
-} from '../src/lib/criteria-calibration/accuracyTiers.js';
-import type { CriteriaCatalog } from '../src/lib/criteria-calibration/criteriaCatalog.js';
-import type { ComparisonResult, Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
+} from '../../src/lib/criteria-calibration/accuracyTiers.js';
+import type { CriteriaCatalog } from '../../src/lib/criteria-calibration/criteriaCatalog.js';
+import type { ComparisonResult, Profile } from '../../src/lib/criteria-calibration/preferenceGraph.js';
 import {
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
-} from '../src/lib/criteria-calibration/fixtures.js';
+} from '../../src/lib/criteria-calibration/fixtures.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -352,7 +352,7 @@ function main() {
   }
   const csvPath = path.resolve(
     __dirname,
-    '../docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv'
+    '../../docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv'
   );
   fs.writeFileSync(csvPath, csvLines.join('\n') + '\n');
   process.stderr.write(`\nCSV written: ${csvPath} (${csvLines.length - 1} rows)\n`);

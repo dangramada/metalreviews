@@ -2,16 +2,16 @@
 // oracle-driven answer log, so the degree-tied tier flow and the per-degree progress bar can be
 // confirmed in a live browser rather than only in jsdom. Not wired into package.json or CI.
 //
-//   npx tsx scripts/seed-degree-tier-qa-2026-08-18.ts <user-id> <shape> <answers>
-//   npx tsx scripts/seed-degree-tier-qa-2026-08-18.ts <user-id> <shape> <answers> --seed
-//   npx tsx scripts/seed-degree-tier-qa-2026-08-18.ts <user-id> --cleanup
+//   npx tsx scripts/diagnostics/seed-degree-tier-qa-2026-08-18.ts <user-id> <shape> <answers>
+//   npx tsx scripts/diagnostics/seed-degree-tier-qa-2026-08-18.ts <user-id> <shape> <answers> --seed
+//   npx tsx scripts/diagnostics/seed-degree-tier-qa-2026-08-18.ts <user-id> --cleanup
 //
 // `shape` is `uniform` (exhausts degree 2 at answer 30 — use ~27 answers to land just short of
 // the boundary and drive the transition by hand in the browser) or `front-loaded` (one of the
 // four shapes that NEVER exhausts degree 2 within 90 answers — see deferred-work.md — used to
 // confirm the base-rung / no-checkpoint behaviour is what was reported, not a surprise).
 //
-// Same shape and the same two guards as scripts/seed-solver-crash-session.ts, which this
+// Same shape and the same two guards as scripts/diagnostics/seed-solver-crash-session.ts, which this
 // follows deliberately rather than reinventing:
 //   1. Refuses to run against Dan's own user id. His 71-answer log is the validated dataset.
 //   2. Refuses to seed into an account that already has calibration answers.
@@ -23,13 +23,13 @@
 // replay order undefined — which would be a different answer log than the one simulated here.
 //
 // The oracle ground truths and the answering rule are copied from
-// scripts/synthetic-calibration-oracles-2026-08-16.ts, so a seeded session is the same
+// scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts, so a seeded session is the same
 // experiment the recon measured, not a similar one.
 
-import { supabase } from './supabaseClient.js';
-import { CalibrationSession } from '../src/lib/criteria-calibration/calibrationSession.js';
-import { nextAction } from '../src/lib/criteria-calibration/elicitationDriver.js';
-import type { ComparisonResult, Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
+import { supabase } from '../supabaseClient.js';
+import { CalibrationSession } from '../../src/lib/criteria-calibration/calibrationSession.js';
+import { nextAction } from '../../src/lib/criteria-calibration/elicitationDriver.js';
+import type { ComparisonResult, Profile } from '../../src/lib/criteria-calibration/preferenceGraph.js';
 
 function resultToDb(result: ComparisonResult): 'a_preferred' | 'b_preferred' | 'equal' {
   if (result === 'A') return 'a_preferred';

@@ -426,7 +426,7 @@ created_at, album_id }` only — `album-identity/album-identity-ingest.md`), and
   challenge to the "staleness here only delays firing, never falsely un-fires" claim from
   the two prior migrations' headers (`user_calibration_status-add-stability-window.sql`,
   `-add-previous-window.sql`). Mechanism, reproduced live in
-  `scripts/verify-write-race-guard.ts` check #4: `computeStabilityWindowUpdate`'s
+  `scripts/diagnostics/verify-write-race-guard.ts` check #4: `computeStabilityWindowUpdate`'s
   ratings-null skip (`commitComputation.ts`) means a write computed *before* the
   `RANKING_TEST_SET` ratings fetch resolves carries the client's prior (pre-advance) window
   state; if that write's HTTP response resolves at the DB *after* a later write (e.g. the

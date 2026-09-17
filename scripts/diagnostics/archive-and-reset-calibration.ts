@@ -3,8 +3,8 @@
 // auto-stop threshold (see docs/decisions/criteria-calibration/criteria-calibration-adaptive-degree-escalation.md
 // and the follow-up briefs it references). Not wired into package.json or CI — run manually:
 //
-//   npx tsx scripts/archive-and-reset-calibration.ts --export-only   (steps 1-3, safe, no writes)
-//   npx tsx scripts/archive-and-reset-calibration.ts --reset         (DISABLED — see below)
+//   npx tsx scripts/diagnostics/archive-and-reset-calibration.ts --export-only   (steps 1-3, safe, no writes)
+//   npx tsx scripts/diagnostics/archive-and-reset-calibration.ts --reset         (DISABLED — see below)
 //
 // !! --reset IS DISABLED as of 2026-08-15. Use scripts/reset-calibration-2026-08-15.ts. !!
 // Its resetCalibration() below upserts user_calibration_status to {tier:'none',
@@ -23,12 +23,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../supabaseClient.js';
 
 const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const BACKUPS_DIR = join(__dirname, '..', 'docs', 'backups');
+const BACKUPS_DIR = join(__dirname, '..', '..', 'docs', 'backups');
 
 function todayStamp(): string {
   const d = new Date();
@@ -182,7 +182,7 @@ async function main() {
   }
 
   console.error(
-    'Usage: npx tsx scripts/archive-and-reset-calibration.ts --export-only\n' +
+    'Usage: npx tsx scripts/diagnostics/archive-and-reset-calibration.ts --export-only\n' +
       '  (--reset is DISABLED — use scripts/reset-calibration-2026-08-15.ts)'
   );
   process.exit(1);

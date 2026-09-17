@@ -21,6 +21,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   to the correct sibling folder rather than `docs/decisions/` and moving it later. See
   `docs/decisions/documentation-audit-june2026.md`'s 2026-08-26 sections for the reorg that
   established this.
+- `scripts/` root holds only live code: production modules (`ingest.ts`, `ingest-cli.ts`,
+  `musicbrainz.ts`, `normalizeKey.ts`, `supabaseClient.ts`), reusable dev tools meant to be run
+  repeatedly (e.g. `debug-preference-graph.ts`), `migrations/`, `__tests__/`, and any
+  self-contained investigation subfolder (e.g. `lab-eps-ratio-test-2026-08-16/`, used when an
+  investigation needs more than one source file or its own test config). A script written to
+  answer one question and then archived as history — run once or a handful of times, not
+  reused going forward — goes in `scripts/diagnostics/` instead, named with its
+  `<topic>-YYYY-MM-DD.ts` date suffix as before. This includes one-off `diagnose-*`, `verify-*`,
+  `*-recon-*`, and `seed-*`/admin scripts once their run is done; a `seed-*`/admin script stays
+  in `scripts/` root only if it's still meant to be reused for future runs, not just kept as a
+  record. Its generated output still follows the rule above (`docs/data/<cluster>/`, not next to
+  the script). No retention/deletion policy for `scripts/diagnostics/` — scripts there are inert
+  history, unlike a stale branch ref, so nothing there goes stale by just sitting.
 - Docs that are read repeatedly across sessions and grow large after a decision ships get a
   short summary block prepended once shipped-and-verified, so future sessions can skip the
   full body (currently done for `ingest-trigger-and-security.md` and

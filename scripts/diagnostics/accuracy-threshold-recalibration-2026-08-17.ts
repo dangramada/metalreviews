@@ -27,21 +27,21 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { profileKey, type Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
-import { solveValues, type ValueSolverResult } from '../src/lib/criteria-calibration/solver.js';
-import { defaultSamplePairs } from '../src/lib/criteria-calibration/scoreSpreadAccuracy.js';
+import { profileKey, type Profile } from '../../src/lib/criteria-calibration/preferenceGraph.js';
+import { solveValues, type ValueSolverResult } from '../../src/lib/criteria-calibration/solver.js';
+import { defaultSamplePairs } from '../../src/lib/criteria-calibration/scoreSpreadAccuracy.js';
 import {
   SCORE_SPREAD_MEDIUM_THRESHOLD,
   SCORE_SPREAD_HIGH_THRESHOLD,
   SCORE_SPREAD_VERY_HIGH_THRESHOLD,
-} from '../src/lib/criteria-calibration/accuracyTiers.js';
+} from '../../src/lib/criteria-calibration/accuracyTiers.js';
 import {
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
-} from '../src/lib/criteria-calibration/fixtures.js';
+} from '../../src/lib/criteria-calibration/fixtures.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DOCS = path.resolve(__dirname, '../docs/data/criteria-calibration');
+const DOCS = path.resolve(__dirname, '../../docs/data/criteria-calibration');
 
 const NUM_CRITERIA = 6;
 const LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];
@@ -110,7 +110,7 @@ function assertPoolIndependence(evalPool: Profile[]): string {
 }
 
 // ---------------------------------------------------------------------------------------
-// Ground truth — replicated verbatim from scripts/synthetic-calibration-oracles-2026-08-16.ts
+// Ground truth — replicated verbatim from scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts
 // ---------------------------------------------------------------------------------------
 type GroundTruth = number[][]; // [criterion][level], index 0 and 1 unused/zero
 

@@ -13,7 +13,7 @@ branch's CSV via `git show`. **When both branches land, re-check these reference
 any paths that moved.** Filed in `deferred-work.md` as well, so it does not depend on someone
 re-reading this header.
 
-Diagnostic script: `scripts/degree-tier-recon-2026-08-18.ts` (read-only; the one Supabase call
+Diagnostic script: `scripts/diagnostics/degree-tier-recon-2026-08-18.ts` (read-only; the one Supabase call
 is a `select`). Derived data: `docs/data/criteria-calibration/degree-tier-recon-2026-08-18.csv`, 945 rows.
 
 ---
@@ -48,7 +48,7 @@ report carry per-round solved _point_ vectors, but the per-degree coverage count
 needs is a function of per-variable feasible _ranges_, which a point vector cannot recover. So the
 ten synthetic oracles were replayed against the real driver (`nextAction`, exactly as
 `CriteriaCalibrationPage` calls it), with the oracle specs, ground truths, RNG seeds and
-answering rule copied verbatim from `scripts/synthetic-calibration-oracles-2026-08-16.ts`. `A70`
+answering rule copied verbatim from `scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts`. `A70`
 is replayed from the committed pre-reset backup; `B71` read-only from live
 `user_calibration_answers`.
 
@@ -501,7 +501,7 @@ alongside `tier`; the tier is still used for the confidence _label_, which is wh
 ## 11. Live verification
 
 Done 2026-08-18 on the disposable QA account (`1ecd9169-…b94c`), seeded via
-`scripts/seed-degree-tier-qa-2026-08-18.ts` (same two guards as
+`scripts/diagnostics/seed-degree-tier-qa-2026-08-18.ts` (same two guards as
 `seed-solver-crash-session.ts`: refuses Dan's user id, refuses a non-empty account). Dan signed
 in himself; this session never handled credentials. **Dan's own account was verified untouched
 afterwards** — still 71 answers, `updated_at` unchanged at 2026-08-15.

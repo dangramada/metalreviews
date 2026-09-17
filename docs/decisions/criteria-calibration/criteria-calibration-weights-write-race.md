@@ -166,7 +166,7 @@ state; if that write's HTTP response resolves at the DB *after* a later write (e
 commit reached again via Undo+Redo, this time with ratings already resolved) already advanced
 `last_eligible_top10`/`last_change_answer_index` forward, the stale write silently
 overwrites them backward — reproduced directly against the live RPC in
-`scripts/verify-write-race-guard.ts`'s check #4: `last_change_answer_index` regressed from
+`scripts/diagnostics/verify-write-race-guard.ts`'s check #4: `last_change_answer_index` regressed from
 `11` to `4` via exactly this tied-answer_count mechanism. A regressed (smaller)
 `last_change_answer_index` makes a later resumed session compute a *larger* apparent
 stability span than the true trajectory warrants, which could fire the auto-escalation
@@ -185,7 +185,7 @@ already had `nextAnswers` in scope, but reading it off the shared computation re
 passes it through as the new `p_answer_count` RPC argument. `weightsGenRef`'s toast-gating
 logic was not touched, per the brief.
 
-**Verification**: `scripts/verify-write-race-guard.ts` (kept in the repo, not a throwaway —
+**Verification**: `scripts/diagnostics/verify-write-race-guard.ts` (kept in the repo, not a throwaway —
 not run by `npm run test` since it exercises real Postgres conflict-clause semantics a mocked
 `supabase.rpc()` can't validate; run manually against the disposable QA test account, which
 the script confirms has no pre-existing row before running and deletes again at the end):

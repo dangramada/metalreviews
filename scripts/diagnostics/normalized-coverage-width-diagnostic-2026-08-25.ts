@@ -18,7 +18,7 @@
 // magnitudes, and a binary verdict.
 //
 // INPUT: normalized-coverage-widths-2026-08-25.csv, emitted by
-// scripts/degree-tier-recon-2026-08-18.ts under RECON_EMIT_WIDTHS=1 — the per-variable feasible
+// scripts/diagnostics/degree-tier-recon-2026-08-18.ts under RECON_EMIT_WIDTHS=1 — the per-variable feasible
 // widths of the same 12-trajectory evidence set used throughout this cluster (oracles #1..#10 +
 // real sessions A70/B71). Re-simulated, not recovered from the point-vector CSVs, because a
 // solved point vector cannot carry feasible ranges (see that script's header).
@@ -41,7 +41,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DOCS = path.resolve(__dirname, '../docs/data/criteria-calibration');
+const DOCS = path.resolve(__dirname, '../../docs/data/criteria-calibration');
 const WIDTHS_CSV = path.join(DOCS, 'normalized-coverage-widths-2026-08-25.csv');
 const RECON_CSV = path.join(DOCS, 'degree-tier-recon-2026-08-18.csv');
 

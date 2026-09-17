@@ -1,5 +1,5 @@
 // Level B — closed-loop: re-run the 10 synthetic oracles from
-// scripts/synthetic-calibration-oracles-2026-08-16.ts through the REAL elicitation stack
+// scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts through the REAL elicitation stack
 // (nextAction -> CalibrationSession -> computeCommitState) under each candidate ratio rule.
 //
 // This is the test the replay sweep cannot substitute for: changing the ratio test changes

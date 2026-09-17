@@ -11,9 +11,9 @@
 //
 // No writes. No production code touched or modified — only imported as-is.
 
-import { supabase } from './supabaseClient.js';
-import { profileKey, type Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
-import { solveValues, type SolverAnswer } from '../src/lib/criteria-calibration/solver.js';
+import { supabase } from '../supabaseClient.js';
+import { profileKey, type Profile } from '../../src/lib/criteria-calibration/preferenceGraph.js';
+import { solveValues, type SolverAnswer } from '../../src/lib/criteria-calibration/solver.js';
 
 const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';
 const LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];

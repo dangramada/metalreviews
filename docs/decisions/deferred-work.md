@@ -283,7 +283,7 @@ rewriting them, which this reorg pass deliberately avoided.
 
   **2026-08-15 addendum — re-verified against Dan's second, independent 71-answer
   session, read-only, no production files touched
-  (`scripts/diagnose-second-session-flatness-2026-08-15.ts`, live
+  (`scripts/diagnostics/diagnose-second-session-flatness-2026-08-15.ts`, live
   `user_calibration_answers` replay through the real `solveValues`).** Four things
   checked, per the standing brief:
   1. **`MAX_AMBIGUOUS_GAP` status: confirmed dead code, not a live gate.** Only
@@ -359,7 +359,7 @@ rewriting them, which this reorg pass deliberately avoided.
      was originally about no longer exists in production. See point 1.
 
   Script used (kept, read-only, not wired into any build step):
-  `scripts/diagnose-second-session-flatness-2026-08-15.ts`.
+  `scripts/diagnostics/diagnose-second-session-flatness-2026-08-15.ts`.
 
   **2026-08-15 follow-up framing — two unseparated candidate explanations, and
   a priority downgrade.** The re-verification above found a _different_ flat

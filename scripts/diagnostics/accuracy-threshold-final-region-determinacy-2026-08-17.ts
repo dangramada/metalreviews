@@ -27,15 +27,15 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { supabase } from './supabaseClient.js';
-import { profileKey, type Profile } from '../src/lib/criteria-calibration/preferenceGraph.js';
+import { supabase } from '../supabaseClient.js';
+import { profileKey, type Profile } from '../../src/lib/criteria-calibration/preferenceGraph.js';
 import {
   buildValueLP,
   profileCoeffs,
   solveValues,
   type SolverAnswer,
-} from '../src/lib/criteria-calibration/solver.js';
-import { prepareLP, solveFromPrepared } from '../src/lib/criteria-calibration/simplex.js';
+} from '../../src/lib/criteria-calibration/solver.js';
+import { prepareLP, solveFromPrepared } from '../../src/lib/criteria-calibration/simplex.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DAN_USER_ID = 'eec42cd4-e714-46a2-ad9c-35714a1d3a2c';
@@ -90,7 +90,7 @@ interface AnswerRow {
 function loadA70(): SolverAnswer[] {
   const file = path.resolve(
     __dirname,
-    '../docs/backups/pre-reset-dan-account-2026-08-15.json'
+    '../../docs/backups/pre-reset-dan-account-2026-08-15.json'
   );
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as {
     user_calibration_answers: (AnswerRow & { answered_at: string })[];
@@ -201,7 +201,7 @@ async function main() {
   fs.writeFileSync(
     path.resolve(
       __dirname,
-      '../docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json'
+      '../../docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json'
     ),
     JSON.stringify(results, null, 2) + '\n'
   );

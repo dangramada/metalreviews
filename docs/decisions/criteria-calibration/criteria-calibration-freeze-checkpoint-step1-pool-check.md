@@ -20,7 +20,7 @@ it exhausted (`pool.length === 0`)?
 
 ## Method
 
-New script: `scripts/freeze-checkpoint-pool-recon-2026-08-25.ts`. Re-simulates (does not
+New script: `scripts/diagnostics/freeze-checkpoint-pool-recon-2026-08-25.ts`. Re-simulates (does not
 post-process) the same 10 oracle traces `degree-tier-recon-2026-08-18.ts` already replays — same
 ground truths, same seeds, same `nextAction` driver calls, same `MAX_ROUNDS=90` default — because
 neither the committed recon CSV nor the normalized-coverage-width CSV carries a pool-size column;
@@ -80,7 +80,7 @@ the four already flagged as never-coverage-complete.)
 ## Reproduction
 
 ```bash
-npx tsx scripts/freeze-checkpoint-pool-recon-2026-08-25.ts
+npx tsx scripts/diagnostics/freeze-checkpoint-pool-recon-2026-08-25.ts
 ```
 
 Writes nothing (stderr report only). ~10s runtime for all 10 oracle traces.

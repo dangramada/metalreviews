@@ -128,7 +128,7 @@ sole remaining cause of adversarial failure and well beyond any real session (Da
 
 ## Dan's real 71-answer log, re-solved read-only
 
-`scripts/verify-harris-repricing-2026-08-16.ts` (committed; `.select()` only, no writes) replays
+`scripts/diagnostics/verify-harris-repricing-2026-08-16.ts` (committed; `.select()` only, no writes) replays
 the live `user_calibration_answers` log through the shipped solver and diffs the result against
 the stored `user_criterion_weights`.
 
@@ -256,7 +256,7 @@ npx tsx scripts/lab-eps-ratio-test-2026-08-16/sweepProd.ts
 LAB_PARITY_RULE=harris npx vitest run --config scripts/lab-eps-ratio-test-2026-08-16/lab.vitest.config.ts levelA
 LAB_RULES=harris npx vitest run --config scripts/lab-eps-ratio-test-2026-08-16/lab.prod.vitest.config.ts oracles
 LAB_PROD_SIMPLEX=1 LAB_RULES=harris LAB_TRIALS=10 LAB_TAG=prod-harris npx vitest run --config scripts/lab-eps-ratio-test-2026-08-16/lab.prod.vitest.config.ts adversarial
-npx tsx scripts/verify-harris-repricing-2026-08-16.ts
+npx tsx scripts/diagnostics/verify-harris-repricing-2026-08-16.ts
 ```
 
 The frozen pre-change production sweep is kept at

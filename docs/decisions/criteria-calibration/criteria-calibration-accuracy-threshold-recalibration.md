@@ -56,8 +56,8 @@ monotonicity on all 945 rows: 0 violations, which a level-major layout could not
 (30–90 rounds) and real sessions `A70` / `B71`.
 
 **Scripts** (committed, read-only, no writes):
-`scripts/accuracy-threshold-recalibration-2026-08-17.ts`,
-`scripts/accuracy-threshold-final-region-determinacy-2026-08-17.ts`.
+`scripts/diagnostics/accuracy-threshold-recalibration-2026-08-17.ts`,
+`scripts/diagnostics/accuracy-threshold-final-region-determinacy-2026-08-17.ts`.
 **Derived data:** `docs/data/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` (945 rows),
 `docs/data/criteria-calibration/accuracy-threshold-recalibration-fits-2026-08-17.json`,
 `docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json`.

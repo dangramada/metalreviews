@@ -1,5 +1,5 @@
 // Kept verification script for the LP warm start (simplex.ts's prepareLP/solveFromPrepared).
-// Run with: npx tsx scripts/verify-lp-warm-start.ts
+// Run with: npx tsx scripts/diagnostics/verify-lp-warm-start.ts
 //
 // Why this exists as a kept script rather than only a unit test: this solver has a documented
 // history of silent numerical corruption — Big-M reporting ~1e14 garbage as `feasible: true`
@@ -28,14 +28,14 @@ import {
   DEGREE_ANOMALY_SESSION_ANSWERS,
   DEGREE_ANOMALY_SESSION_LEVELS_PER_CRITERION,
   type FixtureConfig,
-} from '../src/lib/criteria-calibration/fixtures.js';
-import { defaultSamplePairs } from '../src/lib/criteria-calibration/scoreSpreadAccuracy.js';
+} from '../../src/lib/criteria-calibration/fixtures.js';
+import { defaultSamplePairs } from '../../src/lib/criteria-calibration/scoreSpreadAccuracy.js';
 import {
   buildValueLP,
   profileCoeffs,
   type SolverAnswer,
-} from '../src/lib/criteria-calibration/solver.js';
-import { prepareLP, solveFromPrepared, solveLP } from '../src/lib/criteria-calibration/simplex.js';
+} from '../../src/lib/criteria-calibration/solver.js';
+import { prepareLP, solveFromPrepared, solveLP } from '../../src/lib/criteria-calibration/simplex.js';
 
 const SYNTHETIC_CONFIG: FixtureConfig = {
   numCriteria: 6,

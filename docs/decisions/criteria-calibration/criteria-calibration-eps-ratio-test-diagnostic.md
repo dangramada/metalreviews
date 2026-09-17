@@ -62,7 +62,7 @@ provably unchanged from production. The other two change which row leaves, and t
    only in `criteria-calibration-ranking-stability-analysis.md` as prose, and Dan's 71-answer
    session was re-solved read-only from Supabase by the safety-net pass without being committed.
    No live DB was touched here, so the largest committed real fixture is n=44.
-2. **Closed-loop oracles** — all 10 from `scripts/synthetic-calibration-oracles-2026-08-16.ts`,
+2. **Closed-loop oracles** — all 10 from `scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts`,
    re-run through the real elicitation loop per rule. Necessary because a different ratio test
    produces different solved values, which changes which question the driver offers next, which
    changes the whole answer log — a captured-log replay cannot answer "does oracle #1 still crash".
@@ -263,7 +263,7 @@ maximising a strictly convex proxy) — separate work, named here, not scoped.
 ## Reproducing
 
 Harness committed at `scripts/lab-eps-ratio-test-2026-08-16/` (read-only, not wired into any build
-step — same convention as `scripts/synthetic-calibration-oracles-2026-08-16.ts`). Saved outputs
+step — same convention as `scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts`). Saved outputs
 from the 2026-08-16 run are in that directory's `out/`; findings above are frozen from that run.
 
 ```bash

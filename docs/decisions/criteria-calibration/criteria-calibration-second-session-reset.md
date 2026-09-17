@@ -33,7 +33,7 @@ session is validated against, and `RANKING_TEST_SET` was frozen from them.
 
 ## The delete-vs-upsert decision (the load-bearing part)
 
-The pre-existing `scripts/archive-and-reset-calibration.ts` reset by **upserting**
+The pre-existing `scripts/diagnostics/archive-and-reset-calibration.ts` reset by **upserting**
 `user_calibration_status` to `{tier:'none', accuracy_value:0}`. That was a complete reset when
 written. **It no longer is**, and reusing it would have silently produced a half-reset account.
 
@@ -111,7 +111,7 @@ that **service-key scripts bypass RLS**, so any script touching this table must 
 - `scripts/reset-calibration-2026-08-15.ts` — the reset, with before/after counts, an
   `album_criteria_ratings` invariant check, an other-users-unchanged guard, and the Step 2
   fresh-state checks
-- `scripts/archive-and-reset-calibration.ts` — `--reset` disabled (throws)
+- `scripts/diagnostics/archive-and-reset-calibration.ts` — `--reset` disabled (throws)
 
 ## Outcome — the awaited session ran and completed (recorded 2026-08-16)
 
@@ -144,7 +144,7 @@ committed analysis of them. Answering more questions on this account would exten
 past the point that analysis describes and silently invalidate it. If another session is
 wanted, back up and reset again via the same DELETE procedure documented above (never the
 disabled upsert path) — or use a throwaway account, as
-`scripts/seed-solver-crash-session.ts` does.
+`scripts/diagnostics/seed-solver-crash-session.ts` does.
 
 Two related notes, neither chased down here:
 

@@ -2,9 +2,9 @@
 // account's user_calibration_answers, so the solver-crash auto-recovery path can be confirmed
 // in a live browser rather than only in jsdom. Not wired into package.json or CI.
 //
-//   npx tsx scripts/seed-solver-crash-session.ts <user-id>            (dry run — no writes)
-//   npx tsx scripts/seed-solver-crash-session.ts <user-id> --seed     (writes 44 rows)
-//   npx tsx scripts/seed-solver-crash-session.ts <user-id> --cleanup  (deletes what it wrote)
+//   npx tsx scripts/diagnostics/seed-solver-crash-session.ts <user-id>            (dry run — no writes)
+//   npx tsx scripts/diagnostics/seed-solver-crash-session.ts <user-id> --seed     (writes 44 rows)
+//   npx tsx scripts/diagnostics/seed-solver-crash-session.ts <user-id> --cleanup  (deletes what it wrote)
 //
 // Writes directly via the service-key client (scripts/supabaseClient.ts, bypasses RLS) — the
 // same class of operation as reset-calibration-2026-08-15.ts. It never authenticates as a
@@ -27,13 +27,13 @@
 // the replay order undefined. An order-scrambled log is a DIFFERENT answer log — it would very
 // likely not reproduce the crash at all, and the live check would silently prove nothing.
 
-import { supabase } from './supabaseClient.js';
+import { supabase } from '../supabaseClient.js';
 import {
   SOLVER_CRASH_ANSWERS,
   SOLVER_CRASH_LEVELS_PER_CRITERION,
-} from '../src/lib/criteria-calibration/fixtures.js';
-import { solveValues } from '../src/lib/criteria-calibration/solver.js';
-import type { ComparisonResult } from '../src/lib/criteria-calibration/preferenceGraph.js';
+} from '../../src/lib/criteria-calibration/fixtures.js';
+import { solveValues } from '../../src/lib/criteria-calibration/solver.js';
+import type { ComparisonResult } from '../../src/lib/criteria-calibration/preferenceGraph.js';
 
 // Duplicated from persistence.ts's resultToDb rather than imported: that module pulls in the
 // FRONTEND supabase client (src/supabaseClient.ts), which reads import.meta.env and blows up
@@ -58,7 +58,7 @@ function fail(message: string): never {
 }
 
 if (!userId)
-  fail('Usage: npx tsx scripts/seed-solver-crash-session.ts <user-id> [--seed|--cleanup]');
+  fail('Usage: npx tsx scripts/diagnostics/seed-solver-crash-session.ts <user-id> [--seed|--cleanup]');
 if (userId === DAN_USER_ID) {
   fail(
     "Refusing to run against Dan's own account — this seeds 44 synthetic answers, and that " +

@@ -5,7 +5,7 @@
 // update`), which a mocked `supabase.rpc()` call (as every *.test.ts file in this repo uses)
 // cannot actually validate. Run manually against the live DB whenever this RPC changes:
 //
-//   npx tsx scripts/verify-write-race-guard.ts
+//   npx tsx scripts/diagnostics/verify-write-race-guard.ts
 //
 // AMENDED 2026-08-17 for the four-parameter RPC (see
 // supabase/user_calibration_status-drop-stability-window.sql). The former check #4 —

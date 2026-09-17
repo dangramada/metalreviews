@@ -154,7 +154,7 @@ post-fix measurement — see §5.
 The suite was green through _both_ prior silent-corruption bugs in this file, so "tests pass"
 was not treated as sufficient.
 
-**Bit-identity (`scripts/verify-lp-warm-start.ts`, kept).** Cold (fresh Phase 1 per objective)
+**Bit-identity (`scripts/diagnostics/verify-lp-warm-start.ts`, kept).** Cold (fresh Phase 1 per objective)
 vs warm (one shared prepared Phase 1), compared with `Object.is` rather than a tolerance, over
 every constraint-set shape the calibration path builds:
 

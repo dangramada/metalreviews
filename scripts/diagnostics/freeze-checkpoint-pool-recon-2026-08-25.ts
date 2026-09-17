@@ -14,7 +14,7 @@
 //     questions, they just aren't moving the needle. Escalating here needs explicit consent,
 //     not an automatic transition.
 //
-// METHOD: replay the same 12 oracle traces scripts/degree-tier-recon-2026-08-18.ts already
+// METHOD: replay the same 12 oracle traces scripts/diagnostics/degree-tier-recon-2026-08-18.ts already
 // replays (same ground truths, same seeds, same driver calls, same MAX_ROUNDS=90 default), and
 // at every round, independently compute the degree-2 refinement pool size alongside the
 // production driver's own `nextAction` call.
@@ -40,23 +40,23 @@
 //
 // No writes to Supabase. No production module modified.
 
-import { CalibrationSession } from '../src/lib/criteria-calibration/calibrationSession.js';
+import { CalibrationSession } from '../../src/lib/criteria-calibration/calibrationSession.js';
 import {
   nextAction,
   generateCandidatesForSubset,
   type DriverAction,
-} from '../src/lib/criteria-calibration/elicitationDriver.js';
-import { type CandidatePair } from '../src/lib/criteria-calibration/questionOrdering.js';
-import { solveValues } from '../src/lib/criteria-calibration/solver.js';
+} from '../../src/lib/criteria-calibration/elicitationDriver.js';
+import { type CandidatePair } from '../../src/lib/criteria-calibration/questionOrdering.js';
+import { solveValues } from '../../src/lib/criteria-calibration/solver.js';
 import {
   profileKey,
   type ComparisonResult,
   type Profile,
-} from '../src/lib/criteria-calibration/preferenceGraph.js';
+} from '../../src/lib/criteria-calibration/preferenceGraph.js';
 import {
   REAL_PRODUCTION_SESSION_ANSWERS,
   REAL_PRODUCTION_SESSION_LEVELS_PER_CRITERION,
-} from '../src/lib/criteria-calibration/fixtures.js';
+} from '../../src/lib/criteria-calibration/fixtures.js';
 
 const NUM_CRITERIA = 6;
 const LEVELS_PER_CRITERION = [5, 5, 5, 5, 5, 5];
@@ -73,8 +73,8 @@ function createRng(seed: number): () => number {
 
 // ---------------------------------------------------------------------------------------
 // Ground truth + oracle specs — replicated verbatim from
-// scripts/degree-tier-recon-2026-08-18.ts (same constants, same order, same ids), which itself
-// replicates scripts/synthetic-calibration-oracles-2026-08-16.ts. Same experiment, not a
+// scripts/diagnostics/degree-tier-recon-2026-08-18.ts (same constants, same order, same ids), which itself
+// replicates scripts/diagnostics/synthetic-calibration-oracles-2026-08-16.ts. Same experiment, not a
 // similar one.
 // ---------------------------------------------------------------------------------------
 type GroundTruth = number[][];
