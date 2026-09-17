@@ -31,12 +31,16 @@ export interface MusicBrainzData {
   status: 'ok' | 'not_found' | 'error';
 }
 
+const MAX_TIER3_RELEASES_CHECKED = 10;
+
 /**
  * Look up artwork, genres, release date, and release-group id for a given band + album from
  * MusicBrainz and Cover Art Archive. Returns nulls/empty array for any field that cannot be found.
  *
- * Rate-limit discipline: up to 3 sequential MB requests per call (search, detail,
- * artist genre lookup), each separated by a 1 req/sec sleep.
+ * Rate-limit discipline: up to 4 sequential MB requests per call (search, detail,
+ * artist genre lookup, tier-3 artwork sweep — the last one only reached when the
+ * release-group and releases[0] CAA lookups both fail to find artwork), each separated by a
+ * 1 req/sec sleep.
  */
 export async function lookupMusicBrainz(band: string, album: string): Promise<MusicBrainzData> {
   try {
@@ -120,6 +124,54 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
         artworkUrl = pickArtwork(images);
       } catch {
         // No art available at either the release-group or release level.
+      }
+    }
+
+    // Tier 3: releases[0] (Step A's pick) has no relevance sort behind it — it can be an
+    // arbitrary pressing with no CAA art while a sibling release in the same group has real,
+    // approved artwork. Confirmed live: Raphael Weinroth-Browne — Empyrean (see
+    // docs/decisions/deferred-work.md). Sweeps up to MAX_TIER3_RELEASES_CHECKED other releases
+    // in the group, reusing pickArtwork() as-is. Entirely isolated in its own try/catch — a
+    // failure here must never flip status away from 'ok' after Step A/B already succeeded.
+    if (!artworkUrl && releaseGroupId) {
+      try {
+        let otherReleaseIds: string[] = [];
+        try {
+          await sleep(1000); // MB rate limit — 4th MB request, only reached when tiers 1-2 fail
+          const groupRes = await axios.get(
+            `https://musicbrainz.org/ws/2/release-group/${releaseGroupId}`,
+            { params: { inc: 'releases', fmt: 'json' }, headers: { 'User-Agent': MB_USER_AGENT } }
+          );
+          otherReleaseIds = (groupRes.data?.releases ?? [])
+            .map((r: any) => r.id)
+            .filter((id: string) => id && id !== mbid) // already checked in tier 2
+            .slice(0, MAX_TIER3_RELEASES_CHECKED);
+        } catch (e) {
+          // A request failure here is NOT "this group has 0 other releases" — that conflation
+          // is exactly the bug Concern D.1 found and fixed in the diagnostic script. Logged so
+          // it's observable/distinguishable rather than silently identical to a genuine empty
+          // list.
+          console.warn(`Tier-3 release-group fetch failed for ${releaseGroupId}, skipping:`, e);
+        }
+
+        for (const releaseId of otherReleaseIds) {
+          try {
+            const caaRes = await axios.get(`https://coverartarchive.org/release/${releaseId}`, {
+              headers: { 'User-Agent': MB_USER_AGENT },
+              timeout: 8000,
+            });
+            const found = pickArtwork(caaRes.data?.images ?? []);
+            if (found) {
+              artworkUrl = found;
+              break;
+            }
+          } catch {
+            // this release has no CAA entry — try the next one
+          }
+        }
+      } catch {
+        // Outer isolation net — inner try/catches above should already handle everything, this
+        // guarantees a bug in tier 3 can never reach the outer catch and flip status to 'error'.
       }
     }
 
