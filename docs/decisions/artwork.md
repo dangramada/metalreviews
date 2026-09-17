@@ -155,3 +155,38 @@ duplicated filter logic.
 MB was also observed 503-ing intermittently during this verification (one clean pass out of
 three attempts) — consistent with Concern A's premise that MB failures are transient, not
 "release doesn't exist."
+
+## Concern C — closed as a diagnostic finding, no code shipped (2026-09-17)
+
+**Premise checked, didn't hold as a systemic bug.** The brief anticipated a scraper-level
+title-noise bug analogous to AMG's " Review" / PS's "Review: " boilerplate — e.g. `[Collaboration]`,
+`(OST)`, `(Volume II)`, `(EP)` suffixes breaking MB's exact-match search. Diagnostic (grep of
+all four fetchers in `scripts/ingest.ts`, plus a live query of every `albums` row containing
+`[` or `(`) found:
+
+- None of the four fetchers (AMG, PS, Metal Storm, Sputnik) currently strip any bracket/paren
+  suffix — only the existing " Review"/"Review: " precedent exists.
+- Only 5 of 314 `albums` rows contain `[` or `(` at all. Of those, `(Volume II)`,
+  `(On the Heights of Despair)`, and two non-Latin-script titles are genuine parts of the album
+  title (round parens) — not artifacts, confirmed by inspection.
+- The one square-bracket case — `Nine Inch Nails — Nine Inch Noize [Collaboration]` — is Metal
+  Storm's **own displayed album title** on their review page (`metalstorm.net/pub/review.php?
+  review_id=21268`), not scraper-injected noise. A live scan of Metal Storm's reviews index
+  (30+ titles across the three most recent months) found **zero** other bracket-tagged titles —
+  this looks like a one-off tag MS applied to this specific unusual release, not a recurring
+  pattern.
+- "Ravaged by the Yeti" (the brief's other wrong-guess example) has no bracket noise at all —
+  its MB miss is unrelated to title noise, just a genuine "not_found" now correctly tracked via
+  Concern A's `status` field.
+
+**Decision (Dan, 2026-09-17):** don't write stripping logic for a pattern with exactly one
+confirmed, non-recurring occurrence — the risk/reward doesn't justify it, and a hardcoded
+single-tag allowlist would be speculative rather than evidence-based. Concern C is closed with
+no code change. The one affected row (`Nine Inch Nails — Nine Inch Noize [Collaboration]`)
+moves into Concern D's scope as a normal unresolved-artwork row (its `status` will read
+`'not_found'` per Concern A, since MB's actual catalogued title is `Nine Inch Noize` without
+the suffix) — no special-cased fix is planned for it.
+
+**If this resurfaces:** if a future diagnostic finds a *second* square-bracket or MS-specific
+title-tag case, re-open this with both data points before writing a stripping rule — one
+occurrence was correctly judged insufficient evidence of a real pattern.
