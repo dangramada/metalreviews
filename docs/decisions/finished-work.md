@@ -568,3 +568,25 @@ STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs
   insert/delete-race candidates across the full 71-row log. **Not fixed this session** —
   needs a `handleUndo` path that re-derives `degree` from the truncated answer log the same
   way resume does, or an explicit call to the same inference helper.
+
+---
+
+- ~~**Criteria Calibration header layout** — needs a dedicated reorganization pass.~~ —
+  **DONE (2026-09-07, `criteria-calibration-page-redesign`).** The old `ProgressHeader`
+  (Progress ring + Accuracy status centered, "Stop here" right, empty flex spacer left) is
+  replaced by `CalibrationPageHeader` (breadcrumb + title/badge row + Tabs, persistent across
+  Guide/Calibration/Results) and `WorkStatusRow` (linear progress, scoped to the question view
+  only). Full detail: `criteria-calibration-page-redesign.md`. Related, distinct scope (still
+  open, do **not** merge the two): "Accuracy display conflates two different signals" below
+  [2026-09-18 reorg note: that entry lives in `deferred-work.md`, not below in this file — this
+  item was relocated here on its own, the cross-referenced entry was not] — that entry is about
+  _what_ the header communicates, this one was about _how it is laid out_.
+
+- ~~**`ErrorBoundary.tsx`'s reload button hardcodes `colorPalette="orange"` instead of
+  `primaryButton`.**~~ — **DONE 2026-09-16** (`consistency-button-tokens.md`). Not the no-op it
+  first looked like: Chakra's stock `orange.500` (`#f97316`) and the app's `ember.500`
+  (`#ff6a1a`) are genuinely different colours, so this button was rendering a visibly different
+  accent than every other primary action. Same pass also moved three live `colorPalette="gray"`
+  action buttons (`WorkStatusRow`'s Pause, `ActionRail`'s icon rail, the Guide carousel's
+  Prev/Next) onto `secondaryButton` — a true no-op there, since that token IS `{ colorPalette:
+'gray' }`, but now consistent with every other secondary button in the app.
