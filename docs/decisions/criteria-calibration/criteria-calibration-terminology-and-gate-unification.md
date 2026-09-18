@@ -123,8 +123,20 @@ yet merged. 397/397 tests pass, `tsc` clean, `eslint` clean (two pre-existing
 `react-hooks/set-state-in-effect` findings in `CriteriaCalibrationPage.tsx` predate this branch
 and are unrelated — confirmed by diffing against `master`).
 
-**Not live-verified in-browser.** Per this project's QA-account convention (no stored
-credentials; Dan logs in himself), the auth-gated flows this touches (Favorites' gate dialogs,
-the Album Rating page's persistent action, the calibration resume banner) could not be
-exercised against a real logged-in session from this environment. Needs a live pass on Dan's
-account before or shortly after merge.
+**Live-verified 2026-09-18** on Dan's own account (Dan logged in himself in the browser pane,
+per the QA-account convention — no credentials entered by Claude): confirmed the soft gate
+fires exactly as specced ("Keep going for a steadier score", three buttons, "Go to calibration"
+styled as primary) for this account's real `hasWeights: true, tier: 'none'` state; "Evaluate
+Album" bypasses to `/rate/:albumId`; on reaching the final Score/Rank state, "SCORE LEVEL:
+UNFOCUSED" renders next to the new persistent "GO TO CALIBRATION" action, which navigates
+correctly; the calibration resume banner appears on entry, sits above the tab bar without
+disturbing the header/panel join, and dismisses cleanly; the `TierAccuracyBadge`'s new
+aria-label (`"Unfocused tier. 5 percent of your weighting settled."`) and tooltip render
+correctly; the untouched `!` warning badge's aria-label reads the new `"Score level: Unfocused"`
+text. The hard gate (`hasWeights === false`) was **not** exercised live — this account already
+has weights, and forcing that state would mean wiping real calibration data, out of proportion
+for a copy/branching check already covered by `FavoritesPage.test.tsx`.
+
+Side effect of verification: rating all six criteria on Dan's real favorited album (DJ Urutau –
+Ornitofagia) was necessary to reach the final Score/Rank state and see the persistent action —
+this is a real, kept change to his account data, not a rollback-and-discard test.
