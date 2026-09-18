@@ -105,6 +105,16 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent merge: `musicbrainz-unified-release-group-fallback` — artwork tier-3 and the
+release-date fallback now share one release-group fetch (a plain cached variable, populated once
+by whichever field needs it first — both consumers are sequential awaits, never concurrent, so
+no Promise-memoization wrapper was needed) instead of each field making its own; live-diagnosed
+and rejected release-group `genres` as a third genre-fallback tier (8% yield, worse than the
+already-rejected `tags` at 15%). 52/52 files, 401/401 tests, `tsc` clean on `master` post-merge.
+Merged to `master` `--no-ff` at `3b724ce` on 2026-09-18. Rollback tag:
+`pre-merge-musicbrainz-unified-release-group-fallback`. Full detail:
+`docs/decisions/musicbrainz-enrichment.md`.
+
 Most recent merge: `criteria-calibration-terminology-gate-unification` — terminology
 unification ("settled" replaces "clear"/"pinned down"; "Score level" replaces "Score
 confidence") across Criteria Calibration/Album Rating/Favorites, plus a hard/soft Favorites gate
