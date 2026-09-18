@@ -223,7 +223,9 @@ describe('lookupMusicBrainz — tier-3 releases[0] fallback (Concern E)', () => 
         });
       }
       if (url === 'https://musicbrainz.org/ws/2/release/release-0-no-art') {
-        return Promise.resolve({ data: { date: '2020-01-01', genres: [{ name: 'doom metal', count: 1 }] } });
+        return Promise.resolve({
+          data: { date: '2020-01-01', genres: [{ name: 'doom metal', count: 1 }] },
+        });
       }
       // Tier 1: release-group CAA lookup — no art
       if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
@@ -276,7 +278,9 @@ describe('lookupMusicBrainz — tier-3 releases[0] fallback (Concern E)', () => 
         });
       }
       if (url === 'https://musicbrainz.org/ws/2/release/release-0-no-art') {
-        return Promise.resolve({ data: { date: '2020-01-01', genres: [{ name: 'doom metal', count: 1 }] } });
+        return Promise.resolve({
+          data: { date: '2020-01-01', genres: [{ name: 'doom metal', count: 1 }] },
+        });
       }
       if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
         return Promise.reject({ response: { status: 404 } });
@@ -338,7 +342,9 @@ describe('lookupMusicBrainz — tier-3 releases[0] fallback (Concern E)', () => 
         url === 'https://musicbrainz.org/ws/2/release-group/rg-mbid' &&
         config?.params?.inc === 'releases'
       ) {
-        return Promise.resolve({ data: { releases: [{ id: 'release-0-no-art' }, ...manyReleases] } });
+        return Promise.resolve({
+          data: { releases: [{ id: 'release-0-no-art' }, ...manyReleases] },
+        });
       }
       if (url.startsWith('https://coverartarchive.org/release/sibling-')) {
         siblingCaaCallCount++;
@@ -354,5 +360,188 @@ describe('lookupMusicBrainz — tier-3 releases[0] fallback (Concern E)', () => 
 
     expect(result.artworkUrl).toBeNull();
     expect(siblingCaaCallCount).toBe(10);
+  });
+});
+
+describe('lookupMusicBrainz — release-group date fallback', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('falls back to the release-group first-release-date when release.date is empty', async () => {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (url === 'https://musicbrainz.org/ws/2/release/' && config?.params?.query) {
+        return Promise.resolve({
+          data: {
+            releases: [
+              {
+                id: 'release-mbid',
+                'release-group': { id: 'rg-mbid' },
+                'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+              },
+            ],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-mbid') {
+        // no date on the matched release
+        return Promise.resolve({
+          data: { date: null, genres: [{ name: 'doom metal', count: 1 }] },
+        });
+      }
+      if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'art.jpg' }] } });
+      }
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-mbid' &&
+        config?.params?.inc === 'releases'
+      ) {
+        return Promise.resolve({
+          data: { 'first-release-date': '2008-07-27', releases: [{ id: 'release-mbid' }] },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    const result = await lookupMusicBrainz('Chelsea Grin', 'Chelsea Grin');
+
+    expect(result.releaseDate).toBe('2008-07-27');
+    expect(result.status).toBe('ok');
+  });
+
+  it('leaves releaseDate null when the release-group also has no first-release-date', async () => {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (url === 'https://musicbrainz.org/ws/2/release/' && config?.params?.query) {
+        return Promise.resolve({
+          data: {
+            releases: [
+              {
+                id: 'release-mbid',
+                'release-group': { id: 'rg-mbid' },
+                'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+              },
+            ],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-mbid') {
+        return Promise.resolve({
+          data: { date: null, genres: [{ name: 'doom metal', count: 1 }] },
+        });
+      }
+      if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'art.jpg' }] } });
+      }
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-mbid' &&
+        config?.params?.inc === 'releases'
+      ) {
+        return Promise.resolve({ data: { releases: [{ id: 'release-mbid' }] } });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.releaseDate).toBeNull();
+    expect(result.status).toBe('ok');
+  });
+
+  it('makes exactly one release-group request when both artwork tier-3 and the date fallback need it', async () => {
+    let releaseGroupCallCount = 0;
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (url === 'https://musicbrainz.org/ws/2/release/' && config?.params?.query) {
+        return Promise.resolve({
+          data: {
+            releases: [
+              {
+                id: 'release-0-no-art',
+                'release-group': { id: 'rg-mbid' },
+                'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+              },
+            ],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-0-no-art') {
+        // no date and no genres on the matched release — both fallbacks need release-group data
+        return Promise.resolve({ data: { date: null, genres: [] } });
+      }
+      // Tier 1 + tier 2 artwork lookups both fail
+      if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
+        return Promise.reject({ response: { status: 404 } });
+      }
+      if (url === 'https://coverartarchive.org/release/release-0-no-art') {
+        return Promise.reject({ response: { status: 404 } });
+      }
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-mbid' &&
+        config?.params?.inc === 'releases'
+      ) {
+        releaseGroupCallCount++;
+        return Promise.resolve({
+          data: {
+            'first-release-date': '2008-07-27',
+            releases: [{ id: 'release-0-no-art' }, { id: 'sibling' }],
+          },
+        });
+      }
+      if (url === 'https://coverartarchive.org/release/sibling') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'tier3-art.jpg' }] } });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/artist/artist-mbid') {
+        return Promise.resolve({ data: { genres: [] } });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.artworkUrl).toBe('tier3-art.jpg');
+    expect(result.releaseDate).toBe('2008-07-27');
+    expect(releaseGroupCallCount).toBe(1);
+  });
+
+  it('does not flip status to error when the release-group detail fetch fails', async () => {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (url === 'https://musicbrainz.org/ws/2/release/' && config?.params?.query) {
+        return Promise.resolve({
+          data: {
+            releases: [
+              {
+                id: 'release-mbid',
+                'release-group': { id: 'rg-mbid' },
+                'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+              },
+            ],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-mbid') {
+        return Promise.resolve({
+          data: { date: null, genres: [{ name: 'doom metal', count: 1 }] },
+        });
+      }
+      if (url === 'https://coverartarchive.org/release-group/rg-mbid') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'art.jpg' }] } });
+      }
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-mbid' &&
+        config?.params?.inc === 'releases'
+      ) {
+        return Promise.reject(new Error('network timeout'));
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await lookupMusicBrainz('Some Band', 'Some Album');
+
+    expect(result.status).toBe('ok');
+    expect(result.releaseDate).toBeNull();
+    expect(result.artworkUrl).toBe('art.jpg');
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
   });
 });
