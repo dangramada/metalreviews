@@ -4,6 +4,15 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `metalstorm-backcatalogue-exclusion` — merged to master `aa7a83e` (`--no-ff`), 2026-09-18;
+  rollback tag `pre-merge-metalstorm-backcatalogue-exclusion` — hides a Metal Storm review when
+  its album's `release_date` year isn't the current calendar year (per-review, not per-album;
+  null `release_date` stays visible, fail-safe); computed at fetch time, no schema change,
+  retroactive by construction. Paused mid-session pending the same-title-collision diagnostic,
+  resumed once that closed with confirmed zero overlap. 53/53 files, 409/409 tests, `tsc` clean
+  on `master` post-merge. Live count re-run fresh at merge time: 6 hidden (Khemmis dropped off
+  after its own correction). Full detail: `docs/decisions/metalstorm-backcatalogue-exclusion.md`
+
 - `criteria-calibration-terminology-gate-unification` — merged to master `d082115` (`--no-ff`),
   2026-09-18; rollback tag `pre-merge-criteria-calibration-terminology-gate-unification` —
   unifies calibration/rating terminology ("settled" replaces "clear"/"pinned down", "Score

@@ -103,7 +103,26 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+`album-identity-same-title-collision-fix` — done (4 commits, 2b-ii closed, all 29 same-title-
+collision pairs accounted for) but not yet merged to `master` — a merge decision is still
+pending, separate from the work below. Full detail: `docs/decisions/album-identity/album-
+identity-same-title-release-group-collision.md`.
+
+Most recent merge: `metalstorm-backcatalogue-exclusion` — hides a Metal Storm review when its
+album's `release_date` year isn't the current calendar year (per-review, not per-album;
+`release_date` null stays visible, fail-safe); computed at fetch time in `src/App.tsx`, no
+schema change, retroactive by construction (already demonstrated live: Khemmis dropped off the
+hidden-list purely from its own same-title-collision fix, no filter-side change needed).
+Required synthetic multi-review test added (`AMG + excluded Metal Storm` → single-source, not
+multi-source with a gap) since real catalog data doesn't currently exercise that combination;
+a zero-review-row regression against `App.favorites.test.tsx`'s existing shared-plumbing test
+was caught and fixed during implementation. 53/53 files, 409/409 tests, `tsc` clean on `master`
+post-merge. Live count re-run fresh at implementation time: 6 hidden (down from 7 — Khemmis
+excluded after its correction), all 6 confirmed absent from the rendered home page. Paused
+earlier this session pending the same-title-collision diagnostic; resumed once that closed with
+confirmed zero overlap. Merged to `master` `--no-ff` at `aa7a83e` on 2026-09-18. Rollback tag:
+`pre-merge-metalstorm-backcatalogue-exclusion`. Full detail:
+`docs/decisions/metalstorm-backcatalogue-exclusion.md`.
 
 Most recent merge: `musicbrainz-unified-release-group-fallback` — artwork tier-3 and the
 release-date fallback now share one release-group fetch (a plain cached variable, populated once
