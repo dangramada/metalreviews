@@ -16,6 +16,7 @@ A Node.js script (run with `tsx`) that:
 - Review identity/uniqueness is `(album_id, source)`. Up to 3 `reviews` rows can correctly exist per album, one per source.
 - Upserts touched `albums` and `reviews` rows to Supabase — rows not touched this run are left alone
 - Contains `node-cron` scheduling wiring in `scripts/ingest-cli.ts` (07:00 and 19:00 daily) — the code is real and functional, but no production process runs `ingest-cli.ts`, so the schedule never fires. Ingest is currently manual-only. See `docs/decisions/ingest-trigger-and-security.md`.
+- **Correction, 2026-09-18 (append-only — the bullet above is stale, left as-is per convention):** the claim above describes an earlier, now-superseded state. Ingest is **not** manual-only — a GitHub Actions schedule (`.github/workflows/ingest.yml`, `0 7,19 * * *` UTC) genuinely calls `POST /api/ingest` on the deployed Render service twice daily, confirmed live by `ingest-trigger-and-security.md`'s own 2026-07-21 summary and the still-unmodified workflow file. `server.ts`'s handler returns `202` immediately and runs `runIngestion()` in the background behind a single-flight `ingesting` lock, so the scheduled trigger and any concurrent manual trigger can't run two ingests at once. Found and stated this way during the same-title-release-group-collision diagnostic's step 2a — see `docs/decisions/album-identity/album-identity-same-title-release-group-collision.md`.
 
 Each source has its own extractor module in `src/scraper/`:
 

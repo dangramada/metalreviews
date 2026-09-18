@@ -409,7 +409,126 @@ pre-existing).
 design, whether/how to resolve the 7 unconfirmed-ambiguous rows among them) is not decided.
 This step and its follow-up only stop both re-fetch paths from silently re-processing them.
 
-## Explicitly not done this session
+## 2b-ii progress — raw data pull, 7 more corrections, and a full accounting of all 29 (2026-09-18)
+
+**Raw data pull (report only).** For the 25 pairs not covered by the earlier 4-pair manual
+check, pulled every candidate release-group's real `first-release-date` (fetched fresh — the
+original diagnostic only recorded an earliest-observed-release proxy), which one `releases[0]`
+currently resolves to, and the live stored `albums` row. Full data:
+`docs/data/album-identity/remaining-25-collision-raw-data-2026-09-18.json`, script
+`scripts/diagnostics/pull-remaining-25-collision-raw-data-2026-09-18.ts`. Incidental finding:
+3 pairs (**Stormhammer, Tyraels Ascension, Cancer Bats**) have a stored id that no longer
+matches what `releases[0]` resolves to *today* — confirms MB's search ordering genuinely
+drifts over time for some pairs, not just an arbitrary-once-then-stable pick (Khemmis's
+re-run matched its original wrong pick exactly; these three didn't).
+
+Also cross-checked the paused Metal Storm back-catalogue exclusion filter's diagnostic:
+re-ran it fresh rather than trusting a restated list, confirming 6 reviews now hidden (down
+from 7 — Khemmis dropped off after its fix) and identifying the previously-unrecalled 7th as
+**Chelsea Grin — Chelsea Grin**. Zero overlap between that list and the 29 same-title-collision
+pairs.
+
+### Task 1 — 7 more rows corrected via live research
+
+Same pattern as step 1 (Khemmis/Moonspell): `lookupMusicBrainzByReleaseGroupId()`, the
+artwork/date/genre non-regression guards, and a duplicate-id check per row. Script:
+`scripts/diagnostics/fix-7-confirmed-collision-rows-2026-09-18.ts`. Each was confirmed broken
+via live research this session — a real album/EP whose stored or currently-resolving data
+traced to a promotional Single of the same title instead.
+
+| Band — Album | Correct release-group id | Type | Date |
+|---|---|---|---|
+| Yes — Aurora | `96a132b5-1e90-4ac9-87cf-73d696fb7bc5` | Album | 2026-06-12 |
+| Shadowborne — Heaven's Falling | `84bf95c1-f2d4-4d6b-aafb-90d6c043a240` | Album | 2026-06-19 |
+| Elder — Through Zero | `3fd4d36a-9fef-4bd0-b822-3eb14a150078` | Album | 2026-05-29 |
+| Black Veil Brides — Vindicate | `a6a02c12-2016-435c-ad3d-e7f999829eb8` | Album | 2026-05-08 |
+| Haken — In a Fever Dream | `44df52ad-cf1a-425f-8b27-583d60d851a9` | EP | 2026-07-17 |
+| Cancer Bats — Give Me Dirt | `7fb3424d-975d-41f2-8559-6c0a6f631fc3` | Album | 2026-08-07 |
+| Flotsam and Jetsam — Rats in the Temple | `fe4f7edb-5ea6-4f53-9a9a-c62341694504` | Album | 2026-08-28 |
+
+Verified: duplicate-id check clean for all 7 (no pre-existing row already held the target id);
+re-fetched all 7 post-write to confirm the id/date match the table above; spot-checked 3
+rendered cards live (Yes, Black Veil Brides, Haken) across 2 of the 3 sources — correct
+artwork and date rendering confirmed. `reviews` rows confirmed untouched. Full suite 414/414,
+`tsc` unchanged (210 pre-existing).
+
+### Task 2 — Stormhammer confirmed protected, no data change
+
+Stormhammer — Wrath of the Hammer's stored data (`3239d455-98cf-49d1-8afc-ee844be18d26`, Album,
+2026-07-17) is already correct — it's the pair that drifted the *other* direction (today's live
+`releases[0]` now resolves to the Single, the wrong one, but the row was written before that
+drift happened). Confirmed live: `mb_release_group_id` is genuinely `3239d455-...` on the row,
+and `stormhammer__wrath of the hammer` is genuinely present in
+`FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`. Both guarded call sites (`selectAlbumBackfillCandidates`
+and `needsMbLookup`) will therefore never re-fetch this pair, regardless of which way
+`releases[0]` drifts in the future. No data touched.
+
+### Task 3 — Sun Guts left alone, noted for later
+
+Sun Guts — Supervoid has no enrichment at all today (`mb_release_group_id`, `release_date`,
+`artwork_url`, `genre` all null/empty) — nothing to regress, so no urgency, and no fix applied
+here. **Correct target whenever it is addressed: the Album candidate
+(`e155310e-2880-4373-8fc4-cd1f6b485bb6`), not the Single (`785a577d-...`, what `releases[0]`
+currently resolves to).** Data-quality wrinkle worth flagging, not our bug: press coverage
+reportedly announced the album for **August 16, 2026**, but MB's Album candidate shows a
+`first-release-date` of **September 4, 2026** — a real discrepancy in MB's own data, not
+something introduced by this codebase.
+
+### Task 4 — automated artwork check on the remaining pairs
+
+**Count correction, checked rather than assumed:** the brief described this bucket as 15 (11
+type-already-matches + 4 same-type/same-date: Solace, Imperium, Tyraels Ascension, Devil
+Master). Recomputing the actual remaining set (29 − 4 earlier-verified − 7 Task 1 − Stormhammer
+− Sun Guts) gives **16**, not 15 — the "type already matches" bucket is 12 pairs, not 11. All
+16 were checked; nothing was silently dropped.
+
+Method: fetched Cover Art Archive artwork for both candidate release-groups per pair
+(release-group-level lookup only, no tier-3 sibling sweep — a lightweight triage check, not
+the production enrichment path) and visually compared. Scripts:
+`scripts/diagnostics/artwork-compare-remaining-16-2026-09-18.ts` and its
+`artwork-compare-resume-2026-09-18.ts` follow-up (CAA/archive.org hung indefinitely on 2 of the
+32 fetches — the same failure mode already documented for the production path in
+`musicbrainz-enrichment.md` — resolved with a hard `AbortController` timeout).
+
+**Result: 8 matched, 3 differed, 5 not comparable (only one side or neither has any CAA art).**
+
+Matched (same or effectively-same cover, low risk, no further action): Apogean, Solace,
+DevilDriver, Inferi, Pro-Pain, Xandria, The Hu (identical up to crop), Electric Sun Defence
+(same photo, different color grading between candidates — treated as the same design).
+
+Not comparable (nothing to conflict with — at most one candidate has CAA art at all): Dysgnostic,
+Imperium, Phase Meridian, Tyraels Ascension, Devil Master.
+
+**Differed — flagged for a manual look, not fixed here:**
+
+| Band — Album | Candidate A | Candidate B | Currently stored |
+|---|---|---|---|
+| Green Lung — Necropolitan | `ebcd8232-4460-48d8-a744-37abb851f8fa` Album 2026-09-11 (purple/black illustration) | `48ee13ad-cd1f-48cb-a44e-e0f7087f01be` Single 2026-06-22 (green/black, different illustration entirely) | `ebcd8232-...` (candidate A — matches `releases[0]`, type expectation looks right already) |
+| Opeth — Sorceress | `8902256f-d9f0-4043-a8f3-2412fb3d3db7` Album 2016-09-30 (peacock-feather cover) | `04aec7a5-7756-47ff-89e8-1bb3f40ae730` Single 2016-08-02 (woman-with-candle cover) | `8902256f-...` (candidate A — matches `releases[0]`) |
+| Beseech — Future Present Past | `a06e5b6a-10a4-496b-8ee1-01552c9b77e9` Album 2026-08-28 (close-up figure in forest) | `07c86d04-b946-4948-a5fc-a8599c40f870` Single 2026-08-07 (distant figure on road, same palette/branding) | `a06e5b6a-...` (candidate A — matches `releases[0]`) |
+
+All 3 currently resolve to and are stored as candidate A already, so there's no known live
+defect on these rows today — flagged only because the two candidates are visibly different
+enough that a future re-fetch or drift (as already observed for Stormhammer/Tyraels
+Ascension/Cancer Bats above) could land on the wrong one with nothing to catch it. No fix
+applied; carried forward as open items.
+
+### Full accounting of all 29 pairs
+
+4 (earlier manual check: Khemmis + Moonspell corrected, Devin Townsend + Wormwood confirmed
+fine) + 7 (Task 1, corrected) + 1 (Stormhammer, confirmed protected) + 1 (Sun Guts, deliberately
+untouched, noted) + 8 (Task 4 matched) + 3 (Task 4 differed, flagged) + 5 (Task 4 not
+comparable) = **29 — every pair is now either corrected, confirmed-safe, or explicitly
+surfaced for a follow-up decision.** 2b-ii's remaining open question is narrower than before:
+what (if anything) to do about the 3 flagged-differing pairs and the drift behavior observed on
+3 others, not a blanket "29 unresolved" problem anymore.
+
+**Not done in this task:** no fix applied to Green Lung, Opeth, or Beseech (flagged, not
+corrected — none currently show a live defect); no systemic disambiguation logic changed; the
+Metal Storm back-catalogue exclusion filter stays paused (this task only re-confirmed its
+diagnostic's list, per the cross-check above).
+
+## Explicitly not done this session (step 2a / 2b-i — historical, kept as originally written)
 
 - No fix to Step A's disambiguation logic.
 - No resuming/merging of the Metal Storm back-catalogue exclusion filter — stays paused.

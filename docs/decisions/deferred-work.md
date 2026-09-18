@@ -1082,30 +1082,32 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
 
 ## New items, 2026-09-18 (same-title release-group collision diagnostic)
 
-- **Same-title, different-real-work MusicBrainz collisions — 2 of 29 corrected, 27 still open,
-  no systemic fix designed yet.** Confirmed live: 29 of 320 `albums` rows have Step A's search
-  (`artist:"{band}" AND release:"{album}"`) matching more than one distinct release-group.
-  Manual check narrowed this to 4 candidates for "genuinely different works" (not Album+promo-
-  Single); of those, Devin Townsend and Wormwood turned out already correct, and **Khemmis and
-  Moonspell were confirmed broken and corrected 2026-09-18** (step 1 of 2 — see the doc's
-  2026-09-18 follow-up entry for the exact fields/ids). The other 25 flagged pairs remain
-  unconfirmed either way. Full list, method, and the merge-risk analysis:
-  `album-identity/album-identity-same-title-release-group-collision.md`. Blocks resuming the
-  Metal Storm back-catalogue exclusion filter, which trusts `release_date` as ground truth.
+- **Same-title, different-real-work MusicBrainz collisions — all 29 now accounted for; 3 flagged
+  pairs are the only open data question left.** Confirmed live: 29 of 320 `albums` rows have
+  Step A's search (`artist:"{band}" AND release:"{album}"`) matching more than one distinct
+  release-group. Full list, method, and the running tally: `album-identity/album-identity-same-
+  title-release-group-collision.md`. Blocks resuming the Metal Storm back-catalogue exclusion
+  filter, which trusts `release_date` as ground truth (a fresh cross-check 2026-09-18 found 0
+  overlap between that filter's 6 currently-hidden reviews and these 29 pairs, for what it's
+  worth once the filter resumes).
+  **Data corrections, 2026-09-18: 9 of 29 corrected/confirmed by hand** — Khemmis, Moonspell
+  (step 1), then Yes, Shadowborne, Elder, Black Veil Brides, Haken, Cancer Bats, Flotsam and
+  Jetsam (7 more, same `lookupMusicBrainzByReleaseGroupId()` + non-regression-guard pattern).
+  Devin Townsend, Wormwood, and Stormhammer confirmed already correct (Stormhammer specifically
+  confirmed protected against future drift — its `norm_key` is in the exclusion set below).
+  Sun Guts deliberately left alone (no enrichment to regress) with its correct target
+  (`e155310e-...`, the Album) noted for whenever it's addressed, plus an MB-side date
+  discrepancy (press: Aug 16 2026, MB: Sep 4 2026) flagged as not-our-bug.
+  **Automated artwork triage on the remaining 16: 8 matched (low risk), 3 flagged (Green Lung,
+  Opeth, Beseech — visibly different candidate covers, no live defect today but nothing guards
+  against future drift), 5 not comparable (at most one candidate has any CAA art).**
   **Step 2b-i shipped 2026-09-18: `isAlbumEnriched()` widened to also require
-  `mb_release_group_id`, with all 29 flagged pairs excluded from the backfill loop** (new
-  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` constant + `selectAlbumBackfillCandidates`'s new
-  `excludedNormKeys` param) — step 2a's blast-radius diagnostic had found that a naive widen
-  would re-expose 8 already-ambiguous rows (7 unconfirmed, 1 confirmed-safe) to the same
-  ambiguous Step A search that broke Khemmis/Moonspell, with no guard to catch a regression.
-  409/409 tests, `tsc` unchanged. Verified against the live catalog (read-only): 0 of the 29
-  leak into the backfill candidate list; 122 non-flagged missing-id rows are correctly
-  selected. **Follow-up shipped same day/branch: the main per-review loop's `needMbCall` gap is
-  closed too** — same `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`, pulled into a new pure
-  `needsMbLookup()` so both re-fetch paths (backfill loop and main loop) are now guarded, not
-  just the backfill loop. 414/414 tests, `tsc` still unchanged. **Step 2b-ii (what happens to
-  the 29 excluded rows — disambiguation design, resolving the 7 unconfirmed) is still open and
-  unscoped.** No systemic fix for the remaining 25 flagged-collision rows is scoped yet either
-  — first needs a decision on how to disambiguate (Album vs. same-titled promo Single looks
-  like a different, easier sub-problem than two substantively different albums; see the doc's
-  "Result" section for the split).
+  `mb_release_group_id`, with all 29 flagged pairs excluded from both re-fetch paths** (backfill
+  loop's `excludedNormKeys` param and the main loop's new `needsMbLookup()`, both keyed off
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`) — a naive widen would otherwise have re-exposed
+  already-ambiguous rows to the same unguarded search that broke Khemmis/Moonspell. 414/414
+  tests, `tsc` unchanged throughout all of the above.
+  **Step 2b-ii is narrower now, not closed:** whether/how to act on the 3 flagged-differing
+  pairs and the drift behavior independently observed on 3 others (Stormhammer, Tyraels
+  Ascension, Cancer Bats — where `releases[0]`'s resolution changed after the row was written)
+  is still an open, unscoped decision.

@@ -29,16 +29,23 @@ complete and verified.
   post-submit `findExistingAlbum()` check runs). `album-identity-decisions.md` §5 /
   `album-identity-frontend-favorites.md`.
 
-**Confirmed open bug, diagnosed 2026-09-18:** Step A's search
+**Confirmed bug, diagnosed 2026-09-18, now mostly resolved:** Step A's search
 (`artist:"{band}" AND release:"{album}"`) can match two genuinely different real works sharing
 a title (e.g. Khemmis's self-titled 2013 EP vs. self-titled 2026 album) — `releases[0]`'s
-arbitrary pick then attaches the wrong work's data. 29 of 320 albums currently have more than
-one candidate release-group; Khemmis and Moonspell manually confirmed broken and corrected the
-same day (step 1 of 2), the other 27 unconfirmed. A currently-enriched row also silently blocks
-any future re-check via `norm_key` alone, regardless of `mb_release_group_id` — fixing that
-(step 2) is scoped but not started. See `album-identity-same-title-release-group-collision.md`
-for the full list, merge-risk analysis, and correction detail. Still blocks resuming the Metal
-Storm back-catalogue exclusion filter.
+arbitrary pick then attaches the wrong work's data. Of the 29 flagged pairs: **9 corrected/
+confirmed-broken-and-fixed by hand** (Khemmis, Moonspell, Yes, Shadowborne, Elder, Black Veil
+Brides, Haken, Cancer Bats, Flotsam and Jetsam), **3 confirmed already correct** (Devin
+Townsend, Wormwood, Stormhammer — the last also confirmed protected against future drift), 1
+(Sun Guts) deliberately left alone with its correct target noted, **8 auto-verified low-risk**,
+**3 flagged for a possible future look** (Green Lung, Opeth, Beseech — no live defect, just
+visibly different candidate art), and 5 not comparable either way. The
+`isAlbumEnriched()`-widening fix (step 2b-i, both re-fetch paths now excluded via
+`FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`) is shipped. What's still open: whether to act on the
+3 flagged pairs (step 2b-ii). See
+`album-identity/album-identity-same-title-release-group-collision.md` for the full list,
+merge-risk analysis, and correction detail. Still blocks resuming the Metal Storm
+back-catalogue exclusion filter (though a fresh cross-check found 0 overlap between that
+filter's currently-hidden reviews and these 29 pairs).
 
 ## Index (pipeline order)
 
@@ -55,6 +62,8 @@ Storm back-catalogue exclusion filter.
    re-plumb, `findExistingAlbum`
 7. `album-identity-visibility-and-duplicate-fix.md` — home-page visibility filter +
    duplicate-check fixes
-8. `album-identity/album-identity-same-title-release-group-collision.md` — diagnostic
-   (read-only): same-title, different-real-work release-group collisions; 29/320 albums
-   flagged; blocks the Metal Storm back-catalogue exclusion filter
+8. `album-identity/album-identity-same-title-release-group-collision.md` — same-title,
+   different-real-work release-group collisions: 29/320 albums flagged, 9 corrected, 3
+   confirmed-safe, 3 flagged for a possible future look, rest cleared; `isAlbumEnriched()`
+   widened (step 2b-i) to guard both re-fetch paths; blocks the Metal Storm back-catalogue
+   exclusion filter
