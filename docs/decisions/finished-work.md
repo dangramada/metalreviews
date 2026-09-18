@@ -537,3 +537,182 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
     **bypass RLS entirely**, so any script touching this table must filter on `user_id`
     explicitly — `scripts/verify-pre-reset-step0.ts` and
     `scripts/reset-calibration-2026-08-15.ts` both do.
+
+---
+
+- **[verified 2026-09-18: closed by `criteria-calibration-cross-degree-undo-redo-fix`, merged
+  `46fbc98` 2026-08-16 (`branch-log.md`). Confirmed live in code: `CriteriaCalibrationPage.tsx`'s
+  `handleUndo` and `handleRedo` both call `setDegree(inferDegreeFromAnswers(...))`, re-deriving
+  `degree` from the post-mutation answer log exactly as this item calls for below. Also already
+  described as shipped by this file's own separate `useCalibrationResume.ts`/
+  `inferDegreeFromAnswers` drift-risk item, which the original "Undo" item below was never
+  cross-linked to.]** Undo across a degree boundary shows the wrong degree's content until a
+  manual page refresh. Live-observed 2026-08-15, second calibration session, Undo from degree 4
+  back to degree 3 around round 46. Root cause diagnosed (read-only, not fixed): `degree`
+  (`CriteriaCalibrationPage.tsx`) is a plain `useState`, mutated in exactly two places — the
+  resume effect and `handleEscalate` (line ~501) — both forward-only. `handleUndo` (line
+  ~424) pops `answers`/`windowHistory` but never touches `degree`. `action` (the displayed
+  question) DOES correctly recompute on every Undo — it's a `useMemo` on
+  `[catalog, session, degree]` and `session` rebuilds fresh from `answers` — so this is not
+  a memoization-staleness bug; it recomputes against the wrong (stale, never-decremented)
+  `degree` value, so once every degree-4 answer is undone it still calls
+  `nextAction(session, degree=4)` and gets a _fresh_ degree-4 result instead of reverting to
+  degree 3. A page refresh fixes it because reload re-invokes `useCalibrationResume`, which
+  re-derives `degree` from the now-shorter persisted log (`Math.max(...profile-key-counts,
+STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs on mount.
+  Explicitly distinct from the 2026-08-14 "degree came back at 2 instead of 3 after
+  refresh" note in `criteria-calibration-auto-escalation-signal.md` — that one confirmed
+  `useCalibrationResume`'s resume-time inference is _correct_; this is a live in-session gap
+  with no resume involved. Answer-log data integrity checked and unaffected by this
+  specific Undo: 0 duplicate profile-pairs, 0 out-of-order timestamps, 0 sub-50ms
+  insert/delete-race candidates across the full 71-row log. **Not fixed this session** —
+  needs a `handleUndo` path that re-derives `degree` from the truncated answer log the same
+  way resume does, or an explicit call to the same inference helper.
+
+---
+
+- ~~**Criteria Calibration header layout** — needs a dedicated reorganization pass.~~ —
+  **DONE (2026-09-07, `criteria-calibration-page-redesign`).** The old `ProgressHeader`
+  (Progress ring + Accuracy status centered, "Stop here" right, empty flex spacer left) is
+  replaced by `CalibrationPageHeader` (breadcrumb + title/badge row + Tabs, persistent across
+  Guide/Calibration/Results) and `WorkStatusRow` (linear progress, scoped to the question view
+  only). Full detail: `criteria-calibration-page-redesign.md`. Related, distinct scope (still
+  open, do **not** merge the two): "Accuracy display conflates two different signals" below
+  [2026-09-18 reorg note: that entry lives in `deferred-work.md`, not below in this file — this
+  item was relocated here on its own, the cross-referenced entry was not] — that entry is about
+  _what_ the header communicates, this one was about _how it is laid out_.
+
+- ~~**`ErrorBoundary.tsx`'s reload button hardcodes `colorPalette="orange"` instead of
+  `primaryButton`.**~~ — **DONE 2026-09-16** (`consistency-button-tokens.md`). Not the no-op it
+  first looked like: Chakra's stock `orange.500` (`#f97316`) and the app's `ember.500`
+  (`#ff6a1a`) are genuinely different colours, so this button was rendering a visibly different
+  accent than every other primary action. Same pass also moved three live `colorPalette="gray"`
+  action buttons (`WorkStatusRow`'s Pause, `ActionRail`'s icon rail, the Guide carousel's
+  Prev/Next) onto `secondaryButton` — a true no-op there, since that token IS `{ colorPalette:
+'gray' }`, but now consistent with every other secondary button in the app.
+
+---
+
+[verified 2026-09-18: this item's own body already answers the question its title asks. The
+"ANSWERED 2026-08-17" section below (citing `criteria-calibration-accuracy-threshold-recalibration.md`
+§6) closes it same-day it was opened; the resulting consequence — keep the exhaustion-fallback
+copy neutral about cause — is already implemented and covered by an existing test. The top-line
+title below ("OPEN QUESTION... cause unknown") is stale and contradicted by the item's own later
+content; left unedited here per the relocation convention (no rewriting of original findings).
+Relocated from `deferred-work.md`'s "New items, 2026-08-17" section verbatim, including this
+item's own prior 2026-09-15 reorg note.]
+
+- **OPEN QUESTION: several plausible preference shapes never reach High accuracy — cause
+  unknown.** Synthetic oracle data from the 2026-08-16 diagnostic shows single-dominant,
+  front-loaded and linear-control shapes running to natural exhaustion within 86-90 real
+  answers without ever crossing `SCORE_SPREAD_HIGH_THRESHOLD` (`#5 front-loaded` peaks at
+  accuracy 0.63). **Whether this is genuine under-information in those shapes, or a blind spot
+  in `computeScoreSpreadAccuracy` for them, is not known** — it has never been investigated,
+  and the tiered-checkpoints brief explicitly scoped it out. Needs a data-analysis session:
+  compare solved values against ground truth for those oracles specifically, and establish
+  whether accuracy is under-reporting a model that is actually well determined, or correctly
+  reporting one that isn't. **Until this is resolved, the exhaustion-fallback copy must stay
+  neutral about cause** — it currently presupposes neither answer, and a test asserts that in
+  both directions. Full context: `criteria-calibration-tiered-checkpoints.md` §12. Note this is
+  a distinct question from the provisional-threshold entry above: retuning the threshold would
+  change _which_ sessions are affected, not explain _why_ these shapes behave this way.
+
+  **EXTENDED AND PARTLY CORRECTED 2026-08-18** (recon on
+  `criteria-calibration-degree-tiers-and-progress`, see
+  `criteria-calibration/criteria-calibration-degree-tiers-and-progress.md` §2d and the
+  degree-tied-tiers write-up's "the four stuck shapes" section):
+  - **Correction to the wording above.** These shapes do NOT run "to natural exhaustion within
+    86-90 answers". They never exhaust anything: replaying all four (`#2 single-dominant`,
+    `#4 linear-control`, `#5 front-loaded`, and — newly added to the list — `#6 back-loaded`)
+    against the real driver produces **zero `degree-exhausted` actions of either reason in 90
+    answers**. They hit the round cap still inside degree 2.
+  - **The blocker is isolated.** `touched` reaches 24/24 on all four; it is the width half of
+    `isDegreeCoverageComplete` that stalls, with max feasible width 0.79-0.997 against
+    `MAX_VALUE_RANGE_FOR_COVERAGE = 0.2`. One or more level-values stay essentially
+    undetermined because these preference shapes never generate a comparison that constrains
+    them. `pool-empty` cannot rescue it either: the degree-2 candidate space (15 criterion pairs
+    x many undominated level combinations) does not run dry within 90 answers.
+  - **Product consequence, now live.** Since 2026-08-18 the accuracy label is tied to degree
+    exhaustion, so these users see **no checkpoint and no label change for 90+ answers** — the
+    session presents only a moving accuracy percentage and (with the continuous fill) a slowly
+    moving progress bar. Under the previous threshold-based labels three of the four reached
+    Medium and one reached High. This is a known, accepted gap, not a regression that was
+    missed: it was reported before implementation and explicitly scoped out.
+  - **The only lever is `MAX_VALUE_RANGE_FOR_COVERAGE`**, which is solver-adjacent, flagged
+    PROVISIONAL in `elicitationDriver.ts`, and was deliberately re-checked and left unchanged by
+    the Harris pass. Any future session touching it must read that constant's own comment first
+    — it was calibrated against the 2026-08-09 oracle trace and tightening it would cut off a
+    measured, still-substantial accuracy gain.
+
+  **NORMALIZED-THRESHOLD DIRECTION CLOSED 2026-08-25** (diagnostic only, no code changed —
+  `criteria-calibration/criteria-calibration-normalized-coverage-width-diagnostic.md`): the
+  hypothesis that these four shapes merely live on a different natural WIDTH SCALE, and that a
+  relative gate would free them, was tested on the fixed 12-trajectory evidence set and **fails.
+  The usable threshold window is empty for both candidates** — `width / widthAtFirstTouch` and
+  `width / meanWidthOfTouchedVars` — across 149 grid cells. Not a tolerance question: no
+  threshold on either candidate frees even one stuck shape while the healthy traces still
+  complete near their current round. The reasons are structural and specific: the first-touch
+  ratio orders the two populations BACKWARDS (16-19 of 24 variables on healthy traces are born
+  at width 0.167-0.200 and never move, so their ratio is 1.000 forever, above the stuck traces'
+  0.992-0.997); the mean-relative ratio is scale-free and therefore measures dispersion rather
+  than determinacy, and the single threshold that frees all four (C2 = 3.35) makes the width test
+  inert — every trace then completes at exactly its touched-24/24 round, i.e. it has silently
+  become the touched-only rule that was already rejected. **The four shapes are not stuck on
+  scale; they are stuck on variables the elicitation never constrains**, which confirms rather
+  than overturns the diagnosis above. **Consequence: the UX route (Option D) remains the chosen
+  path, and no implementation brief follows from this diagnostic.** Third empty-window result in
+  this cluster, after the accuracy-threshold recalibration and the escalation-signal candidates.
+
+  **"NO CHECKPOINT AND NO LABEL CHANGE FOR 90+ ANSWERS" GAP CLOSED 2026-08-26**
+  (`criteria-calibration-freeze-checkpoint`): the fifth checkpoint now fires for all four shapes
+  at 78 answers into degree 2 (`DEGREE_2_FREEZE_ANSWER_THRESHOLD`, `isDegree2Frozen` in
+  `degreeTiers.ts`), confirmed empirically to be the smallest position that never false-triggers
+  on any of the eight healthy traces in the evidence set (the latest, `#10 dan-approximation`,
+  exits degree 2 at round 77). Step 1 of that brief confirmed the candidate pool is genuinely
+  non-empty at that point (54-62 unasked degree-2 pairs remain across all four shapes) — the
+  copy is framed around information no longer moving, never "ran out of questions", for exactly
+  that reason.
+
+  **Precisely which open question this does and does not touch** (worth being exact about,
+  since the entry above actually contains two distinct questions by now): the COVERAGE question
+  — why `isDegreeCoverageComplete` never completes for these four shapes — is answered, by the
+  2026-08-18 extension (one or more level-values never get a constraining comparison) and
+  re-confirmed by the 2026-08-25 normalized-threshold diagnostic ("stuck on variables the
+  elicitation never constrains", not on scale). This freeze checkpoint closes the UX
+  consequence of THAT answered question — a screen and an explicit choice now exist where there
+  used to be silence. The ORIGINAL 2026-08-17 question — whether `computeScoreSpreadAccuracy`
+  itself is under-reporting a model that is actually well-determined, or correctly reporting
+  genuine indeterminacy, verified against ground truth for these specific oracles — is a
+  DIFFERENT question from the coverage one above, and neither the 2026-08-18 recon nor the
+  2026-08-25 diagnostic answers it; both examined coverage/width behavior, not the accuracy
+  metric's own correctness. **[2026-09-15 reorg note: corrected — this was NOT left
+  uninvestigated. It was answered the same day it was asked (2026-08-17) by
+  `criteria-calibration-accuracy-threshold-recalibration.md` §6; that answer was misfiled under
+  a later, unrelated "Cross-reference debt" bullet elsewhere in this document and has been
+  moved here, immediately below, where it actually belongs.]** Full detail:
+  `criteria-calibration/criteria-calibration-freeze-checkpoint.md`,
+  `criteria-calibration/criteria-calibration-freeze-checkpoint-step1-pool-check.md`.
+
+  **ANSWERED 2026-08-17** by
+  `criteria-calibration/criteria-calibration-accuracy-threshold-recalibration.md` §6, which ran
+  exactly the data-analysis session this entry asked for (solved values vs ground truth for
+  those three oracles specifically). **The answer differs per shape — it is not one cause:**
+  - `#2 single-dominant` (max accuracy 0.7311, tau vs true **0.6718**) — accuracy is
+    **correctly** reporting a model that genuinely isn't determined. The ceiling is honest.
+  - `#4 linear-control` (max accuracy 0.6883, tau vs true **0.9240**, the best ranking of any
+    oracle) — accuracy **under-reports** a ranking that is in fact excellent. But not because it
+    is blind: the region really is wide, so many other feasible points would rank differently
+    and the good tau is partly a lucky vertex. The low accuracy is a defensible warning.
+  - `#5 front-loaded` (max accuracy 0.6223, tau vs true 0.7489) — intermediate.
+
+  The general finding underneath: **`computeScoreSpreadAccuracy` measures determinacy, not
+  correctness**, and the two diverge in both directions (see the "cannot detect inconsistent
+  answering" note under the threshold entry above — `#8 noisy` reaches accuracy 1.0000 at tau
+  0.7575). **Retuning the threshold cannot fix this**: letting all three shapes reach High
+  requires High ≤ 0.62, at which `#1`/`#8`/`#9` cross by answer 5–9 at tau 0.65–0.77.
+
+  **Consequence for the exhaustion-fallback copy: keep it neutral about cause — the requirement
+  stands, and now has a reason rather than an unknown.** Neutrality was originally required
+  because the cause was unknown; it is now required because the cause is _shape-dependent_, so
+  no single explanation would be true for all users who see that screen. The existing
+  both-directions test remains correct as-is.
