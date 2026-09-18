@@ -111,6 +111,41 @@ export function getReleaseYear(dateStr: string | null): number | null {
   return isNaN(year) ? null : year;
 }
 
+// Metal Storm back-catalogue exclusion (docs/decisions/metalstorm-backcatalogue-exclusion.md):
+// Metal Storm reviews albums well after release, unlike AMG/PS/Sputnik's near-simultaneous
+// coverage — a Metal Storm review whose album released in a prior calendar year is stale
+// back-catalogue content, not "new" for this site's purposes. Hides just that source's review
+// on an album, not the whole album — an AMG/PS review on the same album still shows.
+// `release_date` null stays visible (fail-safe, matches every other null-date handling in this
+// app). Computed at fetch time, not a stored flag — retroactive by construction: a date fixed
+// upstream (e.g. a MusicBrainz release-group correction) or a new calendar year both take
+// effect on the very next load, no backfill needed. `now` is injected (defaults to `new Date()`)
+// so this stays a pure, easily-testable function, same pattern as
+// scripts/ingest.ts's selectAlbumBackfillCandidates.
+export function filterMetalStormBackCatalogue(
+  rows: AlbumWithReviewsRow[],
+  now: Date = new Date()
+): AlbumWithReviewsRow[] {
+  const currentYear = now.getFullYear();
+  return rows.flatMap((row) => {
+    // A row with no reviews at all didn't lose anything to this filter — leave it exactly as
+    // it arrived. The real query's `reviews!inner` join means this never happens in
+    // production, but AlbumCard's zero-review branch is still exercised directly in tests
+    // (kept as shared plumbing — see dbMapping.ts), and this filter must not be the thing
+    // that makes that branch unreachable.
+    if (row.reviews.length === 0) return [row];
+    const filtered = row.reviews.filter((r) => {
+      if (r.source !== 'Metal Storm') return true;
+      const year = getReleaseYear(row.release_date);
+      return year === null || year === currentYear;
+    });
+    // Only drop the row if this filter is what emptied it — a genuine "all its reviews were
+    // stale back-catalogue Metal Storm" case, not a pre-existing zero-review row.
+    if (filtered.length === 0) return [];
+    return [{ ...row, reviews: filtered }];
+  });
+}
+
 // Formats the album's averageScore (0–100 scale) for the score badge as an "x.x" figure
 // on the site's usual /10 scale — e.g. 87 -> "8.7".
 export function formatAverageScore(score: number): string {
@@ -531,7 +566,11 @@ function App() {
         if (error) {
           console.warn('Failed to load albums from Supabase', error);
         } else {
-          setReviews((data as unknown as AlbumWithReviewsRow[]).map(fromAlbumWithReviews));
+          setReviews(
+            filterMetalStormBackCatalogue(data as unknown as AlbumWithReviewsRow[]).map(
+              fromAlbumWithReviews
+            )
+          );
         }
         setLoading(false);
       })
