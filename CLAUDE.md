@@ -91,6 +91,14 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent merge: `deferred-work-audit-2026-09-18` — full systematic audit of
+`deferred-work.md` (never previously had one): 2 items fixed in place (stale claims about
+constants already deleted elsewhere in the codebase), 4 items relocated to `finished-work.md`
+(3 with a verification citation), including a 114-line item that had silently answered its own
+title. `deferred-work.md` 1215 → 1078 lines. Merged to `master` `--no-ff` at `ae90a9c` on
+2026-09-18. Rollback tag: `pre-merge-deferred-work-audit-2026-09-18`. Full detail:
+`docs/decisions/branch-log.md`.
+
 Most recent merge: `artwork-releases0-tier3-fallback` — Concern E of the 2026-09-17 artwork/MB-
 enrichment diagnostic brief, closing out the full brief (Concerns A–E): a third artwork tier in
 `lookupMusicBrainz`, reached only when the release-group and `releases[0]` CAA lookups both

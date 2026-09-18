@@ -4,6 +4,17 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `deferred-work-audit-2026-09-18` — merged to master `ae90a9c` (`--no-ff`), 2026-09-18;
+  rollback tag `pre-merge-deferred-work-audit-2026-09-18` — full systematic audit of
+  `deferred-work.md` (never previously had one); Phase 0 diagnostic report reviewed before any
+  edits, then 3 per-section commits: 2 items fixed in place (both described a constant/mechanism
+  already deleted elsewhere in the codebase, contradicted by another passage in the same file and
+  never reconciled), 4 items relocated verbatim to `finished-work.md` (3 with a
+  `[verified 2026-09-18: ...]` citation note) — including a 114-line item that was self-answered
+  within its own body but still titled "OPEN QUESTION"; `deferred-work.md` 1215 → 1078 lines,
+  `finished-work.md` 539 → 718 lines — full detail: the branch's 3 commit messages
+  (`git log deferred-work-audit-2026-09-18`)
+
 - `metalstorm-fetch-status-logging` — merged to master `f54c25b` (`--no-ff`), 2026-09-17;
   rollback tag `pre-merge-metalstorm-fetch-status-logging` — classify/log why a Metal Storm fetch
   yielded no score — full detail: `docs/decisions/metalstorm-ingest-memory-fix.md`
