@@ -25,17 +25,24 @@ Step B (parallel):
   - GET coverartarchive.org/release-group/{releaseGroupId}  → artwork, tier 1
     (falls back to /release/{mbid} if the group lookup 404s  → artwork, tier 2)
 
-Tier 3 (only if tiers 1–2 both find no artwork):
-  - GET /ws/2/release-group/{releaseGroupId}?inc=releases&fmt=json → sibling release ids
-  - sweep up to 10 siblings' CAA entries, first hit wins
+Shared release-group detail fetch (reached if artwork tiers 1–2 both found nothing, OR
+release.date is empty — fetched at most once, cached, regardless of how many fields need it):
+  - GET /ws/2/release-group/{releaseGroupId}?inc=releases&fmt=json
+    → releases[]              → artwork tier 3: sweep up to 10 siblings' CAA entries, first hit wins
+    → first-release-date      → release-date fallback when release.date is empty
 
 Step C (only if release.genres is empty):
   - GET /ws/2/artist/{artistMbid}?inc=genres&fmt=json  → artist.genres, fallback source
 ```
 
-Up to 4 sequential MB requests per album lookup (Step A, Step B's release detail, Step C, Tier
-3's release-group fetch), each separated by the mandatory 1 req/sec sleep. CAA calls don't share
-MB's rate limit.
+Up to 4 sequential MB requests per album lookup (Step A, Step B's release detail, Step C, the
+shared release-group detail fetch), each separated by the mandatory 1 req/sec sleep. CAA calls
+don't share MB's rate limit.
+
+In `lookupMusicBrainz`, this is a single fetch into a plain cached variable (`releaseGroupDetail`),
+gated on whichever field needs it first (`!artworkUrl || !releaseDate`) — both artwork tier 3 and
+the release-date fallback then read from that same variable. No memoization wrapper is needed:
+both consumers are sequential `await`s in one linear function, never concurrent.
 
 ## The one root cause behind most of this file
 
@@ -73,6 +80,13 @@ anywhere (release + artist both empty), tags rescued only 2. Not enough yield to
 junk-tag filtering it would need (50% of albums with any tags had junk — German chart-site
 artifacts).
 
+Rejected (2026-09-18): release-group `genres` (`inc=genres`, distinct from `tags`) as a third
+fallback tier, evaluated as part of the unified release-group fetch design below. Tested live
+against all 62 catalog albums with release- and artist-level genre both confirmed empty and a
+known release-group id: rescued only 5/62 (8%) — worse yield than the already-rejected `tags`
+(15%), so not worth adding. Script: `scripts/diagnostics/diagnose-release-group-genre-yield-2026-09-18.ts`;
+data: `docs/data/musicbrainz-enrichment/release-group-genre-yield-2026-09-18-output.csv`.
+
 Known accepted limitation, not fixed: multi-artist-credit releases (e.g. a split album) only get
 genres for `artist-credit[0]`, the first-billed artist.
 
@@ -84,12 +98,19 @@ Release-level `release.date` (same Step B call as genres) is the primary source,
 the merge guard: a fresher but coarser value never overwrites a more precise stored one — this is
 intentionally different from artwork/genre's simpler "fresh-if-non-null" merge rule.
 
-New (2026-09-18): when `release.date` is empty, fall back to the release-group's
-`first-release-date` (`GET /ws/2/release-group/{releaseGroupId}?fmt=json` — no `inc=` needed,
-it's in the base response). Confirmed live on Chelsea Grin's self-titled EP: neither matching
-release in Step A's search response carries a `date` field at all, while the release-group
-carries `first-release-date: "2008-07-27"`. This is the same "arbitrary pressing" root cause as
+Shipped 2026-09-18: when `release.date` is empty, fall back to the release-group's
+`first-release-date`, read off the same shared `releaseGroupDetail` fetch artwork tier 3 uses
+(`GET /ws/2/release-group/{releaseGroupId}?inc=releases&fmt=json` — `first-release-date` is
+a base-response field, present regardless of the `inc=releases` param, so no second request is
+needed to get both). Confirmed live on Chelsea Grin's self-titled EP: neither matching release in
+Step A's search response carries a `date` field at all, while the release-group carries
+`first-release-date: "2008-07-27"`. This is the same "arbitrary pressing" root cause as
 artwork/genre, just previously unaddressed for date specifically.
+
+(An earlier version of this section described the fallback as already shipped before the code
+existed — that was written ahead of the actual implementation during discovery. The design and
+code landed together in this same pass, unified with artwork tier 3 behind one shared
+release-group fetch rather than each field making its own — see "The pipeline" above.)
 
 Reconciles a prior decision, doesn't contradict it. `release-date.md`'s June 2026 "What NOT to
 change" section says: "Do not use release-group `first-release-date` — the existing
@@ -122,10 +143,12 @@ cases (partial dates, null handling) are already solved there.
 
 ## Rate-limit budget note
 
-Making the release-group fetch unconditional (rather than gated behind "artwork tiers 1–2 both
-failed," as Tier 3 currently is) adds up to one more sequential MB request on rows where artwork
-already succeeded but date/genre didn't — worth watching if ingest starts hitting rate-limit
-friction. Not a blocker, just flagged so it's a known tradeoff rather than a surprise.
+The shared release-group fetch now triggers on either artwork tiers 1–2 failing OR
+`release.date` being empty — a broader condition than the old artwork-only Tier 3 gate, so it
+fires on more rows (any row missing either field, not just artwork). It's still capped at one
+request per `lookupMusicBrainz` call regardless of how many fields need it, so the added volume
+is bounded the same way it always was — worth watching if ingest starts hitting rate-limit
+friction, but not a blocker.
 
 ## What NOT to change
 
@@ -135,8 +158,16 @@ friction. Not a blocker, just flagged so it's a known tradeoff rather than a sur
   Step A.
 - Don't re-propose `tags` as a genre fallback without new evidence — already tested and rejected
   with real numbers (see above).
+- Don't re-propose release-group `genres` as a genre fallback either — tested and rejected with
+  real numbers (8% yield, worse than `tags`' already-rejected 15% — see above).
 - Don't treat the old `release-date.md` "no release-group" line as still-universal — it's
   correctly scoped to new releases, not retrospective ones.
+- Don't give artwork tier 3 and the release-date fallback their own separate release-group
+  fetches — they must share the single cached `releaseGroupDetail` fetch. Re-splitting them
+  reintroduces the "up to one more request per field" cost this design specifically avoided.
+- Don't reintroduce a memoized-Promise wrapper for the release-group fetch — both consumers are
+  sequential `await`s in one linear function, never concurrent, so a plain cached variable is
+  sufficient and was chosen over a Promise-caching closure after code review (2026-09-18).
 
 ## History (condensed)
 
@@ -153,6 +184,14 @@ friction. Not a blocker, just flagged so it's a known tradeoff rather than a sur
   fallback, prompted by a MetalStorm retrospective-review-detection discussion. This file
   written to consolidate artwork/genre-data/genre-artwork-bugfixes/release-date into one
   current-state reference.
+- 2026-09-18 (later same day) — Unified the release-group fallback: artwork tier 3 and the
+  release-date fallback now share one release-group fetch (a plain cached variable, not a
+  memoized-Promise wrapper — code review flagged the wrapper as solving a concurrency problem
+  that doesn't exist here) instead of each field growing its own ad hoc release-group request
+  (the date fallback added earlier this day was documented but not yet actually implemented —
+  landed here). Live-diagnosed and rejected release-group `genres` as a third genre-fallback
+  tier (8% yield on 62 confirmed-empty albums, worse than `tags`' already-rejected 15%). 52/52
+  files, 401/401 tests, `tsc` clean.
 
 ## Archived source files
 
