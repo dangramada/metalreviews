@@ -1,0 +1,696 @@
+[
+  {
+    "band": "Apogean",
+    "album": "Waste Where Life Begins",
+    "candidates": [
+      {
+        "releaseGroupId": "e97ee56a-998e-4c9c-965f-56bb0537565d",
+        "primaryType": "Album",
+        "earliestDate": "2026-07-10",
+        "firstReleaseDate": "2026-07-10"
+      },
+      {
+        "releaseGroupId": "aff8140c-fe51-4010-a838-4c3db402523e",
+        "primaryType": "Single",
+        "earliestDate": "2026-06-23",
+        "firstReleaseDate": "2026-06-23"
+      }
+    ],
+    "releasesZeroResolvesTo": "e97ee56a-998e-4c9c-965f-56bb0537565d",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-07-10",
+      "artworkUrl": "https://coverartarchive.org/release/e6eb59f1-9261-4d92-a1b5-70c16d443d0e/45012616297.jpg",
+      "genres": [
+        "death metal",
+        "melodic death metal",
+        "metal"
+      ]
+    }
+  },
+  {
+    "band": "Solace",
+    "album": "Fading Failing Ruin",
+    "candidates": [
+      {
+        "releaseGroupId": "ccf1ac3b-e1a2-47a8-ba60-6a7b04957799",
+        "primaryType": "Album",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-07-03"
+      },
+      {
+        "releaseGroupId": "71dd843f-6cc3-4a24-a5c4-a7eaf3d193e1",
+        "primaryType": "Album",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-07-03"
+      }
+    ],
+    "releasesZeroResolvesTo": "ccf1ac3b-e1a2-47a8-ba60-6a7b04957799",
+    "stored": {
+      "mb_release_group_id": "ccf1ac3b-e1a2-47a8-ba60-6a7b04957799",
+      "release_date": "2026-07-03",
+      "artworkUrl": "https://coverartarchive.org/release/4d5e9ad3-fac8-4b0d-ba9e-ae660fa57d7f/45298078125.jpg",
+      "genres": []
+    }
+  },
+  {
+    "band": "Sun Guts",
+    "album": "Supervoid",
+    "candidates": [
+      {
+        "releaseGroupId": "785a577d-27cd-49a3-b11c-d4feac933231",
+        "primaryType": "Single",
+        "earliestDate": "2026-08-04",
+        "firstReleaseDate": "2026-08-04"
+      },
+      {
+        "releaseGroupId": "e155310e-2880-4373-8fc4-cd1f6b485bb6",
+        "primaryType": "Album",
+        "earliestDate": "2026-09-04",
+        "firstReleaseDate": "2026-09-04"
+      }
+    ],
+    "releasesZeroResolvesTo": "785a577d-27cd-49a3-b11c-d4feac933231",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": null,
+      "artworkUrl": null,
+      "genres": []
+    }
+  },
+  {
+    "band": "Dysgnostic",
+    "album": "End Whispers",
+    "candidates": [
+      {
+        "releaseGroupId": "ffda8751-8281-4329-8c25-4a9d58fb1c01",
+        "primaryType": "Album",
+        "earliestDate": "2026-07-10",
+        "firstReleaseDate": "2026-07-10"
+      },
+      {
+        "releaseGroupId": "5c50230c-fa86-49a0-b085-03ed95468ac5",
+        "primaryType": "Single",
+        "earliestDate": "2026-04-13",
+        "firstReleaseDate": "2026-04-13"
+      }
+    ],
+    "releasesZeroResolvesTo": "ffda8751-8281-4329-8c25-4a9d58fb1c01",
+    "stored": {
+      "mb_release_group_id": "ffda8751-8281-4329-8c25-4a9d58fb1c01",
+      "release_date": "2026-07-10",
+      "artworkUrl": "https://coverartarchive.org/release/67d96302-526a-4bf6-bb47-189f3848533f/45382343049.jpg",
+      "genres": [
+        "dissonant death metal"
+      ]
+    }
+  },
+  {
+    "band": "DevilDriver",
+    "album": "Strike And Kill",
+    "candidates": [
+      {
+        "releaseGroupId": "cc42ec33-6000-4a13-990b-7b9443d3dae4",
+        "primaryType": "Album",
+        "earliestDate": "2026-07-10",
+        "firstReleaseDate": "2026-07-10"
+      },
+      {
+        "releaseGroupId": "78c638ef-a000-402d-a70d-2555b65bc689",
+        "primaryType": "Single",
+        "earliestDate": "2026-07-07",
+        "firstReleaseDate": "2026-07-07"
+      }
+    ],
+    "releasesZeroResolvesTo": "cc42ec33-6000-4a13-990b-7b9443d3dae4",
+    "stored": {
+      "mb_release_group_id": "cc42ec33-6000-4a13-990b-7b9443d3dae4",
+      "release_date": "2026-07-10",
+      "artworkUrl": "https://coverartarchive.org/release/1cb3150e-378d-4495-a8d1-6286d3edce04/44895393395.jpg",
+      "genres": [
+        "groove metal",
+        "heavy metal",
+        "metal"
+      ]
+    }
+  },
+  {
+    "band": "Yes",
+    "album": "Aurora",
+    "candidates": [
+      {
+        "releaseGroupId": "b72aec7b-8b63-4245-84d7-07d70fe683e0",
+        "primaryType": "Single",
+        "earliestDate": "2026-04-10",
+        "firstReleaseDate": "2026-04-10"
+      },
+      {
+        "releaseGroupId": "96a132b5-1e90-4ac9-87cf-73d696fb7bc5",
+        "primaryType": "Album",
+        "earliestDate": "2026-06-12",
+        "firstReleaseDate": "2026-06-12"
+      }
+    ],
+    "releasesZeroResolvesTo": "b72aec7b-8b63-4245-84d7-07d70fe683e0",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-04-10",
+      "artworkUrl": "https://coverartarchive.org/release/90576aa5-b1c4-4d12-8a6a-e3215d84866a/44827424664.jpg",
+      "genres": [
+        "progressive rock",
+        "symphonic prog",
+        "rock"
+      ]
+    }
+  },
+  {
+    "band": "Shadowborne",
+    "album": "Heaven’s Falling",
+    "candidates": [
+      {
+        "releaseGroupId": "9833ef34-3dfc-44f7-806c-4bbc88f3a7df",
+        "primaryType": "Single",
+        "earliestDate": "2026-04-29",
+        "firstReleaseDate": "2026-04-29"
+      },
+      {
+        "releaseGroupId": "84bf95c1-f2d4-4d6b-aafb-90d6c043a240",
+        "primaryType": "Album",
+        "earliestDate": "2026-06-19",
+        "firstReleaseDate": "2026-06-19"
+      }
+    ],
+    "releasesZeroResolvesTo": "9833ef34-3dfc-44f7-806c-4bbc88f3a7df",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-04-29",
+      "artworkUrl": "https://coverartarchive.org/release/5a467a6e-aa18-420f-a5e2-33824933b93c/45055108092.jpg",
+      "genres": []
+    }
+  },
+  {
+    "band": "Elder",
+    "album": "Through Zero",
+    "candidates": [
+      {
+        "releaseGroupId": "15853898-04b7-4ecc-9207-ecb2263f8f00",
+        "primaryType": "Single",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-03-27"
+      },
+      {
+        "releaseGroupId": "3fd4d36a-9fef-4bd0-b822-3eb14a150078",
+        "primaryType": "Album",
+        "earliestDate": "2026-05-29",
+        "firstReleaseDate": "2026-05-29"
+      }
+    ],
+    "releasesZeroResolvesTo": "15853898-04b7-4ecc-9207-ecb2263f8f00",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-03-27",
+      "artworkUrl": "https://coverartarchive.org/release/d0fc8cbc-dc5b-4edf-b26b-4cf54660a033/44711582794.jpg",
+      "genres": [
+        "stoner metal",
+        "heavy psych",
+        "doom metal"
+      ]
+    }
+  },
+  {
+    "band": "Electric Sun Defence",
+    "album": "Estuary",
+    "candidates": [
+      {
+        "releaseGroupId": "b8e676b9-df71-41ff-b70a-219221babbd1",
+        "primaryType": "Album",
+        "earliestDate": "2026-05-08",
+        "firstReleaseDate": "2026-05-08"
+      },
+      {
+        "releaseGroupId": "8fa7b92f-9757-404f-b286-4ff51667283b",
+        "primaryType": "Single",
+        "earliestDate": "2026-03-20",
+        "firstReleaseDate": "2026-03-20"
+      }
+    ],
+    "releasesZeroResolvesTo": "b8e676b9-df71-41ff-b70a-219221babbd1",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-05-08",
+      "artworkUrl": "https://coverartarchive.org/release/9beb7c43-e5c6-4035-b38b-da8e174a001e/45079621010.jpg",
+      "genres": [
+        "metal",
+        "post-metal",
+        "progressive metal"
+      ]
+    }
+  },
+  {
+    "band": "Black Veil Brides",
+    "album": "Vindicate",
+    "candidates": [
+      {
+        "releaseGroupId": "aa7a72c4-c1ff-40b8-bfac-4c032dfdad5c",
+        "primaryType": "Single",
+        "earliestDate": "2026-03-19",
+        "firstReleaseDate": "2026-03-19"
+      },
+      {
+        "releaseGroupId": "a6a02c12-2016-435c-ad3d-e7f999829eb8",
+        "primaryType": "Album",
+        "earliestDate": "2026-05-08",
+        "firstReleaseDate": "2026-05-08"
+      }
+    ],
+    "releasesZeroResolvesTo": "aa7a72c4-c1ff-40b8-bfac-4c032dfdad5c",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-03-19",
+      "artworkUrl": "https://coverartarchive.org/release/186899a4-f90c-4d65-9d84-93bd5089b8f3/44651361969.jpg",
+      "genres": [
+        "glam metal",
+        "glam rock",
+        "hard rock"
+      ]
+    }
+  },
+  {
+    "band": "Inferi",
+    "album": "Heaven Wept",
+    "candidates": [
+      {
+        "releaseGroupId": "eacd8a95-7d10-4807-9121-0beba575ceb9",
+        "primaryType": "Album",
+        "earliestDate": "2026-04-10",
+        "firstReleaseDate": "2026-04-10"
+      },
+      {
+        "releaseGroupId": "371af7ff-a57d-47f3-abf3-2df71a94ca65",
+        "primaryType": "Single",
+        "earliestDate": "2026-02-27",
+        "firstReleaseDate": "2026-02-27"
+      }
+    ],
+    "releasesZeroResolvesTo": "eacd8a95-7d10-4807-9121-0beba575ceb9",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-04-10",
+      "artworkUrl": "https://coverartarchive.org/release/e86d6b73-37e3-4467-9450-67778f6928d7/44093391556.jpg",
+      "genres": [
+        "melodic death metal",
+        "technical death metal",
+        "black metal"
+      ]
+    }
+  },
+  {
+    "band": "Pro-Pain",
+    "album": "Stone Cold Anger",
+    "candidates": [
+      {
+        "releaseGroupId": "4dc826e6-f525-4bcb-81b9-4785967c4ab2",
+        "primaryType": "Album",
+        "earliestDate": "2026-05-15",
+        "firstReleaseDate": "2026-05-15"
+      },
+      {
+        "releaseGroupId": "0380d0b3-282a-4259-bda4-9e732ad353d6",
+        "primaryType": "Single",
+        "earliestDate": "2026-05-13",
+        "firstReleaseDate": "2026-05-13"
+      }
+    ],
+    "releasesZeroResolvesTo": "4dc826e6-f525-4bcb-81b9-4785967c4ab2",
+    "stored": {
+      "mb_release_group_id": null,
+      "release_date": "2026-05-15",
+      "artworkUrl": "https://coverartarchive.org/release/885a62ff-c86d-437c-b1d9-c6d3875a64c8/44388529651.jpg",
+      "genres": [
+        "groove metal",
+        "thrash metal"
+      ]
+    }
+  },
+  {
+    "band": "Stormhammer",
+    "album": "Wrath of the Hammer",
+    "candidates": [
+      {
+        "releaseGroupId": "c3dbd44a-d841-433f-bbca-128f848dfc2a",
+        "primaryType": "Single",
+        "earliestDate": "2026-05-20",
+        "firstReleaseDate": "2026-05-20"
+      },
+      {
+        "releaseGroupId": "3239d455-98cf-49d1-8afc-ee844be18d26",
+        "primaryType": "Album",
+        "earliestDate": "2026-07-17",
+        "firstReleaseDate": "2026-07-17"
+      }
+    ],
+    "releasesZeroResolvesTo": "c3dbd44a-d841-433f-bbca-128f848dfc2a",
+    "stored": {
+      "mb_release_group_id": "3239d455-98cf-49d1-8afc-ee844be18d26",
+      "release_date": "2026-07-17",
+      "artworkUrl": "https://coverartarchive.org/release/838b6e7c-2a4d-449e-86b1-ac9af1516bec/45426733339.jpg",
+      "genres": [
+        "power metal"
+      ]
+    }
+  },
+  {
+    "band": "Imperium",
+    "album": "Exodus Unknown",
+    "candidates": [
+      {
+        "releaseGroupId": "f7e63139-db77-4c31-82d7-837d223dfbd1",
+        "primaryType": "Album",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-07-17"
+      },
+      {
+        "releaseGroupId": "37fe0108-062f-4ece-bd35-b16eaca4e4fb",
+        "primaryType": "Album",
+        "earliestDate": "2026-07-16",
+        "firstReleaseDate": "2026-07-16"
+      }
+    ],
+    "releasesZeroResolvesTo": "f7e63139-db77-4c31-82d7-837d223dfbd1",
+    "stored": {
+      "mb_release_group_id": "f7e63139-db77-4c31-82d7-837d223dfbd1",
+      "release_date": "2026-07-17",
+      "artworkUrl": null,
+      "genres": []
+    }
+  },
+  {
+    "band": "Green Lung",
+    "album": "Necropolitan",
+    "candidates": [
+      {
+        "releaseGroupId": "ebcd8232-4460-48d8-a744-37abb851f8fa",
+        "primaryType": "Album",
+        "earliestDate": "2026-09-11",
+        "firstReleaseDate": "2026-09-11"
+      },
+      {
+        "releaseGroupId": "48ee13ad-cd1f-48cb-a44e-e0f7087f01be",
+        "primaryType": "Single",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-06-22"
+      }
+    ],
+    "releasesZeroResolvesTo": "ebcd8232-4460-48d8-a744-37abb851f8fa",
+    "stored": {
+      "mb_release_group_id": "ebcd8232-4460-48d8-a744-37abb851f8fa",
+      "release_date": "2026-09-11",
+      "artworkUrl": "https://coverartarchive.org/release/872c51de-852b-4929-881d-c7df968c75ee/45115142443.jpg",
+      "genres": [
+        "doom metal",
+        "occult rock",
+        "psychedelic rock"
+      ]
+    }
+  },
+  {
+    "band": "Haken",
+    "album": "In a Fever Dream",
+    "candidates": [
+      {
+        "releaseGroupId": "39a6e085-d1a6-46f0-8b45-bc6a0f77e0f6",
+        "primaryType": "Single",
+        "earliestDate": "2026-05-21",
+        "firstReleaseDate": "2026-05-21"
+      },
+      {
+        "releaseGroupId": "44df52ad-cf1a-425f-8b27-583d60d851a9",
+        "primaryType": "EP",
+        "earliestDate": "2026-07-17",
+        "firstReleaseDate": "2026-07-17"
+      }
+    ],
+    "releasesZeroResolvesTo": "39a6e085-d1a6-46f0-8b45-bc6a0f77e0f6",
+    "stored": {
+      "mb_release_group_id": "39a6e085-d1a6-46f0-8b45-bc6a0f77e0f6",
+      "release_date": "2026-05-21",
+      "artworkUrl": "https://coverartarchive.org/release/adcae21e-0ddd-40bc-8cc8-91e0e9cf8ddc/45184672557.jpg",
+      "genres": [
+        "progressive metal",
+        "progressive rock"
+      ]
+    }
+  },
+  {
+    "band": "Phase Meridian",
+    "album": "Egregore",
+    "candidates": [
+      {
+        "releaseGroupId": "b6683647-058a-4223-8a77-f0550bc847d3",
+        "primaryType": "Album",
+        "earliestDate": "",
+        "firstReleaseDate": null
+      },
+      {
+        "releaseGroupId": "94a8027f-0c41-43c0-9458-bdc62afc2846",
+        "primaryType": "Single",
+        "earliestDate": "2026-01-15",
+        "firstReleaseDate": "2026-01-15"
+      }
+    ],
+    "releasesZeroResolvesTo": "b6683647-058a-4223-8a77-f0550bc847d3",
+    "stored": {
+      "mb_release_group_id": "b6683647-058a-4223-8a77-f0550bc847d3",
+      "release_date": null,
+      "artworkUrl": null,
+      "genres": [
+        "sludge metal"
+      ]
+    }
+  },
+  {
+    "band": "Xandria",
+    "album": "Eclipse",
+    "candidates": [
+      {
+        "releaseGroupId": "60b2ebcc-118f-41ee-8012-d814a6ee4753",
+        "primaryType": "Album",
+        "earliestDate": "2026-08-07",
+        "firstReleaseDate": "2026-08-07"
+      },
+      {
+        "releaseGroupId": "a230527c-3d63-49d7-8f08-21ac2d203fa9",
+        "primaryType": "Single",
+        "earliestDate": "2026-08-05",
+        "firstReleaseDate": "2026-08-05"
+      }
+    ],
+    "releasesZeroResolvesTo": "60b2ebcc-118f-41ee-8012-d814a6ee4753",
+    "stored": {
+      "mb_release_group_id": "60b2ebcc-118f-41ee-8012-d814a6ee4753",
+      "release_date": "2026-08-07",
+      "artworkUrl": "https://coverartarchive.org/release/53101007-0040-419a-bbd2-e0ef21ba8b61/45386730840.jpg",
+      "genres": [
+        "symphonic metal",
+        "gothic metal",
+        "metal"
+      ]
+    }
+  },
+  {
+    "band": "Opeth",
+    "album": "Sorceress",
+    "candidates": [
+      {
+        "releaseGroupId": "8902256f-d9f0-4043-a8f3-2412fb3d3db7",
+        "primaryType": "Album",
+        "earliestDate": "2016-09-30",
+        "firstReleaseDate": "2016-09-30"
+      },
+      {
+        "releaseGroupId": "04aec7a5-7756-47ff-89e8-1bb3f40ae730",
+        "primaryType": "Single",
+        "earliestDate": "2016-08-02",
+        "firstReleaseDate": "2016-08-02"
+      }
+    ],
+    "releasesZeroResolvesTo": "8902256f-d9f0-4043-a8f3-2412fb3d3db7",
+    "stored": {
+      "mb_release_group_id": "8902256f-d9f0-4043-a8f3-2412fb3d3db7",
+      "release_date": "2016-09-30",
+      "artworkUrl": "http://coverartarchive.org/release/17223856-ee4b-4b20-93dd-776b31d9dbd2/16303971546.jpg",
+      "genres": [
+        "progressive metal",
+        "progressive rock",
+        "death metal"
+      ]
+    }
+  },
+  {
+    "band": "Tyraels Ascension",
+    "album": "Grave Seeker",
+    "candidates": [
+      {
+        "releaseGroupId": "d47edda7-e42d-4ecc-aa05-c4eba0ecccdf",
+        "primaryType": "Album",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-07-24"
+      },
+      {
+        "releaseGroupId": "d2077e8b-4121-4709-9e8b-61a6d164f44e",
+        "primaryType": "Album",
+        "earliestDate": null,
+        "firstReleaseDate": "2026-07-24"
+      }
+    ],
+    "releasesZeroResolvesTo": "d47edda7-e42d-4ecc-aa05-c4eba0ecccdf",
+    "stored": {
+      "mb_release_group_id": "d2077e8b-4121-4709-9e8b-61a6d164f44e",
+      "release_date": "2026-07-24",
+      "artworkUrl": "https://coverartarchive.org/release/d5471c76-acaf-4350-bd06-0b954cba07f1/45253003069.jpg",
+      "genres": []
+    }
+  },
+  {
+    "band": "Cancer Bats",
+    "album": "Give Me Dirt",
+    "candidates": [
+      {
+        "releaseGroupId": "7fb3424d-975d-41f2-8559-6c0a6f631fc3",
+        "primaryType": "Album",
+        "earliestDate": "2026-08-07",
+        "firstReleaseDate": "2026-08-07"
+      },
+      {
+        "releaseGroupId": "4c157c9f-12f4-4575-9db2-b2739e20a3e5",
+        "primaryType": "Single",
+        "earliestDate": "2026-08-07",
+        "firstReleaseDate": "2026-08-07"
+      }
+    ],
+    "releasesZeroResolvesTo": "7fb3424d-975d-41f2-8559-6c0a6f631fc3",
+    "stored": {
+      "mb_release_group_id": "4c157c9f-12f4-4575-9db2-b2739e20a3e5",
+      "release_date": "2026-08-07",
+      "artworkUrl": "https://coverartarchive.org/release/2833515b-6b10-4dec-9683-2abc7c4566ed/46136188548.jpg",
+      "genres": [
+        "hardcore punk",
+        "southern rock"
+      ]
+    }
+  },
+  {
+    "band": "Beseech",
+    "album": "Future Present Past",
+    "candidates": [
+      {
+        "releaseGroupId": "a06e5b6a-10a4-496b-8ee1-01552c9b77e9",
+        "primaryType": "Album",
+        "earliestDate": "2026-08-28",
+        "firstReleaseDate": "2026-08-28"
+      },
+      {
+        "releaseGroupId": "07c86d04-b946-4948-a5fc-a8599c40f870",
+        "primaryType": "Single",
+        "earliestDate": "2026-08-07",
+        "firstReleaseDate": "2026-08-07"
+      }
+    ],
+    "releasesZeroResolvesTo": "a06e5b6a-10a4-496b-8ee1-01552c9b77e9",
+    "stored": {
+      "mb_release_group_id": "a06e5b6a-10a4-496b-8ee1-01552c9b77e9",
+      "release_date": "2026-08-28",
+      "artworkUrl": "https://coverartarchive.org/release/5f5803be-1b38-4620-9c6f-80e4a744419b/45228573150.jpg",
+      "genres": [
+        "gothic metal"
+      ]
+    }
+  },
+  {
+    "band": "The Hu",
+    "album": "Hun",
+    "candidates": [
+      {
+        "releaseGroupId": "2c4307d0-0d42-4848-afad-ada40dad6f63",
+        "primaryType": "Album",
+        "earliestDate": "2026-07-24",
+        "firstReleaseDate": "2026-07-24"
+      },
+      {
+        "releaseGroupId": "a868a0b4-b300-490f-a89f-4a6886987f23",
+        "primaryType": "EP",
+        "earliestDate": "2026-06-26",
+        "firstReleaseDate": "2026-06-26"
+      }
+    ],
+    "releasesZeroResolvesTo": "2c4307d0-0d42-4848-afad-ada40dad6f63",
+    "stored": {
+      "mb_release_group_id": "2c4307d0-0d42-4848-afad-ada40dad6f63",
+      "release_date": "2026-07-24",
+      "artworkUrl": "https://coverartarchive.org/release/6ba00718-f7f7-468e-aa6c-b04d27319734/45503093869.png",
+      "genres": [
+        "folk metal",
+        "central asian throat singing",
+        "folk rock"
+      ]
+    }
+  },
+  {
+    "band": "Devil Master",
+    "album": "Bloody Dreams",
+    "candidates": [
+      {
+        "releaseGroupId": "3e4b84ab-266d-4b64-b783-e472cb48e8b1",
+        "primaryType": "EP",
+        "earliestDate": "2026-09-04",
+        "firstReleaseDate": "2026-09-04"
+      },
+      {
+        "releaseGroupId": "a6d20910-bb0a-43de-a6df-482d52b9853e",
+        "primaryType": "EP",
+        "earliestDate": "2026-09-04",
+        "firstReleaseDate": "2026-09-04"
+      }
+    ],
+    "releasesZeroResolvesTo": "3e4b84ab-266d-4b64-b783-e472cb48e8b1",
+    "stored": {
+      "mb_release_group_id": "3e4b84ab-266d-4b64-b783-e472cb48e8b1",
+      "release_date": "2026-09-04",
+      "artworkUrl": "https://coverartarchive.org/release/76894d03-4f92-4ea7-a845-9ff1e34a60e9/46140988654.jpg",
+      "genres": [
+        "black metal",
+        "blackened crust",
+        "punk"
+      ]
+    }
+  },
+  {
+    "band": "Flotsam and Jetsam",
+    "album": "Rats in the Temple",
+    "candidates": [
+      {
+        "releaseGroupId": "3df4f3a4-04c3-4f2d-8873-a72320c8720d",
+        "primaryType": "Single",
+        "earliestDate": "2026-05-27",
+        "firstReleaseDate": "2026-05-27"
+      },
+      {
+        "releaseGroupId": "fe4f7edb-5ea6-4f53-9a9a-c62341694504",
+        "primaryType": "Album",
+        "earliestDate": "2026-08-28",
+        "firstReleaseDate": "2026-08-28"
+      }
+    ],
+    "releasesZeroResolvesTo": "3df4f3a4-04c3-4f2d-8873-a72320c8720d",
+    "stored": {
+      "mb_release_group_id": "3df4f3a4-04c3-4f2d-8873-a72320c8720d",
+      "release_date": "2026-05-27",
+      "artworkUrl": "https://coverartarchive.org/release/00746469-51b6-4a99-8093-51db479e69c1/45245260305.jpg",
+      "genres": [
+        "thrash metal",
+        "heavy metal",
+        "metal"
+      ]
+    }
+  }
+]

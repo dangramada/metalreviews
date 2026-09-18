@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { lookupMusicBrainz } from '../musicbrainz';
+import { lookupMusicBrainz, lookupMusicBrainzByReleaseGroupId } from '../musicbrainz';
 
 vi.mock('axios');
 
@@ -543,5 +543,145 @@ describe('lookupMusicBrainz — release-group date fallback', () => {
     expect(warnSpy).toHaveBeenCalled();
 
     warnSpy.mockRestore();
+  });
+});
+
+describe('lookupMusicBrainzByReleaseGroupId — manual-correction entry point (step 1 fix, 2026-09-18)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns correct artwork/date/genre for a known release-group id, skipping Step A entirely', async () => {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-correct' &&
+        config?.params?.inc === 'releases+artist-credits'
+      ) {
+        return Promise.resolve({
+          data: {
+            releases: [{ id: 'release-mbid' }],
+            'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-mbid') {
+        return Promise.resolve({
+          data: {
+            date: '2026-06-12',
+            genres: [
+              { name: 'doom metal', count: 5 },
+              { name: 'heavy metal', count: 2 },
+            ],
+          },
+        });
+      }
+      if (url === 'https://coverartarchive.org/release-group/rg-correct') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'correct-art.jpg' }] } });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    const result = await lookupMusicBrainzByReleaseGroupId('rg-correct');
+
+    expect(result).toEqual({
+      artworkUrl: 'correct-art.jpg',
+      genres: ['doom metal', 'heavy metal'],
+      releaseDate: '2026-06-12',
+      releaseGroupId: 'rg-correct',
+      status: 'ok',
+    });
+
+    // Step A's ambiguous name search must never run from this entry point.
+    const stepASearchCalls = mockedAxios.get.mock.calls.filter(
+      ([url, cfg]: [string, any]) =>
+        url === 'https://musicbrainz.org/ws/2/release/' && cfg?.params?.query
+    );
+    expect(stepASearchCalls).toHaveLength(0);
+  });
+
+  it('falls back to artist-level genre when the representative release has none (the case that broke on the first pass)', async () => {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-correct' &&
+        config?.params?.inc === 'releases+artist-credits'
+      ) {
+        return Promise.resolve({
+          data: {
+            releases: [{ id: 'release-mbid' }],
+            'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-mbid') {
+        // No genre tags on this specific release — the bug this test guards against
+        return Promise.resolve({ data: { date: '2026-06-12', genres: [] } });
+      }
+      if (url === 'https://coverartarchive.org/release-group/rg-correct') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'correct-art.jpg' }] } });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/artist/artist-mbid') {
+        return Promise.resolve({ data: { genres: [{ name: 'doom metal', count: 10 }] } });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    const result = await lookupMusicBrainzByReleaseGroupId('rg-correct');
+
+    expect(result.genres).toEqual(['doom metal']);
+    expect(result.status).toBe('ok');
+  });
+
+  it('degrades without throwing when CAA lookups fail, same as lookupMusicBrainz', async () => {
+    mockedAxios.get.mockImplementation((url: string, config?: any) => {
+      if (
+        url === 'https://musicbrainz.org/ws/2/release-group/rg-correct' &&
+        config?.params?.inc === 'releases+artist-credits'
+      ) {
+        return Promise.resolve({
+          data: {
+            releases: [{ id: 'release-no-art' }, { id: 'release-has-art' }],
+            'artist-credit': [{ artist: { id: 'artist-mbid' } }],
+          },
+        });
+      }
+      if (url === 'https://musicbrainz.org/ws/2/release/release-no-art') {
+        return Promise.resolve({
+          data: { date: '2026-06-12', genres: [{ name: 'doom metal', count: 1 }] },
+        });
+      }
+      // Group-level CAA lookup fails (404) — must not throw or flip status to 'error'
+      if (url === 'https://coverartarchive.org/release-group/rg-correct') {
+        return Promise.reject({ response: { status: 404 } });
+      }
+      // Tier-3 sweep: first release also has no art, second one does
+      if (url === 'https://coverartarchive.org/release/release-no-art') {
+        return Promise.reject({ response: { status: 404 } });
+      }
+      if (url === 'https://coverartarchive.org/release/release-has-art') {
+        return Promise.resolve({ data: { images: [{ front: true, image: 'sibling-art.jpg' }] } });
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    const result = await lookupMusicBrainzByReleaseGroupId('rg-correct');
+
+    expect(result.status).toBe('ok');
+    expect(result.artworkUrl).toBe('sibling-art.jpg');
+    expect(result.releaseDate).toBe('2026-06-12');
+    expect(result.genres).toEqual(['doom metal']);
+  });
+
+  it('returns status "error" instead of throwing when the release-group fetch itself fails', async () => {
+    mockedAxios.get.mockRejectedValue(new Error('network timeout'));
+
+    const result = await lookupMusicBrainzByReleaseGroupId('rg-correct');
+
+    expect(result).toEqual({
+      artworkUrl: null,
+      genres: [],
+      releaseDate: null,
+      releaseGroupId: 'rg-correct',
+      status: 'error',
+    });
   });
 });

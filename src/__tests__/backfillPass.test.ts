@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { selectAlbumBackfillCandidates, type AlbumRow } from '../../scripts/ingest';
+import {
+  selectAlbumBackfillCandidates,
+  needsMbLookup,
+  FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS,
+  type AlbumRow,
+} from '../../scripts/ingest';
 
 const NOW = new Date('2026-06-21T12:00:00.000Z');
 const RECENT = '2026-06-18T00:00:00.000Z'; // 3 days ago — within 14-day window
@@ -20,6 +25,7 @@ const completeAlbum: AlbumRow = {
   ...incompleteAlbum,
   id: 'complete',
   release_date: '2026-06-12',
+  mb_release_group_id: 'rg-known',
 };
 
 function review(
@@ -105,12 +111,19 @@ describe('selectAlbumBackfillCandidates', () => {
     expect(result.map((a) => a.id)).toContain('abc');
   });
 
-  it('excludes an album where all three enrichment fields are present', () => {
+  it('excludes an album where all four enrichment fields are present (artwork, genre, date, mb_release_group_id)', () => {
     const reviewsByAlbumId = new Map([
       [completeAlbum.id, [review({ id: 'r-complete', mb_lookup_attempts: 0 })]],
     ]);
     const result = selectAlbumBackfillCandidates([completeAlbum], new Set(), reviewsByAlbumId, NOW);
     expect(result).toHaveLength(0);
+  });
+
+  it('includes an album missing only mb_release_group_id even when artwork/genre/date are all present (step 2b-i widening)', () => {
+    const noId = { ...completeAlbum, id: 'no-id', mb_release_group_id: null };
+    const reviewsByAlbumId = new Map([['no-id', [review({ id: 'r-no-id', mb_lookup_attempts: 0 })]]]);
+    const result = selectAlbumBackfillCandidates([noId], new Set(), reviewsByAlbumId, NOW);
+    expect(result.map((a) => a.id)).toContain('no-id');
   });
 
   it('excludes an album already touched this run (covered by the main resolution loop)', () => {
@@ -150,5 +163,113 @@ describe('selectAlbumBackfillCandidates', () => {
     ]);
     const result = selectAlbumBackfillCandidates([noGenre], new Set(), reviewsByAlbumId, NOW);
     expect(result.map((a) => a.id)).toContain('no-genre');
+  });
+
+  describe('excludedNormKeys (step 2b-i — flagged same-title collisions)', () => {
+    it('excludes a missing-id album whose norm_key is in the excluded set, even though it would otherwise be an eligible candidate', () => {
+      const flagged = {
+        ...incompleteAlbum,
+        id: 'flagged',
+        norm_key: 'khemmis__khemmis',
+        artwork_url: 'https://cdn.example.com/art.jpg',
+        genre: ['doom metal'],
+        release_date: '2013-11-14',
+        mb_release_group_id: null,
+      };
+      const reviewsByAlbumId = new Map([
+        ['flagged', [review({ id: 'r-flagged', mb_lookup_attempts: 0 })]],
+      ]);
+      const result = selectAlbumBackfillCandidates(
+        [flagged],
+        new Set(),
+        reviewsByAlbumId,
+        NOW,
+        new Set(['khemmis__khemmis'])
+      );
+      expect(result).toHaveLength(0);
+    });
+
+    it('does not exclude a missing-id album whose norm_key is NOT in the excluded set', () => {
+      const notFlagged = {
+        ...incompleteAlbum,
+        id: 'not-flagged',
+        norm_key: 'some other band__some other album',
+        artwork_url: 'https://cdn.example.com/art.jpg',
+        genre: ['doom metal'],
+        release_date: '2026-06-12',
+        mb_release_group_id: null,
+      };
+      const reviewsByAlbumId = new Map([
+        ['not-flagged', [review({ id: 'r-not-flagged', mb_lookup_attempts: 0 })]],
+      ]);
+      const result = selectAlbumBackfillCandidates(
+        [notFlagged],
+        new Set(),
+        reviewsByAlbumId,
+        NOW,
+        new Set(['khemmis__khemmis'])
+      );
+      expect(result.map((a) => a.id)).toContain('not-flagged');
+    });
+
+    it('FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS contains all 29 flagged pairs, including Khemmis and Moonspell', () => {
+      expect(FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS.size).toBe(29);
+      expect(FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS.has('khemmis__khemmis')).toBe(true);
+      expect(FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS.has('moonspell__far from god')).toBe(true);
+    });
+  });
+});
+
+describe('needsMbLookup (main per-review loop — step 2b-i follow-up, closes the needMbCall gap)', () => {
+  it('does not trigger an MB lookup for a flagged pair reappearing in a fresh RSS batch, even with no existing row at all', () => {
+    // No normKeyMatch (undefined) simulates a flagged pair appearing in the scrape with no
+    // matching album row currently in the catalog — the gap this follow-up closes.
+    expect(needsMbLookup('khemmis__khemmis', undefined)).toBe(false);
+  });
+
+  it('does not trigger an MB lookup for a flagged pair even when its existing row is NOT fully enriched', () => {
+    const partiallyEnriched: AlbumRow = {
+      id: 'khemmis-id',
+      band: 'Khemmis',
+      album: 'Khemmis',
+      mb_release_group_id: null,
+      norm_key: 'khemmis__khemmis',
+      artwork_url: null, // would normally force needMbCall true
+      genre: [],
+      release_date: null,
+    };
+    expect(needsMbLookup('khemmis__khemmis', partiallyEnriched)).toBe(false);
+  });
+
+  it('triggers an MB lookup for a non-flagged pair with no existing row (unchanged behavior)', () => {
+    expect(needsMbLookup('some other band__some other album', undefined)).toBe(true);
+  });
+
+  it('triggers an MB lookup for a non-flagged pair whose existing row is not fully enriched (unchanged behavior)', () => {
+    const incomplete: AlbumRow = {
+      id: 'x',
+      band: 'Some Band',
+      album: 'Some Album',
+      mb_release_group_id: null,
+      norm_key: 'some band__some album',
+      artwork_url: 'https://cdn.example.com/art.jpg',
+      genre: [],
+      release_date: '2026-01-01',
+    };
+    expect(needsMbLookup('some band__some album', incomplete)).toBe(true);
+  });
+
+  it('does not trigger an MB lookup for a non-flagged pair whose existing row is fully enriched (unchanged behavior)', () => {
+    const complete: AlbumRow = {
+      id: 'y',
+      band: 'Some Band',
+      album: 'Some Album',
+      mb_release_group_id: 'rg-known',
+      norm_key: 'some band__some album',
+      artwork_url: 'https://cdn.example.com/art.jpg',
+      genre: ['doom metal'],
+      release_date: '2026-01-01',
+    };
+    expect(needsMbLookup('some band__some album', complete)).toBe(false);
   });
 });

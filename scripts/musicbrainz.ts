@@ -234,3 +234,106 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
     };
   }
 }
+
+/**
+ * Same enrichment fetch as lookupMusicBrainz's Step B/C, but entered from an already-known,
+ * already-correct release-group id instead of Step A's ambiguous name search — for manually
+ * correcting a row where Step A's `releases[0]` picked the wrong release-group (no relevance
+ * sort — see docs/decisions/album-identity/album-identity-same-title-release-group-collision.md).
+ * Picks the group's first listed release as the representative release for genre/date detail;
+ * falls back to the release-group's own first-release-date, same as the tier-3/date-fallback
+ * logic above.
+ */
+export async function lookupMusicBrainzByReleaseGroupId(
+  releaseGroupId: string
+): Promise<MusicBrainzData> {
+  try {
+    const groupRes = await axios.get(
+      `https://musicbrainz.org/ws/2/release-group/${releaseGroupId}`,
+      {
+        params: { inc: 'releases+artist-credits', fmt: 'json' },
+        headers: { 'User-Agent': MB_USER_AGENT },
+      }
+    );
+    const releaseIds: string[] = (groupRes.data?.releases ?? [])
+      .map((r: any) => r.id)
+      .filter(Boolean);
+    const firstReleaseDate: string | null = groupRes.data?.['first-release-date'] || null;
+    const artistMbid: string | null = groupRes.data?.['artist-credit']?.[0]?.artist?.id ?? null;
+    if (releaseIds.length === 0) {
+      return { artworkUrl: null, genres: [], releaseDate: firstReleaseDate, releaseGroupId, status: 'not_found' };
+    }
+
+    await sleep(1000);
+
+    const mbid = releaseIds[0];
+    const [releaseRes, caaRes] = await Promise.allSettled([
+      axios.get(`https://musicbrainz.org/ws/2/release/${mbid}`, {
+        params: { inc: 'genres', fmt: 'json' },
+        headers: { 'User-Agent': MB_USER_AGENT },
+      }),
+      axios.get(`https://coverartarchive.org/release-group/${releaseGroupId}`, {
+        headers: { 'User-Agent': MB_USER_AGENT },
+        timeout: 8000,
+      }),
+    ]);
+
+    let artworkUrl: string | null = null;
+    if (caaRes.status === 'fulfilled') artworkUrl = pickArtwork(caaRes.value.data?.images ?? []);
+
+    // Same tier-3 sweep as lookupMusicBrainz: group-level CAA can 404 even when a sibling
+    // release in the group has art.
+    if (!artworkUrl) {
+      for (const releaseId of releaseIds.slice(0, MAX_TIER3_RELEASES_CHECKED)) {
+        try {
+          const r = await axios.get(`https://coverartarchive.org/release/${releaseId}`, {
+            headers: { 'User-Agent': MB_USER_AGENT },
+            timeout: 8000,
+          });
+          const found = pickArtwork(r.data?.images ?? []);
+          if (found) {
+            artworkUrl = found;
+            break;
+          }
+        } catch {
+          // this release has no CAA entry — try the next one
+        }
+      }
+    }
+
+    let releaseDate: string | null = null;
+    let releaseGenres: Array<{ name: string; count: number }> = [];
+    if (releaseRes.status === 'fulfilled') {
+      releaseDate = releaseRes.value.data?.date || null;
+      releaseGenres = releaseRes.value.data?.genres ?? [];
+    }
+    let topGenres = [...releaseGenres]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((g: { name: string }) => g.name);
+    if (!releaseDate && firstReleaseDate) releaseDate = firstReleaseDate;
+
+    // Same artist-level genre fallback as lookupMusicBrainz's Step C — the representative
+    // release picked above can have no genre tags of its own.
+    if (topGenres.length === 0 && artistMbid) {
+      try {
+        await sleep(1000);
+        const artistRes = await axios.get(`https://musicbrainz.org/ws/2/artist/${artistMbid}`, {
+          params: { inc: 'genres', fmt: 'json' },
+          headers: { 'User-Agent': MB_USER_AGENT },
+        });
+        const artistGenres: Array<{ name: string; count: number }> = artistRes.data?.genres ?? [];
+        topGenres = [...artistGenres]
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3)
+          .map((g: { name: string }) => g.name);
+      } catch {
+        // Artist fallback failed — artworkUrl and releaseDate are still returned
+      }
+    }
+
+    return { artworkUrl, genres: topGenres, releaseDate, releaseGroupId, status: 'ok' };
+  } catch {
+    return { artworkUrl: null, genres: [], releaseDate: null, releaseGroupId, status: 'error' };
+  }
+}

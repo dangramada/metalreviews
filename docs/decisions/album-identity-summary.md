@@ -29,6 +29,21 @@ complete and verified.
   post-submit `findExistingAlbum()` check runs). `album-identity-decisions.md` §5 /
   `album-identity-frontend-favorites.md`.
 
+**Confirmed bug, diagnosed 2026-09-18, CLOSED (2b-ii done same day):** Step A's search
+(`artist:"{band}" AND release:"{album}"`) can match two genuinely different real works sharing
+a title (e.g. Khemmis's self-titled 2013 EP vs. self-titled 2026 album) — `releases[0]`'s
+arbitrary pick then attaches the wrong work's data. Final tally across the 29 flagged pairs: 9
+corrected (Khemmis, Moonspell, Yes, Shadowborne, Elder, Black Veil Brides, Haken, Cancer Bats,
+Flotsam and Jetsam), 6 confirmed-safe-and-protected (Devin Townsend, Wormwood, Stormhammer,
+Green Lung, Opeth, Beseech), 8 artwork-matched low-risk, 5 ambiguous-no-defect, 1 (Sun Guts)
+deliberately untouched. **All 29 confirmed present in `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`
+(29/29, 0 missing, 0 extras) — both re-fetch paths (backfill loop and main loop) are guarded
+for every one of them.** See
+`album-identity/album-identity-same-title-release-group-collision.md` for the full list,
+merge-risk analysis, correction detail, and closing summary. Still blocks resuming the Metal
+Storm back-catalogue exclusion filter (a fresh cross-check found 0 overlap between that
+filter's currently-hidden reviews and these 29 pairs).
+
 ## Index (pipeline order)
 
 1. `album-identity-diagnosis.md` — diagnostic: `computeId` collision, confirmed data loss
@@ -44,3 +59,8 @@ complete and verified.
    re-plumb, `findExistingAlbum`
 7. `album-identity-visibility-and-duplicate-fix.md` — home-page visibility filter +
    duplicate-check fixes
+8. `album-identity/album-identity-same-title-release-group-collision.md` — same-title,
+   different-real-work release-group collisions: 29/320 albums flagged, CLOSED — 9 corrected, 6
+   confirmed-safe-and-protected, rest cleared, all 29 confirmed in
+   `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`; still blocks the Metal Storm back-catalogue
+   exclusion filter

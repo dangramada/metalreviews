@@ -663,7 +663,7 @@ export function normalizeScore(raw: string): number | null {
 // Returns a precision rank so album enrichment never downgrades an existing precise date
 // with a less-precise fresh one. MB dates can be "2024", "2024-03", or "2024-03-15" — all
 // valid, but not equally useful.
-function releaseDatePrecision(d: string | null): number {
+export function releaseDatePrecision(d: string | null): number {
   if (!d) return 0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return 3; // full date
   if (/^\d{4}-\d{2}$/.test(d)) return 2; // year-month
@@ -671,9 +671,85 @@ function releaseDatePrecision(d: string | null): number {
   return 0; // unrecognized format — treat as no info
 }
 
+// Widened 2026-09-18 (step 2b-i) to also require mb_release_group_id: a row with
+// artwork/genre/date but no id was previously treated as "done," so it could never be
+// re-checked even after Step A's arbitrary releases[0] pick attached the wrong release-group's
+// data (the Khemmis/Moonspell bug — see
+// docs/decisions/album-identity/album-identity-same-title-release-group-collision.md). The 29
+// rows already flagged as same-title collisions are excluded from the backfill loop below
+// (FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS) specifically so this widening doesn't expose them to
+// a fresh, still-ambiguous Step A re-search before 2b-ii decides how to disambiguate them.
 export function isAlbumEnriched(a: AlbumRow): boolean {
   return (
-    typeof a.artwork_url === 'string' && a.genre.length > 0 && typeof a.release_date === 'string'
+    typeof a.artwork_url === 'string' &&
+    a.genre.length > 0 &&
+    typeof a.release_date === 'string' &&
+    typeof a.mb_release_group_id === 'string'
+  );
+}
+
+// Same-title release-group collisions flagged by the 2026-09-18 diagnostic — 29 (band, album)
+// pairs where MusicBrainz's Step A search matched more than one distinct release-group.
+// Confirmed-broken, confirmed-safe-by-luck, or unverified: all 29 are treated alike and
+// excluded from the backfill loop (see selectAlbumBackfillCandidates) until 2b-ii decides how
+// to disambiguate them. Matched by norm_key rather than id — stable identity, independent of
+// which row currently holds which id. See
+// docs/decisions/album-identity/album-identity-same-title-release-group-collision.md.
+const FLAGGED_SAME_TITLE_COLLISION_PAIRS: Array<[string, string]> = [
+  ['Apogean', 'Waste Where Life Begins'],
+  ['Solace', 'Fading Failing Ruin'],
+  ['Sun Guts', 'Supervoid'],
+  ['Dysgnostic', 'End Whispers'],
+  ['Khemmis', 'Khemmis'],
+  ['DevilDriver', 'Strike And Kill'],
+  ['Moonspell', 'Far from God'],
+  ['Yes', 'Aurora'],
+  ['Shadowborne', 'Heaven’s Falling'],
+  ['Devin Townsend', 'The Moth'],
+  ['Elder', 'Through Zero'],
+  ['Electric Sun Defence', 'Estuary'],
+  ['Black Veil Brides', 'Vindicate'],
+  ['Inferi', 'Heaven Wept'],
+  ['Pro-Pain', 'Stone Cold Anger'],
+  ['Stormhammer', 'Wrath of the Hammer'],
+  ['Imperium', 'Exodus Unknown'],
+  ['Green Lung', 'Necropolitan'],
+  ['Haken', 'In a Fever Dream'],
+  ['Phase Meridian', 'Egregore'],
+  ['Xandria', 'Eclipse'],
+  ['Opeth', 'Sorceress'],
+  ['Tyraels Ascension', 'Grave Seeker'],
+  ['Wormwood', 'Å'],
+  ['Cancer Bats', 'Give Me Dirt'],
+  ['Beseech', 'Future Present Past'],
+  ['The Hu', 'Hun'],
+  ['Devil Master', 'Bloody Dreams'],
+  ['Flotsam and Jetsam', 'Rats in the Temple'],
+];
+export const FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS: Set<string> = new Set(
+  FLAGGED_SAME_TITLE_COLLISION_PAIRS.map(([band, album]) => computeNormKey(band, album))
+);
+
+// Decides whether the main per-review resolution loop needs a fresh MB lookup for this
+// (band, album) pair — pulled out as its own pure function (same pattern as
+// selectAlbumBackfillCandidates) so the flagged-pair exclusion is independently testable
+// without mocking runIngestion's network/Supabase calls. Skip the MB call only when we already
+// have a norm_key match with complete enrichment — the album-scoped equivalent of the old
+// mbAlreadyFetched set. Note: this means a fully enriched norm_key-matched album whose
+// mb_release_group_id is still null will NOT get an opportunistic backfill attempt here (that
+// only happens when resolveAlbumIdentity is actually given a fresh mbResult). See
+// docs/decisions/album-identity/album-identity-ingest.md for why this coverage gap is accepted
+// rather than closed this session.
+//
+// Flagged same-title collisions are excluded unconditionally (not just when already enriched)
+// — same guard as selectAlbumBackfillCandidates (step 2b-i), applied here so a flagged pair
+// reappearing in a fresh RSS scrape from any source can't re-run the same ambiguous Step A
+// search that corrupted Khemmis/Moonspell in the first place. See
+// docs/decisions/album-identity/album-identity-same-title-release-group-collision.md.
+export function needsMbLookup(normKey: string, normKeyMatch: AlbumRow | undefined): boolean {
+  return (
+    !FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS.has(normKey) &&
+    (!normKeyMatch || !isAlbumEnriched(normKeyMatch))
   );
 }
 
@@ -789,15 +865,19 @@ export function resolveAlbumIdentity(
 // attached reviews) rather than requiring all of them to agree — a newer source's review
 // shouldn't be blocked from retrying just because an older source's review on the same
 // album already hit its cap.
+// excludedNormKeys defaults to empty so existing callers/tests are unaffected; runIngestion
+// passes FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS (step 2b-i — see isAlbumEnriched's comment).
 export function selectAlbumBackfillCandidates(
   existingAlbums: AlbumRow[],
   touchedAlbumIds: Set<string>,
   reviewsByAlbumId: Map<string, ExistingReviewRow[]>,
-  now: Date
+  now: Date,
+  excludedNormKeys: Set<string> = new Set()
 ): AlbumRow[] {
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   return existingAlbums.filter((a) => {
     if (touchedAlbumIds.has(a.id)) return false;
+    if (excludedNormKeys.has(a.norm_key)) return false;
     if (isAlbumEnriched(a)) return false;
     const reviews = reviewsByAlbumId.get(a.id) ?? [];
     if (reviews.length === 0) return true; // no attempt history at all — worth trying
@@ -895,13 +975,7 @@ export async function runIngestion() {
     const normKey = computeNormKey(band, album);
     const normKeyMatch = liveAlbumByNormKey.get(normKey);
 
-    // Skip the MB call only when we already have a norm_key match with complete enrichment —
-    // the album-scoped equivalent of the old mbAlreadyFetched set. Note: this means a fully
-    // enriched norm_key-matched album whose mb_release_group_id is still null will NOT get an
-    // opportunistic backfill attempt here (that only happens when resolveAlbumIdentity is
-    // actually given a fresh mbResult). See docs/decisions/album-identity/album-identity-ingest.md for why
-    // this coverage gap is accepted rather than closed this session.
-    const needMbCall = !normKeyMatch || !isAlbumEnriched(normKeyMatch);
+    const needMbCall = needsMbLookup(normKey, normKeyMatch);
     let mbResult: MusicBrainzData | null = null;
     if (needMbCall) {
       mbResult = await lookupMusicBrainz(band, album);
@@ -966,7 +1040,8 @@ export async function runIngestion() {
     existingAlbums,
     touchedAlbumIds,
     reviewsByAlbumId,
-    new Date()
+    new Date(),
+    FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS
   );
   for (const a of candidates) {
     const mbData = await lookupMusicBrainz(a.band, a.album);

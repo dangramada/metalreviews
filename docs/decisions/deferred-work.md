@@ -1079,3 +1079,41 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   — a real backlog that has been invisible. Two pieces of work, deliberately not done in the
   checkpoints pass: fix the script, and burn down (or explicitly accept) the existing errors.
   Fixing the script first without the second half would make CI red immediately.
+
+## New items, 2026-09-18 (same-title release-group collision diagnostic)
+
+- **Same-title, different-real-work MusicBrainz collisions — CLOSED (2b-ii done 2026-09-18).**
+  Confirmed live: 29 of 320 `albums` rows have
+  Step A's search (`artist:"{band}" AND release:"{album}"`) matching more than one distinct
+  release-group. Full list, method, and the running tally: `album-identity/album-identity-same-
+  title-release-group-collision.md`. Blocks resuming the Metal Storm back-catalogue exclusion
+  filter, which trusts `release_date` as ground truth (a fresh cross-check 2026-09-18 found 0
+  overlap between that filter's 6 currently-hidden reviews and these 29 pairs, for what it's
+  worth once the filter resumes).
+  **Data corrections, 2026-09-18: 9 of 29 corrected/confirmed by hand** — Khemmis, Moonspell
+  (step 1), then Yes, Shadowborne, Elder, Black Veil Brides, Haken, Cancer Bats, Flotsam and
+  Jetsam (7 more, same `lookupMusicBrainzByReleaseGroupId()` + non-regression-guard pattern).
+  Devin Townsend, Wormwood, and Stormhammer confirmed already correct (Stormhammer specifically
+  confirmed protected against future drift — its `norm_key` is in the exclusion set below).
+  Sun Guts deliberately left alone (no enrichment to regress) with its correct target
+  (`e155310e-...`, the Album) noted for whenever it's addressed, plus an MB-side date
+  discrepancy (press: Aug 16 2026, MB: Sep 4 2026) flagged as not-our-bug.
+  **Automated artwork triage on the remaining 16: 8 matched (low risk), 3 flagged (Green Lung,
+  Opeth, Beseech — visibly different candidate covers, no live defect today but nothing guards
+  against future drift), 5 not comparable (at most one candidate has any CAA art).**
+  **Step 2b-i shipped 2026-09-18: `isAlbumEnriched()` widened to also require
+  `mb_release_group_id`, with all 29 flagged pairs excluded from both re-fetch paths** (backfill
+  loop's `excludedNormKeys` param and the main loop's new `needsMbLookup()`, both keyed off
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`) — a naive widen would otherwise have re-exposed
+  already-ambiguous rows to the same unguarded search that broke Khemmis/Moonspell. 414/414
+  tests, `tsc` unchanged throughout all of the above.
+  **2b-ii closed 2026-09-18: final protection check confirmed 29/29** — computed `norm_key`
+  for all 29 original pairs (not a sample, not retyped by hand) and diffed against
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`: 0 missing, 0 extras, exact match. Final tally: 9
+  corrected, 6 confirmed-safe-and-protected (Devin Townsend, Wormwood, Stormhammer, Green Lung,
+  Opeth, Beseech), 8 artwork-matched, 5 ambiguous-no-defect, 1 empty-untouched (Sun Guts) = 29.
+  Incidental find while closing: Opeth — Sorceress has zero attached `reviews` — it's a
+  manually-favorited album, not a scraped review; checked, isolated (all other 28 are
+  genuinely review-backed). Nothing further owed on this thread unless new collisions surface
+  among albums added after 2026-09-18. Full detail: `album-identity/album-identity-same-title-
+  release-group-collision.md`'s closing section.
