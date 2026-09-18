@@ -1,5 +1,7 @@
 # Session decisions — Genre data + card badge redesign (June 2026)
 
+> Current state consolidated into musicbrainz-enrichment.md — this file kept for historical/session detail only.
+
 > **PARTIALLY SUPERSEDED by `genre-artwork-bugfixes.md`.** A follow-up session fixed bugs in the skip-logic described below; see that file for the corrected conditions.
 
 ## What was built

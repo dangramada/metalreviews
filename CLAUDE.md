@@ -249,18 +249,19 @@ branch's status changes.)
 Detailed rationale, gotchas, and "what NOT to change" notes for completed features live in `docs/decisions/`. **Read the matching file before changing related code** — don't rely on memory of past sessions for these areas. (The Slant Take design system, merged 2026-07-25 at `a3eeb88`, and the non-review post filtering / ingest fix, 2026-07-17, are long-complete — full detail lives in their own index lines below, `slant-take-design-system.md` and `roundup-skip-fix.md`, and merge facts in `docs/decisions/branch-log.md`; no separate narrative kept here.)
 
 - `architecture.md` — current-state technical reference: scraper/ingestion, frontend, routes, types/mapping, score normalization, toast convention, adding a new scraper source
-- `artwork.md` — MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio
+- `musicbrainz-enrichment.md` — **current-state reference for all MB/CAA enrichment** (artwork, genre, release date, type): the pipeline, the shared `releases[0]`-arbitrary-pick root cause, and per-field decisions. Read this before touching `scripts/musicbrainz.ts` or MB/CAA fetch logic; the four docs below are historical detail only
+- `artwork.md` — historical only (session-by-session detail): MusicBrainz/Cover Art Archive artwork fetching, skeleton shimmer, square aspect ratio
 - `persistent-history-superseded.md` — historical only: original JSON merge-guard approach
 - `refresh-button.md` — Express server, manual refresh button, polling, controls bar styling pattern
-- `genre-data.md` — MusicBrainz genre lookup (two-level), source badge + genre tag styling
-- `genre-artwork-bugfixes.md` — RSS title pollution root cause, the three bugs it caused, and their fixes
+- `genre-data.md` — historical only (session-by-session detail): MusicBrainz genre lookup (two-level), source badge + genre tag styling
+- `genre-artwork-bugfixes.md` — historical only (session-by-session detail): RSS title pollution root cause, the three bugs it caused, and their fixes
 - `controls-bar.md` — score filter, review counter, responsive flex layout breakpoints
 - `design-tokens.md` — `src/theme.ts` token groups, badge tokens, button style sets, `/style-guide` dev route. **Exhaustive by test** since 2026-09-12: `src/__tests__/designTokensDoc.test.ts` fails if a custom semantic colour, text style or spacing token is added without a line here. `consistency-button-tokens.md` (2026-09-16) fixed one real colour mismatch (`ErrorBoundary.tsx`'s hardcoded `orange` vs. the app's `ember`) and aligned three live `gray` buttons onto `secondaryButton`, merged to `master` `--no-ff` at `9ca0534`; rollback tag `pre-merge-consistency-button-tokens`
 - `supabase-migration.md` — ingest pipeline + frontend migration from `reviews.json` to Supabase, schema, mapping layer
 - `render-deployment.md` — port binding, static serving, ingest endpoint auth, env vars
 - `auth-routing.md` — React Router routes, AuthContext, login/signup/password-reset flows
 - `favorites.md` — Phase 6: heart toggle, useFeedbackToast, optimistic-update decision
-- `release-date.md` — release date field: MB data source, precision-aware merge guard
+- `release-date.md` — historical only (session-by-session detail): release date field, MB data source, precision-aware merge guard
 - `header-redesign.md` — Header rewrite: useLocation active state, responsive breakpoints
 - `favorites-view.md` — `/favorites` route: RequireAuth, useFavoritesList, AddAlbumDrawer flow
 - `manual-albums.md` — `manual_albums` table schema, MB lookup endpoint, year-bounding decisions

@@ -1,5 +1,7 @@
 # Session decisions — Release date (June 2026)
 
+> Current state consolidated into musicbrainz-enrichment.md — this file kept for historical/session detail only.
+
 ## What was built
 
 Release date is now fetched from MusicBrainz during ingest and displayed on every card as the primary date, with the review (published) date relocated to a secondary position below the summary excerpt.

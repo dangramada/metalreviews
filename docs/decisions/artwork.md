@@ -1,5 +1,7 @@
 # Session decisions — Album artwork (June 2026)
 
+> Current state consolidated into musicbrainz-enrichment.md — this file kept for historical/session detail only.
+
 ## What was built
 
 - Album artwork is fetched during ingestion via **MusicBrainz** (release search) then **Cover Art Archive** (front image URL). Stored as `artworkUrl: string | null` on every review object.

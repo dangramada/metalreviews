@@ -1,5 +1,7 @@
 # Session decisions — Genre coverage + artwork regression fixes (June 2026)
 
+> Current state consolidated into musicbrainz-enrichment.md — this file kept for historical/session detail only.
+
 ## RSS title pollution (root cause of all three bugs below)
 
 Both AMG and The Progressive Subway embed review-site boilerplate in their RSS `<title>` fields:

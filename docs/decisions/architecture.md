@@ -11,7 +11,7 @@ A Node.js script (run with `tsx`) that:
 - Fetches RSS feeds from all sources in parallel
 - For each item, fetches the full review page to extract the rating (using `axios` + `cheerio`, or `puppeteer` for Metal Storm which requires JS rendering)
 - Normalizes all scores to 0–100
-- Resolves each (band, album) to an `albums` row via `resolveAlbumIdentity()` — `mb_release_group_id` checked first (fresh MusicBrainz lookup, extended in `scripts/musicbrainz.ts`), `norm_key` (`scripts/normalizeKey.ts`) as the fallback; creates a new `albums` row only when neither matches. See `docs/decisions/artwork.md`, `genre-data.md`, and `release-date.md` before touching the underlying MB/Cover Art Archive fetch logic itself.
+- Resolves each (band, album) to an `albums` row via `resolveAlbumIdentity()` — `mb_release_group_id` checked first (fresh MusicBrainz lookup, extended in `scripts/musicbrainz.ts`), `norm_key` (`scripts/normalizeKey.ts`) as the fallback; creates a new `albums` row only when neither matches. See `docs/decisions/musicbrainz-enrichment.md` before touching the underlying MB/Cover Art Archive fetch logic itself.
 - Writes artwork URL, genre tags, and release date onto the resolved **album** row (not the review) — new albums get them fresh from MusicBrainz; existing albums are merged via `applyAlbumEnrichment()`, a non-regression merge-guard (never let a fresh empty/coarser value overwrite a good stored one)
 - Review identity/uniqueness is `(album_id, source)`. Up to 3 `reviews` rows can correctly exist per album, one per source.
 - Upserts touched `albums` and `reviews` rows to Supabase — rows not touched this run are left alone
