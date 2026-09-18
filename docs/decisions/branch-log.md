@@ -4,6 +4,25 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `personal-data-exposure-remediation` — merged to master `c383e63` (`--no-ff`), 2026-09-18;
+  rollback tag `pre-merge-personal-data-exposure-remediation` — Phase 1 of a personal-data-
+  exposure remediation brief: read-only audit found 11 files under `docs/data/criteria-
+  calibration/` (committed, public repo) contained real personal calibration-session data (A70/
+  B71 real-session rows/columns, or the `dan-approximation` oracle derived from real solved
+  weights), some wholly, most interleaved row-by-row with synthetic oracle data — confirmed by
+  content, not filename. Full-history scan found the same identifiers under the pre-2026-08-26
+  path (`docs/decisions/criteria-calibration/`, before the `docs/data/` split) and a clean
+  credential scan (no secrets/API keys ever committed, nothing to rotate). All 11 relocated to
+  `docs/backups/criteria-calibration/` (gitignored) and `git rm --cached`'d — whole-file move,
+  not row/column splitting, per Dan's call (synthetic subset regenerable by rerunning the
+  originating diagnostic scripts). `CLAUDE.md` data-handling rule gets an explicit carve-out for
+  real personal session data; citations in `criteria-calibration-summary.md`, `deferred-work.md`,
+  `documentation-audit-june2026.md`, and 7 cluster decision docs updated rather than left
+  dangling. Does **not** purge git history — that's Phase 2, explicitly gated on a separate
+  go-ahead (exact file list + `git filter-repo` command, covering both the pre- and post-move
+  paths, shown before anything runs) — full detail: this session's own transcript pending a
+  dedicated decision doc if Phase 2 proceeds.
+
 - `deferred-work-audit-2026-09-18` — merged to master `ae90a9c` (`--no-ff`), 2026-09-18;
   rollback tag `pre-merge-deferred-work-audit-2026-09-18` — full systematic audit of
   `deferred-work.md` (never previously had one); Phase 0 diagnostic report reviewed before any

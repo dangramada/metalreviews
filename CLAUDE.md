@@ -99,6 +99,15 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent merge: `personal-data-exposure-remediation` — Phase 1 (of 3) of a personal-data-
+exposure remediation: relocated 11 files containing real Dan-account calibration session data
+from committed `docs/data/criteria-calibration/` to gitignored `docs/backups/criteria-
+calibration/`; added a `CLAUDE.md` carve-out (this section's own data-handling rule) so it
+doesn't recur; updated every citing decision doc. Credential scan of full git history came back
+clean — nothing to rotate. History purge (Phase 2, `git filter-repo`) not yet run — gated on a
+separate explicit go-ahead. Merged to `master` `--no-ff` at `c383e63` on 2026-09-18. Rollback
+tag: `pre-merge-personal-data-exposure-remediation`. Full detail: `docs/decisions/branch-log.md`.
+
 Most recent merge: `deferred-work-audit-2026-09-18` — full systematic audit of
 `deferred-work.md` (never previously had one): 2 items fixed in place (stale claims about
 constants already deleted elsewhere in the codebase), 4 items relocated to `finished-work.md`
