@@ -15,12 +15,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docs/decisions/` holds prose decision docs only. Raw/generated data a diagnostic script
   produces (CSV/JSON/TXT dumps) goes in the sibling `docs/data/<cluster>/` tree instead — mirror
   the decision-doc cluster's folder name (e.g. `docs/data/criteria-calibration/`) — so it can be
-  excluded from the Project Knowledge GitHub-connector sync. Personal/local data that's
-  gitignored (never committed) goes in the further sibling `docs/backups/`, not under
-  `docs/decisions/` either. When adding a new data-producing script, write its output straight
-  to the correct sibling folder rather than `docs/decisions/` and moving it later. See
+  excluded from the Project Knowledge GitHub-connector sync. `docs/data/<cluster>/` is still
+  committed to git, though: only synthetic/aggregate diagnostic output belongs there. Diagnostic
+  output that contains real personal session data (real session identifiers, real answer/
+  preference sequences, anything traceable to an actual account) goes to the further sibling
+  `docs/backups/` instead — gitignored, never committed, same as any other personal preference
+  data kept on disk. This isn't a blanket "stop committing data" rule; it's specifically the
+  personal-session subset. When adding a new data-producing script, check before the first write
+  whether its output includes real personal session identifiers — if so it goes to
+  `docs/backups/` by default, not `docs/data/<cluster>/`; otherwise write straight to the correct
+  sibling folder rather than `docs/decisions/` and moving it later. See
   `docs/decisions/documentation-audit-june2026.md`'s 2026-08-26 sections for the reorg that
-  established this.
+  established the `docs/data/` split, and `docs/decisions/criteria-calibration-summary.md`'s data
+  index for the 2026-09-18 audit that added this carve-out after real session data was found
+  committed under `docs/data/criteria-calibration/`.
 - `scripts/` root holds only live code: production modules (`ingest.ts`, `ingest-cli.ts`,
   `musicbrainz.ts`, `normalizeKey.ts`, `supabaseClient.ts`), reusable dev tools meant to be run
   repeatedly (e.g. `debug-preference-graph.ts`), `migrations/`, `__tests__/`, and any

@@ -783,7 +783,9 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   points now instead of one, both single-user (Dan's own account) — real evidence, not
   yet enough to stop treating R=12 as provisional. Full numbers, plus the full
   accuracy/tier/fired trajectory:
-  `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`.
+  `docs/backups/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`
+  (relocated 2026-09-18 from `docs/data/` — real personal session data, now gitignored and
+  local-only; see `criteria-calibration-summary.md`'s "Supporting data" note).
 
   **Superseded numbers, 2026-08-16 (post-Harris):** the n=35 / n=45 last-top-10-change figures
   above, and the 47 / 57 firing points derived from them, were measured pre-Harris-ratio-test.
@@ -923,7 +925,8 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   0.9999+ — i.e., real user time spent past the point the model had anything left to
   learn, the concrete cost of not yet having this entry's proposed two-signal display.
   Not fixing here, just quantifying: full trajectory in
-  `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`; the fired/exhaustion
+  `docs/backups/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv`
+  (relocated 2026-09-18, local-only — see `criteria-calibration-summary.md`); the fired/exhaustion
   mechanics themselves are also written up under the `REQUIRED_ANSWER_SPAN` entry above.
   Cross-reference: "Criteria Calibration header layout" (`finished-work.md`, relocated
   2026-09-18 — related area, distinct scope — not to be merged).

@@ -170,23 +170,30 @@ Grouped by pipeline stage, roughly chronological within each group.
 
 **Supporting data**
 
-All raw diagnostic output for this cluster lives in `docs/data/criteria-calibration/`,
-separate from the prose docs in this folder — moved there 2026-08-26 so it can be excluded
-from the Project Knowledge sync without losing anything else (see
-`documentation-audit-june2026.md`'s 2026-08-26 section for the full move record). Personal
-account backups (gitignored, not committed) live in the further sibling `docs/backups/`.
+**2026-09-18 update:** all 11 files formerly listed here under `docs/data/criteria-calibration/`
+were found to contain real personal session data (A70/B71 real-session rows/columns, or the
+`dan-approximation` oracle whose ground truth is derived from Dan's real solved weights) —
+either wholly or interleaved row-by-row with synthetic oracle data. All 11 have been relocated
+to `docs/backups/criteria-calibration/` (gitignored, not committed) and removed from git
+tracking and history. The pure-synthetic subset (oracles #1–#9) is regenerable by rerunning the
+originating `scripts/diagnostics/*.ts` script without real-session replay, so nothing not
+already personal was lost. See the personal-data-exposure-remediation branch (2026-09-18) for
+the full audit; `deferred-work.md` also updated. `docs/data/criteria-calibration/` no longer
+exists — this cluster currently has no committed raw-data tree.
 
-- `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs
-- `docs/data/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json` — determinacy-region fit backing `criteria-calibration-accuracy-threshold-recalibration.md`
-- `docs/data/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` — 945-row per-round trace backing the same doc and `criteria-calibration-degree-tiers-and-progress.md`
-- `docs/data/criteria-calibration/accuracy-threshold-recalibration-fits-2026-08-17.json` — fitted threshold candidates for the same recalibration diagnostic
-- `docs/data/criteria-calibration/degree-tier-recon-2026-08-18.csv` — 945-row degree/coverage reconstruction backing `criteria-calibration-degree-tiers-and-progress.md`, `criteria-calibration-freeze-checkpoint.md`, and `criteria-calibration-freeze-checkpoint-step1-pool-check.md`
-- `docs/data/criteria-calibration/escalation-signal-oracle-trajectories-postharris-2026-08-16.csv` — 875-row post-Harris oracle trajectories backing `criteria-calibration-escalation-signal-candidates.md`
-- `docs/data/criteria-calibration/escalation-signal-real-session-trajectories-2026-08-16.csv` — 141-row post-Harris real-session trajectories, same doc
-- `docs/data/criteria-calibration/normalized-coverage-diagnostic-output-2026-08-25.txt` — full printed grid output backing `criteria-calibration-normalized-coverage-width-diagnostic.md`
-- `docs/data/criteria-calibration/normalized-coverage-threshold-window-2026-08-25.csv` — 149-cell per-threshold, per-trace grid, same doc
-- `docs/data/criteria-calibration/normalized-coverage-widths-2026-08-25.csv` — 22,680-row per-variable feasible-width trajectory, same doc
-- `docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` — 762-row synthetic-oracle trajectories backing `criteria-calibration-synthetic-oracles.md` and `criteria-calibration-escalation-signal-candidates.md`
+Below are the same 11 files' descriptions, now pointing at their local-only location:
+
+- `docs/backups/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` — full accuracy/tier/fired trajectory from the second real session, referenced by the ranking-stability and 1000minds docs
+- `docs/backups/criteria-calibration/accuracy-threshold-final-region-determinacy-2026-08-17.json` — determinacy-region fit backing `criteria-calibration-accuracy-threshold-recalibration.md`
+- `docs/backups/criteria-calibration/accuracy-threshold-recalibration-2026-08-17.csv` — 945-row per-round trace backing the same doc and `criteria-calibration-degree-tiers-and-progress.md`
+- `docs/backups/criteria-calibration/accuracy-threshold-recalibration-fits-2026-08-17.json` — fitted threshold candidates for the same recalibration diagnostic
+- `docs/backups/criteria-calibration/degree-tier-recon-2026-08-18.csv` — 945-row degree/coverage reconstruction backing `criteria-calibration-degree-tiers-and-progress.md`, `criteria-calibration-freeze-checkpoint.md`, and `criteria-calibration-freeze-checkpoint-step1-pool-check.md`
+- `docs/backups/criteria-calibration/escalation-signal-oracle-trajectories-postharris-2026-08-16.csv` — 875-row post-Harris oracle trajectories backing `criteria-calibration-escalation-signal-candidates.md`
+- `docs/backups/criteria-calibration/escalation-signal-real-session-trajectories-2026-08-16.csv` — 141-row post-Harris real-session trajectories, same doc
+- `docs/backups/criteria-calibration/normalized-coverage-diagnostic-output-2026-08-25.txt` — full printed grid output backing `criteria-calibration-normalized-coverage-width-diagnostic.md`
+- `docs/backups/criteria-calibration/normalized-coverage-threshold-window-2026-08-25.csv` — 149-cell per-threshold, per-trace grid, same doc
+- `docs/backups/criteria-calibration/normalized-coverage-widths-2026-08-25.csv` — 22,680-row per-variable feasible-width trajectory, same doc
+- `docs/backups/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` — 762-row synthetic-oracle trajectories backing `criteria-calibration-synthetic-oracles.md` and `criteria-calibration-escalation-signal-candidates.md`
 
 ## Not in this repo
 

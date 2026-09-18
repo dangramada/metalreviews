@@ -226,6 +226,16 @@ losing anything else.
 | `docs/decisions/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` | `docs/data/criteria-calibration/second-session-accuracy-trajectory-2026-08-15.csv` |
 | `docs/decisions/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` | `docs/data/criteria-calibration/synthetic-oracle-trajectories-2026-08-16.csv` |
 
+**2026-09-18 update:** all 11 of these same files moved a second time, from `docs/data/
+criteria-calibration/` to `docs/backups/criteria-calibration/` (gitignored, untracked) — a
+privacy audit found real personal session data (A70/B71, `dan-approximation`) threaded through
+every one of them, which the "After" column above never screened for; that column reflects only
+the 2026-08-26 Project-Knowledge-sync goal, not a personal-data classification. `docs/data/
+criteria-calibration/` no longer exists. See `criteria-calibration-summary.md`'s "Supporting
+data" section for the current file list and locations, and `CLAUDE.md`'s data-handling rule for
+the carve-out this added. This table is left as-is below as the historical record of the
+original move.
+
 Flat destination — 11 files under one existing cluster didn't warrant further sub-splitting.
 No files were found at `docs/decisions/` root level or under `album-identity/`; the entire
 raw-data footprint was in `criteria-calibration/`.
