@@ -29,6 +29,17 @@ complete and verified.
   post-submit `findExistingAlbum()` check runs). `album-identity-decisions.md` §5 /
   `album-identity-frontend-favorites.md`.
 
+**Confirmed open bug, diagnosed 2026-09-18:** Step A's search
+(`artist:"{band}" AND release:"{album}"`) can match two genuinely different real works sharing
+a title (e.g. Khemmis's self-titled 2013 EP vs. self-titled 2026 album) — `releases[0]`'s
+arbitrary pick then attaches the wrong work's data. 29 of 320 albums currently have more than
+one candidate release-group; Khemmis and Moonspell manually confirmed broken and corrected the
+same day (step 1 of 2), the other 27 unconfirmed. A currently-enriched row also silently blocks
+any future re-check via `norm_key` alone, regardless of `mb_release_group_id` — fixing that
+(step 2) is scoped but not started. See `album-identity-same-title-release-group-collision.md`
+for the full list, merge-risk analysis, and correction detail. Still blocks resuming the Metal
+Storm back-catalogue exclusion filter.
+
 ## Index (pipeline order)
 
 1. `album-identity-diagnosis.md` — diagnostic: `computeId` collision, confirmed data loss
@@ -44,3 +55,6 @@ complete and verified.
    re-plumb, `findExistingAlbum`
 7. `album-identity-visibility-and-duplicate-fix.md` — home-page visibility filter +
    duplicate-check fixes
+8. `album-identity/album-identity-same-title-release-group-collision.md` — diagnostic
+   (read-only): same-title, different-real-work release-group collisions; 29/320 albums
+   flagged; blocks the Metal Storm back-catalogue exclusion filter

@@ -1079,3 +1079,21 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   — a real backlog that has been invisible. Two pieces of work, deliberately not done in the
   checkpoints pass: fix the script, and burn down (or explicitly accept) the existing errors.
   Fixing the script first without the second half would make CI red immediately.
+
+## New items, 2026-09-18 (same-title release-group collision diagnostic)
+
+- **Same-title, different-real-work MusicBrainz collisions — 2 of 29 corrected, 27 still open,
+  no systemic fix designed yet.** Confirmed live: 29 of 320 `albums` rows have Step A's search
+  (`artist:"{band}" AND release:"{album}"`) matching more than one distinct release-group.
+  Manual check narrowed this to 4 candidates for "genuinely different works" (not Album+promo-
+  Single); of those, Devin Townsend and Wormwood turned out already correct, and **Khemmis and
+  Moonspell were confirmed broken and corrected 2026-09-18** (step 1 of 2 — see the doc's
+  2026-09-18 follow-up entry for the exact fields/ids). The other 25 flagged pairs remain
+  unconfirmed either way. Full list, method, and the merge-risk analysis:
+  `album-identity/album-identity-same-title-release-group-collision.md`. Blocks resuming the
+  Metal Storm back-catalogue exclusion filter, which trusts `release_date` as ground truth.
+  **Step 2 (fixing `isAlbumEnriched()` so a wrongly-enriched row doesn't silently block all
+  future MB re-checks) is scoped but not started** — waiting on explicit go-ahead. No systemic
+  fix for the remaining 25 rows is scoped yet either — first needs a decision on how to
+  disambiguate (Album vs. same-titled promo Single looks like a different, easier sub-problem
+  than two substantively different albums; see the doc's "Result" section for the split).

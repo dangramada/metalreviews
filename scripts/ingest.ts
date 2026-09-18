@@ -663,7 +663,7 @@ export function normalizeScore(raw: string): number | null {
 // Returns a precision rank so album enrichment never downgrades an existing precise date
 // with a less-precise fresh one. MB dates can be "2024", "2024-03", or "2024-03-15" — all
 // valid, but not equally useful.
-function releaseDatePrecision(d: string | null): number {
+export function releaseDatePrecision(d: string | null): number {
   if (!d) return 0;
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return 3; // full date
   if (/^\d{4}-\d{2}$/.test(d)) return 2; // year-month

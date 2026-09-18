@@ -1,0 +1,505 @@
+{
+  "totalChecked": 320,
+  "errors": 1,
+  "flaggedCount": 29,
+  "flagged": [
+    {
+      "band": "Apogean",
+      "album": "Waste Where Life Begins",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "e97ee56a-998e-4c9c-965f-56bb0537565d",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-10"
+        },
+        {
+          "releaseGroupId": "aff8140c-fe51-4010-a838-4c3db402523e",
+          "primaryType": "Single",
+          "earliestDate": "2026-06-23"
+        }
+      ]
+    },
+    {
+      "band": "Solace",
+      "album": "Fading Failing Ruin",
+      "storedReleaseGroupId": "ccf1ac3b-e1a2-47a8-ba60-6a7b04957799",
+      "candidates": [
+        {
+          "releaseGroupId": "ccf1ac3b-e1a2-47a8-ba60-6a7b04957799",
+          "primaryType": "Album",
+          "earliestDate": null
+        },
+        {
+          "releaseGroupId": "71dd843f-6cc3-4a24-a5c4-a7eaf3d193e1",
+          "primaryType": "Album",
+          "earliestDate": null
+        }
+      ]
+    },
+    {
+      "band": "Sun Guts",
+      "album": "Supervoid",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "785a577d-27cd-49a3-b11c-d4feac933231",
+          "primaryType": "Single",
+          "earliestDate": "2026-08-04"
+        },
+        {
+          "releaseGroupId": "e155310e-2880-4373-8fc4-cd1f6b485bb6",
+          "primaryType": "Album",
+          "earliestDate": "2026-09-04"
+        }
+      ]
+    },
+    {
+      "band": "Dysgnostic",
+      "album": "End Whispers",
+      "storedReleaseGroupId": "ffda8751-8281-4329-8c25-4a9d58fb1c01",
+      "candidates": [
+        {
+          "releaseGroupId": "ffda8751-8281-4329-8c25-4a9d58fb1c01",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-10"
+        },
+        {
+          "releaseGroupId": "5c50230c-fa86-49a0-b085-03ed95468ac5",
+          "primaryType": "Single",
+          "earliestDate": "2026-04-13"
+        }
+      ]
+    },
+    {
+      "band": "Khemmis",
+      "album": "Khemmis",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "7e851452-2e24-4312-8fd5-fdf4c713f2fd",
+          "primaryType": "EP",
+          "earliestDate": "2013-11-14"
+        },
+        {
+          "releaseGroupId": "66eda96e-276a-46b5-a4bf-46bb8b201b28",
+          "primaryType": "Album",
+          "earliestDate": "2026-06-12"
+        }
+      ]
+    },
+    {
+      "band": "DevilDriver",
+      "album": "Strike And Kill",
+      "storedReleaseGroupId": "cc42ec33-6000-4a13-990b-7b9443d3dae4",
+      "candidates": [
+        {
+          "releaseGroupId": "cc42ec33-6000-4a13-990b-7b9443d3dae4",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-10"
+        },
+        {
+          "releaseGroupId": "78c638ef-a000-402d-a70d-2555b65bc689",
+          "primaryType": "Single",
+          "earliestDate": "2026-07-07"
+        }
+      ]
+    },
+    {
+      "band": "Moonspell",
+      "album": "Far from God",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "a2b513aa-2567-4f10-b22e-8a39c395edb3",
+          "primaryType": "Single",
+          "earliestDate": "2026-03-25"
+        },
+        {
+          "releaseGroupId": "aebc070b-e3a1-4042-8f93-da01fc26fda8",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-03"
+        },
+        {
+          "releaseGroupId": "62882f57-c631-4752-814f-e907c0f0ad93",
+          "primaryType": "EP",
+          "earliestDate": null
+        }
+      ]
+    },
+    {
+      "band": "Yes",
+      "album": "Aurora",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "b72aec7b-8b63-4245-84d7-07d70fe683e0",
+          "primaryType": "Single",
+          "earliestDate": "2026-04-10"
+        },
+        {
+          "releaseGroupId": "96a132b5-1e90-4ac9-87cf-73d696fb7bc5",
+          "primaryType": "Album",
+          "earliestDate": "2026-06-12"
+        }
+      ]
+    },
+    {
+      "band": "Shadowborne",
+      "album": "Heaven’s Falling",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "9833ef34-3dfc-44f7-806c-4bbc88f3a7df",
+          "primaryType": "Single",
+          "earliestDate": "2026-04-29"
+        },
+        {
+          "releaseGroupId": "84bf95c1-f2d4-4d6b-aafb-90d6c043a240",
+          "primaryType": "Album",
+          "earliestDate": "2026-06-19"
+        }
+      ]
+    },
+    {
+      "band": "Devin Townsend",
+      "album": "The Moth",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "d408e36a-7328-40eb-b373-eaa5caa98651",
+          "primaryType": "Album",
+          "earliestDate": "2026-05-29"
+        },
+        {
+          "releaseGroupId": "e49834f8-d449-41b8-8a9b-e18f99a7b276",
+          "primaryType": "Album",
+          "earliestDate": "2025-03-28"
+        }
+      ]
+    },
+    {
+      "band": "Elder",
+      "album": "Through Zero",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "15853898-04b7-4ecc-9207-ecb2263f8f00",
+          "primaryType": "Single",
+          "earliestDate": null
+        },
+        {
+          "releaseGroupId": "3fd4d36a-9fef-4bd0-b822-3eb14a150078",
+          "primaryType": "Album",
+          "earliestDate": "2026-05-29"
+        }
+      ]
+    },
+    {
+      "band": "Electric Sun Defence",
+      "album": "Estuary",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "b8e676b9-df71-41ff-b70a-219221babbd1",
+          "primaryType": "Album",
+          "earliestDate": "2026-05-08"
+        },
+        {
+          "releaseGroupId": "8fa7b92f-9757-404f-b286-4ff51667283b",
+          "primaryType": "Single",
+          "earliestDate": "2026-03-20"
+        }
+      ]
+    },
+    {
+      "band": "Black Veil Brides",
+      "album": "Vindicate",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "aa7a72c4-c1ff-40b8-bfac-4c032dfdad5c",
+          "primaryType": "Single",
+          "earliestDate": "2026-03-19"
+        },
+        {
+          "releaseGroupId": "a6a02c12-2016-435c-ad3d-e7f999829eb8",
+          "primaryType": "Album",
+          "earliestDate": "2026-05-08"
+        }
+      ]
+    },
+    {
+      "band": "Inferi",
+      "album": "Heaven Wept",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "eacd8a95-7d10-4807-9121-0beba575ceb9",
+          "primaryType": "Album",
+          "earliestDate": "2026-04-10"
+        },
+        {
+          "releaseGroupId": "371af7ff-a57d-47f3-abf3-2df71a94ca65",
+          "primaryType": "Single",
+          "earliestDate": "2026-02-27"
+        }
+      ]
+    },
+    {
+      "band": "Pro-Pain",
+      "album": "Stone Cold Anger",
+      "storedReleaseGroupId": null,
+      "candidates": [
+        {
+          "releaseGroupId": "4dc826e6-f525-4bcb-81b9-4785967c4ab2",
+          "primaryType": "Album",
+          "earliestDate": "2026-05-15"
+        },
+        {
+          "releaseGroupId": "0380d0b3-282a-4259-bda4-9e732ad353d6",
+          "primaryType": "Single",
+          "earliestDate": "2026-05-13"
+        }
+      ]
+    },
+    {
+      "band": "Stormhammer",
+      "album": "Wrath of the Hammer",
+      "storedReleaseGroupId": "3239d455-98cf-49d1-8afc-ee844be18d26",
+      "candidates": [
+        {
+          "releaseGroupId": "c3dbd44a-d841-433f-bbca-128f848dfc2a",
+          "primaryType": "Single",
+          "earliestDate": "2026-05-20"
+        },
+        {
+          "releaseGroupId": "3239d455-98cf-49d1-8afc-ee844be18d26",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-17"
+        }
+      ]
+    },
+    {
+      "band": "Imperium",
+      "album": "Exodus Unknown",
+      "storedReleaseGroupId": "f7e63139-db77-4c31-82d7-837d223dfbd1",
+      "candidates": [
+        {
+          "releaseGroupId": "f7e63139-db77-4c31-82d7-837d223dfbd1",
+          "primaryType": "Album",
+          "earliestDate": null
+        },
+        {
+          "releaseGroupId": "37fe0108-062f-4ece-bd35-b16eaca4e4fb",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-16"
+        }
+      ]
+    },
+    {
+      "band": "Green Lung",
+      "album": "Necropolitan",
+      "storedReleaseGroupId": "ebcd8232-4460-48d8-a744-37abb851f8fa",
+      "candidates": [
+        {
+          "releaseGroupId": "ebcd8232-4460-48d8-a744-37abb851f8fa",
+          "primaryType": "Album",
+          "earliestDate": "2026-09-11"
+        },
+        {
+          "releaseGroupId": "48ee13ad-cd1f-48cb-a44e-e0f7087f01be",
+          "primaryType": "Single",
+          "earliestDate": null
+        }
+      ]
+    },
+    {
+      "band": "Haken",
+      "album": "In a Fever Dream",
+      "storedReleaseGroupId": "39a6e085-d1a6-46f0-8b45-bc6a0f77e0f6",
+      "candidates": [
+        {
+          "releaseGroupId": "39a6e085-d1a6-46f0-8b45-bc6a0f77e0f6",
+          "primaryType": "Single",
+          "earliestDate": "2026-05-21"
+        },
+        {
+          "releaseGroupId": "44df52ad-cf1a-425f-8b27-583d60d851a9",
+          "primaryType": "EP",
+          "earliestDate": "2026-07-17"
+        }
+      ]
+    },
+    {
+      "band": "Phase Meridian",
+      "album": "Egregore",
+      "storedReleaseGroupId": "b6683647-058a-4223-8a77-f0550bc847d3",
+      "candidates": [
+        {
+          "releaseGroupId": "b6683647-058a-4223-8a77-f0550bc847d3",
+          "primaryType": "Album",
+          "earliestDate": ""
+        },
+        {
+          "releaseGroupId": "94a8027f-0c41-43c0-9458-bdc62afc2846",
+          "primaryType": "Single",
+          "earliestDate": "2026-01-15"
+        }
+      ]
+    },
+    {
+      "band": "Xandria",
+      "album": "Eclipse",
+      "storedReleaseGroupId": "60b2ebcc-118f-41ee-8012-d814a6ee4753",
+      "candidates": [
+        {
+          "releaseGroupId": "60b2ebcc-118f-41ee-8012-d814a6ee4753",
+          "primaryType": "Album",
+          "earliestDate": "2026-08-07"
+        },
+        {
+          "releaseGroupId": "a230527c-3d63-49d7-8f08-21ac2d203fa9",
+          "primaryType": "Single",
+          "earliestDate": "2026-08-05"
+        }
+      ]
+    },
+    {
+      "band": "Opeth",
+      "album": "Sorceress",
+      "storedReleaseGroupId": "8902256f-d9f0-4043-a8f3-2412fb3d3db7",
+      "candidates": [
+        {
+          "releaseGroupId": "8902256f-d9f0-4043-a8f3-2412fb3d3db7",
+          "primaryType": "Album",
+          "earliestDate": "2016-09-30"
+        },
+        {
+          "releaseGroupId": "04aec7a5-7756-47ff-89e8-1bb3f40ae730",
+          "primaryType": "Single",
+          "earliestDate": "2016-08-02"
+        }
+      ]
+    },
+    {
+      "band": "Tyraels Ascension",
+      "album": "Grave Seeker",
+      "storedReleaseGroupId": "d2077e8b-4121-4709-9e8b-61a6d164f44e",
+      "candidates": [
+        {
+          "releaseGroupId": "d47edda7-e42d-4ecc-aa05-c4eba0ecccdf",
+          "primaryType": "Album",
+          "earliestDate": null
+        },
+        {
+          "releaseGroupId": "d2077e8b-4121-4709-9e8b-61a6d164f44e",
+          "primaryType": "Album",
+          "earliestDate": null
+        }
+      ]
+    },
+    {
+      "band": "Wormwood",
+      "album": "Å",
+      "storedReleaseGroupId": "09d45c42-64fb-4741-b850-2d90830add02",
+      "candidates": [
+        {
+          "releaseGroupId": "09d45c42-64fb-4741-b850-2d90830add02",
+          "primaryType": "EP",
+          "earliestDate": "2026-08-07"
+        },
+        {
+          "releaseGroupId": "094d9dda-12d8-43e8-bfa3-8ceef7be42c3",
+          "primaryType": "Album",
+          "earliestDate": "2017-03-10"
+        }
+      ]
+    },
+    {
+      "band": "Cancer Bats",
+      "album": "Give Me Dirt",
+      "storedReleaseGroupId": "4c157c9f-12f4-4575-9db2-b2739e20a3e5",
+      "candidates": [
+        {
+          "releaseGroupId": "7fb3424d-975d-41f2-8559-6c0a6f631fc3",
+          "primaryType": "Album",
+          "earliestDate": "2026-08-07"
+        },
+        {
+          "releaseGroupId": "4c157c9f-12f4-4575-9db2-b2739e20a3e5",
+          "primaryType": "Single",
+          "earliestDate": "2026-08-07"
+        }
+      ]
+    },
+    {
+      "band": "Beseech",
+      "album": "Future Present Past",
+      "storedReleaseGroupId": "a06e5b6a-10a4-496b-8ee1-01552c9b77e9",
+      "candidates": [
+        {
+          "releaseGroupId": "a06e5b6a-10a4-496b-8ee1-01552c9b77e9",
+          "primaryType": "Album",
+          "earliestDate": "2026-08-28"
+        },
+        {
+          "releaseGroupId": "07c86d04-b946-4948-a5fc-a8599c40f870",
+          "primaryType": "Single",
+          "earliestDate": "2026-08-07"
+        }
+      ]
+    },
+    {
+      "band": "The Hu",
+      "album": "Hun",
+      "storedReleaseGroupId": "2c4307d0-0d42-4848-afad-ada40dad6f63",
+      "candidates": [
+        {
+          "releaseGroupId": "2c4307d0-0d42-4848-afad-ada40dad6f63",
+          "primaryType": "Album",
+          "earliestDate": "2026-07-24"
+        },
+        {
+          "releaseGroupId": "a868a0b4-b300-490f-a89f-4a6886987f23",
+          "primaryType": "EP",
+          "earliestDate": "2026-06-26"
+        }
+      ]
+    },
+    {
+      "band": "Devil Master",
+      "album": "Bloody Dreams",
+      "storedReleaseGroupId": "3e4b84ab-266d-4b64-b783-e472cb48e8b1",
+      "candidates": [
+        {
+          "releaseGroupId": "3e4b84ab-266d-4b64-b783-e472cb48e8b1",
+          "primaryType": "EP",
+          "earliestDate": "2026-09-04"
+        },
+        {
+          "releaseGroupId": "a6d20910-bb0a-43de-a6df-482d52b9853e",
+          "primaryType": "EP",
+          "earliestDate": "2026-09-04"
+        }
+      ]
+    },
+    {
+      "band": "Flotsam and Jetsam",
+      "album": "Rats in the Temple",
+      "storedReleaseGroupId": "3df4f3a4-04c3-4f2d-8873-a72320c8720d",
+      "candidates": [
+        {
+          "releaseGroupId": "3df4f3a4-04c3-4f2d-8873-a72320c8720d",
+          "primaryType": "Single",
+          "earliestDate": "2026-05-27"
+        },
+        {
+          "releaseGroupId": "fe4f7edb-5ea6-4f53-9a9a-c62341694504",
+          "primaryType": "Album",
+          "earliestDate": "2026-08-28"
+        }
+      ]
+    }
+  ]
+}
