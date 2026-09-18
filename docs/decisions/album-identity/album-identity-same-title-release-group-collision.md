@@ -528,6 +528,46 @@ corrected — none currently show a live defect); no systemic disambiguation log
 Metal Storm back-catalogue exclusion filter stays paused (this task only re-confirmed its
 diagnostic's list, per the cross-check above).
 
+## 2b-ii closed — final protection confirmation, all 29 (2026-09-18)
+
+Every pair discussed across this whole thread — not just a sample — is now confirmed protected
+from a future ambiguous re-fetch. Ran a single programmatic check: computed `norm_key` for all
+29 original band/album pairs via `computeNormKey()` (reused, not retyped by hand) and diffed
+against `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`.
+
+**Result: 29/29 present, 0 missing, 0 extras** — the constant is an exact match to the original
+29, not just a superset that happens to cover them. Both guarded call sites
+(`selectAlbumBackfillCandidates`'s `excludedNormKeys` and the main loop's `needsMbLookup()`)
+key off this same set, so this one check covers both paths for every pair.
+
+**Correction found along the way, worth recording:** Opeth — Sorceress, one of the "5
+ambiguous-no-defect" pairs, turned out to have zero attached `reviews` rows — it's a
+manually-favorited album (`albums.created_by` set to a real user id), not a scraped review from
+any of the three sources. Checked all other 28: every one of them has `created_by: null` and at
+least one attached review. So this was an isolated gap in the original diagnostic's scope
+(it queried all of `albums` unconditionally rather than joining `reviews`, despite the original
+brief asking for "reviews joined to albums"), not a systemic one — Opeth's collision finding
+itself (two real release-groups, visibly different cover art) still stands, it's just not tied
+to any specific review.
+
+### Final tally — all 29 pairs
+
+| Category | Count | Pairs |
+|---|---|---|
+| Corrected | 9 | Khemmis, Moonspell, Yes, Shadowborne, Elder, Black Veil Brides, Haken, Cancer Bats, Flotsam and Jetsam |
+| Confirmed-safe and protected | 6 | Devin Townsend, Wormwood, Stormhammer, Green Lung, Opeth, Beseech |
+| Artwork-matched (low risk) | 8 | Apogean, Solace, DevilDriver, Electric Sun Defence, Inferi, Pro-Pain, Xandria, The Hu |
+| Ambiguous, no live defect (not artwork-comparable) | 5 | Dysgnostic, Imperium, Phase Meridian, Tyraels Ascension, Devil Master |
+| Empty, deliberately untouched | 1 | Sun Guts |
+| **Total** | **29** | |
+
+Every category is now a closed, checked state — corrected rows verified live, confirmed-safe
+rows explicitly checked (not assumed), artwork-matched/ambiguous rows have their raw data on
+record, and all 29 without exception sit in the same protective exclusion set. **2b-ii is
+closed.** Nothing further is owed on this diagnostic thread unless new data surfaces (e.g. Sun
+Guts eventually gets enriched, or a future catalog scan finds new collisions among albums added
+after 2026-09-18 — this protection only covers the 29 pairs known as of that date).
+
 ## Explicitly not done this session (step 2a / 2b-i — historical, kept as originally written)
 
 - No fix to Step A's disambiguation logic.

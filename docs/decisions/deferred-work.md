@@ -1082,8 +1082,8 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
 
 ## New items, 2026-09-18 (same-title release-group collision diagnostic)
 
-- **Same-title, different-real-work MusicBrainz collisions — all 29 now accounted for; 3 flagged
-  pairs are the only open data question left.** Confirmed live: 29 of 320 `albums` rows have
+- **Same-title, different-real-work MusicBrainz collisions — CLOSED (2b-ii done 2026-09-18).**
+  Confirmed live: 29 of 320 `albums` rows have
   Step A's search (`artist:"{band}" AND release:"{album}"`) matching more than one distinct
   release-group. Full list, method, and the running tally: `album-identity/album-identity-same-
   title-release-group-collision.md`. Blocks resuming the Metal Storm back-catalogue exclusion
@@ -1107,7 +1107,13 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`) — a naive widen would otherwise have re-exposed
   already-ambiguous rows to the same unguarded search that broke Khemmis/Moonspell. 414/414
   tests, `tsc` unchanged throughout all of the above.
-  **Step 2b-ii is narrower now, not closed:** whether/how to act on the 3 flagged-differing
-  pairs and the drift behavior independently observed on 3 others (Stormhammer, Tyraels
-  Ascension, Cancer Bats — where `releases[0]`'s resolution changed after the row was written)
-  is still an open, unscoped decision.
+  **2b-ii closed 2026-09-18: final protection check confirmed 29/29** — computed `norm_key`
+  for all 29 original pairs (not a sample, not retyped by hand) and diffed against
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`: 0 missing, 0 extras, exact match. Final tally: 9
+  corrected, 6 confirmed-safe-and-protected (Devin Townsend, Wormwood, Stormhammer, Green Lung,
+  Opeth, Beseech), 8 artwork-matched, 5 ambiguous-no-defect, 1 empty-untouched (Sun Guts) = 29.
+  Incidental find while closing: Opeth — Sorceress has zero attached `reviews` — it's a
+  manually-favorited album, not a scraped review; checked, isolated (all other 28 are
+  genuinely review-backed). Nothing further owed on this thread unless new collisions surface
+  among albums added after 2026-09-18. Full detail: `album-identity/album-identity-same-title-
+  release-group-collision.md`'s closing section.
