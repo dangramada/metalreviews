@@ -124,7 +124,9 @@ describe('CriteriaCalibrationPage — tabs, Guide, Results', () => {
     // hides, so both render, hence getAllByText rather than getByText).
     expect(screen.getAllByText('Innovation').length).toBeGreaterThan(0);
     // No badge yet — round 0, nothing calibrated (brief §5).
-    expect(screen.queryByRole('img', { name: /tier, \d+ percent pinned down/ })).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /tier\. \d+ percent of your weighting settled\./ })
+    ).toBeNull();
   });
 
   it('"Start Calibration" switches to the Calibration tab and shows a real question', async () => {

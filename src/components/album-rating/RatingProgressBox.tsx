@@ -87,7 +87,7 @@ export function RatingProgressBox({
               letterSpacing="0.06em"
               color="text.muted"
             >
-              Score confidence: {confidenceLabel(confidenceTier)}
+              Score level: {confidenceLabel(confidenceTier)}
             </Text>
           </VStack>
         </motion.div>

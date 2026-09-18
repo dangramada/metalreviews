@@ -52,6 +52,10 @@ import {
   DialogTitle,
 } from './components/ui/dialog';
 import { Field } from './components/ui/field';
+import {
+  CalibrationGateDialog,
+  type CalibrationGateMode,
+} from './components/criteria-calibration/CalibrationGateDialog';
 import { FaTrash } from 'react-icons/fa';
 import { LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardCheck } from 'react-icons/lu';
 // Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
@@ -208,7 +212,7 @@ export function FavoriteListItemRow({
               <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
                 <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
                 {confidenceTier === 'none' && (
-                  <Tooltip content={`Score confidence: ${confidenceLabel(confidenceTier)}`}>
+                  <Tooltip content={`Score level: ${confidenceLabel(confidenceTier)}`}>
                     <Box {...confidenceWarningBadge}>!</Box>
                   </Tooltip>
                 )}
@@ -363,8 +367,8 @@ export function FavoriteListItemRow({
                   {confidenceTier === 'none' && (
                     <Box
                       {...confidenceWarningBadge}
-                      aria-label={`Score confidence: ${confidenceLabel(confidenceTier)}`}
-                      title={`Score confidence: ${confidenceLabel(confidenceTier)}`}
+                      aria-label={`Score level: ${confidenceLabel(confidenceTier)}`}
+                      title={`Score level: ${confidenceLabel(confidenceTier)}`}
                     >
                       !
                     </Box>
@@ -1185,17 +1189,25 @@ export function FavoritesPage() {
     loading: gateLoading,
   } = useCalibrationGate();
   const { summary: ratingSummary } = useAlbumRatingsSummary();
-  const [gateNudgeOpen, setGateNudgeOpen] = useState(false);
+  const [gateMode, setGateMode] = useState<CalibrationGateMode | null>(null);
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
+  // Hard gate (no calibrated model at all) and soft gate (a model exists but the first level of
+  // comparison isn't finished) — terminology-and-gate-unification. Previously this only checked
+  // `hasCalibrationWeights`, reaching straight for /rate/:albumId whenever a model existed
+  // regardless of tier; the soft gate now also nudges a `tier === 'none'` user who has weights,
+  // rather than staying silent for anyone past the hard gate (see useCalibrationGate's hasWeights
+  // comment for why the hard gate itself still keys off hasWeights, not tier).
   function handleRate(item: FavoriteListItem) {
     if (gateLoading) return;
-    // Gated on "is there a calibrated model at all", NOT on the tier — see useCalibrationGate's
-    // hasWeights comment. Under degree-tied tiers a user can answer ninety questions and still
-    // be tier 'none', and nudging them to go calibrate would be absurd.
     if (!hasCalibrationWeights) {
       setPendingRateAlbumId(item.albumId);
-      setGateNudgeOpen(true);
+      setGateMode('hard');
+      return;
+    }
+    if (calibrationTier === 'none') {
+      setPendingRateAlbumId(item.albumId);
+      setGateMode('soft');
       return;
     }
     navigate(`/rate/${item.albumId}?from=favorites`);
@@ -1341,47 +1353,26 @@ export function FavoritesPage() {
         favoritedAlbumIds={favoritedAlbumIds}
       />
 
-      <DialogRoot open={gateNudgeOpen} onOpenChange={({ open }) => setGateNudgeOpen(open)}>
-        <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
-          <DialogHeader>
-            <DialogTitle fontWeight="semibold">Calibrate your criteria first?</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            Rating albums uses your personal criteria weights, which aren&apos;t set up yet — your
-            score will show as low confidence until you calibrate. You can rate now and calibrate
-            later, or answer a few comparison questions first for a more accurate score.
-          </DialogBody>
-          <DialogFooter gap={3}>
-            <Button {...secondaryButton} variant="outline" onClick={() => setGateNudgeOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              {...secondaryButton}
-              variant="solid"
-              onClick={() => {
-                setGateNudgeOpen(false);
-                if (pendingRateAlbumId) navigate(`/rate/${pendingRateAlbumId}?from=favorites`);
-              }}
-            >
-              Rate anyway
-            </Button>
-            <Button
-              {...primaryButton}
-              onClick={() => {
-                setGateNudgeOpen(false);
-                // `?from=favorites` is what sends the user back here when they finish or stop
-                // calibrating — same convention as the /rate/:albumId links above. Calibration
-                // resolves it through an allowlist and falls back to /favorites when absent,
-                // so this is about not hardcoding the round-trip, not about it breaking
-                // without the param.
-                navigate('/calibration?from=favorites');
-              }}
-            >
-              Go to calibration
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
+      <CalibrationGateDialog
+        open={gateMode !== null}
+        onOpenChange={(open) => {
+          if (!open) setGateMode(null);
+        }}
+        mode={gateMode ?? 'hard'}
+        onEvaluateAnyway={() => {
+          setGateMode(null);
+          if (pendingRateAlbumId) navigate(`/rate/${pendingRateAlbumId}?from=favorites`);
+        }}
+        onGoToCalibration={() => {
+          setGateMode(null);
+          // `?from=favorites` is what sends the user back here when they finish or stop
+          // calibrating — same convention as the /rate/:albumId links above. Calibration
+          // resolves it through an allowlist and falls back to /favorites when absent,
+          // so this is about not hardcoding the round-trip, not about it breaking
+          // without the param.
+          navigate('/calibration?from=favorites');
+        }}
+      />
     </Box>
   );
 }

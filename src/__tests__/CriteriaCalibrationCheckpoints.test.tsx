@@ -261,7 +261,9 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
 
     // Degree 2 still in progress — the base rung, regardless of a 90% accuracy reading. Tier
     // and percentage read together as one compound badge now, not "Detail: X" text.
-    expect(await screen.findByLabelText('Unfocused tier, 90 percent pinned down')).toBeTruthy();
+    expect(
+      await screen.findByLabelText('Unfocused tier. 90 percent of your weighting settled.')
+    ).toBeTruthy();
   });
 
   it('assigns the badge from the degree, ignoring accuracy entirely', async () => {
@@ -272,7 +274,7 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     await screen.findByText("You've compared everything at this level");
     expect(screen.getByText('Blurry')).toBeTruthy();
     // The number is still reported, attached to an explicit subject, never bare.
-    expect(screen.getByText(/you're 90% clear on what matters most to you/)).toBeTruthy();
+    expect(screen.getByText(/you're 90% settled on what matters most to you/)).toBeTruthy();
   });
 
   it('"Continue" moves to the next degree and does not re-show the checkpoint', async () => {
@@ -359,7 +361,9 @@ describe('CriteriaCalibrationPage — checkpoint copy + permanent badge', () => 
     renderPage();
 
     await screen.findByText("You've compared everything at this level");
-    const badge = screen.getByRole('img', { name: /Blurry tier, \d+ percent pinned down/ });
+    const badge = screen.getByRole('img', {
+      name: /Blurry tier\. \d+ percent of your weighting settled\./,
+    });
     expect(badge.getAttribute('tabindex')).toBe('0');
   });
 

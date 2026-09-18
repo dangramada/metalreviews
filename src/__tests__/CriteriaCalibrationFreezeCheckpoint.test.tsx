@@ -200,8 +200,12 @@ async function clickButton(name: RegExp | string) {
 // reformatted to the same "NN%" shape the callers compare.
 function getAccuracyPercentText(): string {
   const header = screen.getByTestId('calibration-header');
-  const badge = within(header).getByRole('img', { name: /tier, \d+ percent pinned down/ });
-  const match = (badge.getAttribute('aria-label') ?? '').match(/(\d+) percent pinned down/);
+  const badge = within(header).getByRole('img', {
+    name: /tier\. \d+ percent of your weighting settled\./,
+  });
+  const match = (badge.getAttribute('aria-label') ?? '').match(
+    /(\d+) percent of your weighting settled/
+  );
   return match ? `${match[1]}%` : '';
 }
 

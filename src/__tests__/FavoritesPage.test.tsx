@@ -73,14 +73,21 @@ function wrapper({ children }: { children: React.ReactNode }) {
 // Flipped by the soft-gate tests below; every other test leaves it false, which is the
 // pre-existing "brand new user" shape.
 let stubHasCalibrationWeights = false;
+// Drives useCalibrationGate's `tier` — null (the pre-existing default) means "no status row",
+// which useCalibrationGate treats the same as tier 'none'. Set to a real tier string to test the
+// no-gate-at-all path (hasWeights AND a tier past 'none').
+let stubCalibrationTier: string | null = null;
 
 function stubCalibrationTable(table: string): unknown | undefined {
   if (table === 'user_calibration_status') {
     return {
       select: vi.fn().mockReturnValue({
-        eq: vi
-          .fn()
-          .mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }),
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({
+            data: stubCalibrationTier ? { tier: stubCalibrationTier } : null,
+            error: null,
+          }),
+        }),
       }),
     };
   }
@@ -114,6 +121,7 @@ describe('FavoritesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     stubHasCalibrationWeights = false;
+    stubCalibrationTier = null;
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       const calibrationStub = stubCalibrationTable(table);
       if (calibrationStub) return calibrationStub;
@@ -252,32 +260,46 @@ describe('FavoritesPage', () => {
     ]);
   });
 
-  // Soft gate, changed 2026-08-18 (see useCalibrationGate's hasWeights comment). It used to
-  // fire on `tier === 'none'`, which was a workable proxy while tiers were accuracy thresholds.
-  // Degree-tied tiers broke that proxy: 'none' now means "has not finished degree 2", which for
-  // some preference shapes never happens at all, so tier-gating would nudge a user who has
-  // answered ninety questions.
-  it('nudges toward calibration when the user has no calibration weights at all', async () => {
+  // Hard vs soft gate (terminology-and-gate-unification). The hard gate still keys off
+  // hasWeights alone, not tier — see useCalibrationGate's hasWeights comment for why: under
+  // degree-tied tiers a user can answer ninety questions and still be tier 'none', so gating on
+  // tier directly would nudge someone who has clearly already started.
+  it('shows the hard gate when the user has no calibration weights at all', async () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
 
     // The gate's own fetch has to settle first: handleRate no-ops while it is loading, so
-    // clicking too early would make BOTH soft-gate tests pass for the wrong reason.
+    // clicking too early would make BOTH gate tests pass for the wrong reason.
     await act(async () => {});
     fireEvent.click(screen.getAllByRole('button', { name: /Evaluate this album/i })[0]);
-    expect(await screen.findByText(/Calibrate your criteria first\?/i)).toBeTruthy();
+    expect(await screen.findByText(/Answer a few comparisons first/i)).toBeTruthy();
+    // Hard gate is blocking: no "Evaluate Album" bypass button.
+    expect(screen.queryByRole('button', { name: 'Evaluate Album' })).toBeNull();
   });
 
-  it('does NOT nudge a user who has weights but is still on the base tier', async () => {
+  it('shows the soft gate for a user who has weights but is still on the base tier', async () => {
     stubHasCalibrationWeights = true;
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });
 
-    // The stubbed status row is absent, so the tier is 'none' — the exact combination the old
-    // condition would have nudged on, and the one degree-tying makes common and long-lasting.
+    // The stubbed status row is absent, so the tier is 'none' — exactly the combination the
+    // soft gate targets.
     await act(async () => {});
     fireEvent.click(screen.getAllByRole('button', { name: /Evaluate this album/i })[0]);
-    expect(screen.queryByText(/Calibrate your criteria first\?/i)).toBeNull();
+    expect(await screen.findByText(/Keep going for a steadier score/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Evaluate Album' })).toBeTruthy();
+  });
+
+  it('does NOT gate a user who has weights and has passed the base tier', async () => {
+    stubHasCalibrationWeights = true;
+    stubCalibrationTier = 'high';
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+
+    await act(async () => {});
+    fireEvent.click(screen.getAllByRole('button', { name: /Evaluate this album/i })[0]);
+    expect(screen.queryByText(/Answer a few comparisons first/i)).toBeNull();
+    expect(screen.queryByText(/Keep going for a steadier score/i)).toBeNull();
   });
 
   it('renders the + Add album button', () => {
