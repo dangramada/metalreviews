@@ -620,7 +620,17 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   (2–4) once the extremes are pinned, rather than drawing uniformly across
   1–5? No fix attempted this session (diagnostic was explicitly read-only).
 - **`MAX_AMBIGUOUS_GAP = 0.05` (`elicitationDriver.ts`) may need to scale with
-  criteria count — open question, not resolved.** Same 2026-08-09 diagnostic:
+  criteria count — open question, not resolved.** [2026-09-18 audit correction: **MOOT.**
+  This constant was deleted 2026-08-10 by the "Automatic degree escalation" fix below
+  (`isDegreeCoverageComplete`/`MAX_VALUE_RANGE_FOR_COVERAGE` replaced it) — a fact this
+  same file already establishes in the 2026-08-15 addendum under "Degree-2 flatness /
+  degree-3-escalation stall" above ("MAX_AMBIGUOUS_GAP status: confirmed dead code, not
+  a live gate ... the constant itself no longer exists in source"). This item is dated
+  2026-08-09, one day before the deletion, and was never reconciled with that finding —
+  the two sat roughly 270 lines apart, describing opposite statuses for the same
+  constant. Verified 2026-09-18: `grep -rn MAX_AMBIGUOUS_GAP src/` returns zero live
+  references (only a comment and a test `describe()` label). Kept below, unedited, for
+  its historical diagnostic reasoning only — do not treat as open.] Same 2026-08-09 diagnostic:
   under the additive model's normalization (best-level values summing to ~1
   across criteria), each criterion's average "budget" shrinks as criteria count
   grows (0.20 at 5 criteria vs. 0.167 at 6), so a genuine, resolved trade-off
@@ -744,7 +754,16 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   (0.15/0.1/0.05) fired at all within 65 oracle steps. Not a separate follow-up — revisit
   together with the thresholds above in the same future recalibration session.
 
-  **Extended 2026-08-14:** same provisional status applies to
+  **Extended 2026-08-14:** [2026-09-18 audit note: **MOOT.** `rankingStabilitySignal.ts`
+  and the whole Brief 3 auto-escalation-signal mechanism this paragraph (and the two
+  "Second real session"/"Superseded numbers" follow-ups immediately below it) calibrate
+  were deleted entirely by `criteria-calibration-tiered-checkpoints` (merged `892f79c`,
+  2026-08-17) — that branch's own doc lists `rankingStabilitySignal.ts` among ~876
+  deleted lines, "retiring the write-race risk." `REQUIRED_ANSWER_SPAN` no longer exists
+  in the codebase. This sub-thread predates that deletion and was never reconciled with
+  it. Kept for historical record only; the `SCORE_SPREAD_*`/`MAX_VALUE_RANGE_FOR_COVERAGE`
+  provisional-threshold discussion elsewhere in this item is unaffected and remains
+  genuinely open.] same provisional status applies to
   **`REQUIRED_ANSWER_SPAN = 12`** (`rankingStabilitySignal.ts`), the Brief 3
   auto-escalation stop signal's minimum real-answer span (replaces the original K=2
   checkpoint-count window — see `criteria-calibration-duration-based-window-fix.md`).
@@ -804,29 +823,6 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   `keepalive` fetch flag threaded through the Supabase client (non-trivial — no per-call fetch
   override currently exists in `supabaseClient.ts`), deferred as not urgent enough to justify
   that plumbing on top of the same pass's other fixes.
-- **Undo across a degree boundary shows the wrong degree's content until a manual page
-  refresh.** Live-observed 2026-08-15, second calibration session, Undo from degree 4 back
-  to degree 3 around round 46. Root cause diagnosed (read-only, not fixed): `degree`
-  (`CriteriaCalibrationPage.tsx`) is a plain `useState`, mutated in exactly two places — the
-  resume effect and `handleEscalate` (line ~501) — both forward-only. `handleUndo` (line
-  ~424) pops `answers`/`windowHistory` but never touches `degree`. `action` (the displayed
-  question) DOES correctly recompute on every Undo — it's a `useMemo` on
-  `[catalog, session, degree]` and `session` rebuilds fresh from `answers` — so this is not
-  a memoization-staleness bug; it recomputes against the wrong (stale, never-decremented)
-  `degree` value, so once every degree-4 answer is undone it still calls
-  `nextAction(session, degree=4)` and gets a _fresh_ degree-4 result instead of reverting to
-  degree 3. A page refresh fixes it because reload re-invokes `useCalibrationResume`, which
-  re-derives `degree` from the now-shorter persisted log (`Math.max(...profile-key-counts,
-STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs on mount.
-  Explicitly distinct from the 2026-08-14 "degree came back at 2 instead of 3 after
-  refresh" note in `criteria-calibration-auto-escalation-signal.md` — that one confirmed
-  `useCalibrationResume`'s resume-time inference is _correct_; this is a live in-session gap
-  with no resume involved. Answer-log data integrity checked and unaffected by this
-  specific Undo: 0 duplicate profile-pairs, 0 out-of-order timestamps, 0 sub-50ms
-  insert/delete-race candidates across the full 71-row log. **Not fixed this session** —
-  needs a `handleUndo` path that re-derives `degree` from the truncated answer log the same
-  way resume does, or an explicit call to the same inference helper.
-
 ## C. Design/branding (open)
 
 - ~~**Criteria Calibration header layout** — needs a dedicated reorganization pass.~~ —

@@ -537,3 +537,34 @@ unguarded, unexamined here). Full mechanism:`criteria-calibration-weights-write-
     **bypass RLS entirely**, so any script touching this table must filter on `user_id`
     explicitly — `scripts/verify-pre-reset-step0.ts` and
     `scripts/reset-calibration-2026-08-15.ts` both do.
+
+---
+
+- **[verified 2026-09-18: closed by `criteria-calibration-cross-degree-undo-redo-fix`, merged
+  `46fbc98` 2026-08-16 (`branch-log.md`). Confirmed live in code: `CriteriaCalibrationPage.tsx`'s
+  `handleUndo` and `handleRedo` both call `setDegree(inferDegreeFromAnswers(...))`, re-deriving
+  `degree` from the post-mutation answer log exactly as this item calls for below. Also already
+  described as shipped by this file's own separate `useCalibrationResume.ts`/
+  `inferDegreeFromAnswers` drift-risk item, which the original "Undo" item below was never
+  cross-linked to.]** Undo across a degree boundary shows the wrong degree's content until a
+  manual page refresh. Live-observed 2026-08-15, second calibration session, Undo from degree 4
+  back to degree 3 around round 46. Root cause diagnosed (read-only, not fixed): `degree`
+  (`CriteriaCalibrationPage.tsx`) is a plain `useState`, mutated in exactly two places — the
+  resume effect and `handleEscalate` (line ~501) — both forward-only. `handleUndo` (line
+  ~424) pops `answers`/`windowHistory` but never touches `degree`. `action` (the displayed
+  question) DOES correctly recompute on every Undo — it's a `useMemo` on
+  `[catalog, session, degree]` and `session` rebuilds fresh from `answers` — so this is not
+  a memoization-staleness bug; it recomputes against the wrong (stale, never-decremented)
+  `degree` value, so once every degree-4 answer is undone it still calls
+  `nextAction(session, degree=4)` and gets a _fresh_ degree-4 result instead of reverting to
+  degree 3. A page refresh fixes it because reload re-invokes `useCalibrationResume`, which
+  re-derives `degree` from the now-shorter persisted log (`Math.max(...profile-key-counts,
+STARTING_DEGREE)`) — the one reconciliation path that exists, and it only runs on mount.
+  Explicitly distinct from the 2026-08-14 "degree came back at 2 instead of 3 after
+  refresh" note in `criteria-calibration-auto-escalation-signal.md` — that one confirmed
+  `useCalibrationResume`'s resume-time inference is _correct_; this is a live in-session gap
+  with no resume involved. Answer-log data integrity checked and unaffected by this
+  specific Undo: 0 duplicate profile-pairs, 0 out-of-order timestamps, 0 sub-50ms
+  insert/delete-race candidates across the full 71-row log. **Not fixed this session** —
+  needs a `handleUndo` path that re-derives `degree` from the truncated answer log the same
+  way resume does, or an explicit call to the same inference helper.
