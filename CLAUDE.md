@@ -103,14 +103,19 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`criteria-calibration-terminology-gate-unification` — terminology unification ("settled"
-replaces "clear"/"pinned down"; "Score level" replaces "Score confidence") across Criteria
-Calibration/Album Rating/Favorites, plus a hard/soft Favorites gate split (replacing the single
-nudge dialog), a persistent "Go to calibration" action on the Album Rating page, and a
-dismissible calibration resume banner. 397/397 tests, `tsc` clean. Live-verified 2026-09-18 on
-Dan's own account (soft gate, bypass, persistent action, resume banner, badge copy all
-confirmed) — the hard gate wasn't exercised live since this account already has weights. Not yet
-merged. Full detail: `docs/decisions/criteria-calibration/criteria-calibration-terminology-and-gate-unification.md`.
+No branches currently in progress.
+
+Most recent merge: `criteria-calibration-terminology-gate-unification` — terminology
+unification ("settled" replaces "clear"/"pinned down"; "Score level" replaces "Score
+confidence") across Criteria Calibration/Album Rating/Favorites, plus a hard/soft Favorites gate
+split (replacing the single nudge dialog) sharing one `CalibrationGateDialog` component, a
+persistent "Go to calibration" action on the Album Rating page, and a dismissible calibration
+resume banner. 52/52 files, 397/397 tests, `tsc` clean on `master` post-merge. Live-verified
+2026-09-18 on Dan's own account (soft gate, bypass, persistent action, resume banner, badge copy
+all confirmed) — the hard gate wasn't exercised live since that account already has weights.
+Merged to `master` `--no-ff` at `d082115` on 2026-09-18. Rollback tag:
+`pre-merge-criteria-calibration-terminology-gate-unification`. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-terminology-and-gate-unification.md`.
 
 Most recent merge: `personal-data-exposure-remediation` — Phase 1 (of 3) of a personal-data-
 exposure remediation: relocated 11 files containing real Dan-account calibration session data

@@ -16,15 +16,16 @@ detect a good stopping point automatically, is retired (see
 
 ## Current status
 
-**2026-09-18 — terminology unification + Favorites gate redesign (branch, not yet merged):**
-unifies tier terminology across Criteria Calibration/Album Rating/Favorites ("settled" replaces
-"clear"/"pinned down"; "Score level" replaces "Score confidence"), fixes the Results tab
-caption's em-dash, and replaces the single Favorites nudge dialog with a hard gate (no
-calibration weights at all, blocking) and a soft gate (weights exist but `tier === 'none'`,
-non-blocking with an "Evaluate Album" bypass) sharing one `CalibrationGateDialog` component.
-Also adds a persistent "Go to calibration" action on the Album Rating page and a dismissible
-calibration resume banner shown on every entry while `tier === 'none'`. Not live-verified (needs
-Dan's own login). Full detail: `criteria-calibration-terminology-and-gate-unification.md`.
+**2026-09-18 — terminology unification + Favorites gate redesign:** unifies tier terminology
+across Criteria Calibration/Album Rating/Favorites ("settled" replaces "clear"/"pinned down";
+"Score level" replaces "Score confidence"), fixes the Results tab caption's em-dash, and replaces
+the single Favorites nudge dialog with a hard gate (no calibration weights at all, blocking) and
+a soft gate (weights exist but `tier === 'none'`, non-blocking with an "Evaluate Album" bypass)
+sharing one `CalibrationGateDialog` component. Also adds a persistent "Go to calibration" action
+on the Album Rating page and a dismissible calibration resume banner shown on every entry while
+`tier === 'none'`. Live-verified 2026-09-18 on Dan's own account. Merged to `master` `--no-ff` at
+`d082115`; rollback tag `pre-merge-criteria-calibration-terminology-gate-unification`. Full
+detail: `criteria-calibration-terminology-and-gate-unification.md`.
 
 **2026-09-13 — mobile layout pass (Guide tab + Calibration tab):** Guide tab's mobile carousel
 instance drops the gutter Prev/Next buttons for a full-width card with a row of tappable

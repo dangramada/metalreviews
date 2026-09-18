@@ -4,6 +4,19 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `criteria-calibration-terminology-gate-unification` — merged to master `d082115` (`--no-ff`),
+  2026-09-18; rollback tag `pre-merge-criteria-calibration-terminology-gate-unification` —
+  unifies calibration/rating terminology ("settled" replaces "clear"/"pinned down", "Score
+  level" replaces "Score confidence"), fixes the Results tab caption's em-dash, and replaces the
+  single Favorites nudge dialog with a hard/soft gate pair sharing one `CalibrationGateDialog`
+  component (`mode: 'hard' | 'soft'`); adds a persistent "Go to calibration" action on the Album
+  Rating page and a dismissible calibration resume banner. 52/52 files, 397/397 tests, `tsc`
+  clean on `master` post-merge. Live-verified 2026-09-18 on Dan's own account (soft gate,
+  Evaluate Album bypass, persistent action, resume banner, badge copy/tooltip, and the untouched
+  `!` warning badge's new label all confirmed) — the hard gate wasn't exercised live since that
+  account already has calibration weights. Full detail:
+  `docs/decisions/criteria-calibration/criteria-calibration-terminology-and-gate-unification.md`
+
 - `personal-data-exposure-remediation` — merged to master `c383e63` (`--no-ff`), 2026-09-18;
   rollback tag `pre-merge-personal-data-exposure-remediation` — Phase 1 of a personal-data-
   exposure remediation brief: read-only audit found 11 files under `docs/data/criteria-

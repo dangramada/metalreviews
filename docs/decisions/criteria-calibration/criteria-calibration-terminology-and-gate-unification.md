@@ -1,7 +1,7 @@
 # Terminology unification + Favorites gate redesign
 
-Branch: `criteria-calibration-terminology-gate-unification` (not yet merged to `master` as of
-2026-09-18 — see "Status" below).
+Branch: `criteria-calibration-terminology-gate-unification`, merged to `master` `--no-ff` at
+`d082115` on 2026-09-18. Rollback tag: `pre-merge-criteria-calibration-terminology-gate-unification`.
 
 ## What this is
 
@@ -118,10 +118,11 @@ Dismiss state is local `useState`, deliberately unpersisted — same convention 
 
 ## Status
 
-Implemented and committed to the `criteria-calibration-terminology-gate-unification` branch, not
-yet merged. 397/397 tests pass, `tsc` clean, `eslint` clean (two pre-existing
-`react-hooks/set-state-in-effect` findings in `CriteriaCalibrationPage.tsx` predate this branch
-and are unrelated — confirmed by diffing against `master`).
+Merged to `master` `--no-ff` at `d082115` on 2026-09-18. 52/52 files, 397/397 tests pass, `tsc`
+clean on `master` post-merge (auto-merged cleanly against `master`'s intervening
+`personal-data-exposure-remediation` merge — no conflicts). `eslint` clean on the branch (two
+pre-existing `react-hooks/set-state-in-effect` findings in `CriteriaCalibrationPage.tsx` predate
+this branch and are unrelated — confirmed by diffing against `master` before merge).
 
 **Live-verified 2026-09-18** on Dan's own account (Dan logged in himself in the browser pane,
 per the QA-account convention — no credentials entered by Claude): confirmed the soft gate
