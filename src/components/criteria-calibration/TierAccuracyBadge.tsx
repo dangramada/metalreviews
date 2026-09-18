@@ -32,8 +32,8 @@ interface TierAccuracyBadgeProps {
 // does anything, which is the accepted cost of dropping the glyph.
 //
 // The two sections are marked aria-hidden and the wrapper carries one composed aria-label
-// ("Clear tier, 52 percent pinned down") so a screen reader reads this as one fact, not two
-// disconnected fragments — same reasoning as the visual "no connecting word" rule.
+// ("Clear tier. 52 percent of your weighting settled.") so a screen reader reads this as one
+// fact, not two disconnected fragments — same reasoning as the visual "no connecting word" rule.
 export function TierAccuracyBadge({ tier, percent, size = 'sm' }: TierAccuracyBadgeProps) {
   const colors = TIER_COLORS[tier];
   const label = ACCURACY_TIER_LABELS[tier];
@@ -47,7 +47,7 @@ export function TierAccuracyBadge({ tier, percent, size = 'sm' }: TierAccuracyBa
         role="img"
         tabIndex={0}
         cursor="help"
-        aria-label={`${label} tier, ${percent} percent pinned down`}
+        aria-label={`${label} tier. ${percent} percent of your weighting settled.`}
       >
         <Box
           aria-hidden="true"

@@ -80,7 +80,7 @@ export function ResultsTab({
         <Box borderTopWidth="2px" borderColor="border.ruleStrong" pt={5} mt={5}>
           <TierAccuracyBadge tier={tier} percent={accuracyPercent} />
           <Text fontSize="sm" color="text.dim" fontFamily="body" mt={2}>
-            Based on how far you've compared — not how "correct" this is.
+            Based on your comparisons so far and what matters most to you.
           </Text>
         </Box>
       </Box>

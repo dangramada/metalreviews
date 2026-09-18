@@ -124,7 +124,27 @@ describe('CriteriaCalibrationPage — tabs, Guide, Results', () => {
     // hides, so both render, hence getAllByText rather than getByText).
     expect(screen.getAllByText('Innovation').length).toBeGreaterThan(0);
     // No badge yet — round 0, nothing calibrated (brief §5).
-    expect(screen.queryByRole('img', { name: /tier, \d+ percent pinned down/ })).toBeNull();
+    expect(
+      screen.queryByRole('img', { name: /tier\. \d+ percent of your weighting settled\./ })
+    ).toBeNull();
+  });
+
+  // terminology-and-gate-unification: the resume banner shown on every entry while tier is
+  // 'none' — a brand-new session (no answers at all) is squarely inside that condition.
+  it('shows the resume banner on a tier-none entry, dismissible per visit', async () => {
+    vi.mocked(useCalibrationResume).mockReturnValue({
+      answers: [],
+      degree: 2,
+      loading: false,
+      error: null,
+    });
+    renderAt('/calibrate');
+
+    expect(await screen.findByText('Pick up where you left off')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    });
+    expect(screen.queryByText('Pick up where you left off')).toBeNull();
   });
 
   it('"Start Calibration" switches to the Calibration tab and shows a real question', async () => {

@@ -9,7 +9,7 @@
 //   2. Never say "label" as a noun in body text — the tier name is a badge, seen not read
 //      about. Speak to the user directly instead ("you won't get any clearer than this").
 //   3. The accuracy percentage never appears bare — always attached to an explicit subject
-//      ("you're {accuracy}% clear on what matters most to you", never a lone "{accuracy}%").
+//      ("you're {accuracy}% settled on what matters most to you", never a lone "{accuracy}%").
 //   4. No phrasing that reads as failure or wasted effort at a low percentage, even at the top
 //      tier (Sharp at 60% is a real, valid outcome — the percentage measures how DETERMINATE
 //      the preference model is, not how well the user answered).
@@ -32,7 +32,7 @@ export const CHECKPOINT_PROMOTION_HEADLINE = "You've compared everything at this
 
 export function checkpointPromotionBody(accuracyPercent: number): string {
   return [
-    `So far, you're ${accuracyPercent}% clear on what matters most to you.`,
+    `So far, you're ${accuracyPercent}% settled on what matters most to you.`,
     "A few more comparisons and you'll feel the difference.",
     'Pausing is always an option.',
   ].join(' ');
@@ -47,7 +47,7 @@ export const CHECKPOINT_CEILING_HEADLINE = "You've compared everything at this l
 
 export function checkpointCeilingBody(accuracyPercent: number): string {
   return [
-    `You're ${accuracyPercent}% clear on what matters most to you.`,
+    `You're ${accuracyPercent}% settled on what matters most to you.`,
     'Continuing still sharpens that number.',
     'Pausing is always an option.',
   ].join(' ');
@@ -61,7 +61,7 @@ export const CHECKPOINT_TERMINAL_HEADLINE = "You've compared everything, at ever
 
 export function checkpointTerminalBody(accuracyPercent: number): string {
   return [
-    `You're ${accuracyPercent}% clear on what matters most to you.`,
+    `You're ${accuracyPercent}% settled on what matters most to you.`,
     "That's as far as comparisons can take it.",
   ].join(' ');
 }
@@ -79,7 +79,7 @@ export const CHECKPOINT_FROZEN_HEADLINE = 'Your answers have stopped narrowing t
 
 export function checkpointFrozenBody(accuracyPercent: number): string {
   return [
-    `You're ${accuracyPercent}% clear on what matters most to you.`,
+    `You're ${accuracyPercent}% settled on what matters most to you.`,
     "Your recent answers aren't adding much more at this level.",
     "Moving to the next level can sometimes reveal what this one can't.",
     'Pausing is always an option.',

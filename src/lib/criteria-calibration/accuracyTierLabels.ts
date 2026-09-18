@@ -49,8 +49,12 @@ export function accuracyTierLabel(tier: AccuracyTier): string {
  *  recalibration report found. "How settled your weighting is" is therefore the strongest claim
  *  the evidence supports; anything about accuracy, confidence or trustworthiness is not.
  *
- *  It also says the two halves are different KINDS of measurement — the names count levels
- *  finished, the number moves continuously inside one — since they share a border and otherwise
- *  look like one reading split in two. */
+ *  It also says the two halves are different KINDS of measurement — the name counts levels
+ *  finished, the percentage is an ongoing, overall measure that is NOT scoped to the current
+ *  level (2026-09-18 terminology-and-gate-unification fix: the previous wording claimed the
+ *  percentage moved "within that level," which round 28 of the recalibration report's own trace
+ *  contradicts — 78% sitting next to Unfocused, the base rung, not a fresh-within-level number).
+ *  Since they share a border and otherwise look like one reading split in two, this still needs
+ *  to say they're different kinds of measurement — just not the wrong kind of different. */
 export const TIER_BADGE_TOOLTIP =
-  'Each name is a deeper level of comparison finished; the percentage is how settled your weighting is within that level.';
+  'Marks a level of comparison finished. The percentage is an ongoing measure of how settled your weighting is overall.';
