@@ -29,6 +29,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   established the `docs/data/` split, and `docs/decisions/criteria-calibration-summary.md`'s data
   index for the 2026-09-18 audit that added this carve-out after real session data was found
   committed under `docs/data/criteria-calibration/`.
+  The same principle applies when *writing* a decision doc, not just when a script
+  *generates* data: findings about a real session go in as aggregate/derived
+  statistics (accuracy, tau, round counts, coverage widths) — never as inlined raw
+  values (literal answer sequences, literal entity IDs/UUIDs, or anything
+  copy-pasted directly from a real session's raw log). If an example is needed to
+  illustrate a point, use a synthetic oracle's data instead of a real session's.
 - `scripts/` root holds only live code: production modules (`ingest.ts`, `ingest-cli.ts`,
   `musicbrainz.ts`, `normalizeKey.ts`, `supabaseClient.ts`), reusable dev tools meant to be run
   repeatedly (e.g. `debug-preference-graph.ts`), `migrations/`, `__tests__/`, and any
