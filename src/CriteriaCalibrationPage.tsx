@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
+import { Alert } from './components/ui/alert';
+import { CloseButton } from './components/ui/close-button';
 import {
   CalibrationBreadcrumb,
   CalibrationPageHeader,
@@ -241,6 +243,11 @@ export function CriteriaCalibrationPage() {
   // before it, deliberately not persisted: nothing about "paused" survives a reload, the
   // answer log is the only durable state.
   const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
+  // Resume banner (terminology-and-gate-unification): dismissible per visit only — deliberately
+  // NOT persisted, so it reappears next visit if `tier === 'none'` still holds, same convention
+  // as `stopped`/`acknowledgedBoundaryDegree` above (nothing about "seen this" survives a
+  // reload/remount here).
+  const [resumeBannerDismissed, setResumeBannerDismissed] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null);
 
@@ -1039,6 +1046,22 @@ export function CriteriaCalibrationPage() {
 
   return (
     <PageChrome breadcrumb={<CalibrationBreadcrumb from={searchParams.get('from')} />}>
+      {tier === 'none' && !resumeBannerDismissed && (
+        // Shown on every entry to this page while tier is 'none', regardless of how the user got
+        // here (direct nav, the hard gate, or the soft gate) — same copy every time, not
+        // customized by source. A sibling of the panel Box below, not a child of its gap={0}
+        // VStack, so it can't disturb the header/panel border join that VStack's own comment
+        // documents.
+        <Alert
+          status="info"
+          title="Pick up where you left off"
+          variant="surface"
+          endElement={<CloseButton size="sm" onClick={() => setResumeBannerDismissed(true)} />}
+        >
+          You haven&apos;t finished your first level of comparison yet. A few more comparisons
+          usually settle the score closer to what matters most to you.
+        </Alert>
+      )}
       <Box>
         {/* gap={0}: the header's active tab overlaps the panel's top border by exactly its
             width and paints over it to read as the panel's top edge (CalibrationPageHeader.tsx,

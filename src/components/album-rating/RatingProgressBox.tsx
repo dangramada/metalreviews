@@ -4,7 +4,8 @@
 // visual output and AnimatePresence crossfade as before extraction — see
 // docs/decisions/album-rating-page.md for why `mode="wait"` was chosen over a simultaneous
 // crossfade (the pending->final swap changes child count, not just content).
-import { Flex, Text, VStack } from '@chakra-ui/react';
+import { Flex, Link, Text, VStack } from '@chakra-ui/react';
+import { Link as RouterLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { RatingSlab } from './RatingSlab';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
@@ -79,16 +80,35 @@ export function RatingProgressBox({
             {/* album-rating-soft-gate: v1, plain text label — no tooltip/explanation copy,
                 reusing the same tier already computed for the (now non-blocking) calibration
                 nudge rather than a new scale. Ship and evaluate before building further. */}
-            <Text
-              fontFamily="mono"
-              fontSize="12px"
-              fontWeight="500"
-              textTransform="uppercase"
-              letterSpacing="0.06em"
-              color="text.muted"
-            >
-              Score level: {confidenceLabel(confidenceTier)}
-            </Text>
+            <Flex align="center" justify="space-between" gap={2}>
+              <Text
+                fontFamily="mono"
+                fontSize="12px"
+                fontWeight="500"
+                textTransform="uppercase"
+                letterSpacing="0.06em"
+                color="text.muted"
+              >
+                Score level: {confidenceLabel(confidenceTier)}
+              </Text>
+              {/* terminology-and-gate-unification: a persistent action, not part of the label
+                  itself, always present regardless of tier — no `from` param, since preserving
+                  which album sent the user here (return-to-album continuity) is explicitly out
+                  of scope for this round; finishing calibration falls back to /favorites. */}
+              <Link
+                as={RouterLink}
+                to="/calibration"
+                fontFamily="mono"
+                fontSize="12px"
+                fontWeight="500"
+                textTransform="uppercase"
+                letterSpacing="0.06em"
+                color="accent.text"
+                _hover={{ color: 'text.primary' }}
+              >
+                Go to calibration
+              </Link>
+            </Flex>
           </VStack>
         </motion.div>
       )}

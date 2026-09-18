@@ -129,6 +129,24 @@ describe('CriteriaCalibrationPage — tabs, Guide, Results', () => {
     ).toBeNull();
   });
 
+  // terminology-and-gate-unification: the resume banner shown on every entry while tier is
+  // 'none' — a brand-new session (no answers at all) is squarely inside that condition.
+  it('shows the resume banner on a tier-none entry, dismissible per visit', async () => {
+    vi.mocked(useCalibrationResume).mockReturnValue({
+      answers: [],
+      degree: 2,
+      loading: false,
+      error: null,
+    });
+    renderAt('/calibrate');
+
+    expect(await screen.findByText('Pick up where you left off')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    });
+    expect(screen.queryByText('Pick up where you left off')).toBeNull();
+  });
+
   it('"Start Calibration" switches to the Calibration tab and shows a real question', async () => {
     vi.mocked(useCalibrationResume).mockReturnValue({
       answers: [],
