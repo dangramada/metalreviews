@@ -1092,8 +1092,20 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   unconfirmed either way. Full list, method, and the merge-risk analysis:
   `album-identity/album-identity-same-title-release-group-collision.md`. Blocks resuming the
   Metal Storm back-catalogue exclusion filter, which trusts `release_date` as ground truth.
-  **Step 2 (fixing `isAlbumEnriched()` so a wrongly-enriched row doesn't silently block all
-  future MB re-checks) is scoped but not started** — waiting on explicit go-ahead. No systemic
-  fix for the remaining 25 rows is scoped yet either — first needs a decision on how to
-  disambiguate (Album vs. same-titled promo Single looks like a different, easier sub-problem
-  than two substantively different albums; see the doc's "Result" section for the split).
+  **Step 2b-i shipped 2026-09-18: `isAlbumEnriched()` widened to also require
+  `mb_release_group_id`, with all 29 flagged pairs excluded from the backfill loop** (new
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` constant + `selectAlbumBackfillCandidates`'s new
+  `excludedNormKeys` param) — step 2a's blast-radius diagnostic had found that a naive widen
+  would re-expose 8 already-ambiguous rows (7 unconfirmed, 1 confirmed-safe) to the same
+  ambiguous Step A search that broke Khemmis/Moonspell, with no guard to catch a regression.
+  409/409 tests, `tsc` unchanged. Verified against the live catalog (read-only): 0 of the 29
+  leak into the backfill candidate list; 122 non-flagged missing-id rows are correctly
+  selected. **Follow-up shipped same day/branch: the main per-review loop's `needMbCall` gap is
+  closed too** — same `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`, pulled into a new pure
+  `needsMbLookup()` so both re-fetch paths (backfill loop and main loop) are now guarded, not
+  just the backfill loop. 414/414 tests, `tsc` still unchanged. **Step 2b-ii (what happens to
+  the 29 excluded rows — disambiguation design, resolving the 7 unconfirmed) is still open and
+  unscoped.** No systemic fix for the remaining 25 flagged-collision rows is scoped yet either
+  — first needs a decision on how to disambiguate (Album vs. same-titled promo Single looks
+  like a different, easier sub-problem than two substantively different albums; see the doc's
+  "Result" section for the split).

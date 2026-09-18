@@ -298,8 +298,121 @@ paths in `resolveAlbumIdentity` (`scripts/ingest.ts`):
 Neither path has been exercised live this session (no new review was ingested to trigger it) —
 this is a code-reading conclusion, flagged per the brief, not a fix.
 
+## Step 2a — blast-radius diagnostic before widening `isAlbumEnriched()` (2026-09-18, read-only)
+
+Before scoping step 2b (adding `mb_release_group_id` to `isAlbumEnriched()`'s definition so a
+wrongly-enriched row can't permanently block future re-checks — see the merge-risk analysis
+above), ran the numbers on how many rows across the *whole* catalog (not just the 29 flagged)
+that change would newly expose to a live MB re-fetch.
+
+- **68 of 320 albums** are enriched by today's definition (artwork+genre+date all present) but
+  have no `mb_release_group_id`. Script:
+  `scripts/diagnostics/diagnose-isAlbumEnriched-widen-blast-radius-2026-09-18.ts`.
+- **67 of those 68** are not excluded by the existing 5-attempt/14-day retry cap
+  (`selectAlbumBackfillCandidates`) — only `Mork — Monolitt` is excluded (5 attempts, published
+  2026-06-20). So 67 would become live backfill candidates on the very next ingest run after
+  the widened definition ships.
+- At MB's 1 req/sec limit, ~1–3.5 minutes total for 67 albums (1 sleep/album best case, up to 3
+  if the release-group-detail and artist-genre fallbacks both fire). **Correction to the
+  premise this diagnostic was asked to confirm: ingest is not manual-only.** Per
+  `ingest-trigger-and-security.md`'s own summary (2026-07-21) and the live, unmodified
+  `.github/workflows/ingest.yml`, a GitHub Actions schedule (`0 7,19 * * *` UTC) really does
+  call `POST /api/ingest` twice daily in production. `server.ts`'s handler returns `202`
+  immediately and runs `runIngestion()` in the background behind an `ingesting` lock, so the
+  1–3.5 extra minutes lands inside whichever scheduled run first processes the backfill pass,
+  not as a separate collision — negligible next to the 12-hour gap between runs, but the
+  "manual-only absorbs this" framing in the original ask was wrong and worth correcting rather
+  than silently assuming.
+- **The "also confirm" guard question does NOT hold — flagging as a real blocker for step 2b's
+  design, not a rubber stamp.** The backfill loop calls `lookupMusicBrainz()` — the same
+  ambiguous Step A search that caused the Khemmis/Moonspell corruption in the first place — not
+  `lookupMusicBrainzByReleaseGroupId()`. `applyAlbumEnrichment`'s guards (including the
+  artwork/date fix from step 1) only protect against fresh data being *null* or *lower-
+  precision*; they do nothing when fresh data is non-null, full-precision, and simply **wrong**
+  because Step A picked a different real release-group than the one already correctly stored.
+  The `mb_release_group_id` assignment right after `applyAlbumEnrichment` in the backfill loop
+  (`if (mbData.releaseGroupId && !enriched.mb_release_group_id) ...`) has the same problem —
+  it unconditionally accepts whatever Step A resolves, with nothing to detect an ambiguous
+  match. **Concretely: 8 of the 67 sweep candidates are already-confirmed same-title
+  collisions** (matched >1 release-group in the original 29-row diagnostic): Apogean, Yes,
+  Devin Townsend, Elder, Electric Sun Defence, Black Veil Brides, Inferi, Pro-Pain. Of those,
+  only Devin Townsend has been manually confirmed safe (step 1's follow-up); the other 7 are
+  unconfirmed and would be blindly re-fetched by a naive widen-and-sweep, with a real chance of
+  regressing a currently-correct row to wrong data with no guard to catch it. Step 2b's design
+  needs to account for this — e.g. not re-running ambiguous Step A search for already-enriched
+  rows at all, or holding/flagging any re-fetch that resolves >1 release-group instead of
+  silently accepting `releases[0]` — rather than treating the widened `isAlbumEnriched()` alone
+  as sufficient.
+
+No code changed this step; no row touched.
+
+## Step 2b-i — widen `isAlbumEnriched()`, excluding all 29 flagged pairs (2026-09-18)
+
+Narrower than the original step 2 scope: only the rows with no known ambiguity go through the
+widened definition's re-fetch path. All 29 flagged pairs — confirmed-broken, confirmed-safe,
+or unverified alike — are excluded from the backfill loop and left untouched, pending 2b-ii.
+
+**Reconciling the 12-vs-8 discrepancy (checked, not guessed):** both numbers were correct for
+what they measured, at different points in time. 12 was a static count from the *frozen*
+step-2a diagnostic JSON — all 29 flagged pairs whose `storedReleaseGroupId` field was null *at
+diagnostic time* (before step 1's fix). 8 was a *live* count restricted to rows that are both
+still missing `mb_release_group_id` *and* already `isAlbumEnriched()` under today's (pre-
+widening) definition — the specific subset the widening would newly expose. Re-checked all 12
+against live current data: 2 (Khemmis, Moonspell) now have an id — step 1's fix — so they no
+longer belong in either "no id" count; 2 more (Sun Guts, Shadowborne) are not, and never were,
+`isAlbumEnriched()` under today's narrower definition (each is missing genre independently of
+any id) — they were already ordinary backfill candidates before this session touched anything,
+so they don't belong in the "newly exposed by widening" count either. 12 − 2 − 2 = 8, exactly
+matching step 2a's live figure. No number needed correcting.
+
+**Change:**
+- `isAlbumEnriched()` now also requires `mb_release_group_id` to be a string (not just
+  artwork/genre/date).
+- New exported constant `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` — the 29 flagged pairs'
+  `norm_key`s (matched by identity, not by current id, since which rows currently hold an id
+  keeps changing as more get manually corrected).
+- `selectAlbumBackfillCandidates()` takes a new optional `excludedNormKeys` parameter
+  (defaults to empty, so all pre-existing callers/tests are unaffected) and filters any
+  matching row out before the enrichment/retry-cap checks. `runIngestion()` passes
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`.
+
+**Verification (live data, read-only where noted):**
+- 14/14 tests in `backfillPass.test.ts` (10 existing + 4 new: the widened-definition case, the
+  in-set/not-in-set exclusion cases, and a sanity check that the constant holds all 29 including
+  Khemmis and Moonspell). Full suite 409/409, `tsc` unchanged (210 pre-existing errors).
+- Ran `selectAlbumBackfillCandidates()` against the real, current 320-album catalog (read-only —
+  no write): 0 of the 29 flagged pairs appear in the candidate list, regardless of their current
+  id/enrichment state — spot-checked Khemmis, Moonspell, Devin Townsend, Wormwood, Apogean, Yes
+  individually, all correctly excluded. 122 non-flagged rows are missing `mb_release_group_id`
+  and 122/122 are selected as candidates (this run simulated no prior attempt history, so none
+  hit the retry cap — the cap logic itself is unit-tested separately and unchanged by this step).
+- Dry-ran the unchanged backfill mechanism (`lookupMusicBrainz` + `applyAlbumEnrichment` + the id
+  assignment) for one real non-flagged row (`TodoMal — Graveyards of Joy`) without writing to
+  Supabase: resolved and would correctly populate `mb_release_group_id`, confirming the
+  mechanism this step exposes those rows to actually works.
+
+**Residual gap closed same day, same branch:** the main per-review resolution loop's
+`needMbCall` check is now guarded too, reusing the identical
+`FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` set — not a new mechanism. The decision logic was
+pulled out of the inline loop into a new pure, exported `needsMbLookup(normKey, normKeyMatch)`
+(same extraction pattern as `selectAlbumBackfillCandidates`) so the flagged-pair exclusion is
+independently testable without mocking `runIngestion`'s network/Supabase calls. A flagged pair
+now skips the MB call unconditionally — even with no existing row at all, and even when the
+existing row isn't fully enriched — matching the backfill loop's treatment. **Both call sites
+that can trigger Step A's ambiguous search are now guarded.** Verified: 5 new tests
+(`needsMbLookup` — flagged pair with no row, flagged pair with a partially-enriched row,
+non-flagged pair unaffected in both the "no row" and "not enriched" cases, non-flagged
+fully-enriched row still skips as before). Full suite 414/414, `tsc` unchanged (210
+pre-existing).
+
+**2b-ii is still open** — what happens to the 29 excluded rows themselves (disambiguation
+design, whether/how to resolve the 7 unconfirmed-ambiguous rows among them) is not decided.
+This step and its follow-up only stop both re-fetch paths from silently re-processing them.
+
 ## Explicitly not done this session
 
 - No fix to Step A's disambiguation logic.
 - No resuming/merging of the Metal Storm back-catalogue exclusion filter — stays paused.
 - No correction of the Khemmis row or any other flagged row.
+- No resolution of the 29 flagged pairs (2b-ii) — this step only protects them from the
+  widened `isAlbumEnriched()` net.
