@@ -4,6 +4,18 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `album-identity-same-title-collision-fix` — merged to master `b8a888c` (`--no-ff`), 2026-09-18;
+  rollback tag `pre-merge-album-identity-same-title-collision-fix` — same-title release-group
+  collision fix: Khemmis, Moonspell, and 7 more corrected via `lookupMusicBrainzByReleaseGroupId()`
+  + non-regression guards; `isAlbumEnriched()` widened to also require `mb_release_group_id`,
+  with both re-fetch paths (backfill loop and the main loop's new `needsMbLookup()`) guarded
+  against all 29 flagged pairs via `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS`. 2b-ii closed:
+  29/29 pairs confirmed present in that set, 0 missing, 0 extras — final tally 9 corrected, 6
+  confirmed-safe-and-protected, 8 artwork-matched, 5 ambiguous-no-defect, 1 untouched. This
+  merge had been left pending from earlier in the session. 53/53 files, 422/422 tests, `tsc`
+  clean on `master` post-merge. Full detail: `docs/decisions/album-identity/album-identity-
+  same-title-release-group-collision.md`
+
 - `metalstorm-backcatalogue-exclusion` — merged to master `aa7a83e` (`--no-ff`), 2026-09-18;
   rollback tag `pre-merge-metalstorm-backcatalogue-exclusion` — hides a Metal Storm review when
   its album's `release_date` year isn't the current calendar year (per-review, not per-album;

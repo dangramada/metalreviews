@@ -103,10 +103,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`album-identity-same-title-collision-fix` — done (4 commits, 2b-ii closed, all 29 same-title-
-collision pairs accounted for) but not yet merged to `master` — a merge decision is still
-pending, separate from the work below. Full detail: `docs/decisions/album-identity/album-
-identity-same-title-release-group-collision.md`.
+No branches currently in progress.
+
+Most recent merge: `album-identity-same-title-collision-fix` — the same-title release-group
+collision fix (Khemmis/Moonspell and 7 more corrected via `lookupMusicBrainzByReleaseGroupId()`
++ non-regression guards; `isAlbumEnriched()` widened to also require `mb_release_group_id`,
+with both re-fetch paths — the backfill loop and the main per-review loop's new
+`needsMbLookup()` — guarded against all 29 flagged pairs via one shared
+`FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` set). 2b-ii closed: all 29 pairs confirmed present in
+that set (29/29, 0 missing, 0 extras) — full tally 9 corrected, 6 confirmed-safe-and-protected,
+8 artwork-matched, 5 ambiguous-no-defect, 1 untouched. This merge had been pending since earlier
+in the session (flagged as a stale "no branches in progress" claim when the Metal Storm branch
+merged just before it). 53/53 files, 422/422 tests, `tsc` clean on `master` post-merge. Merged
+to `master` `--no-ff` at `b8a888c` on 2026-09-18. Rollback tag:
+`pre-merge-album-identity-same-title-collision-fix`. Full detail: `docs/decisions/album-
+identity/album-identity-same-title-release-group-collision.md`.
 
 Most recent merge: `metalstorm-backcatalogue-exclusion` — hides a Metal Storm review when its
 album's `release_date` year isn't the current calendar year (per-review, not per-album;
@@ -299,7 +310,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `documentation-audit-june2026.md` — June 2026 doc-layer audit: findings and fixes
 - `ingest-trigger-and-security.md` — ingest-trigger decision + dated security audit cross-check
 - `score-parsing-bugfixes.md` — Progressive Subway footnote-digit-pollution bugfix
-- `album-identity-summary.md` — gateway/index for the Album Identity decision-doc cluster (7 files, now in `docs/decisions/album-identity/`); read this first for anything album-identity-related
+- `album-identity-summary.md` — gateway/index for the Album Identity decision-doc cluster (8 files, now in `docs/decisions/album-identity/`); read this first for anything album-identity-related. Most recent addition: the same-title-collision fix, merged to `master` `--no-ff` at `b8a888c` on 2026-09-18 — see the Past-decisions entry above and `album-identity/album-identity-same-title-release-group-collision.md` for full detail
 - `design-system-spec-slant-take.md` — reference spec for the Slant Take visual redesign, split across passes
 - `slant-take-design-system.md` — consolidated decision doc for all nine passes plus two follow-up tweaks; Chakra v3 gotchas, badge positioning, `averageScore` vs raw `score`
 - `naming-decisions.md` — product name (Slant Take), display face, logo mark, accent-colour change
