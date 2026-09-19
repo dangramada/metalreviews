@@ -95,6 +95,7 @@ export function FavoriteListItemRow({
   ratingSummary,
   onRate,
   confidenceTier,
+  previewMode = false,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -110,6 +111,10 @@ export function FavoriteListItemRow({
   // rendered alongside a rank badge, since an unrated album has no score to be confident
   // about yet. Omitted in the AddAlbumDrawer preview context.
   confidenceTier?: CalibrationTier;
+  // AddAlbumDrawer's preview instance only — hides the mobile footer (including its Listen
+  // button, which has no onRate/onRemove-style gate of its own). The /favorites list omits
+  // this so its footer is unaffected.
+  previewMode?: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -429,80 +434,84 @@ export function FavoriteListItemRow({
             </Box>
           )}
 
-          <Box borderTop="1px solid" borderColor="border.rule" pt={3} pb={4}>
-            {/* Divider and footer are outside the artwork+text Flex above (not nested inside
-                the text column) so the divider spans the full card width, not just the text
-                column's width. No artwork-width spacer here (unlike the genre section/original
-                footer draft) — the empty area that left under the artwork was removed per live
-                review; buttons are centered (justify="center") across the full row width
-                instead. `border.rule` (darker ink.800) matches the genre section's own
-                separators above — darker than the card's own outer border / `border.ruleStrong`. */}
-            <Flex px={4} gap={2} justify="center">
-              {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
-                    hover state. Content-width (no flex stretch) with a gap between them, not
-                    edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
-                    `@media` breakpoint (400px) rather than a container query: this codebase
-                    has no existing container-query usage, and the one precedent for a
-                    responsive split (AlbumRatingPage) uses viewport `@media`, so this stays
-                    consistent with that rather than introducing a new mechanism. Known
-                    imprecision (accepted, not blocking): this can't detect the
-                    AddAlbumDrawer preview's actual rendered width if it's ever narrower than
-                    the viewport at a given breakpoint — revisit if that proves visibly wrong
-                    on live testing. */}
-              {onRate && (
-                <Button
-                  {...secondaryButton}
-                  variant="outline"
-                  size="sm"
-                  aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
-                  onClick={onRate}
-                >
-                  <Icon as={LuClipboardCheck} />
-                  <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                    Evaluate
-                  </Box>
-                </Button>
-              )}
-
-              <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
-                <MenuTrigger asChild>
+          {/* Whole footer (divider + buttons) suppressed in preview mode — AddAlbumDrawer's
+              preview reads as a non-interactive preview, not a list row. */}
+          {!previewMode && (
+            <Box borderTop="1px solid" borderColor="border.rule" pt={3} pb={4}>
+              {/* Divider and footer are outside the artwork+text Flex above (not nested inside
+                  the text column) so the divider spans the full card width, not just the text
+                  column's width. No artwork-width spacer here (unlike the genre section/original
+                  footer draft) — the empty area that left under the artwork was removed per live
+                  review; buttons are centered (justify="center") across the full row width
+                  instead. `border.rule` (darker ink.800) matches the genre section's own
+                  separators above — darker than the card's own outer border / `border.ruleStrong`. */}
+              <Flex px={4} gap={2} justify="center">
+                {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
+                      hover state. Content-width (no flex stretch) with a gap between them, not
+                      edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
+                      `@media` breakpoint (400px) rather than a container query: this codebase
+                      has no existing container-query usage, and the one precedent for a
+                      responsive split (AlbumRatingPage) uses viewport `@media`, so this stays
+                      consistent with that rather than introducing a new mechanism. Known
+                      imprecision (accepted, not blocking): this can't detect the
+                      AddAlbumDrawer preview's actual rendered width if it's ever narrower than
+                      the viewport at a given breakpoint — revisit if that proves visibly wrong
+                      on live testing. */}
+                {onRate && (
                   <Button
                     {...secondaryButton}
                     variant="outline"
                     size="sm"
-                    aria-label="Listen on a streaming platform"
+                    aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
+                    onClick={onRate}
                   >
-                    <Icon as={Headphones} />
+                    <Icon as={LuClipboardCheck} />
                     <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                      Listen
+                      Evaluate
                     </Box>
                   </Button>
-                </MenuTrigger>
-                <MenuContent bg="surface.card" color="text.primary">
-                  <ListenMenuItems band={item.band} album={item.album} />
-                </MenuContent>
-              </MenuRoot>
+                )}
 
-              {onRemove && (
-                <Button
-                  {...secondaryButton}
-                  variant="outline"
-                  size="sm"
-                  color="text.muted"
-                  _hover={{ color: 'red.400' }}
-                  aria-label={removing ? 'Loading' : 'Remove from favorites'}
-                  loading={removing}
-                  spinner={<LoadingIndicatorBars />}
-                  onClick={() => setShowRemoveConfirm(true)}
-                >
-                  <Icon as={FaTrash} />
-                  <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
-                    Remove
-                  </Box>
-                </Button>
-              )}
-            </Flex>
-          </Box>
+                <MenuRoot positioning={{ placement: 'bottom-end', gutter: 4 }}>
+                  <MenuTrigger asChild>
+                    <Button
+                      {...secondaryButton}
+                      variant="outline"
+                      size="sm"
+                      aria-label="Listen on a streaming platform"
+                    >
+                      <Icon as={Headphones} />
+                      <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                        Listen
+                      </Box>
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent bg="surface.card" color="text.primary">
+                    <ListenMenuItems band={item.band} album={item.album} />
+                  </MenuContent>
+                </MenuRoot>
+
+                {onRemove && (
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    color="text.muted"
+                    _hover={{ color: 'red.400' }}
+                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    loading={removing}
+                    spinner={<LoadingIndicatorBars />}
+                    onClick={() => setShowRemoveConfirm(true)}
+                  >
+                    <Icon as={FaTrash} />
+                    <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                      Remove
+                    </Box>
+                  </Button>
+                )}
+              </Flex>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -986,7 +995,7 @@ function AddAlbumDrawer({
                     </Box>
                   )}
 
-                  <FavoriteListItemRow item={previewItem} />
+                  <FavoriteListItemRow item={previewItem} previewMode />
 
                   {!existingMatch && lookupResult.releaseDate === null && (
                     <DatePickerRoot
