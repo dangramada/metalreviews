@@ -990,7 +990,7 @@ function AddAlbumDrawer({
                       fontSize="sm"
                       color="orange.200"
                     >
-                      Heads up — this looks like a {lookupYear} release; you&apos;re adding to{' '}
+                      Heads up: this looks like a {lookupYear} release. You&apos;re adding to{' '}
                       {selectedYear}.
                     </Box>
                   )}
