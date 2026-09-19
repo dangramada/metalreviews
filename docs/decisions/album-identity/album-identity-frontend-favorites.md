@@ -1,5 +1,23 @@
 # Album-identity frontend update — /favorites (July 2026)
 
+> **Summary (2026-09-19):** The gap described in "Duplicate-prevention" below — an
+> `existingMatch` with `release_date: null` could be confirmed with no date at all, since the
+> Confirm gate and the manual-date input only checked the new-album (`!existingMatch`) path —
+> is closed. `resolvedReleaseDate` (either `existingMatch.releaseDate` or the fresh MB lookup's
+> date) now gates both the Confirm button and the manual-date input regardless of which branch
+> is active, so no path through `AddAlbumDrawer` can produce a favorite pointing at a
+> null-release-date album. When the user supplies one for an `existingMatch`, it's persisted to
+> the shared `albums` row via a new `fill_missing_release_date` RPC (`security definer`,
+> writes only `release_date`, no-ops if the row already has one) rather than a plain
+> `.update()` — a row-level-only RLS policy can't restrict which *columns* an update touches,
+> and these are shared catalog rows, not the caller's own data. See
+> `supabase/albums-add-fill-missing-release-date-rpc.sql`. This **narrows**, not reverses, the
+> "albums aren't user-editable once created" decision below (still true for every column except
+> filling a missing `release_date`). The heart-icon favoriting path (`src/App.tsx`) is
+> unaffected and remains the one path that can still produce a null-release-date favorite —
+> accepted, not a gap. Sections below (up to and including "Duplicate-prevention") describe the
+> pre-fix behavior; read as historical context for how the gate evolved, not current state.
+>
 > **PARTIALLY SUPERSEDED by `album-identity-visibility-and-duplicate-fix.md`.** The single
 > "already in your collection" notice described below was later split into two cases based on
 > whether the current user had already favorited the album. The duplicate-prevention matching

@@ -819,7 +819,26 @@ function AddAlbumDrawer({
       // Album exists but this user hasn't favorited it yet — favorite the existing album,
       // don't create a duplicate `albums` row.
       albumId = existingMatch.albumId;
-      finalReleaseDate = existingMatch.releaseDate;
+      finalReleaseDate = existingMatch.releaseDate ?? (manualReleaseDate.trim() || null);
+
+      // The gate above (Confirm's disabled condition) already requires a manual date here
+      // when existingMatch.releaseDate is null — so this only runs when there's a real value
+      // to write. `fill_missing_release_date` is a SECURITY DEFINER RPC, not a plain
+      // `.update()`: there's no UPDATE policy on `albums` (these are shared catalog rows, not
+      // this user's own data), and a row-level-only policy couldn't stop the same request
+      // from also smuggling in changes to band/album/genre/artwork_url. See
+      // supabase/albums-add-fill-missing-release-date-rpc.sql.
+      if (existingMatch.releaseDate === null) {
+        const { error: fillError } = await supabase.rpc('fill_missing_release_date', {
+          p_album_id: albumId,
+          p_release_date: finalReleaseDate,
+        });
+        if (fillError) {
+          setSaving(false);
+          showError('Could not save release date — try again');
+          return;
+        }
+      }
     } else {
       // User-supplied date is used only if MB returned nothing
       finalReleaseDate = lookupResult.releaseDate ?? (manualReleaseDate.trim() || null);
@@ -869,6 +888,15 @@ function AddAlbumDrawer({
       : null;
   const yearMismatch = selectedYear !== 'all' && lookupYear !== null && lookupYear !== selectedYear;
 
+  // The date that will actually be saved if Confirm succeeds — existingMatch's own stored date
+  // takes precedence (it's already real data), otherwise the fresh MB lookup's date. Null here
+  // means neither source resolved one, so a manual date is required regardless of which branch
+  // (new album or existingMatch) Confirm is about to take — see the disabled condition and the
+  // DatePickerRoot render condition below, and handleConfirm's existingMatch branch above.
+  const resolvedReleaseDate = existingMatch
+    ? existingMatch.releaseDate
+    : (lookupResult?.releaseDate ?? null);
+
   // Preview item shape — mirrors FavoriteListItem so FavoriteListItemRow can render it directly.
   // When existingMatch is set, show the already-stored album's real data (its canonical
   // band/album/artwork may differ slightly from this fresh lookup) rather than the fresh lookup.
@@ -879,7 +907,9 @@ function AddAlbumDrawer({
           band: existingMatch.band,
           album: existingMatch.album,
           artworkUrl: existingMatch.artworkUrl,
-          releaseDate: existingMatch.releaseDate,
+          // Falls back to the manual input the same way the new-album branch below does —
+          // needed now that existingMatch can also require (and show) a manually-typed date.
+          releaseDate: existingMatch.releaseDate ?? (manualReleaseDate.trim() || null),
           genre: existingMatch.genre,
           publishedAt: null,
         }
@@ -1004,7 +1034,7 @@ function AddAlbumDrawer({
 
                   <FavoriteListItemRow item={previewItem} previewMode />
 
-                  {!existingMatch && lookupResult.releaseDate === null && (
+                  {resolvedReleaseDate === null && (
                     <DatePickerRoot
                       size="xl"
                       mt={4}
@@ -1027,7 +1057,7 @@ function AddAlbumDrawer({
                       <Field
                         required
                         label="Release date"
-                        helperText="MusicBrainz couldn't find one — please enter it yourself."
+                        helperText="We don't have a release date for this album — please enter it yourself."
                       >
                         <InputGroup
                           width="full"
@@ -1138,9 +1168,7 @@ function AddAlbumDrawer({
                 loading={saving}
                 spinner={<LoadingIndicatorBars />}
                 aria-label={saving ? 'Loading' : undefined}
-                disabled={
-                  !existingMatch && lookupResult?.releaseDate === null && !manualReleaseDate.trim()
-                }
+                disabled={resolvedReleaseDate === null && !manualReleaseDate.trim()}
                 onClick={handleConfirm}
               >
                 Confirm

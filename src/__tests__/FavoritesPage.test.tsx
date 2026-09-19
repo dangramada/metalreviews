@@ -26,6 +26,7 @@ vi.mock('../supabaseClient', () => ({
       getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: 'test-token' } } }),
     },
     from: vi.fn(),
+    rpc: vi.fn(),
   },
 }));
 
@@ -478,5 +479,89 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
       )
     );
     expect(favoritesInsert).not.toHaveBeenCalled();
+  });
+
+  describe('existingMatch with no release date (Fix: RPC for existingMatch date fill)', () => {
+    const existingAlbumRowNoDate = { ...existingAlbumRow, release_date: null };
+
+    function makeSupabaseFromNoDate(
+      favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null })
+    ) {
+      return (table: string) => {
+        const calibrationStub = stubCalibrationTable(table);
+        if (calibrationStub) return calibrationStub;
+        if (table === 'albums') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                maybeSingle: vi
+                  .fn()
+                  .mockResolvedValue({ data: existingAlbumRowNoDate, error: null }),
+              }),
+            }),
+            insert: vi.fn(),
+          };
+        }
+        if (table === 'favorites') return { insert: favoritesInsert };
+        throw new Error(`unexpected table ${table}`);
+      };
+    }
+
+    it('requires a manual date and renders the date input for a no-date existingMatch', async () => {
+      vi.mocked(supabase.from).mockImplementation(makeSupabaseFromNoDate());
+      vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
+      render(<FavoritesPage />, { wrapper });
+      await openDrawerAndLookUp();
+
+      expect(screen.getByPlaceholderText('e.g. 2024, 2024-03, or 2024-03-15')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+    });
+
+    it('calls fill_missing_release_date before favoriting once a manual date is entered', async () => {
+      const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+      vi.mocked(supabase.from).mockImplementation(makeSupabaseFromNoDate(favoritesInsert));
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null });
+      vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
+      render(<FavoritesPage />, { wrapper });
+      await openDrawerAndLookUp();
+
+      fireEvent.change(screen.getByPlaceholderText('e.g. 2024, 2024-03, or 2024-03-15'), {
+        target: { value: '2019' },
+      });
+
+      const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+      expect(confirmButton).not.toBeDisabled();
+      fireEvent.click(confirmButton);
+
+      await waitFor(() =>
+        expect(supabase.rpc).toHaveBeenCalledWith('fill_missing_release_date', {
+          p_album_id: 'existing-album-1',
+          p_release_date: '2019',
+        })
+      );
+      expect(favoritesInsert).toHaveBeenCalledWith({
+        user_id: 'user-abc',
+        album_id: 'existing-album-1',
+      });
+    });
+
+    it('shows an error and does not favorite when fill_missing_release_date fails', async () => {
+      const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+      vi.mocked(supabase.from).mockImplementation(makeSupabaseFromNoDate(favoritesInsert));
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: { message: 'boom' } });
+      vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
+      render(<FavoritesPage />, { wrapper });
+      await openDrawerAndLookUp();
+
+      fireEvent.change(screen.getByPlaceholderText('e.g. 2024, 2024-03, or 2024-03-15'), {
+        target: { value: '2019' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not save release date — try again')
+      );
+      expect(favoritesInsert).not.toHaveBeenCalled();
+    });
   });
 });
