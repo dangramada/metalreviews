@@ -140,185 +140,192 @@ export function FavoriteListItemRow({
           set by AlbumRatingPage's Desktop/MobileRatingLayout split (that component's own
           comment: Chakra's responsive prop renders display:none in jsdom too, which breaks
           role/text-based test queries). Both layouts always mount; only one is visible at
-          a time via the media query below. */}
-      <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
-        <Flex
-          align="center"
-          gap={4}
-          bg="surface.card"
-          borderRadius="none"
-          // overflow="hidden" clips the flush-edge artwork (0 padding, see below) to the
-          // row's own rounded corners — without it the square artwork corners would poke
-          // past the row's border-radius on the left edge.
-          overflow="hidden"
-          // Zero padding on the left/top/bottom so the artwork sits flush against the row's
-          // edges (favorites-row-desktop-redesign) — only the right side (action buttons)
-          // keeps padding, applied on that Box below rather than here.
-          p={0}
-          border="2px solid"
-          borderColor="border.ruleStrong"
-          // Same border-width/hover language as the reviews-grid card (pass 9), but this row
-          // has no score to link the hover colour to — see docs/decisions/slant-take-design-system.md's
-          // pass 9 entry: favorites items carry no score data by design (useFavoritesList.ts),
-          // so the hover here is a plain colour change, not the score-conditional bone/ember split.
-          _hover={{ borderColor: 'border.hover' }}
-          css={{ '&:hover img': { transform: 'scale(1.06)' } }}
-        >
-          <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
-            {item.artworkUrl && !imgFailed ? (
-              <>
-                <Image
-                  src={toThumbnailUrl(item.artworkUrl, 250)}
-                  alt={`${item.band} – ${item.album}`}
-                  w="128px"
-                  h="128px"
-                  objectFit="cover"
-                  transition="transform 0.3s"
-                  onLoad={() => setImgLoaded(true)}
-                  onError={() => setImgFailed(true)}
-                />
-                {/* Overlay shimmer, faded out once loaded — same technique as ArtworkBlock
+          a time via the media query below.
+          Skipped entirely in preview mode: AddAlbumDrawer's fixed max width (512px, Chakra
+          drawer size="md") is always under this 48em breakpoint, so the desktop tree would
+          otherwise render on a desktop-width browser even though the drawer itself is
+          mobile-narrow — and its footer isn't previewMode-gated. */}
+      {!previewMode && (
+        <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
+          <Flex
+            align="center"
+            gap={4}
+            bg="surface.card"
+            borderRadius="none"
+            // overflow="hidden" clips the flush-edge artwork (0 padding, see below) to the
+            // row's own rounded corners — without it the square artwork corners would poke
+            // past the row's border-radius on the left edge.
+            overflow="hidden"
+            // Zero padding on the left/top/bottom so the artwork sits flush against the row's
+            // edges (favorites-row-desktop-redesign) — only the right side (action buttons)
+            // keeps padding, applied on that Box below rather than here.
+            p={0}
+            border="2px solid"
+            borderColor="border.ruleStrong"
+            // Same border-width/hover language as the reviews-grid card (pass 9), but this row
+            // has no score to link the hover colour to — see docs/decisions/slant-take-design-system.md's
+            // pass 9 entry: favorites items carry no score data by design (useFavoritesList.ts),
+            // so the hover here is a plain colour change, not the score-conditional bone/ember split.
+            _hover={{ borderColor: 'border.hover' }}
+            css={{ '&:hover img': { transform: 'scale(1.06)' } }}
+          >
+            <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
+              {item.artworkUrl && !imgFailed ? (
+                <>
+                  <Image
+                    src={toThumbnailUrl(item.artworkUrl, 250)}
+                    alt={`${item.band} – ${item.album}`}
+                    w="128px"
+                    h="128px"
+                    objectFit="cover"
+                    transition="transform 0.3s"
+                    onLoad={() => setImgLoaded(true)}
+                    onError={() => setImgFailed(true)}
+                  />
+                  {/* Overlay shimmer, faded out once loaded — same technique as ArtworkBlock
                     (src/App.tsx). loading={!loaded}, not isLoaded — Chakra v3 inverted the prop. */}
-                <Skeleton
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  w="100%"
-                  h="100%"
-                  loading={!imgLoaded}
-                  variant="shine"
-                  css={skeletonCss}
-                  opacity={imgLoaded ? 0 : 1}
-                  transition="opacity 0.3s ease"
-                  pointerEvents="none"
-                />
-              </>
-            ) : (
-              <Flex w="100%" h="100%" align="center" justify="center">
-                <Text fontSize="lg" color="text.muted">
-                  ♪
-                </Text>
-              </Flex>
-            )}
-            {/* Rank overlay (+ low-confidence warning, when applicable) — flush bottom-left
+                  <Skeleton
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    w="100%"
+                    h="100%"
+                    loading={!imgLoaded}
+                    variant="shine"
+                    css={skeletonCss}
+                    opacity={imgLoaded ? 0 : 1}
+                    transition="opacity 0.3s ease"
+                    pointerEvents="none"
+                  />
+                </>
+              ) : (
+                <Flex w="100%" h="100%" align="center" justify="center">
+                  <Text fontSize="lg" color="text.muted">
+                    ♪
+                  </Text>
+                </Flex>
+              )}
+              {/* Rank overlay (+ low-confidence warning, when applicable) — flush bottom-left
                 corner, same technique as the home page's sourceBadge/scoreSlab overlays
                 (position="absolute" + bottom={0}/left={0}, not an inset offset — that was
                 tried on other badges and rejected since partial borders only read correctly
                 flush into the corner). Only rendered when this album has a rank; no
                 placeholder otherwise. The warning badge sits directly beside it (not a
                 separate corner) so both read as one strip. */}
-            {/* display="grid" + gridAutoFlow="column" (not Flex/row) is load-bearing: a plain
+              {/* display="grid" + gridAutoFlow="column" (not Flex/row) is load-bearing: a plain
                 flex row's default `align-items: stretch` matches the warning badge's *height*
                 to its taller rankOverlayBadge sibling, but its `aspectRatio: 1/1` (see
                 confidenceWarningBadge) is ignored for the *width* — confirmed live, the badge
                 rendered ~7px wide against the rank badge's ~31px. CSS Grid's track-sizing
                 algorithm honors aspect-ratio against the stretched cross size correctly. */}
-            {ratingSummary && (
-              <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
-                {confidenceTier === 'none' && (
-                  <Tooltip content={`Score level: ${confidenceLabel(confidenceTier)}`}>
-                    <Box {...confidenceWarningBadge}>!</Box>
-                  </Tooltip>
-                )}
-              </Box>
-            )}
-          </Box>
+              {ratingSummary && (
+                <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                  <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
+                  {confidenceTier === 'none' && (
+                    <Tooltip content={`Score level: ${confidenceLabel(confidenceTier)}`}>
+                      <Box {...confidenceWarningBadge}>!</Box>
+                    </Tooltip>
+                  )}
+                </Box>
+              )}
+            </Box>
 
-          {/* AlbumMetaBlock's padding/gap overrides here preserve this row's original
+            {/* AlbumMetaBlock's padding/gap overrides here preserve this row's original
               gap-based composition (spaced by the parent Flex's own gap={4}, not a
               self-contained padded block) — titleLayout="inline" keeps the deliberate
               single-line "band – album" density from Pass 3, unchanged in shape. */}
-          <Box flex={1} minW={0}>
-            <AlbumMetaBlock
-              band={item.band}
-              album={item.album}
-              releaseDate={item.releaseDate}
-              genre={item.genre}
-              titleLayout="inline"
-              padding={{ x: 0, y: 3 }}
-              titleToDateGap={1}
-              dateToGenreGap={2}
-            />
-          </Box>
+            <Box flex={1} minW={0}>
+              <AlbumMetaBlock
+                band={item.band}
+                album={item.album}
+                releaseDate={item.releaseDate}
+                genre={item.genre}
+                titleLayout="inline"
+                padding={{ x: 0, y: 3 }}
+                titleToDateGap={1}
+                dateToGenreGap={2}
+              />
+            </Box>
 
-          <Flex flexShrink={0} gap={1} pr={3}>
-            {onRate && (
-              <Tooltip content="Evaluate this album">
-                <IconButton
-                  aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
-                  size="sm"
-                  variant="ghost"
-                  color="text.muted"
-                  _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
-                  onClick={onRate}
-                >
-                  <Icon as={LuClipboardCheck} />
-                </IconButton>
-              </Tooltip>
-            )}
-
-            <MenuRoot
-              positioning={{
-                placement: 'bottom-end',
-                gutter: 4,
-                // Wrapping MenuTrigger's asChild in our Tooltip component breaks the menu's
-                // own anchor resolution (verified live: it opens pinned to the window's
-                // top-left instead of under this button) — Tooltip's asChild-clone chain
-                // interferes with however Menu would otherwise locate its trigger element.
-                // getAnchorElement sidesteps that entirely: Menu asks this ref directly
-                // instead of resolving the trigger itself, so positioning holds regardless of
-                // what wraps the trigger. desktopListenTriggerRef is attached below and
-                // nowhere else — Tooltip and Menu both still get their asChild-forwarded
-                // props (onClick, aria-*, hover handlers) as normal; only the anchor lookup
-                // is overridden.
-                getAnchorElement: () => desktopListenTriggerRef.current,
-              }}
-            >
-              <Tooltip content="Listen on a streaming platform">
-                <MenuTrigger asChild>
+            <Flex flexShrink={0} gap={1} pr={3}>
+              {onRate && (
+                <Tooltip content="Evaluate this album">
                   <IconButton
-                    ref={desktopListenTriggerRef}
-                    aria-label="Listen on a streaming platform"
+                    aria-label={ratingSummary ? 'Edit rating' : 'Evaluate this album'}
                     size="sm"
                     variant="ghost"
                     color="text.muted"
                     _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                    onClick={onRate}
                   >
-                    <Icon as={Headphones} />
+                    <Icon as={LuClipboardCheck} />
                   </IconButton>
-                </MenuTrigger>
-              </Tooltip>
-              <MenuContent bg="surface.card" color="text.primary">
-                <ListenMenuItems band={item.band} album={item.album} />
-              </MenuContent>
-            </MenuRoot>
+                </Tooltip>
+              )}
 
-            {onRemove && (
-              <Tooltip content="Remove from favorites">
-                <IconButton
-                  aria-label={removing ? 'Loading' : 'Remove from favorites'}
-                  size="sm"
-                  variant="ghost"
-                  color="text.muted"
-                  _hover={{ color: 'red.400', bg: 'whiteAlpha.100' }}
-                  loading={removing}
-                  spinner={<LoadingIndicatorBars />}
-                  onClick={() => setShowRemoveConfirm(true)}
-                >
-                  <Icon as={FaTrash} />
-                </IconButton>
-              </Tooltip>
-            )}
+              <MenuRoot
+                positioning={{
+                  placement: 'bottom-end',
+                  gutter: 4,
+                  // Wrapping MenuTrigger's asChild in our Tooltip component breaks the menu's
+                  // own anchor resolution (verified live: it opens pinned to the window's
+                  // top-left instead of under this button) — Tooltip's asChild-clone chain
+                  // interferes with however Menu would otherwise locate its trigger element.
+                  // getAnchorElement sidesteps that entirely: Menu asks this ref directly
+                  // instead of resolving the trigger itself, so positioning holds regardless of
+                  // what wraps the trigger. desktopListenTriggerRef is attached below and
+                  // nowhere else — Tooltip and Menu both still get their asChild-forwarded
+                  // props (onClick, aria-*, hover handlers) as normal; only the anchor lookup
+                  // is overridden.
+                  getAnchorElement: () => desktopListenTriggerRef.current,
+                }}
+              >
+                <Tooltip content="Listen on a streaming platform">
+                  <MenuTrigger asChild>
+                    <IconButton
+                      ref={desktopListenTriggerRef}
+                      aria-label="Listen on a streaming platform"
+                      size="sm"
+                      variant="ghost"
+                      color="text.muted"
+                      _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                    >
+                      <Icon as={Headphones} />
+                    </IconButton>
+                  </MenuTrigger>
+                </Tooltip>
+                <MenuContent bg="surface.card" color="text.primary">
+                  <ListenMenuItems band={item.band} album={item.album} />
+                </MenuContent>
+              </MenuRoot>
+
+              {onRemove && (
+                <Tooltip content="Remove from favorites">
+                  <IconButton
+                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    size="sm"
+                    variant="ghost"
+                    color="text.muted"
+                    _hover={{ color: 'red.400', bg: 'whiteAlpha.100' }}
+                    loading={removing}
+                    spinner={<LoadingIndicatorBars />}
+                    onClick={() => setShowRemoveConfirm(true)}
+                  >
+                    <Icon as={FaTrash} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Flex>
           </Flex>
-        </Flex>
-      </Box>
+        </Box>
+      )}
 
       {/* Mobile (< md): horizontal card, matching desktop's flush-artwork-left structure
           (favorites-row-mobile-compact-redesign — replaces the original vertical
           artwork-first layout). Same raw `@media` show/hide mechanism as the desktop Box
-          above — see that Box's comment for why. */}
-      <Box css={{ '@media (min-width: 48em)': { display: 'none' } }}>
+          above — see that Box's comment for why. Skipped in preview mode, where this tree
+          always renders (see the desktop Box's comment above). */}
+      <Box css={previewMode ? undefined : { '@media (min-width: 48em)': { display: 'none' } }}>
         <Box
           bg="surface.card"
           borderRadius="none"
