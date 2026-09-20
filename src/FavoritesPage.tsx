@@ -57,7 +57,13 @@ import {
   type CalibrationGateMode,
 } from './components/criteria-calibration/CalibrationGateDialog';
 import { FaTrash } from 'react-icons/fa';
-import { LuCalendar, LuChevronLeft, LuChevronRight, LuClipboardCheck } from 'react-icons/lu';
+import {
+  LuCalendar,
+  LuChevronLeft,
+  LuChevronRight,
+  LuClipboardCheck,
+  LuOctagonAlert,
+} from 'react-icons/lu';
 // Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
 // app's one general icon source.
 import { Headphones } from 'lucide-react';
@@ -88,6 +94,11 @@ import { useNavigate } from 'react-router-dom';
 // ─── Shared list-item row ─────────────────────────────────────────────────────
 // Used in both the favorites list and the AddAlbumDrawer preview.
 
+// One string for both breakpoints' badge (Tooltip on desktop, title/aria-label on touch), so
+// the two cannot drift. Says what the user has to do, not how settled the old score was: there
+// is no old score left to describe.
+const INSUFFICIENT_DATA_BADGE_TEXT = 'No score yet. Answer a round of comparisons in calibration.';
+
 export function FavoriteListItemRow({
   item,
   onRemove,
@@ -95,6 +106,7 @@ export function FavoriteListItemRow({
   ratingSummary,
   onRate,
   confidenceTier,
+  hasInsufficientData = false,
   previewMode = false,
 }: {
   item: FavoriteListItem;
@@ -111,6 +123,10 @@ export function FavoriteListItemRow({
   // rendered alongside a rank badge, since an unrated album has no score to be confident
   // about yet. Omitted in the AddAlbumDrawer preview context.
   confidenceTier?: CalibrationTier;
+  // Also the same for every row: it is a property of the account's calibration state, not of
+  // any album. See useCalibrationGate — the persisted tier is describing a session the user has
+  // since restarted, so neither it nor the rank derived from the current weights means anything.
+  hasInsufficientData?: boolean;
   // AddAlbumDrawer's preview instance only — hides the mobile footer (including its Listen
   // button, which has no onRate/onRemove-style gate of its own). The /favorites list omits
   // this so its footer is unaffected.
@@ -220,10 +236,20 @@ export function FavoriteListItemRow({
                 algorithm honors aspect-ratio against the stretched cross size correctly. */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                  <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
-                  {confidenceTier === 'none' && (
-                    <Tooltip content={`Score level: ${confidenceLabel(confidenceTier)}`}>
-                      <Box {...confidenceWarningBadge}>!</Box>
+                  <Box {...rankOverlayBadge}>
+                    {hasInsufficientData ? '—' : `#${ratingSummary.rank}`}
+                  </Box>
+                  {(hasInsufficientData || confidenceTier === 'none') && (
+                    <Tooltip
+                      content={
+                        hasInsufficientData
+                          ? INSUFFICIENT_DATA_BADGE_TEXT
+                          : `Score level: ${confidenceLabel(confidenceTier)}`
+                      }
+                    >
+                      <Box {...confidenceWarningBadge}>
+                        <LuOctagonAlert size={16} />
+                      </Box>
                     </Tooltip>
                   )}
                 </Box>
@@ -375,14 +401,24 @@ export function FavoriteListItemRow({
                 stretched item, but honored by CSS Grid's track sizing). */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                  <Box {...rankOverlayBadge}>#{ratingSummary.rank}</Box>
-                  {confidenceTier === 'none' && (
+                  <Box {...rankOverlayBadge}>
+                    {hasInsufficientData ? '—' : `#${ratingSummary.rank}`}
+                  </Box>
+                  {(hasInsufficientData || confidenceTier === 'none') && (
                     <Box
                       {...confidenceWarningBadge}
-                      aria-label={`Score level: ${confidenceLabel(confidenceTier)}`}
-                      title={`Score level: ${confidenceLabel(confidenceTier)}`}
+                      aria-label={
+                        hasInsufficientData
+                          ? INSUFFICIENT_DATA_BADGE_TEXT
+                          : `Score level: ${confidenceLabel(confidenceTier)}`
+                      }
+                      title={
+                        hasInsufficientData
+                          ? INSUFFICIENT_DATA_BADGE_TEXT
+                          : `Score level: ${confidenceLabel(confidenceTier)}`
+                      }
                     >
-                      !
+                      <LuOctagonAlert size={16} />
                     </Box>
                   )}
                 </Box>
@@ -1230,6 +1266,7 @@ export function FavoritesPage() {
   const {
     tier: calibrationTier,
     hasWeights: hasCalibrationWeights,
+    hasInsufficientData,
     loading: gateLoading,
   } = useCalibrationGate();
   const { summary: ratingSummary } = useAlbumRatingsSummary();
@@ -1376,6 +1413,7 @@ export function FavoritesPage() {
                   ratingSummary={ratingSummary.get(item.albumId)}
                   onRate={() => handleRate(item)}
                   confidenceTier={calibrationTier}
+                  hasInsufficientData={hasInsufficientData}
                 />
               ))}
             </VStack>

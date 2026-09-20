@@ -4,7 +4,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
-import { FavoritesPage } from '../FavoritesPage';
+import { FavoritesPage, FavoriteListItemRow } from '../FavoritesPage';
 import system from '../theme';
 import type { FavoriteListItem } from '../hooks/useFavoritesList';
 
@@ -581,5 +581,38 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
       );
       expect(favoritesInsert).not.toHaveBeenCalled();
     });
+  });
+});
+
+// Insufficient data (2026-09-20). Exercised on the row directly rather than through the page:
+// the rank badge only renders alongside a ratingSummary, which the page derives from a live
+// useAlbumRatingsSummary fetch, and the signal itself is per-account and reaches every row the
+// same way. Both breakpoints' markup mounts at once in jsdom, hence the getAllBy* queries.
+describe('FavoriteListItemRow — insufficient data', () => {
+  const INSUFFICIENT_DATA_TEXT = 'No score yet. Answer a round of comparisons in calibration.';
+
+  function renderRow(hasInsufficientData: boolean) {
+    return render(
+      <FavoriteListItemRow
+        item={mockItem}
+        ratingSummary={{ score: 0.82, rank: 1 }}
+        confidenceTier="very_high"
+        hasInsufficientData={hasInsufficientData}
+      />,
+      { wrapper }
+    );
+  }
+
+  it('replaces the rank with a dash and warns, at a stale very_high tier', () => {
+    renderRow(true);
+    expect(screen.queryByText('#1')).not.toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle(INSUFFICIENT_DATA_TEXT).length).toBeGreaterThan(0);
+  });
+
+  it('leaves the rank alone when the data is current', () => {
+    renderRow(false);
+    expect(screen.getAllByText('#1').length).toBeGreaterThan(0);
+    expect(screen.queryByTitle(INSUFFICIENT_DATA_TEXT)).not.toBeInTheDocument();
   });
 });
