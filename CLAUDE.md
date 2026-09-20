@@ -103,10 +103,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-Also flagging: `existing-match-release-date-gate` has an uncommitted change to
-`GuideTab.tsx` (stashed aside, untouched, while a prior session worked on an unrelated branch)
-— this file's earlier "No branches currently in progress" claim was already stale before that
-session; that branch's own status should be reconciled separately.
+`existing-match-release-date-gate` — open, pending Dan's live-check (existingMatch with no
+release date blocked until a year is entered; RPC persists it; new-album path and heart-icon
+path unaffected) before merge. Not the same content as the note this section used to carry
+about a "stashed" `GuideTab.tsx` change on this branch — that was actually a real commit
+(`bd8bb02`, Dan's own, landed directly on this branch), unrelated to the release-date-gate
+work; it's been cherry-picked off onto its own branch and merged separately (see
+`guide-tab-four-levels-intro` below) rather than riding along in this branch's merge.
+
+Most recent merge: `guide-tab-four-levels-intro` — rewrites `GuideTab`'s intro copy to name the
+Unfocused/Blurry/Clear/Sharp calibration levels directly, so new users see the level names
+before reaching a checkpoint that uses them. Single-commit, copy-only change; originally landed
+directly on `existing-match-release-date-gate` (unrelated branch) and was split off onto its
+own branch to keep that branch's eventual merge scoped to just the release-date-gate fix. 54/54
+files, 429/429 tests, `tsc` clean on `master` post-merge. Merged to `master` `--no-ff` at
+`36d46c9` on 2026-09-20. Rollback tag: `pre-merge-guide-tab-four-levels-intro`.
 
 Most recent merge: `score-level-indicator-redesign` — replaces the flat "Score level: {tier}" +
 text-link row (shipped in `criteria-calibration-terminology-and-gate-unification`) with a
