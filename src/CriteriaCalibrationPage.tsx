@@ -41,6 +41,7 @@ import {
   deleteAnswer,
   deleteAllAnswers,
   resetCalibrationStatus,
+  syncCalibrationStatus,
   upsertCalibrationStatus,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
@@ -755,7 +756,7 @@ export function CriteriaCalibrationPage() {
     });
   }
 
-  function handleUndo() {
+  async function handleUndo() {
     if (interactionDisabled || answers.length === 0 || !catalog) return;
     const last = answers[answers.length - 1];
     const nextAnswers = answers.slice(0, -1);
@@ -796,7 +797,34 @@ export function CriteriaCalibrationPage() {
     // like everything else. `acknowledgedBoundaryDegree` deliberately does NOT get cleared:
     // having already decided at this boundary once, the user should not be asked again for
     // re-reaching the boundary they just stepped back over.
-    applyCommitComputation(computation);
+    const weightsWrite = applyCommitComputation(computation);
+
+    if (user) {
+      // Undo decreases the live answer count, which upsert_calibration_status's guard (>=
+      // only) can never accept — the write above is expected to lose that race, leaving
+      // user_calibration_status.answer_count one HIGHER than the real, post-undo count. That
+      // used to be silently wrong (tier just stayed one commit stale); since
+      // hasInsufficientData reads `live < persisted`, it now actively blanks the score/rank on
+      // Album Evaluation/Favorites after any Undo, not just after Restart — see
+      // syncCalibrationStatus's own comment for why this needs the guard bypassed, and why
+      // this must be sequenced after `weightsWrite` settles rather than racing it.
+      beginWrite();
+      try {
+        await weightsWrite;
+        await syncCalibrationStatus(
+          user.id,
+          tierRef.current,
+          computation.accuracy,
+          computation.answerCount
+        );
+        notifyPersistRecovered();
+      } catch (e) {
+        console.warn('Failed to sync calibration status after undo', e);
+        notifyPersistFailure();
+      } finally {
+        endWrite();
+      }
+    }
   }
 
   function handleRedo() {

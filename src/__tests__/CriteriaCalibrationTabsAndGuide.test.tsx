@@ -36,6 +36,7 @@ vi.mock('../lib/criteria-calibration/persistence', () => ({
   deleteAnswer: vi.fn().mockResolvedValue(undefined),
   deleteAllAnswers: vi.fn().mockResolvedValue(undefined),
   resetCalibrationStatus: vi.fn().mockResolvedValue(undefined),
+  syncCalibrationStatus: vi.fn().mockResolvedValue(undefined),
   upsertWeightsAndStatus: vi.fn().mockResolvedValue(undefined),
   upsertCalibrationStatus: vi.fn().mockResolvedValue(undefined),
 }));
