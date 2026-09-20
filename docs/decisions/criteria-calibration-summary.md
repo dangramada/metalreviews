@@ -26,7 +26,13 @@ describes a restarted session. Live §6 verification then found Restart's OWN st
 that nothing was fixing. Added `resetCalibrationStatus()`, a direct upsert bypassing the guarded
 RPC (the table's RLS already permits it), sequenced via an awaited promise chain to land strictly
 after the stale-tier write. `upsert_calibration_status`'s guard itself and `user_criterion_weights`
-(already correct) stay untouched. 55/55 files, 439/439 tests. Full detail:
+(already correct) stay untouched. **Second same-day follow-up:** a real live Restart on the QA
+account then showed the reset working correctly in the DB (confirmed via the Supabase REST API
+directly) while Album Evaluation/Favorites still showed a real, live-recomputed score (87%/64%,
+not cached) — `hasInsufficientData`'s `live < persisted` reads `0 < 0 = false` right after a
+correct reset, since the tier is honest at that instant even though the weights are still the
+flat zero-answer ramp. Added `weightsPresent && liveAnswerCount === 0` as a second, independent
+condition. 56/56 files, 444/444 tests. Full detail:
 `criteria-calibration-insufficient-data-state.md`.
 
 **2026-09-18 — terminology unification + Favorites gate redesign:** unifies tier terminology

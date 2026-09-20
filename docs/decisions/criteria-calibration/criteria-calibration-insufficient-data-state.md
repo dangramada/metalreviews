@@ -175,6 +175,39 @@ there), and every other item in "What was deliberately not touched" above.
 Restart click (confirm dialog included) against a resumed 29-answer session and asserts both that
 `resetCalibrationStatus` is reached and that it lands strictly after the stale-tier write —
 resolving both mocks synchronously would have let a same-tick reordering bug pass, so the
-stale-tier mock resolves on a real delay. 55/55 test files, 439/439 tests. Re-verification of
-Dan's exact §6 scenario (mature session → Restart → re-reach Blurry) against the disposable QA
-account is still owed — this session cannot log in.
+stale-tier mock resolves on a real delay. 55/55 test files, 439/439 tests.
+
+## Second follow-up (same day) — the reset itself was correct, the signal's boundary wasn't
+
+Dan logged into the running dev server directly (disposable QA account) and did a real Restart.
+The reset fix above worked exactly as designed — confirmed by reading `user_calibration_status`
+and `user_criterion_weights` straight from the Supabase REST API, not through the UI:
+`answer_count: 0`, `tier: 'none'`, 0 rows in `user_calibration_answers`, and 30 weight rows all
+sitting on the flat zero-answer ramp. But Album Evaluation and Favorites still showed a real
+score and rank (87%/64%, mathematically confirmed to be a live recomputation off exactly those
+ramp weights, not a cached leftover) instead of dashes.
+
+**Root cause.** `hasInsufficientData`'s condition was `liveAnswerCount < persistedAnswerCount`.
+Right after a Restart that reset correctly, both sides are 0, and `0 < 0` is false — the reasoning
+at the time ("the persisted tier is honest at that instant, so there's no staleness to catch")
+was true but answered the wrong question. The signal was built to catch a STALE TIER, but the
+actual failure mode here is a MEANINGLESS SCORE: at live count 0, `user_criterion_weights` is
+_always_ the flat, information-free ramp — no other write path leaves weight rows sitting at 0
+answers, since both the very first commit and every Restart write weights unconditionally from
+whatever's in `session.fullLog` at that moment. A tier label being honest about "zero answers"
+does not make a percentage computed from zero-information weights meaningful to show.
+
+**Fix.** Added a second, independent condition, `weightsPresent && liveAnswerCount === 0`,
+alongside the existing staleness check (`useCalibrationGate.ts`). `weightsPresent` is required so
+a genuine brand-new account (no weight rows at all, already hard-gated elsewhere before reaching
+either surface) doesn't trip the Restart-specific banner copy it never earned — same reasoning as
+the original `<=`-would-be-wrong argument in the first follow-up, just now scoped correctly to
+the one condition that actually needed it instead of the whole comparison.
+
+**Verification.** `useCalibrationGate.test.ts`'s boundary suite was rewritten (5 cases: the (0,0)
+post-reset boundary now asserts TRUE; brand-new-account still asserts false; the original
+guard-rejection bug; a healthy caught-up mid-session; Undo dropping live behind persisted).
+56/56 files, 444/444 tests. Re-verified live on the QA account after the fix: `/rate/:albumId`
+shows the info banner with dashed Score/Rank/score-level and zero filled segments;
+`/favorites` shows a dashed rank badge on both rows. Dan's exact §6 replay (re-answer past Blurry
+after Restart and confirm the state clears at the right point) is still owed.

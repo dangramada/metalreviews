@@ -119,8 +119,16 @@ session, so the row stayed pinned no matter how far the new session progressed. 
 it), sequenced via an awaited promise chain to land strictly after the stale-tier write — landing
 it first would let the reset's own zeroed `answer_count` make the guard newly permissive for that
 write, letting it clobber the reset right back. `upsert_calibration_status`'s guard itself and
-`user_criterion_weights` (already correct) remain untouched. 55/55 files, 439/439 tests. Live
-re-verification of the exact §6 scenario on the QA account is still owed. Full detail:
+`user_criterion_weights` (already correct) remain untouched. **Second same-day follow-up:** Dan
+tested a real Restart live on the QA account — the DB reset correctly (confirmed via direct REST
+API reads, not the UI) but Album Evaluation/Favorites still showed a real, live-recomputed score
+(mathematically verified against the reset weights, not a cache). `hasInsufficientData`'s
+`live < persisted` reads `0 < 0 = false` right after a correct reset — honest tier, but the
+weights are still the flat zero-answer ramp. Added `weightsPresent && liveAnswerCount === 0` as a
+second condition, gated on `weightsPresent` so a genuine brand-new account doesn't trip the
+Restart-specific banner. 56/56 files, 444/444 tests. Live re-verified on the QA account: both
+surfaces now dash correctly at this boundary. Dan's exact §6 replay (re-answer past Blurry after
+Restart) is still owed. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-insufficient-data-state.md`.
 
 Most recent merge: `existing-match-release-date-gate` — closes the gap where favoriting an
