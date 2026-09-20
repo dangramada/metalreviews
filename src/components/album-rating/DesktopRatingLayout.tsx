@@ -270,8 +270,10 @@ export function DesktopRatingLayout({
         </Flex>
 
         {/* Section 3: rank/score slabs + radar chart. bg="surface.card" — same third-pass fill
-            as the other two sections. */}
-        <VStack gridArea="score" align="stretch" gap={4} bg="surface.card" minW={0}>
+            as the other two sections. gap=0 (score-level-indicator-redesign): no space between
+            RatingProgressBox and the chart below it — the score-level block's own pb="12px"
+            already provides the visual gap it needs. */}
+        <VStack gridArea="score" align="stretch" gap={0} bg="surface.card" minW={0}>
           <RatingProgressBox
             ratedCount={ratings.size}
             totalCount={order.length}

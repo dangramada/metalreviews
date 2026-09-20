@@ -92,9 +92,14 @@ export function RatingProgressBox({
             </Flex>
             {/* album-rating-soft-gate: v1, plain text label — no tooltip/explanation copy,
                 reusing the same tier already computed for the (now non-blocking) calibration
-                nudge rather than a new scale. Ship and evaluate before building further. */}
-            <VStack align="stretch" gap="4px">
-              <Flex align="center" justify="space-between" gap={2}>
+                nudge rather than a new scale. Ship and evaluate before building further.
+                score-level-indicator-redesign: unlike the RANK/SCORE slabs above (deliberately
+                flush-corner elements per theme.ts), this row needs its own 12px inset — it sits
+                directly against the card's edges otherwise. pt is 4px, not 12px, because the
+                parent VStack's gap={2} (8px) already separates this section from the slabs row
+                above — 8 + 4 = the same 12px the other three sides get directly. */}
+            <Flex align="center" justify="space-between" gap="40px" pt="4px" px="12px" pb="12px">
+              <VStack align="stretch" gap="6px" flex="1">
                 <Text
                   fontFamily="mono"
                   fontSize="12px"
@@ -103,48 +108,51 @@ export function RatingProgressBox({
                   letterSpacing="0.06em"
                   color="text.muted"
                 >
-                  Score level: {confidenceLabel(confidenceTier)}
+                  Score level:{' '}
+                  <Text as="span" color="text.primary">
+                    {confidenceLabel(confidenceTier)}
+                  </Text>
                 </Text>
-                {/* terminology-and-gate-unification: a persistent action, not part of the label
-                    itself, always present regardless of tier — no `from` param, since preserving
-                    which album sent the user here (return-to-album continuity) is explicitly out
-                    of scope for this round; finishing calibration falls back to /favorites.
-                    score-level-indicator-redesign: swapped the text link for an icon button
-                    reusing FavoritesPage's Evaluate/Listen/Remove ghost-icon pattern; icon color
-                    signals urgency instead of button shape — accent while there's more to gain,
-                    muted once `very_high` ("Sharp") is reached. Tooltip is hover-only by design
-                    (see the brief's "Tooltip" section) — the segment bar already communicates
-                    urgency permanently, so the tooltip's only job is naming the destination. */}
-                <Tooltip content="Go to calibration">
-                  <IconButton
-                    asChild
-                    aria-label="Go to calibration"
-                    data-testid="calibration-action"
-                    data-muted={confidenceTier === 'very_high'}
-                    size="sm"
-                    variant="ghost"
-                    color={confidenceTier === 'very_high' ? 'text.muted' : 'accent.text'}
-                    _hover={{ bg: 'whiteAlpha.100' }}
-                  >
-                    <RouterLink to="/calibration" title="Go to calibration">
-                      <LuSlidersVertical />
-                    </RouterLink>
-                  </IconButton>
-                </Tooltip>
-              </Flex>
-              <Flex gap="4px" aria-hidden="true">
-                {Array.from({ length: 4 }, (_, i) => (
-                  <Box
-                    key={i}
-                    data-testid="tier-segment"
-                    data-filled={i < TIER_SEGMENT_COUNT[confidenceTier]}
-                    w="27px"
-                    h="6px"
-                    bg={i < TIER_SEGMENT_COUNT[confidenceTier] ? 'accent.border' : 'ink.700'}
-                  />
-                ))}
-              </Flex>
-            </VStack>
+                <Flex gap="4px" aria-hidden="true">
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <Box
+                      key={i}
+                      data-testid="tier-segment"
+                      data-filled={i < TIER_SEGMENT_COUNT[confidenceTier]}
+                      w="24px"
+                      h="4px"
+                      bg={i < TIER_SEGMENT_COUNT[confidenceTier] ? 'accent.border' : 'ink.700'}
+                    />
+                  ))}
+                </Flex>
+              </VStack>
+              {/* terminology-and-gate-unification: a persistent action, not part of the label
+                  itself, always present regardless of tier — no `from` param, since preserving
+                  which album sent the user here (return-to-album continuity) is explicitly out
+                  of scope for this round; finishing calibration falls back to /favorites.
+                  score-level-indicator-redesign: icon color signals urgency instead of button
+                  shape — accent while there's more to gain, muted once `very_high` ("Sharp") is
+                  reached. Tooltip is hover-only by design (see the brief's "Tooltip" section) —
+                  the segment bar already communicates urgency permanently, so the tooltip's only
+                  job is naming the destination. */}
+              <Tooltip content="Go to calibration">
+                <IconButton
+                  asChild
+                  aria-label="Go to calibration"
+                  data-testid="calibration-action"
+                  data-muted={confidenceTier === 'very_high'}
+                  size="sm"
+                  variant="outline"
+                  colorPalette="gray"
+                  p="12px"
+                  color={confidenceTier === 'very_high' ? 'text.muted' : 'accent.text'}
+                >
+                  <RouterLink to="/calibration" title="Go to calibration">
+                    <LuSlidersVertical />
+                  </RouterLink>
+                </IconButton>
+              </Tooltip>
+            </Flex>
           </VStack>
         </motion.div>
       )}
