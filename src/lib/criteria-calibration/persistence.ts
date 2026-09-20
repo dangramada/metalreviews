@@ -101,6 +101,40 @@ export async function deleteAllAnswers(userId: string): Promise<void> {
 }
 
 /**
+ * Restart's other half: zeroes out `user_calibration_status` directly, bypassing
+ * `upsert_calibration_status` entirely rather than calling it with `p_answer_count: 0`.
+ *
+ * WHY NOT THE RPC. Its guard is `>= stored answer_count`, so a call at count 0 against any
+ * previously-mature session is rejected outright — this is Restart's actual bug (see
+ * criteria-calibration-restart-stale-state-diagnostic.md and
+ * criteria-calibration-insufficient-data-state.md, which papered over the SYMPTOM on the
+ * display side while this was still broken underneath). Restart is a deliberate full reset,
+ * not a stale write racing a fresher one — the exact case the guard exists to reject — so it
+ * needs to go around the guard, not satisfy it. `user_calibration_status`'s own RLS policy
+ * ("Users can manage their own calibration status", `for all using/with check auth.uid() =
+ * user_id`) already permits a plain client upsert with no RPC needed; the guard is
+ * application logic layered on top of that policy, not a security boundary, so bypassing it
+ * here does not touch RLS at all.
+ *
+ * CALLER MUST SEQUENCE THIS AFTER any in-flight `upsertWeightsAndStatus` call from the same
+ * Restart. `handleRestart` also fires `applyCommitComputation` for the fresh zero-answer
+ * solve, which calls `upsertWeightsAndStatus` with `tierRef.current` — still the OLD
+ * session's tier at that instant, since the ref only updates on a later render — at
+ * `p_answer_count: 0`. Ordinarily the guard rejects that (0 >= the old stored count is
+ * false). But if this function's write lands FIRST, it zeroes `answer_count`, which makes the
+ * guard newly permissive (`0 >= 0`) for that still-in-flight stale-tier write, so it can land
+ * SECOND and clobber the correct reset with the old tier. `handleRestart` awaits the
+ * weights/status write's promise before calling this function specifically to make this
+ * function's write the temporally last one, not just call it "eventually".
+ */
+export async function resetCalibrationStatus(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_calibration_status')
+    .upsert({ user_id: userId, tier: 'none', accuracy_value: 0, answer_count: 0 });
+  if (error) throw error;
+}
+
+/**
  * The app's tier identifier in the database's spelling. The two differ only in case
  * convention ('veryHigh' vs 'very_high'), which is deliberate — the column's CHECK constraint
  * and every existing row use snake_case, so degree-tying the tier needed no migration.
