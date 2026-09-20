@@ -1,25 +1,25 @@
 // @vitest-environment jsdom
 //
-// Boundary coverage for hasInsufficientData, raised as a direct question after the Restart
-// status-reset fix shipped: once resetCalibrationStatus zeroes user_calibration_status.answer_
-// count on Restart, the very next read (before any new answer) sees live count 0 and persisted
-// count 0 — `0 < 0` is false, so hasInsufficientData reads false at that exact instant. Is that
-// the bug reappearing, or the fix working as designed?
+// Boundary coverage for hasInsufficientData at (persisted 0, live 0) — the exact state right
+// after a Restart that reset correctly.
 //
-// It's the latter, and this file is the empirical check, not just the argument: at persisted
-// count 0 right after a real reset, the stored tier ('none', also written by the reset) is NOT
-// stale — it correctly describes the current, real zero-answer state. There is no lie left for
-// the signal to catch. Showing a score under tier 'none' is the pre-existing, already-shipped
-// soft-gate behavior (album-rating-soft-gate.md, 2026-08-09) — not something this feature was
-// ever meant to suppress. The signal exists to catch PERSISTED > LIVE (a stale answer_count
-// left over from before a reset that never happened, or never fully caught up), which is a
-// strictly different condition than "both are freshly zero".
+// FIRST PASS AT THIS GOT IT BACKWARDS. `live < persisted` alone reads `0 < 0 = false` at this
+// boundary, and it's tempting to conclude that's correct because the persisted tier ('none',
+// also written by the reset) genuinely isn't lying at that instant. But live-testing on the QA
+// account (dgramada07@gmail.com) showed real percentages (87%, 64%) rendering under that
+// "honest none" label immediately post-Restart, computed live off the flat zero-answer ramp
+// weights against each album's already-recorded criteria ratings — not stale, but not
+// meaningful either. The staleness check alone can't see that: it only knows about the TIER's
+// honesty, not about whether the WEIGHTS behind the displayed number represent any real
+// comparison at all.
 //
-// This also demonstrates why `<=` would be a regression, not a tightening: a genuine brand-new
-// account (never calibrated, never restarted) has no status row at all, which the hook defaults
-// to answer_count 0, and 0 live answers — the same (0, 0) pair a just-reset account has. `<=`
-// would flag every brand-new user as "insufficient data" and show them a banner claiming their
-// calibration was restarted, which for them is false. `<` is what keeps those two states apart.
+// The fix adds a second, independent condition: `weightsPresent && liveAnswerCount === 0`.
+// Whenever live count is exactly 0 and weight rows exist at all, those rows are GUARANTEED to
+// be the flat, information-free ramp — the only write path that can leave weights sitting at 0
+// answers is Restart's own unconditional overwrite (see persistence.ts's
+// upsertWeightsAndStatus / resetCalibrationStatus). `weightsPresent` is what keeps a genuine
+// brand-new account (no weight rows at all, separately hard-gated) from tripping the
+// Restart-specific banner it never earned — see the second test below.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useCalibrationGate } from '../hooks/useCalibrationGate';
@@ -93,15 +93,18 @@ describe('useCalibrationGate — hasInsufficientData boundary', () => {
     } as ReturnType<typeof useAuth>);
   });
 
-  it('reads false immediately after a real Restart reset (persisted 0, live 0) — the tier is not stale, it is honest', async () => {
-    mockTables({ statusAnswerCount: 0, statusTier: 'none', liveAnswerCount: 0 });
+  it('reads TRUE immediately after a real Restart reset (persisted 0, live 0, weights present) — the weights are still the flat zero-answer ramp', async () => {
+    mockTables({ statusAnswerCount: 0, statusTier: 'none', liveAnswerCount: 0, hasWeights: true });
     const { result } = renderHook(() => useCalibrationGate());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.hasInsufficientData).toBe(false);
+    expect(result.current.hasInsufficientData).toBe(true);
     expect(result.current.tier).toBe('none');
   });
 
-  it('reads false for a genuine brand-new account (no status row at all, 0 live answers)', async () => {
+  it('reads false for a genuine brand-new account (no status row, no weight rows, 0 live answers)', async () => {
+    // Distinguishes "never calibrated" from "just reset": both hit live count 0, but only a
+    // just-reset account has weight rows at all (a brand-new one is hard-gated on hasWeights
+    // before ever reaching a surface this hook feeds).
     mockTables({ hasStatusRow: false, liveAnswerCount: 0, hasWeights: false });
     const { result } = renderHook(() => useCalibrationGate());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -110,20 +113,27 @@ describe('useCalibrationGate — hasInsufficientData boundary', () => {
 
   it('reads true when the reset did NOT happen — the original bug this fix closed', async () => {
     // Restart cleared the answer log (live 0) but the status row is still the pre-restart
-    // session's value — exactly the pre-fix failure mode.
+    // session's value — exactly the pre-fix failure mode. Caught by the `live === 0` half
+    // regardless of what persisted says here, but also by `live < persisted`.
     mockTables({ statusAnswerCount: 33, statusTier: 'very_high', liveAnswerCount: 0 });
     const { result } = renderHook(() => useCalibrationGate());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.hasInsufficientData).toBe(true);
   });
 
-  it('reads false the instant a post-restart session catches up answer-for-answer (no lag once reset)', async () => {
-    // Once the reset lands, every subsequent guarded write starts from 0 and increments in
-    // lockstep with the live log — persisted never gets a chance to fall behind again in
-    // normal (non-Undo) play.
+  it('reads false once a post-restart session has answered at least once and stays caught up', async () => {
+    // Once live count is above 0 and matches persisted, both conditions are false — the
+    // ordinary healthy mid-session state.
     mockTables({ statusAnswerCount: 5, statusTier: 'none', liveAnswerCount: 5 });
     const { result } = renderHook(() => useCalibrationGate());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.hasInsufficientData).toBe(false);
+  });
+
+  it('reads true when Undo drops the live count behind the still-guarded persisted count', async () => {
+    mockTables({ statusAnswerCount: 5, statusTier: 'medium', liveAnswerCount: 4 });
+    const { result } = renderHook(() => useCalibrationGate());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.hasInsufficientData).toBe(true);
   });
 });

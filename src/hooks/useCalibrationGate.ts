@@ -35,17 +35,39 @@ export function useCalibrationGate() {
   // user who has answered ninety questions. What the gate actually wants to know is whether
   // there is a calibrated model to score with, and weight rows exist from the first commit.
   const [hasWeights, setHasWeights] = useState(false);
-  // Insufficient data: the persisted tier/accuracy describes a session that no longer exists.
+  // Insufficient data: either the persisted tier/accuracy describes a session that no longer
+  // exists, OR the account is sitting at a live answer count of exactly 0 while weight rows
+  // exist at all — which can only mean the weights are the flat, zero-answer solve a Restart
+  // (or the account's very first commit, but that path never leaves weights sitting at 0
+  // answers with nothing following) unconditionally writes, never a real personalized model.
+  //
+  // THE `=== 0` HALF IS LOAD-BEARING, NOT A NICETY: right after a Restart that worked
+  // correctly (persisted answer_count reset to 0 alongside live count 0), `live < persisted`
+  // alone reads `0 < 0` = false — the persisted tier ('none') genuinely isn't lying at that
+  // instant, so the STALENESS check has nothing to catch. But the weights are still the
+  // information-free uniform ramp (see resetCalibrationStatus's own comment on why
+  // user_criterion_weights and user_calibration_status both land at "zero answers" together
+  // on Restart), and any album with existing per-album criteria ratings will still produce a
+  // real-looking percentage from it — this is Dan's live-caught bug, initially missed because
+  // "tier is honest, so it isn't insufficient" was the wrong question: the question is whether
+  // there is any real comparison behind the number on screen, and at live count 0 there never
+  // is, tier label notwithstanding. `hasWeights` gates this half so a genuinely brand-new
+  // account (no weight rows at all, hard-gated separately) doesn't trip the Restart-specific
+  // banner copy it never earned.
   //
   // Restart deletes every user_calibration_answers row and touches nothing else, while
   // upsert_calibration_status only adopts an incoming tier when its answer_count is >= the
-  // stored one. So after a Restart the tier stays frozen at the old session's value for as many
-  // answers as the old session had, while user_criterion_weights (unguarded, overwritten
-  // unconditionally on the very first post-Restart render) already holds a zero-answer solve —
-  // a uniform ramp. That window is exactly `live count < stored answer_count`, confirmed live
-  // in docs/decisions/criteria-calibration/criteria-calibration-restart-stale-state-diagnostic.md
+  // stored one. So after a Restart whose own status write is rejected (see
+  // resetCalibrationStatus for why that no longer happens, but the guard itself is unchanged)
+  // the tier stays frozen at the old session's value for as many answers as the old session
+  // had, while user_criterion_weights (unguarded, overwritten unconditionally on the very
+  // first post-Restart render) already holds the same zero-answer solve. That window is
+  // `live count < stored answer_count`, confirmed live in
+  // docs/decisions/criteria-calibration/criteria-calibration-restart-stale-state-diagnostic.md
   // (Scenarios 2-4, including Undo and a boundary promotion, all of which lose the guard race
-  // identically). Outside that window the guard has released and the stored tier is current.
+  // identically) — this is the second half of the condition below, still needed for the
+  // in-progress catch-up window and for Undo dropping the live count without a matching status
+  // write (same diagnostic, Scenario 3).
   //
   // WHY NOT recompute degree-2 coverage live from the answer log, as the brief first proposed:
   // isDegreeCoverageComplete takes the LP's solved values, not just touch counts, so an honest
@@ -91,10 +113,13 @@ export function useCalibrationGate() {
           .eq('user_id', user.id),
       ]);
       if (cancelled) return;
+      const weightsPresent = (weights.data ?? []).length > 0;
+      const liveAnswerCount = answers.count ?? 0;
+      const persistedAnswerCount = (status.data?.answer_count as number | undefined) ?? 0;
       setTier((status.data?.tier as CalibrationTier | undefined) ?? 'none');
-      setHasWeights((weights.data ?? []).length > 0);
+      setHasWeights(weightsPresent);
       setHasInsufficientData(
-        (answers.count ?? 0) < ((status.data?.answer_count as number | undefined) ?? 0)
+        weightsPresent && (liveAnswerCount === 0 || liveAnswerCount < persistedAnswerCount)
       );
       setLoading(false);
     }
