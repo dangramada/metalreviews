@@ -29,6 +29,8 @@ interface RatingProgressBoxProps {
   totalCount: number;
   ratingSummary: AlbumRatingSummary | undefined;
   confidenceTier: CalibrationTier;
+  /** Stale persisted tier + degenerate weights after a Restart — see useCalibrationGate. */
+  hasInsufficientData: boolean;
 }
 
 // Solver point estimates now come from a single jointly-solved feasible point (see
@@ -45,20 +47,29 @@ export function RatingProgressBox({
   totalCount,
   ratingSummary,
   confidenceTier,
+  hasInsufficientData,
 }: RatingProgressBoxProps) {
   // Pending on ratedCount alone, not on ratingSummary's presence — ratingSummary refetches
   // asynchronously after the last save, so gating on it instead would leave a stale "—" flash
   // between the final pick and the refetch resolving.
   const isPending = ratedCount < totalCount;
-  const rankValue = ratingSummary ? `#${ratingSummary.rank}` : '—';
+  // Insufficient data takes the same '—' the missing-summary case already uses, rather than a
+  // third visual state: there is genuinely no number to show either way, and the banner above
+  // the page is what explains which of the two it is.
+  const rankValue = ratingSummary && !hasInsufficientData ? `#${ratingSummary.rank}` : '—';
   if (ratingSummary && ratingSummary.score > 1 + SCORE_OVERFLOW_EPSILON) {
     console.warn(
       `RatingProgressBox: score ${ratingSummary.score} exceeds the expected <= 1 bound — the joint-point-estimate normalization fix may not be holding for this account.`
     );
   }
-  const scoreValue = ratingSummary
-    ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%`
-    : '—';
+  // The action is muted only when there is genuinely nothing left to gain. A stale 'very_high'
+  // is precisely the case where there is everything left to gain, so insufficient data keeps the
+  // icon accented.
+  const isMuted = confidenceTier === 'very_high' && !hasInsufficientData;
+  const scoreValue =
+    ratingSummary && !hasInsufficientData
+      ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%`
+      : '—';
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -110,20 +121,26 @@ export function RatingProgressBox({
                 >
                   Score level:{' '}
                   <Text as="span" color="text.primary">
-                    {confidenceLabel(confidenceTier)}
+                    {/* No tier name at all while the data is insufficient — the stored tier is
+                        the specific thing that is stale here, so naming it (even as
+                        "Unfocused") would be the contradiction this state exists to remove. */}
+                    {hasInsufficientData ? '—' : confidenceLabel(confidenceTier)}
                   </Text>
                 </Text>
                 <Flex gap="4px" aria-hidden="true">
-                  {Array.from({ length: 4 }, (_, i) => (
-                    <Box
-                      key={i}
-                      data-testid="tier-segment"
-                      data-filled={i < TIER_SEGMENT_COUNT[confidenceTier]}
-                      w="24px"
-                      h="4px"
-                      bg={i < TIER_SEGMENT_COUNT[confidenceTier] ? 'accent.border' : 'ink.700'}
-                    />
-                  ))}
+                  {Array.from({ length: 4 }, (_, i) => {
+                    const filled = !hasInsufficientData && i < TIER_SEGMENT_COUNT[confidenceTier];
+                    return (
+                      <Box
+                        key={i}
+                        data-testid="tier-segment"
+                        data-filled={filled}
+                        w="24px"
+                        h="4px"
+                        bg={filled ? 'accent.border' : 'ink.700'}
+                      />
+                    );
+                  })}
                 </Flex>
               </VStack>
               {/* terminology-and-gate-unification: a persistent action, not part of the label
@@ -140,12 +157,12 @@ export function RatingProgressBox({
                   asChild
                   aria-label="Go to calibration"
                   data-testid="calibration-action"
-                  data-muted={confidenceTier === 'very_high'}
+                  data-muted={isMuted}
                   size="sm"
                   variant="outline"
                   colorPalette="gray"
                   p="12px"
-                  color={confidenceTier === 'very_high' ? 'text.muted' : 'accent.text'}
+                  color={isMuted ? 'text.muted' : 'accent.text'}
                 >
                   <RouterLink to="/calibration" title="Go to calibration">
                     <LuSlidersVertical />

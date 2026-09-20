@@ -12,7 +12,7 @@ import system from '../theme';
 import { RatingProgressBox } from '../components/album-rating/RatingProgressBox';
 import type { CalibrationTier } from '../hooks/useCalibrationGate';
 
-function renderBox(confidenceTier: CalibrationTier) {
+function renderBox(confidenceTier: CalibrationTier, hasInsufficientData = false) {
   return render(
     <ChakraProvider value={system}>
       <MemoryRouter>
@@ -21,6 +21,7 @@ function renderBox(confidenceTier: CalibrationTier) {
           totalCount={6}
           ratingSummary={{ score: 0.5, rank: 3 }}
           confidenceTier={confidenceTier}
+          hasInsufficientData={hasInsufficientData}
         />
       </MemoryRouter>
     </ChakraProvider>
@@ -54,5 +55,33 @@ describe('RatingProgressBox — score-level segmented indicator', () => {
   it('always exposes an accessible label for the calibration action, regardless of tier', () => {
     renderBox('none');
     expect(screen.getByRole('link', { name: 'Go to calibration' })).toBeInTheDocument();
+  });
+});
+
+// Insufficient data (2026-09-20): the persisted tier survives a Restart frozen behind the
+// status RPC's answer_count guard while the weights behind the score are already a zero-answer
+// solve. 'very_high' is the tier used throughout here on purpose — it is the worst case, the one
+// that produced a Sharp badge beside a near-arbitrary score.
+describe('RatingProgressBox — insufficient data', () => {
+  it('shows no score, no rank and no tier name', () => {
+    renderBox('very_high', true);
+    expect(screen.queryByText('Sharp')).not.toBeInTheDocument();
+    expect(screen.queryByText('50%')).not.toBeInTheDocument();
+    expect(screen.queryByText('#3')).not.toBeInTheDocument();
+    // Score, Rank and the score-level value.
+    expect(screen.getAllByText('—')).toHaveLength(3);
+  });
+
+  it('empties every segment', () => {
+    renderBox('very_high', true);
+    const filled = screen
+      .getAllByTestId('tier-segment')
+      .filter((el) => el.getAttribute('data-filled') === 'true');
+    expect(filled).toHaveLength(0);
+  });
+
+  it('keeps the calibration action accented, even at the stale very_high tier', () => {
+    renderBox('very_high', true);
+    expect(screen.getByTestId('calibration-action').getAttribute('data-muted')).toBe('false');
   });
 });

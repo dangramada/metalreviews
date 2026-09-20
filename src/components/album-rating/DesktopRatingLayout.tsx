@@ -29,6 +29,7 @@ interface DesktopRatingLayoutProps {
   savingCriterionId: number | null;
   ratingSummary: AlbumRatingSummary | undefined;
   confidenceTier: CalibrationTier;
+  hasInsufficientData: boolean;
 }
 
 export function DesktopRatingLayout({
@@ -47,6 +48,7 @@ export function DesktopRatingLayout({
   savingCriterionId,
   ratingSummary,
   confidenceTier,
+  hasInsufficientData,
 }: DesktopRatingLayoutProps) {
   const selectedEntry = catalog?.entries[selectedCriterionId];
 
@@ -97,7 +99,7 @@ export function DesktopRatingLayout({
         },
       }}
     >
-        {/* Section 1: artwork (flush) + title/date/genre block. Band/album typography and the
+      {/* Section 1: artwork (flush) + title/date/genre block. Band/album typography and the
             title/date/genre spacing now come from AlbumMetaBlock (design-system-audit-2026-08.md
             Pass 4) — this used to be hand-duplicated here rather than reusing AlbumMeta.tsx
             because AlbumMeta's baked-in mb margins would have stacked with this section's own
@@ -105,183 +107,197 @@ export function DesktopRatingLayout({
             gone. Padding/title→date gap here already matched the new component's defaults
             (16px/20px, 12px); date→genre gap moves from this section's old 12px to
             AlbumMetaBlock's 8px default — a small, approved change. */}
-        <VStack
-          gridArea="art"
-          align="stretch"
-          gap={0}
-          bg="surface.card"
-          // Tier 2 only (768-1023px): Section 1 and Section 3 share Row 1, so a right border
-          // here separates them the same way Section 2's left/right borders separate it from
-          // its neighbors at Tier 1 — Section 3 needs no matching left border of its own, this
-          // single edge already reads as the divider between both cells. Unset (not present at
-          // all, not just transparent) at Tier 1, where Section 1 instead sits directly against
-          // Section 2's own left border.
-          css={{
-            '@media (max-width: 63.9375em)': { borderRight: '1px solid', borderColor: 'sand.600' },
-          }}
-        >
-          {/* size="auto" fills this section's own grid-track width at a 1:1 ratio — at Tier 1
+      <VStack
+        gridArea="art"
+        align="stretch"
+        gap={0}
+        bg="surface.card"
+        // Tier 2 only (768-1023px): Section 1 and Section 3 share Row 1, so a right border
+        // here separates them the same way Section 2's left/right borders separate it from
+        // its neighbors at Tier 1 — Section 3 needs no matching left border of its own, this
+        // single edge already reads as the divider between both cells. Unset (not present at
+        // all, not just transparent) at Tier 1, where Section 1 instead sits directly against
+        // Section 2's own left border.
+        css={{
+          '@media (max-width: 63.9375em)': { borderRight: '1px solid', borderColor: 'sand.600' },
+        }}
+      >
+        {/* size="auto" fills this section's own grid-track width at a 1:1 ratio — at Tier 1
               (>=1024px) that track is a fixed 300px, so this renders identically to the
               previous hardcoded 300px square; at Tier 2 (768-1023px) the track is fluid
               (shared 1fr column with Section 3), so the artwork shrinks with it. Verified live
               at 768/900/1023px that a hardcoded 300px would either overflow the shared column
               or starve Section 3. */}
-          <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="auto" />
-          <AlbumMetaBlock band={band} album={album} releaseDate={releaseDate} genre={genre} titleLayout="stacked" />
-        </VStack>
+        <AlbumArtwork artworkUrl={artworkUrl} band={band} album={album} size="auto" />
+        <AlbumMetaBlock
+          band={band}
+          album={album}
+          releaseDate={releaseDate}
+          genre={genre}
+          titleLayout="stacked"
+        />
+      </VStack>
 
-        {/* Section 2: one wrapper, horizontal split — criteria list left, active criterion's
+      {/* Section 2: one wrapper, horizontal split — criteria list left, active criterion's
             levels right. Left/right border only (fourth pass) — the outer 2px card border
             already frames top/bottom now that everything's flush. bg="surface.criterionRow"
             (sand.950) is the resting fill for non-active rows and the list container; the
             active row + its level picker (below) get the lighter surface.criterionActive
             (ink.800) instead, forming one highlighted block against the darker resting rows. */}
-        <Flex
-          gridArea="crit"
-          minW={0}
-          bg="surface.criterionRow"
-          // Tier-dependent borders: at Tier 1 (>=1024px) this section sits flanked between
-          // Section 1 and Section 3 in one row, so left/right borders (unchanged from the
-          // original single-tier layout) divide it from both neighbors. At Tier 2 (768-1023px)
-          // it's a standalone full-width row below Row 1 instead — left/right borders would be
-          // meaningless there (nothing beside it), so they're dropped in favor of a top border
-          // separating it from Row 1. Both edges toggle together per tier via the same 64em
-          // breakpoint already used for the grid itself, not two independent conditions.
-          css={{
-            borderTop: '1px solid',
-            borderColor: 'sand.600',
-            '@media (min-width: 64em)': {
-              borderTop: 'none',
-              borderLeft: '1px solid',
-              borderRight: '1px solid',
-              borderColor: 'surface.ratingCard',
-            },
-          }}
-        >
-          <VStack flex="1 1 0" minW={0} align="stretch" gap={0}>
-            {order.map((id, index) => {
-              const entry = catalog?.entries[id];
-              const level = ratings.get(id);
-              const isSelected = selectedCriterionId === id;
-              const isRated = level !== undefined;
-              const isFirst = index === 0;
-              const isLast = index === order.length - 1;
-              const statusLabel = isRated && entry ? `${level}–${entry.levels[level]?.label}` : 'NOT EVALUATED';
-              return (
-                <Flex
-                  key={id}
-                  as="button"
-                  onClick={() => onSelectCriterion(id)}
-                  direction="column"
-                  align="flex-start"
-                  gap={2}
-                  px={4}
-                  py={4}
-                  cursor={isSelected ? undefined : 'pointer'}
-                  // Last row grows to fill any leftover column height (e.g. on shorter/narrower
-                  // viewports where the 6 rows' natural height is less than the level picker's
-                  // content height) — otherwise its own border-right stops at its natural
-                  // bottom instead of continuing down to the section's true bottom edge.
-                  flex={isLast ? '1' : undefined}
-                  bg={isSelected ? 'surface.criterionActive' : undefined}
-                  _hover={{ bg: isSelected ? 'surface.criterionActive' : 'surface.criterionHover' }}
-                  // Active row: top/bottom rule framing it, no right border — the level picker
-                  // panel sits directly beside it with the same surface.criterionActive fill,
-                  // so leaving this edge open reads as one continuous highlighted block. Every
-                  // other row: a right border instead, doubling as the divider against the
-                  // picker panel (which carries no border of its own — see below) — this
-                  // achieves the same vertical rule as a border on the panel itself, but lets it
-                  // fall away exactly at the active row's height for free, since each row's own
-                  // right edge lines up with the panel's left edge. Top border suppressed when
-                  // the active row is the very first one — it always sits flush against the
-                  // section's real top edge (no top border of its own), so drawing one here
-                  // would double up against the outer card border right above it. Same
-                  // suppression for the bottom border when the active row is last.
-                  //
-                  // All 3 borders are always rendered at 1px — only their color toggles between
-                  // sand.600 and transparent, never their presence. Toggling `undefined` vs
-                  // '1px solid' changed each row's box height by the border's own width (rows
-                  // have no fixed height), causing neighboring rows to visibly reflow/flicker on
-                  // every selection change — this keeps every row's box size constant.
-                  borderTop="1px solid"
-                  borderBottom="1px solid"
-                  borderRight="1px solid"
-                  borderTopColor={isSelected && !isFirst ? 'sand.600' : 'transparent'}
-                  borderBottomColor={isSelected && !isLast ? 'sand.600' : 'transparent'}
-                  borderRightColor={isSelected ? 'transparent' : 'sand.600'}
-                >
-                  <Text
-                    fontWeight="semibold"
-                    color={isSelected ? 'ember.500' : 'text.primary'}
-                    fontSize="sm"
-                    textTransform="uppercase"
-                    textAlign="left"
-                  >
-                    {entry?.name}
-                  </Text>
-                  <Text
-                    as="span"
-                    fontFamily="mono"
-                    fontSize="11px"
-                    fontWeight="600"
-                    textTransform="uppercase"
-                    letterSpacing="0.06em"
-                    textAlign="left"
-                    px="8px"
-                    py="4px"
-                    // Rated: accent.border/accent.ink — same pairing as scoreSlabHigh, ~6.8:1
-                    // contrast. Not-evaluated: sand.700/text.dim measured live at only ~4.1:1
-                    // (fails WCAG AA's 4.5:1 for this 10px text) — text.primary (sand.200)
-                    // brings the same sand.700 bg to ~6.9:1, both verified via computed
-                    // sRGB values, not eyeballed.
-                    bg={isRated ? 'accent.border' : 'sand.700'}
-                    color={isRated ? 'accent.ink' : 'text.primary'}
-                  >
-                    {statusLabel}
-                  </Text>
-                </Flex>
-              );
-            })}
-          </VStack>
-
-          {/* Same lighter fill as the active row (ink.800) — this panel only ever shows the
-              active criterion's levels, so it stays visually joined to that row. */}
-          <Box flex="1.4 1 0" minW={0} bg="surface.criterionActive" p={4}>
-            {selectedEntry && (
-              // `key` on the criterion id remounts this on every row click, so `initial` fires
-              // fresh each time instead of only on first mount — that's what makes each switch
-              // "settle in" instead of only animating the very first criterion shown.
-              <motion.div
-                key={selectedEntry.index}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
+      <Flex
+        gridArea="crit"
+        minW={0}
+        bg="surface.criterionRow"
+        // Tier-dependent borders: at Tier 1 (>=1024px) this section sits flanked between
+        // Section 1 and Section 3 in one row, so left/right borders (unchanged from the
+        // original single-tier layout) divide it from both neighbors. At Tier 2 (768-1023px)
+        // it's a standalone full-width row below Row 1 instead — left/right borders would be
+        // meaningless there (nothing beside it), so they're dropped in favor of a top border
+        // separating it from Row 1. Both edges toggle together per tier via the same 64em
+        // breakpoint already used for the grid itself, not two independent conditions.
+        css={{
+          borderTop: '1px solid',
+          borderColor: 'sand.600',
+          '@media (min-width: 64em)': {
+            borderTop: 'none',
+            borderLeft: '1px solid',
+            borderRight: '1px solid',
+            borderColor: 'surface.ratingCard',
+          },
+        }}
+      >
+        <VStack flex="1 1 0" minW={0} align="stretch" gap={0}>
+          {order.map((id, index) => {
+            const entry = catalog?.entries[id];
+            const level = ratings.get(id);
+            const isSelected = selectedCriterionId === id;
+            const isRated = level !== undefined;
+            const isFirst = index === 0;
+            const isLast = index === order.length - 1;
+            const statusLabel =
+              isRated && entry ? `${level}–${entry.levels[level]?.label}` : 'NOT EVALUATED';
+            return (
+              <Flex
+                key={id}
+                as="button"
+                onClick={() => onSelectCriterion(id)}
+                direction="column"
+                align="flex-start"
+                gap={2}
+                px={4}
+                py={4}
+                cursor={isSelected ? undefined : 'pointer'}
+                // Last row grows to fill any leftover column height (e.g. on shorter/narrower
+                // viewports where the 6 rows' natural height is less than the level picker's
+                // content height) — otherwise its own border-right stops at its natural
+                // bottom instead of continuing down to the section's true bottom edge.
+                flex={isLast ? '1' : undefined}
+                bg={isSelected ? 'surface.criterionActive' : undefined}
+                _hover={{ bg: isSelected ? 'surface.criterionActive' : 'surface.criterionHover' }}
+                // Active row: top/bottom rule framing it, no right border — the level picker
+                // panel sits directly beside it with the same surface.criterionActive fill,
+                // so leaving this edge open reads as one continuous highlighted block. Every
+                // other row: a right border instead, doubling as the divider against the
+                // picker panel (which carries no border of its own — see below) — this
+                // achieves the same vertical rule as a border on the panel itself, but lets it
+                // fall away exactly at the active row's height for free, since each row's own
+                // right edge lines up with the panel's left edge. Top border suppressed when
+                // the active row is the very first one — it always sits flush against the
+                // section's real top edge (no top border of its own), so drawing one here
+                // would double up against the outer card border right above it. Same
+                // suppression for the bottom border when the active row is last.
+                //
+                // All 3 borders are always rendered at 1px — only their color toggles between
+                // sand.600 and transparent, never their presence. Toggling `undefined` vs
+                // '1px solid' changed each row's box height by the border's own width (rows
+                // have no fixed height), causing neighboring rows to visibly reflow/flicker on
+                // every selection change — this keeps every row's box size constant.
+                borderTop="1px solid"
+                borderBottom="1px solid"
+                borderRight="1px solid"
+                borderTopColor={isSelected && !isFirst ? 'sand.600' : 'transparent'}
+                borderBottomColor={isSelected && !isLast ? 'sand.600' : 'transparent'}
+                borderRightColor={isSelected ? 'transparent' : 'sand.600'}
               >
-                <CriterionLevelPicker
-                  entry={selectedEntry}
-                  selectedLevel={ratings.get(selectedEntry.index)}
-                  onPick={(level) => onPick(selectedEntry.index, level)}
-                  disabled={savingCriterionId !== null}
-                  showTitle={false}
-                />
-              </motion.div>
-            )}
-          </Box>
-        </Flex>
+                <Text
+                  fontWeight="semibold"
+                  color={isSelected ? 'ember.500' : 'text.primary'}
+                  fontSize="sm"
+                  textTransform="uppercase"
+                  textAlign="left"
+                >
+                  {entry?.name}
+                </Text>
+                <Text
+                  as="span"
+                  fontFamily="mono"
+                  fontSize="11px"
+                  fontWeight="600"
+                  textTransform="uppercase"
+                  letterSpacing="0.06em"
+                  textAlign="left"
+                  px="8px"
+                  py="4px"
+                  // Rated: accent.border/accent.ink — same pairing as scoreSlabHigh, ~6.8:1
+                  // contrast. Not-evaluated: sand.700/text.dim measured live at only ~4.1:1
+                  // (fails WCAG AA's 4.5:1 for this 10px text) — text.primary (sand.200)
+                  // brings the same sand.700 bg to ~6.9:1, both verified via computed
+                  // sRGB values, not eyeballed.
+                  bg={isRated ? 'accent.border' : 'sand.700'}
+                  color={isRated ? 'accent.ink' : 'text.primary'}
+                >
+                  {statusLabel}
+                </Text>
+              </Flex>
+            );
+          })}
+        </VStack>
 
-        {/* Section 3: rank/score slabs + radar chart. bg="surface.card" — same third-pass fill
+        {/* Same lighter fill as the active row (ink.800) — this panel only ever shows the
+              active criterion's levels, so it stays visually joined to that row. */}
+        <Box flex="1.4 1 0" minW={0} bg="surface.criterionActive" p={4}>
+          {selectedEntry && (
+            // `key` on the criterion id remounts this on every row click, so `initial` fires
+            // fresh each time instead of only on first mount — that's what makes each switch
+            // "settle in" instead of only animating the very first criterion shown.
+            <motion.div
+              key={selectedEntry.index}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              <CriterionLevelPicker
+                entry={selectedEntry}
+                selectedLevel={ratings.get(selectedEntry.index)}
+                onPick={(level) => onPick(selectedEntry.index, level)}
+                disabled={savingCriterionId !== null}
+                showTitle={false}
+              />
+            </motion.div>
+          )}
+        </Box>
+      </Flex>
+
+      {/* Section 3: rank/score slabs + radar chart. bg="surface.card" — same third-pass fill
             as the other two sections. gap=0 (score-level-indicator-redesign): no space between
             RatingProgressBox and the chart below it — the score-level block's own pb="12px"
             already provides the visual gap it needs. */}
-        <VStack gridArea="score" align="stretch" gap={0} bg="surface.card" minW={0}>
-          <RatingProgressBox
-            ratedCount={ratings.size}
-            totalCount={order.length}
-            ratingSummary={ratingSummary}
-            confidenceTier={confidenceTier}
-          />
-          <RatingRadarChart catalog={catalog} ratings={ratings} order={order} weights={weights} size="full" />
-        </VStack>
+      <VStack gridArea="score" align="stretch" gap={0} bg="surface.card" minW={0}>
+        <RatingProgressBox
+          ratedCount={ratings.size}
+          totalCount={order.length}
+          ratingSummary={ratingSummary}
+          confidenceTier={confidenceTier}
+          hasInsufficientData={hasInsufficientData}
+        />
+        <RatingRadarChart
+          catalog={catalog}
+          ratings={ratings}
+          order={order}
+          weights={weights}
+          size="full"
+        />
+      </VStack>
     </Box>
   );
 }

@@ -29,7 +29,12 @@ interface AlbumMetaBlockProps {
   // to space.5. Values are Chakra's own spacing scale (numbers) rather than literal px
   // strings — this is the only place in the design system that used to invent its own px
   // values outside that scale; see design-system-audit-2026-08.md.
-  padding?: { x?: string | number; y?: string | number; top?: string | number; bottom?: string | number };
+  padding?: {
+    x?: string | number;
+    y?: string | number;
+    top?: string | number;
+    bottom?: string | number;
+  };
   titleToDateGap?: string | number;
   dateToGenreGap?: string | number;
   // Opt-in overrides only — undefined falls back to cardTitleBand/cardTitleAlbum's own
@@ -115,10 +120,20 @@ export function AlbumMetaBlock({
         </Box>
       ) : (
         <Text lineClamp={1}>
-          <Text as="span" {...cardTitleBand} lineHeight="1.4" fontSize={bandFontSize ?? cardTitleBand.fontSize}>
+          <Text
+            as="span"
+            {...cardTitleBand}
+            lineHeight="1.4"
+            fontSize={bandFontSize ?? cardTitleBand.fontSize}
+          >
             {band}
           </Text>{' '}
-          <Text as="span" {...cardTitleAlbum} color="text.primary" fontSize={albumFontSize ?? cardTitleAlbum.fontSize}>
+          <Text
+            as="span"
+            {...cardTitleAlbum}
+            color="text.primary"
+            fontSize={albumFontSize ?? cardTitleAlbum.fontSize}
+          >
             – {album}
           </Text>
         </Text>
@@ -131,7 +146,9 @@ export function AlbumMetaBlock({
         color="text.muted"
         mt={titleToDateGap}
       >
-        {hideReleaseDateLabel ? formatReleaseDate(releaseDate) : `Release date: ${formatReleaseDate(releaseDate)}`}
+        {hideReleaseDateLabel
+          ? formatReleaseDate(releaseDate)
+          : `Release date: ${formatReleaseDate(releaseDate)}`}
       </Text>
       {!hideGenres && genre.length > 0 && (
         <Wrap gap={1} mt={dateToGenreGap}>
