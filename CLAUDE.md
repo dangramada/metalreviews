@@ -29,8 +29,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   established the `docs/data/` split, and `docs/decisions/criteria-calibration-summary.md`'s data
   index for the 2026-09-18 audit that added this carve-out after real session data was found
   committed under `docs/data/criteria-calibration/`.
-  The same principle applies when *writing* a decision doc, not just when a script
-  *generates* data: findings about a real session go in as aggregate/derived
+  The same principle applies when _writing_ a decision doc, not just when a script
+  _generates_ data: findings about a real session go in as aggregate/derived
   statistics (accuracy, tau, round counts, coverage widths) — never as inlined raw
   values (literal answer sequences, literal entity IDs/UUIDs, or anything
   copy-pasted directly from a real session's raw log). If an example is needed to
@@ -103,7 +103,18 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+`insufficient-data-score-state` (in progress, not merged) — stops Album Evaluation and Favorites
+showing a score, rank or tier name while the persisted tier describes a session the user has
+since restarted. New `hasInsufficientData` on `useCalibrationGate`, computed as `live
+user_calibration_answers count < persisted user_calibration_status.answer_count` — exactly the
+window in which the status RPC's monotonic guard freezes the tier. Deliberately NOT the brief's
+original "recompute degree-2 coverage live" signal: that needs an LP solve per page mount and
+would have reversed `album-rating-soft-gate` for every pre-degree-2 user; both objections were
+put to Dan before any code was written and he picked the narrower signal. Also adds the
+`status.info` token. Display-layer only — the guarded RPC, the weights write and
+`deleteAllAnswers` are untouched and remain open in `deferred-work.md`. 54/54 files, 437/437
+tests. Live verification on the QA account is still owed (both surfaces need a login). Full
+detail: `docs/decisions/criteria-calibration/criteria-calibration-insufficient-data-state.md`.
 
 Most recent merge: `existing-match-release-date-gate` — closes the gap where favoriting an
 existing catalog album with `release_date: null` skipped the manual-date requirement entirely
@@ -113,7 +124,7 @@ manual-date input identically for both paths. When the user supplies a date for 
 `existingMatch`, it's persisted to the shared `albums` row via a new
 `fill_missing_release_date` RPC (`security definer`, writes only `release_date`, no-ops if
 already set) rather than a plain `.update()` behind a row-level RLS policy — a row-level-only
-policy can't restrict which *columns* an update touches, and these are shared catalog rows
+policy can't restrict which _columns_ an update touches, and these are shared catalog rows
 other users may have favorited too (`supabase/albums-add-fill-missing-release-date-rpc.sql`,
 run by Dan in the Supabase SQL editor before merge). The heart-icon favoriting path
 (`src/App.tsx`) is explicitly unchanged and remains the one path that can still produce a
@@ -149,16 +160,17 @@ implemented). Merged to `master` `--no-ff` at `698bb86` on 2026-09-20. Rollback 
 
 Most recent merge: `album-identity-same-title-collision-fix` — the same-title release-group
 collision fix (Khemmis/Moonspell and 7 more corrected via `lookupMusicBrainzByReleaseGroupId()`
-+ non-regression guards; `isAlbumEnriched()` widened to also require `mb_release_group_id`,
-with both re-fetch paths — the backfill loop and the main per-review loop's new
-`needsMbLookup()` — guarded against all 29 flagged pairs via one shared
-`FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` set). 2b-ii closed: all 29 pairs confirmed present in
-that set (29/29, 0 missing, 0 extras) — full tally 9 corrected, 6 confirmed-safe-and-protected,
-8 artwork-matched, 5 ambiguous-no-defect, 1 untouched. This merge had been pending since earlier
-in the session (flagged as a stale "no branches in progress" claim when the Metal Storm branch
-merged just before it). 53/53 files, 422/422 tests, `tsc` clean on `master` post-merge. Merged
-to `master` `--no-ff` at `b8a888c` on 2026-09-18. Rollback tag:
-`pre-merge-album-identity-same-title-collision-fix`. Full detail: `docs/decisions/album-
+
+- non-regression guards; `isAlbumEnriched()` widened to also require `mb_release_group_id`,
+  with both re-fetch paths — the backfill loop and the main per-review loop's new
+  `needsMbLookup()` — guarded against all 29 flagged pairs via one shared
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` set). 2b-ii closed: all 29 pairs confirmed present in
+  that set (29/29, 0 missing, 0 extras) — full tally 9 corrected, 6 confirmed-safe-and-protected,
+  8 artwork-matched, 5 ambiguous-no-defect, 1 untouched. This merge had been pending since earlier
+  in the session (flagged as a stale "no branches in progress" claim when the Metal Storm branch
+  merged just before it). 53/53 files, 422/422 tests, `tsc` clean on `master` post-merge. Merged
+  to `master` `--no-ff` at `b8a888c` on 2026-09-18. Rollback tag:
+  `pre-merge-album-identity-same-title-collision-fix`. Full detail: `docs/decisions/album-
 identity/album-identity-same-title-release-group-collision.md`.
 
 Most recent merge: `metalstorm-backcatalogue-exclusion` — hides a Metal Storm review when its
@@ -223,7 +235,7 @@ fail, sweeps up to 10 other releases in the group via `pickArtwork()`, fixing MB
 no-relevance-sort `releases[0]` arbitrary pick. Isolated in its own `try/catch` so a tier-3
 failure can't flip the outer `status` away from `'ok'`. No schema change. 52/52 files, 395/395
 tests, `tsc` clean on `master` post-merge. Live-verified post-fix: Raphael Weinroth-Browne —
-*Empyrean* now resolves real artwork via the exact sibling release (`d13afb14-...`) identified
+_Empyrean_ now resolves real artwork via the exact sibling release (`d13afb14-...`) identified
 during Concern B. No backfill script — resolves via the existing organic ingest path. Merged to
 `master` `--no-ff` at `9f4839b` on 2026-09-17. Rollback tag:
 `pre-merge-artwork-releases0-tier3-fallback`. Full detail: `docs/decisions/artwork.md` ("Concern
@@ -234,8 +246,8 @@ enrichment diagnostic brief: shared `pickArtwork()` helper (front-preferred, fal
 first `approved:true` CAA image) applied at both CAA call sites in `lookupMusicBrainz`,
 replacing the duplicated `front:true`-only filter. No schema change. 52/52 files, 392/392
 tests, `tsc` clean on `master` post-merge. Live-verified post-fix: 1 of 2 confirmed rows
-(slq — *Crown Shyness*) now resolves real artwork; the other (Raphael Weinroth-Browne —
-*Empyrean*) still doesn't, but that's the separate, already-flagged `releases[0]`-arbitrary-
+(slq — _Crown Shyness_) now resolves real artwork; the other (Raphael Weinroth-Browne —
+_Empyrean_) still doesn't, but that's the separate, already-flagged `releases[0]`-arbitrary-
 pick issue, not a regression in this fix. Merged to `master` `--no-ff` at `b4e95d2` on
 2026-09-17. Rollback tag: `pre-merge-artwork-picker-approved-fallback`. Full detail:
 `docs/decisions/artwork.md` ("Artwork picker: front-preferred, approved-fallback").

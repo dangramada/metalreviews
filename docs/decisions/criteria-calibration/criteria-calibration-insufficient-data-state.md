@@ -1,0 +1,129 @@
+# Insufficient-data score/rank state
+
+Implements the 2026-09-20 "Insufficient-data score/rank state" brief. Prerequisite reading:
+`criteria-calibration-restart-stale-state-diagnostic.md` (same day, read-only) — the root cause
+is established there and is not re-derived here.
+
+Branch: `insufficient-data-score-state`.
+
+## The problem, in one line
+
+After Restart the persisted `user_calibration_status.tier` stays frozen behind the guarded RPC
+while `user_criterion_weights` is overwritten unconditionally with a zero-answer solve, so Album
+Evaluation and Favorites could show "Sharp" beside a near-arbitrary score at the same time.
+
+## The signal, and why it is not what the brief first proposed
+
+The brief specified computing degree-2 coverage live from `user_calibration_answers`, reusing
+`isDegreeCoverageComplete`. Step 1 of the plan (diagnostic-first, per house convention) killed
+that on two independent grounds:
+
+1. **It is not cheap.** `isDegreeCoverageComplete` (`elicitationDriver.ts:415`) takes the LP's
+   solved `values`, not just touch counts. `computeTouchCounts` is only half the gate. An honest
+   live read therefore costs a full answer-log fetch **plus a `solveValues()`** on every Album
+   Evaluation and Favorites mount — the same solve whose triple-recompute per commit was the
+   direct cause of the round-50 UI blocking (`commitComputation.ts`'s header) and which carries
+   the near-singular breakdown history that `criteria-calibration-solver-crash-safety-net.md`
+   exists to contain.
+2. **It is far wider than the bug.** In normal operation "degree-2 coverage not complete" is
+   exactly `tier === 'none'`. Adopting it would have stripped the score and rank from every
+   pre-degree-2 user, reversing `album-rating-soft-gate.md`'s 2026-08-09 hard→soft decision —
+   and, combined with the brief's own §4 "no bypass, ever" constraint, would have **permanently**
+   trapped the four preference shapes that never exhaust degree 2 (`degreeTiers.ts`'s module
+   header; `DEGREE_2_FREEZE_ANSWER_THRESHOLD = 78` exists precisely because that state is
+   reachable). Those users would have had no score, ever, and no way out.
+
+Both were put to Dan before any code was written. He chose the narrower signal (option A):
+
+```ts
+hasInsufficientData = liveAnswerCount < persistedStatusAnswerCount;
+```
+
+**Why this is equivalent for the bug, not an approximation of it.** The persisted tier already
+_is_ the degree-coverage signal — `degreeTiers.tierForPosition` is what writes it. The only thing
+that makes it lie is the guard freezing it, and the diagnostic established (Q2, plus Scenarios
+2–4 live, including Undo and a degree-boundary promotion) that the frozen window is precisely
+`live < stored`. Outside that window the guard has released at `>=` and the stored tier is
+current. So this reads the same fact the expensive computation would have, via the one number
+Restart cannot leave stale.
+
+Cost: one `head: true` count query added to the `Promise.all` already in `useCalibrationGate`.
+No LP, no helper extraction from `elicitationDriver.ts`, no second implementation of the
+coverage gate to keep in sync with the first.
+
+## What changed
+
+**`src/hooks/useCalibrationGate.ts`** — `status` select widens to `tier, answer_count`, a third
+parallel query counts `user_calibration_answers`, and the hook returns `hasInsufficientData`. The
+derivation and the rejected alternative are recorded in the hook itself, since that is where a
+future reader will be tempted to "upgrade" it to a real coverage read.
+
+**`src/theme.ts` + `design-tokens.md`** — new `status.info.bg` / `status.info.text`
+(`blue.900` / `blue.200`), tokenizing the raw pair `FavoritesPage.tsx`'s confirmation dialogs
+have used since before the token existed. This closes the gap `design-system-audit-2026-08.md`
+flagged and proposed by this exact name. `status.warning`, which that audit also proposed, is
+deliberately **not** defined — nothing in the app renders in a warning tone yet, and an unused
+token is one more thing `designTokensDoc.test.ts` has to be kept honest about for no benefit.
+
+**`src/AlbumRatingPage.tsx`** — a `status="info"` `Alert` above both layouts when the signal is
+true, placed as a page-level sibling exactly like `CriteriaCalibrationPage.tsx`'s resume banner
+so neither rating layout has to make room for it internally. It carries a `Link` to
+`/calibration` using the existing "Go to calibration" wording verbatim, with no `returnAlbumId`
+(that continuity gap is pre-existing and explicitly out of scope, per the brief's §5).
+
+**No dismiss control**, unlike the calibration resume banner it is modeled on. That banner
+reports a suggestion; this one reports a state the user can only leave by calibrating, and
+dismissing it would leave the dashes below it with no explanation on screen.
+
+**`src/components/album-rating/RatingProgressBox.tsx`** — Score, Rank and the score-level value
+all take the `'—'` the missing-summary case already used, rather than a third visual state;
+there is genuinely no number either way and the banner distinguishes the two. The segment bar
+empties completely. The calibration `IconButton` stays **accented** even at a stale `very_high`:
+its mute means "nothing left to gain", and this is the state with the most left to gain. The
+prop threads through `DesktopRatingLayout`/`MobileRatingLayout`, which is why both changed.
+
+**`src/FavoritesPage.tsx`** — `rankOverlayBadge` renders `'—'` in place of the rank, and
+`confidenceWarningBadge` now fires on `hasInsufficientData` as well as `tier === 'none'`. Its
+plain `!` character becomes `LuOctagonAlert` at 16px per the project's Lucide-only convention for
+new UI. The badge's copy is one shared constant across both breakpoints (desktop `Tooltip`,
+touch `title`/`aria-label`) so the two cannot drift: "No score yet. Answer a round of comparisons
+in calibration." It names what to do rather than how settled the old score was, because there is
+no old score left to describe.
+
+## What was deliberately not touched
+
+Per the brief's §3, and worth restating because each is a plausible "while we're here": the
+guarded `upsert_calibration_status` RPC and its monotonic `answer_count`; the unconditional
+`user_criterion_weights` overwrite; `deleteAllAnswers`; the hard/soft `CalibrationGateDialog`
+gates; and the calibration page's own resume banner (this adds the same idea to two surfaces,
+it does not extract a shared component for three).
+
+This is a **display-layer workaround, not a fix**. The persistence layer's own correctness
+remains open — see `deferred-work.md`.
+
+## What NOT to change
+
+- **Do not "upgrade" `hasInsufficientData` to a live degree-2 coverage read** without re-reading
+  the two objections above. The performance one is fixable in principle; the soft-gate reversal
+  and the permanently-trapped freeze shapes are product decisions that would need Dan's sign-off
+  first.
+- **Do not add a bypass** ("view score anyway"). Explicit constraint from the brief: unlike the
+  soft gate, calibration alone decides when a score becomes displayable.
+- **Do not mute the calibration action on `very_high` without checking `hasInsufficientData`.**
+  The muted state means "nothing left to gain" and a stale `very_high` is the opposite.
+
+## Verification
+
+54/54 test files, 437/437 tests on the branch. Lint clean on every touched file (the repo-wide
+`npm run lint` and `npm run type-check` baselines are both already dirty on `master` — see
+`deferred-work.md`). The `status.info` pair was confirmed resolving live in the running dev
+server to `rgb(20, 32, 74)` / `rgb(191, 219, 254)`.
+
+New tests: three cases in `RatingProgressBox.test.tsx` (no score/rank/tier name, empty segment
+bar, action stays accented at a stale `very_high`) and two in `FavoritesPage.test.tsx` exercising
+`FavoriteListItemRow` directly, since the rank badge only renders alongside a `ratingSummary` the
+page derives from a live fetch.
+
+Both changed surfaces sit behind `RequireAuth` and no credentials are stored anywhere in this
+project, so the brief's §6 replay (mature session, then Restart, on the disposable QA account) is
+Dan's step, not one this session could run.

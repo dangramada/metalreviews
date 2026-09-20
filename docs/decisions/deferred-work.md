@@ -180,11 +180,12 @@ rewriting them, which this reorg pass deliberately avoided.
 - **Favorites rank badge sync timing — unspecified, 2026-09-13.** How/when the rank badge shown
   on a favorited album updates relative to progress made on the "Your Taste"/Results tab was
   never specified during that tab's design or build. Not blocking (the badge already exists and
-  updates on *some* cadence via the existing favorites/rating wiring), but the exact relationship
+  updates on _some_ cadence via the existing favorites/rating wiring), but the exact relationship
   to calibration progress is genuinely unscoped and should be named explicitly before anyone
   relies on it being real-time or session-scoped.
 
 ## B. Known code/data gaps (accepted, not fixed)
+
 - **Restart leaves stale/contradictory score state — root cause confirmed, fix not scoped,
   2026-09-20.** Diagnosed in `criteria-calibration-restart-stale-state-diagnostic.md`: Restart
   (`deleteAllAnswers`) clears `user_calibration_answers` but never touches
@@ -212,16 +213,16 @@ rewriting them, which this reorg pass deliberately avoided.
   - **Insufficient votes:** page returned 200, `.album-rating` present, no user score span.
     Expected, self-healing: retried while in the feed.
   - **Protocol timeout** (`Runtime.callFunctionOn timed out`) **or navigation timeout:** the only
-    cause that is *logged*, as `Failed to fetch Metal Storm rating for <url>: ...` in Render
+    cause that is _logged_, as `Failed to fetch Metal Storm rating for <url>: ...` in Render
     logs. Match on URL.
   - **Cloudflare challenge** (403 "Just a moment..."): **silent.** `goto` doesn't throw on 403,
     the swallowed `waitForSelector` timeout isn't logged, and `extractRating` returns `null`.
     Indistinguishable from insufficient votes in both logs and DB.
 
-  Method and its limits: (a) `reviews` has no `updated_at`, so rows written *by* the incident
+  Method and its limits: (a) `reviews` has no `updated_at`, so rows written _by_ the incident
   runs can't be selected directly. Both runs were OOM-killed during the Metal Storm fetch, which
   happens before the final upsert, so they likely wrote nothing. Confirm by checking whether any
-  Metal Storm review for a feed item first seen that day exists. (b) Cause of a *past* `null` can
+  Metal Storm review for a feed item first seen that day exists. (b) Cause of a _past_ `null` can
   only be inferred: a URL with a timeout log line → timeout; otherwise re-fetch now (paced, status
   recorded, after the block expires) and read the page's user-vote count. A page with a score and
   many votes that was stored `null` with no timeout log → most likely Cloudflare (or votes
@@ -251,7 +252,7 @@ rewriting them, which this reorg pass deliberately avoided.
   `metalstorm-fetch-status-logging`).** Triggered because the first post-fix Render run (2026-09-16 21:53 UTC) was
   memory-clean (`fetching 9 of 20`, completed) but stored all 9 as `null` with nothing logged.
   `classifyMetalStormPage` plus a per-run `Metal Storm: N fetched — scored …, cloudflare-challenge
-  …` summary line. See the decision doc's "Fetch-outcome logging" section. **Remaining:** confirm the
+…` summary line. See the decision doc's "Fetch-outcome logging" section. **Remaining:** confirm the
   deploy, then read the summary line of the next Render run to answer (5).
 
 - **`useCalibrationResume.ts`'s mount-time degree inference and
@@ -568,7 +569,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   Storm navigation timeout and the resulting row is confirmed to have
   `normalized_score: null` (not `0`). Check via Supabase directly after any
   ingest run that logs a Metal Storm timeout error. (2026-09-16: the Render OOM
-  incident's `Runtime.callFunctionOn` *protocol* timeouts go through the same
+  incident's `Runtime.callFunctionOn` _protocol_ timeouts go through the same
   catch → `null` → `score: null` path, so rows from that incident are also valid
   evidence for this item. See the Metal Storm memory-fix item above.)
 - **`docs/decisions/refresh-button.md` is stale and undated as such** — surfaced
@@ -836,6 +837,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   `keepalive` fetch flag threaded through the Supabase client (non-trivial — no per-call fetch
   override currently exists in `supabaseClient.ts`), deferred as not urgent enough to justify
   that plumbing on top of the same pass's other fixes.
+
 ## C. Design/branding (open)
 
 - **Real tier-color palette for `TierAccuracyBadge`** — surfaced 2026-09-07 building
@@ -1097,7 +1099,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   Confirmed live: 29 of 320 `albums` rows have
   Step A's search (`artist:"{band}" AND release:"{album}"`) matching more than one distinct
   release-group. Full list, method, and the running tally: `album-identity/album-identity-same-
-  title-release-group-collision.md`. Blocks resuming the Metal Storm back-catalogue exclusion
+title-release-group-collision.md`. Blocks resuming the Metal Storm back-catalogue exclusion
   filter, which trusts `release_date` as ground truth (a fresh cross-check 2026-09-18 found 0
   overlap between that filter's 6 currently-hidden reviews and these 29 pairs, for what it's
   worth once the filter resumes).
@@ -1127,4 +1129,41 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   manually-favorited album, not a scraped review; checked, isolated (all other 28 are
   genuinely review-backed). Nothing further owed on this thread unless new collisions surface
   among albums added after 2026-09-18. Full detail: `album-identity/album-identity-same-title-
-  release-group-collision.md`'s closing section.
+release-group-collision.md`'s closing section.
+
+---
+
+## New items, 2026-09-20 (insufficient-data score/rank state)
+
+Raised while shipping `criteria-calibration/criteria-calibration-insufficient-data-state.md`,
+which fixes the display layer only.
+
+- **The guard/persistence layer's own correctness is still open.** Restart
+  (`deleteAllAnswers`) empties `user_calibration_answers` and touches nothing else, so
+  `user_calibration_status.answer_count` keeps the old session's value and
+  `upsert_calibration_status` rejects the new session's tier/accuracy writes until its count
+  catches back up — while `user_criterion_weights`, which has no guard at all, is overwritten
+  unconditionally on the very first post-Restart render with a zero-answer solve. Both halves
+  confirmed live (`criteria-calibration-restart-stale-state-diagnostic.md`, 8/8 checks). The
+  insufficient-data signal makes the app _display_ this correctly; it does not make the stored
+  state correct. A real fix has to pick ONE behavior for both fields (reset both on Restart, or
+  guard both) rather than patching one — and it touches code with a genuine race-condition
+  history (`criteria-calibration-weights-write-race.md`), which is why it was deliberately
+  scoped out rather than attempted opportunistically. Explicitly deferred by the brief's §5.
+- **Cross-tab staleness is unfixed and was never in scope.** Every hook reading weights or
+  status fetches once per mount with no invalidation. Within one tab a route change remounts and
+  refetches, so Restart → navigate to Album Evaluation is correct. A second tab left open on
+  `/rate/:albumId` across a Restart in the first keeps serving what it fetched at mount,
+  including the new signal. Fixing it needs a Supabase realtime subscription or a shared cache;
+  flagged to Dan at plan time and left out.
+- **`npm run type-check` checks nothing, and `npm run lint` is dirty on `master`.** Root
+  `tsconfig.json` has `"files": []` plus two `references`, so a plain `tsc --noEmit` (which is
+  what the script runs) type-checks zero files. The real check is `tsc -b`, which is already
+  failing on `master` (`scripts/ingest.ts` unused imports and an arity error;
+  `App.favorites.test.tsx` supabase mock shapes; repo-wide `react-icons` JSX-component errors and
+  the `<Link as={RouterLink}>` idiom used in `Header`/`Footer`/`LoginPage`). `npm run lint`
+  reports ~2981 errors repo-wide, almost all prettier formatting. Both mean the "`tsc` clean"
+  claim repeated throughout `CLAUDE.md`'s Active-branches entries has not been verifying what it
+  reads as verifying for some time. Not touched here (it is a whole pass of its own, and a noisy
+  one), but it should be either fixed or the claim reworded — per-file lint and per-file `tsc -b`
+  filtering is what this branch actually did instead.

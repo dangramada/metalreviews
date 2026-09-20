@@ -16,6 +16,14 @@ detect a good stopping point automatically, is retired (see
 
 ## Current status
 
+**2026-09-20 — insufficient-data score/rank state:** closes the user-facing half of the Restart
+stale-state problem. `useCalibrationGate` gains `hasInsufficientData` (one count query, no LP
+solve), and both Album Evaluation and Favorites stop showing a score, rank or tier name while the
+persisted tier describes a session the user has since restarted. The guarded RPC, the weights
+write and `deleteAllAnswers` are all untouched — this fixes the display, not the persistence
+layer, which stays open in `deferred-work.md`. Full detail:
+`criteria-calibration-insufficient-data-state.md`.
+
 **2026-09-18 — terminology unification + Favorites gate redesign:** unifies tier terminology
 across Criteria Calibration/Album Rating/Favorites ("settled" replaces "clear"/"pinned down";
 "Score level" replaces "Score confidence"), fixes the Results tab caption's em-dash, and replaces
@@ -181,11 +189,20 @@ Grouped by pipeline stage, roughly chronological within each group.
   on every commit regardless — the tier-freeze and the degenerate-score-jump are one root cause,
   not two bugs. Live-verified against the disposable QA account (4 scenarios, 8/8 checks pass).
   **Addendum (same day):** live-confirms weights DO change immediately on Restart even for a
-  mature (33-answer) session — a real LP normalization invariant can keep a *100%* (all-max)
-  album's score identical across Restart, but that doesn't explain the *82%* album Dan actually
+  mature (33-answer) session — a real LP normalization invariant can keep a _100%_ (all-max)
+  album's score identical across Restart, but that doesn't explain the _82%_ album Dan actually
   observed unchanged; `useAlbumRatingsSummary.ts`/`AlbumRatingPage.tsx`/`useCalibrationGate.ts`
   all fetch weights/tier once per mount with no invalidation from Restart, which is the far more
   likely explanation there. Fix intentionally deferred to a later session
+- `criteria-calibration-insufficient-data-state.md` — the fix that followed that diagnostic
+  (2026-09-20): a new `hasInsufficientData` signal on `useCalibrationGate`, computed as
+  `live user_calibration_answers count < persisted user_calibration_status.answer_count`, which
+  is exactly the window in which the guard freezes the tier. Album Evaluation gains a
+  `status.info` banner and dashes its Score/Rank/score-level; Favorites dashes the rank overlay
+  and moves its warning badge to `LuOctagonAlert`. Deliberately NOT the brief's original
+  "recompute degree-2 coverage live" signal, which needs an LP solve per page mount and would
+  have reversed `album-rating-soft-gate` for every pre-degree-2 user. A display-layer workaround;
+  the guard/persistence layer itself is untouched and still open. See "Current status" above
 
 **Research**
 
