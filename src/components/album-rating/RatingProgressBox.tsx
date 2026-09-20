@@ -4,12 +4,25 @@
 // visual output and AnimatePresence crossfade as before extraction — see
 // docs/decisions/album-rating-page.md for why `mode="wait"` was chosen over a simultaneous
 // crossfade (the pending->final swap changes child count, not just content).
-import { Flex, Link, Text, VStack } from '@chakra-ui/react';
+import { Box, Flex, IconButton, Text, VStack } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { LuSlidersVertical } from 'react-icons/lu';
+import { Tooltip } from '../ui/tooltip';
 import { RatingSlab } from './RatingSlab';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
 import { confidenceLabel, type CalibrationTier } from '../../hooks/useCalibrationGate';
+
+// Score-level segmented indicator: 4 segments, filled count tracks confidenceTier directly
+// (none=1, medium=2, high=3, very_high=4) — purely presentational on top of the tier already
+// computed for the label, no new backend signal. Widths sum to 120px total including gaps
+// per the Figma spec (score-level-indicator brief): (120 - 3*4) / 4 = 27px per segment.
+const TIER_SEGMENT_COUNT: Record<CalibrationTier, number> = {
+  none: 1,
+  medium: 2,
+  high: 3,
+  very_high: 4,
+};
 
 interface RatingProgressBoxProps {
   ratedCount: number;
@@ -79,35 +92,66 @@ export function RatingProgressBox({
             </Flex>
             {/* album-rating-soft-gate: v1, plain text label — no tooltip/explanation copy,
                 reusing the same tier already computed for the (now non-blocking) calibration
-                nudge rather than a new scale. Ship and evaluate before building further. */}
-            <Flex align="center" justify="space-between" gap={2}>
-              <Text
-                fontFamily="mono"
-                fontSize="12px"
-                fontWeight="500"
-                textTransform="uppercase"
-                letterSpacing="0.06em"
-                color="text.muted"
-              >
-                Score level: {confidenceLabel(confidenceTier)}
-              </Text>
+                nudge rather than a new scale. Ship and evaluate before building further.
+                score-level-indicator-redesign: unlike the RANK/SCORE slabs above (deliberately
+                flush-corner elements per theme.ts), this row needs its own 12px inset — it sits
+                directly against the card's edges otherwise. pt is 4px, not 12px, because the
+                parent VStack's gap={2} (8px) already separates this section from the slabs row
+                above — 8 + 4 = the same 12px the other three sides get directly. */}
+            <Flex align="center" justify="space-between" gap="40px" pt="4px" px="12px" pb="12px">
+              <VStack align="stretch" gap="6px" flex="1">
+                <Text
+                  fontFamily="mono"
+                  fontSize="12px"
+                  fontWeight="500"
+                  textTransform="uppercase"
+                  letterSpacing="0.06em"
+                  color="text.muted"
+                >
+                  Score level:{' '}
+                  <Text as="span" color="text.primary">
+                    {confidenceLabel(confidenceTier)}
+                  </Text>
+                </Text>
+                <Flex gap="4px" aria-hidden="true">
+                  {Array.from({ length: 4 }, (_, i) => (
+                    <Box
+                      key={i}
+                      data-testid="tier-segment"
+                      data-filled={i < TIER_SEGMENT_COUNT[confidenceTier]}
+                      w="24px"
+                      h="4px"
+                      bg={i < TIER_SEGMENT_COUNT[confidenceTier] ? 'accent.border' : 'ink.700'}
+                    />
+                  ))}
+                </Flex>
+              </VStack>
               {/* terminology-and-gate-unification: a persistent action, not part of the label
                   itself, always present regardless of tier — no `from` param, since preserving
                   which album sent the user here (return-to-album continuity) is explicitly out
-                  of scope for this round; finishing calibration falls back to /favorites. */}
-              <Link
-                as={RouterLink}
-                to="/calibration"
-                fontFamily="mono"
-                fontSize="12px"
-                fontWeight="500"
-                textTransform="uppercase"
-                letterSpacing="0.06em"
-                color="accent.text"
-                _hover={{ color: 'text.primary' }}
-              >
-                Go to calibration
-              </Link>
+                  of scope for this round; finishing calibration falls back to /favorites.
+                  score-level-indicator-redesign: icon color signals urgency instead of button
+                  shape — accent while there's more to gain, muted once `very_high` ("Sharp") is
+                  reached. Tooltip is hover-only by design (see the brief's "Tooltip" section) —
+                  the segment bar already communicates urgency permanently, so the tooltip's only
+                  job is naming the destination. */}
+              <Tooltip content="Go to calibration">
+                <IconButton
+                  asChild
+                  aria-label="Go to calibration"
+                  data-testid="calibration-action"
+                  data-muted={confidenceTier === 'very_high'}
+                  size="sm"
+                  variant="outline"
+                  colorPalette="gray"
+                  p="12px"
+                  color={confidenceTier === 'very_high' ? 'text.muted' : 'accent.text'}
+                >
+                  <RouterLink to="/calibration" title="Go to calibration">
+                    <LuSlidersVertical />
+                  </RouterLink>
+                </IconButton>
+              </Tooltip>
             </Flex>
           </VStack>
         </motion.div>
