@@ -173,6 +173,19 @@ Grouped by pipeline stage, roughly chronological within each group.
   ("settled"/"Score level") across Calibration/Album Rating/Favorites, plus the Favorites
   hard/soft gate split, the Album Rating persistent calibration action, and the calibration
   resume banner. See "Current status" above
+- `criteria-calibration-restart-stale-state-diagnostic.md` — read-only diagnostic (2026-09-20,
+  no code changed): confirms Restart (`deleteAllAnswers`) never touches
+  `user_calibration_status.answer_count`, so the guarded `upsert_calibration_status` RPC keeps
+  rejecting the new session's tier/accuracy writes until its answer count catches back up to the
+  old one, while the separate, completely unguarded `user_criterion_weights` upsert overwrites
+  on every commit regardless — the tier-freeze and the degenerate-score-jump are one root cause,
+  not two bugs. Live-verified against the disposable QA account (4 scenarios, 8/8 checks pass).
+  **Addendum (same day):** live-confirms weights DO change immediately on Restart even for a
+  mature (33-answer) session — a real LP normalization invariant can keep a *100%* (all-max)
+  album's score identical across Restart, but that doesn't explain the *82%* album Dan actually
+  observed unchanged; `useAlbumRatingsSummary.ts`/`AlbumRatingPage.tsx`/`useCalibrationGate.ts`
+  all fetch weights/tier once per mount with no invalidation from Restart, which is the far more
+  likely explanation there. Fix intentionally deferred to a later session
 
 **Research**
 

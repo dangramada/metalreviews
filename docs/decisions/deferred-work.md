@@ -185,6 +185,17 @@ rewriting them, which this reorg pass deliberately avoided.
   relies on it being real-time or session-scoped.
 
 ## B. Known code/data gaps (accepted, not fixed)
+- **Restart leaves stale/contradictory score state — root cause confirmed, fix not scoped,
+  2026-09-20.** Diagnosed in `criteria-calibration-restart-stale-state-diagnostic.md`: Restart
+  (`deleteAllAnswers`) clears `user_calibration_answers` but never touches
+  `user_calibration_status.answer_count`, so the guarded `upsert_calibration_status` RPC keeps
+  rejecting the new session's tier/accuracy writes until its answer count catches back up to the
+  old stored one (Score Level badge stays frozen at the old tier), while the separate,
+  completely unguarded `user_criterion_weights` upsert overwrites on every commit regardless
+  (album scores jump to degenerate values from a near-unconstrained 1–2-answer model). One root
+  cause, two symptoms — a fix needs to pick one consistent behavior for both tables, which is a
+  solution-space decision explicitly deferred (see that doc's discovery-artifact link for the
+  open questions).
 - **Metal Storm ingest memory fix: three verifications pending, 2026-09-16.**
   Bounded Puppeteer concurrency, 30s `protocolTimeout`, Chrome memory args, resource blocking and
   close timeouts shipped on branch `metalstorm-ingest-memory-fix`
