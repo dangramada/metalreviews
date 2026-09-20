@@ -247,4 +247,30 @@ Live-verified on the QA account, reading `user_calibration_status`/`user_calibra
 directly via the Supabase REST API before and after each action (not just the UI): answered once
 (persisted 1, live 1) → Undo (persisted 0, live 0, correctly synced, not stuck at 1) → answered
 twice more (persisted 2, live 2) → Undo once (persisted 1, live 1, correctly synced, not stuck at 2) → `/favorites` showed real rank badges, not dashes, confirming a normal mid-session Undo no
-longer blanks the score.
+longer blanks the score. Dan separately tested rapid repeated Undo/Redo (the one case this
+follow-up didn't add generation-counter protection for, per its own comment) and confirmed no
+issue — the ordering discipline holds without needing that extra machinery.
+
+## §6 retest, full pass (same day)
+
+Dan re-ran §6 end to end plus the new Undo case in one pass, per his own request for a
+consolidated list rather than piecemeal checks:
+
+- Restart on a mature session → immediate dashes on both surfaces: confirmed correct.
+- Re-calibrating past Blurry after Restart → insufficient-data clears at the correct point, not
+  with an arbitrary delay: confirmed correct.
+- Undo (partial and down to zero) / Redo: confirmed correct, including rapid repeated Undo/Redo.
+
+Two things surfaced during the pass, both diagnosed and logged to `deferred-work.md` rather than
+fixed, per Dan's explicit instruction:
+
+1. **Guide tab reappearing after Undo-ing to zero answers** — confirmed NOT a regression: pre-
+   existing behavior (`CriteriaCalibrationPage.tsx`'s "no explicit `?step=`" fallback, unchanged
+   by any of today's work), reactive to `answers.length` whenever the URL has no explicit step.
+2. **A degree-boundary tier promotion losing a race against fast navigation** — the checkpoint's
+   `upsertCalibrationStatus` write is async and unawaited; navigating to Favorites fast enough
+   can read the old tier for one visit. Score/Rank stayed correct throughout;
+   `hasInsufficientData` was never involved, since `answer_count` isn't what races here. Same
+   root class as the already-known cross-tab staleness gap, on a shorter timescale.
+
+Branch considered done pending Dan's own merge decision.
