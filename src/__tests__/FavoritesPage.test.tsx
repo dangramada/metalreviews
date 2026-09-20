@@ -78,6 +78,12 @@ let stubHasCalibrationWeights = false;
 // which useCalibrationGate treats the same as tier 'none'. Set to a real tier string to test the
 // no-gate-at-all path (hasWeights AND a tier past 'none').
 let stubCalibrationTier: string | null = null;
+// The two halves of the insufficient-data signal (useCalibrationGate): the live
+// user_calibration_answers row count vs. the answer_count the persisted status row was written
+// at. Equal by default, which is every healthy session; a live count BELOW the stored one is the
+// post-Restart frozen window the signal exists to catch.
+let stubLiveAnswerCount = 0;
+let stubStatusAnswerCount = 0;
 
 function stubCalibrationTable(table: string): unknown | undefined {
   if (table === 'user_calibration_status') {
@@ -85,7 +91,9 @@ function stubCalibrationTable(table: string): unknown | undefined {
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           maybeSingle: vi.fn().mockResolvedValue({
-            data: stubCalibrationTier ? { tier: stubCalibrationTier } : null,
+            data: stubCalibrationTier
+              ? { tier: stubCalibrationTier, answer_count: stubStatusAnswerCount }
+              : null,
             error: null,
           }),
         }),
@@ -107,6 +115,14 @@ function stubCalibrationTable(table: string): unknown | undefined {
     };
     return { select: vi.fn().mockReturnValue(chain) };
   }
+  if (table === 'user_calibration_answers') {
+    // head:true count query — only `count` is read, never `data`.
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ count: stubLiveAnswerCount, error: null }),
+      }),
+    };
+  }
   if (table === 'album_criteria_ratings') {
     return { select: vi.fn().mockResolvedValue({ data: [], error: null }) };
   }
@@ -123,6 +139,8 @@ describe('FavoritesPage', () => {
     vi.clearAllMocks();
     stubHasCalibrationWeights = false;
     stubCalibrationTier = null;
+    stubLiveAnswerCount = 0;
+    stubStatusAnswerCount = 0;
     vi.mocked(supabase.from).mockImplementation((table: string) => {
       const calibrationStub = stubCalibrationTable(table);
       if (calibrationStub) return calibrationStub;
