@@ -103,17 +103,25 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`score-level-indicator-redesign` — branched from `master`, in progress. Replaces the flat
-"Score level: {tier}" + text-link row (shipped in `criteria-calibration-terminology-and-gate-
-unification`) with a two-row layout: label + ghost `IconButton` (accent, muted only at
-`very_high`/"Sharp") on row 1, a new 4-segment progress bar on row 2. 54/54 files, 429/429
-tests, `tsc`/`eslint` clean. Not yet live-verified (needs a logged-in account; QA-account
-convention has Dan log in himself) — see `docs/decisions/score-level-indicator-redesign.md`.
-
 Also flagging: `existing-match-release-date-gate` has an uncommitted change to
-`GuideTab.tsx` (stashed aside, untouched, while this session worked on the branch above) —
-this file's "No branches currently in progress" claim was already stale before this session;
-that branch's own status should be reconciled separately.
+`GuideTab.tsx` (stashed aside, untouched, while a prior session worked on an unrelated branch)
+— this file's earlier "No branches currently in progress" claim was already stale before that
+session; that branch's own status should be reconciled separately.
+
+Most recent merge: `score-level-indicator-redesign` — replaces the flat "Score level: {tier}" +
+text-link row (shipped in `criteria-calibration-terminology-and-gate-unification`) with a
+4-segment progress bar and an outline `IconButton` calibration action (`colorPalette="gray"`,
+`size="sm"`, `12px` padding; icon color accent, muted only at `very_high`/"Sharp"), label
+two-tone (`text.muted` prefix, `text.primary` tier value), `6px` label-to-bar gap, even `12px`
+outer inset, and no gap from the block to the chart below (`DesktopRatingLayout.tsx`'s Section-3
+`gap={4}` → `0`). Several of these were corrections applied after Dan live-reviewed a screenshot
+of the first pass against the Figma mockup (initial pass had used `ghost`/no button padding/
+uniform label color/wrong gaps — see the doc's "Live corrections" section for the full list and
+why each was missed on the first read of the brief). 54/54 files, 429/429 tests, `tsc` clean on
+`master` post-merge. Live-verified 2026-09-20 on Dan's own account (confirmed working as
+implemented). Merged to `master` `--no-ff` at `698bb86` on 2026-09-20. Rollback tag:
+`pre-merge-score-level-indicator-redesign`. Full detail:
+`docs/decisions/score-level-indicator-redesign.md`.
 
 Most recent merge: `album-identity-same-title-collision-fix` — the same-title release-group
 collision fix (Khemmis/Moonspell and 7 more corrected via `lookupMusicBrainzByReleaseGroupId()`

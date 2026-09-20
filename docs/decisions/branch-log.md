@@ -4,6 +4,15 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `score-level-indicator-redesign` — merged to master `698bb86` (`--no-ff`), 2026-09-20;
+  rollback tag `pre-merge-score-level-indicator-redesign` — replaces the flat "Score level:
+  {tier}" + text-link row with a 4-segment progress bar and an outline `IconButton` calibration
+  action (accent, muted only at `very_high`/"Sharp"); several corrections (button variant/
+  padding, two-tone label color, gaps) applied after live screenshot review against the Figma
+  mockup. 54/54 files, 429/429 tests, `tsc` clean on `master` post-merge. Live-verified
+  2026-09-20 on Dan's own account. Full detail:
+  `docs/decisions/score-level-indicator-redesign.md`
+
 - `album-identity-same-title-collision-fix` — merged to master `b8a888c` (`--no-ff`), 2026-09-18;
   rollback tag `pre-merge-album-identity-same-title-collision-fix` — same-title release-group
   collision fix: Khemmis, Moonspell, and 7 more corrected via `lookupMusicBrainzByReleaseGroupId()`

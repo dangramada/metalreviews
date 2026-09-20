@@ -122,18 +122,20 @@ accessible label is always present.
 
 ## Status
 
-54/54 files, 429/429 tests, `tsc` clean on the `score-level-indicator-redesign` branch
-(branched from `master`); `eslint` clean on the two files this work touches (pre-existing
-`prettier/prettier` findings elsewhere in `DesktopRatingLayout.tsx`, unrelated lines, predate
-this branch — confirmed by diffing against the branch point before this work).
+54/54 files, 429/429 tests, `tsc` clean on `master` post-merge; `eslint` clean on the files this
+work touches (pre-existing `prettier/prettier` findings elsewhere in `DesktopRatingLayout.tsx`,
+unrelated lines, predate this branch — confirmed by diffing against the branch point before this
+work).
 
-**Partially live-verified** — Dan logged into his own account (per this project's QA-account
-convention; Claude never handles credentials) and screenshotted the rendered final Score/Rank
-state on `/rate/:albumId`, which drove all six corrections in "Live corrections" above. Not yet
-independently re-confirmed after those corrections landed, and the `isPending` progress-slab
-state's now-zero gap to the chart (a side effect of the `DesktopRatingLayout.tsx` change) hasn't
-been checked at all. The `6px` segment height is carried from an earlier mockup per the brief's
-own caveat ("verify, don't assume it carried over") — still not independently confirmed against
-the Figma file itself (no Figma connector authorization available this session). Not yet
-committed past the first pass — merge should wait until this whole doc's changes are staged and
-Dan re-confirms the corrected render.
+Dan logged into his own account (per this project's QA-account convention; Claude never handles
+credentials) and screenshotted the rendered final Score/Rank state on `/rate/:albumId` twice:
+once against the first implementation pass, driving all six corrections in "Live corrections"
+above, and again after those corrections landed, confirming the result works as implemented.
+The `isPending` progress-slab state's now-zero gap to the chart (a side effect of the
+`DesktopRatingLayout.tsx` change) was not separately called out as checked. The `6px` segment
+height is carried from an earlier mockup per the brief's own caveat ("verify, don't assume it
+carried over") — still not independently confirmed against the Figma file itself (no Figma
+connector authorization available this session).
+
+Merged to `master` `--no-ff` at `698bb86` on 2026-09-20. Rollback tag:
+`pre-merge-score-level-indicator-redesign`.
