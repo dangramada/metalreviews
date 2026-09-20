@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Box, Container, Flex, Text, VStack } from '@chakra-ui/react';
+import { Box, Container, Flex, Link, Text, VStack } from '@chakra-ui/react';
+import { Link as RouterLink } from 'react-router-dom';
+import { Alert } from './components/ui/alert';
 import { PageBreadcrumb } from './components/ui/breadcrumb';
 import { resolveFromSource, type FromSourceEntry } from './lib/navigation/resolveFromSource';
 import { Header } from './Header';
@@ -61,7 +63,7 @@ export function AlbumRatingPage() {
   // album-rating-soft-gate: no longer used to block this page (it never gated it in the
   // first place — see the diagnostic that preceded this branch), only to label score
   // confidence next to Score/Rank.
-  const { tier: confidenceTier } = useCalibrationGate();
+  const { tier: confidenceTier, hasInsufficientData } = useCalibrationGate();
   const { showError } = useFeedbackToast();
 
   const [albumInfo, setAlbumInfo] = useState<AlbumRow | null>(null);
@@ -190,6 +192,30 @@ export function AlbumRatingPage() {
                   own separate compact title internally, unaffected by this move — it also
                   removes what was a pre-existing duplicate title on mobile. */}
 
+              {/* Insufficient data: the persisted tier describes a session the user has since
+                  restarted, and the weights behind the score are a zero-answer solve. Placed as
+                  a page-level sibling above both layouts, the same placement pattern as
+                  CriteriaCalibrationPage's own resume banner, so neither layout has to make room
+                  for it internally. No dismiss control, unlike that banner: this one reports a
+                  state the user can only leave by calibrating, so dismissing it would hide the
+                  only explanation for the dashes below it. */}
+              {hasInsufficientData && (
+                <Alert
+                  status="info"
+                  variant="surface"
+                  bg="status.info.bg"
+                  color="status.info.text"
+                  title="No score to show yet"
+                  data-testid="insufficient-data-banner"
+                >
+                  Your calibration was restarted, so the weighting behind this album&apos;s score is
+                  no longer settled. Answer a round of comparisons and the score and rank come back.{' '}
+                  <Link as={RouterLink} to="/calibration" color="status.info.text" fontWeight="600">
+                    Go to calibration
+                  </Link>
+                </Alert>
+              )}
+
               {/* Desktop (>= md): 3 simultaneous columns. Hidden via CSS class, not Chakra's
                   responsive `display` prop — the latter renders display:none in jsdom too and
                   breaks role-based test queries (same gotcha documented in Header.tsx). */}
@@ -210,6 +236,7 @@ export function AlbumRatingPage() {
                   savingCriterionId={savingCriterionId}
                   ratingSummary={ratingSummary.get(albumInfo.id)}
                   confidenceTier={confidenceTier}
+                  hasInsufficientData={hasInsufficientData}
                 />
               </Box>
 
@@ -227,6 +254,7 @@ export function AlbumRatingPage() {
                   weights={weights}
                   ratingSummary={ratingSummary.get(albumInfo.id)}
                   confidenceTier={confidenceTier}
+                  hasInsufficientData={hasInsufficientData}
                   onPick={handlePick}
                   savingCriterionId={savingCriterionId}
                 />

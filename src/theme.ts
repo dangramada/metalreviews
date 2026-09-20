@@ -235,6 +235,20 @@ const system = createSystem(defaultConfig, {
           bg: { value: { base: '#f2f2f0' } },
           text: { value: { base: '{colors.ink.950}' } },
         },
+        // Informational tone — the blue.900/blue.200 pair FavoritesPage's confirmation dialogs
+        // have been using as raw values since before this token existed
+        // (design-system-audit-2026-08.md flagged exactly that gap and proposed this name).
+        // First real consumer: AlbumRatingPage's insufficient-data banner.
+        //
+        // Only `info` exists. That audit also proposed `status.warning`, which nothing in the app
+        // needs yet — an unused token is one more thing to keep honest for no benefit, so it gets
+        // defined when something actually renders in a warning tone, not before.
+        status: {
+          info: {
+            bg: { value: { base: '{colors.blue.900}' } },
+            text: { value: { base: '{colors.blue.200}' } },
+          },
+        },
         // Registers `ember` as a full colorPalette (contrast/fg/subtle/muted/emphasized/
         // solid/focusRing/border) so `colorPalette: 'ember'` resolves in component
         // recipes (button hover/active/disabled etc.) the same way built-in palettes do.
@@ -533,8 +547,8 @@ export const rankOverlayBadge = {
 export const confidenceWarningBadge = {
   bg: 'black',
   color: 'red.400',
-  borderLeft: '2px solid',
-  borderLeftColor: 'red.900',
+  borderRight: '2px solid',
+  borderRightColor: 'red.900',
   borderTop: '2px solid',
   borderTopColor: 'red.900',
   borderRadius: '0',

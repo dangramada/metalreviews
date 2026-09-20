@@ -16,6 +16,30 @@ detect a good stopping point automatically, is retired (see
 
 ## Current status
 
+**2026-09-20 — insufficient-data score/rank state, plus a same-day Restart fix:**
+`useCalibrationGate` gains `hasInsufficientData` (one count query, no LP solve), and both Album
+Evaluation and Favorites stop showing a score, rank or tier name while the persisted tier
+describes a restarted session. Live §6 verification then found Restart's OWN status write
+(`applyCommitComputation`'s guarded RPC call, carrying the stale pre-restart tier at
+`p_answer_count: 0`) was silently rejected against any mature session, so
+`user_calibration_status` never actually cleared — the new signal was detecting real staleness
+that nothing was fixing. Added `resetCalibrationStatus()`, a direct upsert bypassing the guarded
+RPC (the table's RLS already permits it), sequenced via an awaited promise chain to land strictly
+after the stale-tier write. `upsert_calibration_status`'s guard itself and `user_criterion_weights`
+(already correct) stay untouched. **Second same-day follow-up:** a real live Restart on the QA
+account then showed the reset working correctly in the DB (confirmed via the Supabase REST API
+directly) while Album Evaluation/Favorites still showed a real, live-recomputed score (87%/64%,
+not cached) — `hasInsufficientData`'s `live < persisted` reads `0 < 0 = false` right after a
+correct reset, since the tier is honest at that instant even though the weights are still the
+flat zero-answer ramp. Added `weightsPresent && liveAnswerCount === 0` as a second, independent
+condition. **Third same-day follow-up:** the same guard-rejection bug hits every Undo, not just
+Restart — decreasing the live count always loses the `>=` guard's race. Generalized
+`resetCalibrationStatus` into `syncCalibrationStatus(userId, tier, accuracy, answerCount)`;
+`handleUndo` now awaits its own stale-tier write before force-syncing the correct post-undo
+count, same ordering discipline as Restart. 57/57 files, 446/446 tests, live-reverified on the
+QA account via direct REST reads. Full detail:
+`criteria-calibration-insufficient-data-state.md`.
+
 **2026-09-18 — terminology unification + Favorites gate redesign:** unifies tier terminology
 across Criteria Calibration/Album Rating/Favorites ("settled" replaces "clear"/"pinned down";
 "Score level" replaces "Score confidence"), fixes the Results tab caption's em-dash, and replaces
@@ -173,6 +197,31 @@ Grouped by pipeline stage, roughly chronological within each group.
   ("settled"/"Score level") across Calibration/Album Rating/Favorites, plus the Favorites
   hard/soft gate split, the Album Rating persistent calibration action, and the calibration
   resume banner. See "Current status" above
+- `criteria-calibration-restart-stale-state-diagnostic.md` — read-only diagnostic (2026-09-20,
+  no code changed): confirms Restart (`deleteAllAnswers`) never touches
+  `user_calibration_status.answer_count`, so the guarded `upsert_calibration_status` RPC keeps
+  rejecting the new session's tier/accuracy writes until its answer count catches back up to the
+  old one, while the separate, completely unguarded `user_criterion_weights` upsert overwrites
+  on every commit regardless — the tier-freeze and the degenerate-score-jump are one root cause,
+  not two bugs. Live-verified against the disposable QA account (4 scenarios, 8/8 checks pass).
+  **Addendum (same day):** live-confirms weights DO change immediately on Restart even for a
+  mature (33-answer) session — a real LP normalization invariant can keep a _100%_ (all-max)
+  album's score identical across Restart, but that doesn't explain the _82%_ album Dan actually
+  observed unchanged; `useAlbumRatingsSummary.ts`/`AlbumRatingPage.tsx`/`useCalibrationGate.ts`
+  all fetch weights/tier once per mount with no invalidation from Restart, which is the far more
+  likely explanation there. Fix intentionally deferred to a later session
+- `criteria-calibration-insufficient-data-state.md` — the fix that followed that diagnostic
+  (2026-09-20): a new `hasInsufficientData` signal on `useCalibrationGate`, computed as
+  `live user_calibration_answers count < persisted user_calibration_status.answer_count`, which
+  is exactly the window in which the guard freezes the tier. Album Evaluation gains a
+  `status.info` banner and dashes its Score/Rank/score-level; Favorites dashes the rank overlay
+  and moves its warning badge to `LuOctagonAlert`. Deliberately NOT the brief's original
+  "recompute degree-2 coverage live" signal, which needs an LP solve per page mount and would
+  have reversed `album-rating-soft-gate` for every pre-degree-2 user. Same-day follow-up: Restart's
+  own status write was found to be silently rejected by the guard too (stale pre-restart tier at
+  `p_answer_count: 0` against a mature session), so the row never actually cleared — fixed with
+  `resetCalibrationStatus()`, a direct upsert bypassing the RPC, sequenced after the stale write.
+  `user_criterion_weights` and the RPC's guard itself remain untouched. See "Current status" above
 
 **Research**
 

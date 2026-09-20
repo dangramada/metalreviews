@@ -68,6 +68,7 @@ interface MobileRatingLayoutProps {
   weights: CriterionLevelWeight[];
   ratingSummary: AlbumRatingSummary | undefined;
   confidenceTier: CalibrationTier;
+  hasInsufficientData: boolean;
   onPick: (criterionId: number, level: number) => Promise<void>;
   savingCriterionId: number | null;
 }
@@ -84,6 +85,7 @@ export function MobileRatingLayout({
   weights,
   ratingSummary,
   confidenceTier,
+  hasInsufficientData,
   onPick,
   savingCriterionId,
 }: MobileRatingLayoutProps) {
@@ -274,6 +276,7 @@ export function MobileRatingLayout({
           totalCount={order.length}
           ratingSummary={revealed ? ratingSummary : progressSnapshot.ratingSummary}
           confidenceTier={confidenceTier}
+          hasInsufficientData={hasInsufficientData}
         />
       </Box>
       <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">

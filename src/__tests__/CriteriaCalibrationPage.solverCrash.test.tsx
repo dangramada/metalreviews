@@ -75,6 +75,7 @@ vi.mock('../lib/criteria-calibration/solver', async (importOriginal) => {
 vi.mock('../lib/criteria-calibration/persistence', () => ({
   insertAnswer: vi.fn().mockResolvedValue('new-db-id'),
   deleteAnswer: vi.fn().mockResolvedValue(undefined),
+  syncCalibrationStatus: vi.fn().mockResolvedValue(undefined),
   upsertWeightsAndStatus: vi.fn().mockResolvedValue(undefined),
   upsertCalibrationStatus: vi.fn().mockResolvedValue(undefined),
 }));

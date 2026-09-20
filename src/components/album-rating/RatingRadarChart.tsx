@@ -91,7 +91,9 @@ export function RatingRadarChart({
     const weight = weightMap.get(`${id}:${level}`);
     const maxWeight = maxWeightByCriterion.get(id);
     const weightPercentLabel =
-      weight !== undefined && maxWeight ? `${Math.round((weight / maxWeight) * 100)}% of criterion max` : '—';
+      weight !== undefined && maxWeight
+        ? `${Math.round((weight / maxWeight) * 100)}% of criterion max`
+        : '—';
     return {
       criterion: entry?.name ?? '',
       level,
@@ -135,7 +137,12 @@ export function RatingRadarChart({
     // 100% of a box that itself never changed size. RadarChart's own outerRadius (below) was
     // already percentage-based by default, so it started scaling correctly the moment its
     // container did.
-    <Chart.Root chart={chart} w={isSmall ? '40px' : '100%'} aspectRatio={isSmall ? undefined : '1'} h={isSmall ? '40px' : undefined}>
+    <Chart.Root
+      chart={chart}
+      w={isSmall ? '40px' : '100%'}
+      aspectRatio={isSmall ? undefined : '1'}
+      h={isSmall ? '40px' : undefined}
+    >
       {/* RadarChart has `responsive: false` and no default width/height (checked recharts'
           own PolarChart.js defaults directly) — without this wrapper it silently renders a
           0x0 SVG, no console error. Confirmed by the radar-chart spike: Chart.Root's Box alone

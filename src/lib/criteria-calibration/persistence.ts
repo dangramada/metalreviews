@@ -101,6 +101,59 @@ export async function deleteAllAnswers(userId: string): Promise<void> {
 }
 
 /**
+ * Forces `user_calibration_status` to an exact (tier, accuracy, answer_count) triple, bypassing
+ * `upsert_calibration_status` entirely rather than going through it. Used by any caller whose
+ * new `answer_count` is LOWER than what's stored — Restart (always 0) and Undo (one less than
+ * before) — since the RPC's guard (`>= stored answer_count`) categorically cannot accept a
+ * decrease, by design, for a purpose that has nothing to do with either of those callers (see
+ * below).
+ *
+ * WHY NOT THE RPC. The guard exists to reject a genuinely stale write racing a fresher one
+ * within a live, forward-moving session (`user_calibration_status-add-answer-count-guard.sql`).
+ * Restart and Undo are not that: both are legitimate, deliberate decreases to the true answer
+ * count, the exact case the guard's own design never anticipated needing to accept. `user_
+ * calibration_status`'s own RLS policy ("Users can manage their own calibration status", `for
+ * all using/with check auth.uid() = user_id`) already permits a plain client upsert with no RPC
+ * needed; the guard is application logic layered on top of that policy, not a security
+ * boundary, so bypassing it here does not touch RLS at all.
+ *
+ * CALLER MUST SEQUENCE THIS AFTER any in-flight `upsertWeightsAndStatus` call from the same
+ * action. Both `handleRestart` and `handleUndo` also fire `applyCommitComputation`, which calls
+ * `upsertWeightsAndStatus` with the SAME lower `answer_count` this function is about to force —
+ * carrying `tierRef.current`, which still reflects the render BEFORE this action, since the ref
+ * only updates on a later render. That write is expected to lose the guard's race (the stored
+ * count is still the higher, pre-action value when it arrives). But if THIS function's write
+ * lands FIRST, it lowers `answer_count` in the DB, which makes the guard newly PERMISSIVE for
+ * that still-in-flight stale write (`lower >= lower` is true), so it can land SECOND and clobber
+ * the correct sync right back to the stale tier. Every caller awaits the weights/status write's
+ * promise before calling this function, specifically to make this function's write the
+ * temporally last one, not just call it "eventually" — see `handleRestart`/`handleUndo`.
+ */
+export async function syncCalibrationStatus(
+  userId: string,
+  tier: AccuracyTier,
+  accuracy: number,
+  answerCount: number
+): Promise<void> {
+  const { error } = await supabase
+    .from('user_calibration_status')
+    .upsert({
+      user_id: userId,
+      tier: tierToDb(tier),
+      accuracy_value: accuracy,
+      answer_count: answerCount,
+    });
+  if (error) throw error;
+}
+
+/** Restart's other half: `syncCalibrationStatus` at the zero-answer state every Restart wants,
+ *  by name for the one caller whose target is always the same fixed triple rather than one it
+ *  has to carry over from a `computation`. */
+export async function resetCalibrationStatus(userId: string): Promise<void> {
+  return syncCalibrationStatus(userId, 'none', 0, 0);
+}
+
+/**
  * The app's tier identifier in the database's spelling. The two differ only in case
  * convention ('veryHigh' vs 'very_high'), which is deliberate — the column's CHECK constraint
  * and every existing row use snake_case, so degree-tying the tier needed no migration.

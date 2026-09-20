@@ -40,6 +40,8 @@ import {
   insertAnswer,
   deleteAnswer,
   deleteAllAnswers,
+  resetCalibrationStatus,
+  syncCalibrationStatus,
   upsertCalibrationStatus,
   upsertWeightsAndStatus,
 } from './lib/criteria-calibration/persistence';
@@ -652,6 +654,10 @@ export function CriteriaCalibrationPage() {
   // and persists weights/status. Split from the computeCommitState call itself (see
   // commitAdvance/handleUndo/handleRedo) so all three callers share one persistence path
   // without a second LP solve.
+  // Returns the write's promise (already-caught internally, so it never rejects) so a caller
+  // that needs strict ordering can await it — handleRestart is the one caller that does, to
+  // sequence its own direct status reset after this write's stale-tier RPC attempt settles.
+  // Every other caller (commitAdvance/handleUndo/handleRedo) still fires and forgets it.
   function applyCommitComputation(computation: CommitComputation) {
     if (!catalog) return;
     setAccuracyPercent(Math.round(computation.accuracy * 100));
@@ -665,7 +671,7 @@ export function CriteriaCalibrationPage() {
       // render's closure. The tier written here is the one for the position BEFORE this commit
       // — which is right for every commit except the one that lands exactly on a boundary, and
       // the tier-change effect below corrects that on the very next render.
-      upsertWeightsAndStatus(user.id, catalog, computation, tierRef.current)
+      return upsertWeightsAndStatus(user.id, catalog, computation, tierRef.current)
         .then(() => {
           if (myGen !== weightsGenRef.current) return;
           notifyPersistRecovered();
@@ -750,7 +756,7 @@ export function CriteriaCalibrationPage() {
     });
   }
 
-  function handleUndo() {
+  async function handleUndo() {
     if (interactionDisabled || answers.length === 0 || !catalog) return;
     const last = answers[answers.length - 1];
     const nextAnswers = answers.slice(0, -1);
@@ -791,7 +797,34 @@ export function CriteriaCalibrationPage() {
     // like everything else. `acknowledgedBoundaryDegree` deliberately does NOT get cleared:
     // having already decided at this boundary once, the user should not be asked again for
     // re-reaching the boundary they just stepped back over.
-    applyCommitComputation(computation);
+    const weightsWrite = applyCommitComputation(computation);
+
+    if (user) {
+      // Undo decreases the live answer count, which upsert_calibration_status's guard (>=
+      // only) can never accept — the write above is expected to lose that race, leaving
+      // user_calibration_status.answer_count one HIGHER than the real, post-undo count. That
+      // used to be silently wrong (tier just stayed one commit stale); since
+      // hasInsufficientData reads `live < persisted`, it now actively blanks the score/rank on
+      // Album Evaluation/Favorites after any Undo, not just after Restart — see
+      // syncCalibrationStatus's own comment for why this needs the guard bypassed, and why
+      // this must be sequenced after `weightsWrite` settles rather than racing it.
+      beginWrite();
+      try {
+        await weightsWrite;
+        await syncCalibrationStatus(
+          user.id,
+          tierRef.current,
+          computation.accuracy,
+          computation.answerCount
+        );
+        notifyPersistRecovered();
+      } catch (e) {
+        console.warn('Failed to sync calibration status after undo', e);
+        notifyPersistFailure();
+      } finally {
+        endWrite();
+      }
+    }
   }
 
   function handleRedo() {
@@ -980,7 +1013,7 @@ export function CriteriaCalibrationPage() {
   // it a single click. Compute-first, like every other mutating handler here: an empty answer
   // log can't realistically fail to solve, but this keeps the same "never mutate state before
   // confirming the solve succeeds" discipline as commitAdvance/handleUndo/handleRedo.
-  function handleRestart() {
+  async function handleRestart() {
     const computation = trySolve([], SOLVER_RESTART_FAILURE_MESSAGE);
     if (!computation) return;
 
@@ -989,17 +1022,28 @@ export function CriteriaCalibrationPage() {
     setDegree(STARTING_DEGREE);
     setAcknowledgedBoundaryDegree(null);
     setSelectedSide(null);
-    applyCommitComputation(computation);
+
+    // Fires the zero-answer weights write (correct — Restart really does mean a fresh,
+    // unconstrained solve) and an accompanying status write carrying tierRef.current, which at
+    // this instant is still the OLD session's tier. That write is expected to be rejected by
+    // the guarded RPC in the common case (the DB's answer_count is still the old session's), but
+    // awaited here regardless — see resetCalibrationStatus's own comment for why this function's
+    // reset below must be the temporally LAST write to the status row, not just an eventual one.
+    const weightsWrite = applyCommitComputation(computation);
 
     if (user) {
       beginWrite();
-      deleteAllAnswers(user.id)
-        .then(notifyPersistRecovered)
-        .catch((e) => {
-          console.warn('Failed to clear persisted calibration answers during restart', e);
-          notifyPersistFailure();
-        })
-        .finally(endWrite);
+      try {
+        await weightsWrite;
+        await deleteAllAnswers(user.id);
+        await resetCalibrationStatus(user.id);
+        notifyPersistRecovered();
+      } catch (e) {
+        console.warn('Failed to reset persisted calibration state during restart', e);
+        notifyPersistFailure();
+      } finally {
+        endWrite();
+      }
     }
   }
 

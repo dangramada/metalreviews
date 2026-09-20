@@ -53,13 +53,33 @@ export function RatingSlab({
       flexDirection="column"
       gap="2px"
     >
-      <Text as="span" fontFamily="mono" fontSize="14px" fontWeight="700" textTransform="uppercase" opacity={1}>
+      <Text
+        as="span"
+        fontFamily="mono"
+        fontSize="14px"
+        fontWeight="700"
+        textTransform="uppercase"
+        opacity={1}
+      >
         {label}
       </Text>
-      <Text as="span" fontFamily="heading" fontSize="28px" fontWeight="700" lineHeight="1" letterSpacing="-0.02em">
+      <Text
+        as="span"
+        fontFamily="heading"
+        fontSize="28px"
+        fontWeight="700"
+        lineHeight="1"
+        letterSpacing="-0.02em"
+      >
         {value}
         {valueSuffix && (
-          <Text as="span" fontFamily="heading" fontSize="20px" fontWeight="400" letterSpacing="-0.02em">
+          <Text
+            as="span"
+            fontFamily="heading"
+            fontSize="20px"
+            fontWeight="400"
+            letterSpacing="-0.02em"
+          >
             {valueSuffix}
           </Text>
         )}

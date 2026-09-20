@@ -67,6 +67,18 @@ Note the ordering is not what the names suggest: `text.dim` is **lighter** than 
 | `slab.bg`       | `#f2f2f0`   | Score slab background — the app's one light-on-dark inversion (`App.tsx`) |
 | `slab.text`     | `ink.950`   | Score slab text                                                           |
 
+#### Status
+
+| Token              | Resolves to | Purpose                                                                                            |
+| ------------------ | ----------- | -------------------------------------------------------------------------------------------------- |
+| `status.info.bg`   | `blue.900`  | Informational banner/dialog background. First consumer: AlbumRatingPage's insufficient-data banner |
+| `status.info.text` | `blue.200`  | Text on `status.info.bg`                                                                           |
+
+Added 2026-09-20 (insufficient-data score state), tokenizing the raw `blue.900`/`blue.200` pair
+`FavoritesPage.tsx`'s confirmation dialogs already used — the gap
+`design-system-audit-2026-08.md` flagged. That audit also proposed `status.warning`; it is
+deliberately **not** defined, since nothing in the app renders a warning tone yet.
+
 #### `ember` palette contract (`semanticTokens.colors.ember`)
 
 Not swatches to pick from: these are the keys Chakra's own recipes read when a component is given
