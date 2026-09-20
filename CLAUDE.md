@@ -103,13 +103,26 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`existing-match-release-date-gate` — open, pending Dan's live-check (existingMatch with no
-release date blocked until a year is entered; RPC persists it; new-album path and heart-icon
-path unaffected) before merge. Not the same content as the note this section used to carry
-about a "stashed" `GuideTab.tsx` change on this branch — that was actually a real commit
-(`bd8bb02`, Dan's own, landed directly on this branch), unrelated to the release-date-gate
-work; it's been cherry-picked off onto its own branch and merged separately (see
-`guide-tab-four-levels-intro` below) rather than riding along in this branch's merge.
+No branches currently in progress.
+
+Most recent merge: `existing-match-release-date-gate` — closes the gap where favoriting an
+existing catalog album with `release_date: null` skipped the manual-date requirement entirely
+(only the new-album `!existingMatch` path was gated). A shared `resolvedReleaseDate` (either
+`existingMatch.releaseDate` or the fresh MB lookup's date) now gates the Confirm button and the
+manual-date input identically for both paths. When the user supplies a date for an
+`existingMatch`, it's persisted to the shared `albums` row via a new
+`fill_missing_release_date` RPC (`security definer`, writes only `release_date`, no-ops if
+already set) rather than a plain `.update()` behind a row-level RLS policy — a row-level-only
+policy can't restrict which *columns* an update touches, and these are shared catalog rows
+other users may have favorited too (`supabase/albums-add-fill-missing-release-date-rpc.sql`,
+run by Dan in the Supabase SQL editor before merge). The heart-icon favoriting path
+(`src/App.tsx`) is explicitly unchanged and remains the one path that can still produce a
+null-release-date favorite — accepted, not a gap. Docs: a dated Summary blockquote was
+prepended to `album-identity-frontend-favorites.md` (the doc that actually described the old
+exempt-`existingMatch` gap, not `manual-albums.md` — that doc is already fully superseded and
+predates `existingMatch` entirely). 54/54 files, 432/432 tests, `tsc` clean on `master`
+post-merge. Live-verified by Dan before merge. Merged to `master` `--no-ff` at `1faf8a0` on
+2026-09-20. Rollback tag: `pre-merge-existing-match-release-date-gate`.
 
 Most recent merge: `guide-tab-four-levels-intro` — rewrites `GuideTab`'s intro copy to name the
 Unfocused/Blurry/Clear/Sharp calibration levels directly, so new users see the level names
