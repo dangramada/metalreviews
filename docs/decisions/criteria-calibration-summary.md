@@ -16,12 +16,17 @@ detect a good stopping point automatically, is retired (see
 
 ## Current status
 
-**2026-09-20 — insufficient-data score/rank state:** closes the user-facing half of the Restart
-stale-state problem. `useCalibrationGate` gains `hasInsufficientData` (one count query, no LP
-solve), and both Album Evaluation and Favorites stop showing a score, rank or tier name while the
-persisted tier describes a session the user has since restarted. The guarded RPC, the weights
-write and `deleteAllAnswers` are all untouched — this fixes the display, not the persistence
-layer, which stays open in `deferred-work.md`. Full detail:
+**2026-09-20 — insufficient-data score/rank state, plus a same-day Restart fix:**
+`useCalibrationGate` gains `hasInsufficientData` (one count query, no LP solve), and both Album
+Evaluation and Favorites stop showing a score, rank or tier name while the persisted tier
+describes a restarted session. Live §6 verification then found Restart's OWN status write
+(`applyCommitComputation`'s guarded RPC call, carrying the stale pre-restart tier at
+`p_answer_count: 0`) was silently rejected against any mature session, so
+`user_calibration_status` never actually cleared — the new signal was detecting real staleness
+that nothing was fixing. Added `resetCalibrationStatus()`, a direct upsert bypassing the guarded
+RPC (the table's RLS already permits it), sequenced via an awaited promise chain to land strictly
+after the stale-tier write. `upsert_calibration_status`'s guard itself and `user_criterion_weights`
+(already correct) stay untouched. 55/55 files, 439/439 tests. Full detail:
 `criteria-calibration-insufficient-data-state.md`.
 
 **2026-09-18 — terminology unification + Favorites gate redesign:** unifies tier terminology
@@ -201,8 +206,11 @@ Grouped by pipeline stage, roughly chronological within each group.
   `status.info` banner and dashes its Score/Rank/score-level; Favorites dashes the rank overlay
   and moves its warning badge to `LuOctagonAlert`. Deliberately NOT the brief's original
   "recompute degree-2 coverage live" signal, which needs an LP solve per page mount and would
-  have reversed `album-rating-soft-gate` for every pre-degree-2 user. A display-layer workaround;
-  the guard/persistence layer itself is untouched and still open. See "Current status" above
+  have reversed `album-rating-soft-gate` for every pre-degree-2 user. Same-day follow-up: Restart's
+  own status write was found to be silently rejected by the guard too (stale pre-restart tier at
+  `p_answer_count: 0` against a mature session), so the row never actually cleared — fixed with
+  `resetCalibrationStatus()`, a direct upsert bypassing the RPC, sequenced after the stale write.
+  `user_criterion_weights` and the RPC's guard itself remain untouched. See "Current status" above
 
 **Research**
 

@@ -1138,18 +1138,20 @@ release-group-collision.md`'s closing section.
 Raised while shipping `criteria-calibration/criteria-calibration-insufficient-data-state.md`,
 which fixes the display layer only.
 
-- **The guard/persistence layer's own correctness is still open.** Restart
-  (`deleteAllAnswers`) empties `user_calibration_answers` and touches nothing else, so
-  `user_calibration_status.answer_count` keeps the old session's value and
-  `upsert_calibration_status` rejects the new session's tier/accuracy writes until its count
-  catches back up — while `user_criterion_weights`, which has no guard at all, is overwritten
-  unconditionally on the very first post-Restart render with a zero-answer solve. Both halves
-  confirmed live (`criteria-calibration-restart-stale-state-diagnostic.md`, 8/8 checks). The
-  insufficient-data signal makes the app _display_ this correctly; it does not make the stored
-  state correct. A real fix has to pick ONE behavior for both fields (reset both on Restart, or
-  guard both) rather than patching one — and it touches code with a genuine race-condition
-  history (`criteria-calibration-weights-write-race.md`), which is why it was deliberately
-  scoped out rather than attempted opportunistically. Explicitly deferred by the brief's §5.
+- ~~**The guard/persistence layer's own correctness is still open.**~~ **DONE, same day
+  (2026-09-20).** Live §6 verification surfaced a second bug beyond display: Restart's own
+  attempt to zero `user_calibration_status` (via `applyCommitComputation`'s
+  `upsertWeightsAndStatus`, called with the pre-restart `tierRef.current` at
+  `p_answer_count: 0`) was silently rejected by the guarded RPC against any mature session's
+  stored `answer_count`, so the row never actually reset — the insufficient-data signal was
+  correctly detecting the staleness, but nothing was fixing it, no matter how far the new
+  session progressed. Fixed with a new `resetCalibrationStatus()` in `persistence.ts`: a
+  direct upsert bypassing the RPC (the table's own RLS policy already permits a plain client
+  upsert; the RPC's guard is application logic on top of that, not a security boundary),
+  sequenced to land strictly after the stale-tier write via an awaited promise chain — see
+  `criteria-calibration-insufficient-data-state.md`'s "Urgent follow-up" section for why
+  ordering, not just correctness, was required. `user_criterion_weights` was already correct
+  (its unconditional overwrite really is what Restart wants). 55/55 files, 439/439 tests.
 - **Cross-tab staleness is unfixed and was never in scope.** Every hook reading weights or
   status fetches once per mount with no invalidation. Within one tab a route change remounts and
   refetches, so Restart → navigate to Album Evaluation is correct. A second tab left open on

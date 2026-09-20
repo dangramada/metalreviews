@@ -111,10 +111,17 @@ window in which the status RPC's monotonic guard freezes the tier. Deliberately 
 original "recompute degree-2 coverage live" signal: that needs an LP solve per page mount and
 would have reversed `album-rating-soft-gate` for every pre-degree-2 user; both objections were
 put to Dan before any code was written and he picked the narrower signal. Also adds the
-`status.info` token. Display-layer only — the guarded RPC, the weights write and
-`deleteAllAnswers` are untouched and remain open in `deferred-work.md`. 54/54 files, 437/437
-tests. Live verification on the QA account is still owed (both surfaces need a login). Full
-detail: `docs/decisions/criteria-calibration/criteria-calibration-insufficient-data-state.md`.
+`status.info` token. **Same-day urgent follow-up:** Dan's live §6 replay found Restart itself
+never actually cleared `user_calibration_status` — its own status write (the guarded RPC, called
+with the stale pre-restart tier at `p_answer_count: 0`) was silently rejected against any mature
+session, so the row stayed pinned no matter how far the new session progressed. Fixed with
+`resetCalibrationStatus()`, a direct upsert bypassing the RPC (the table's RLS already permits
+it), sequenced via an awaited promise chain to land strictly after the stale-tier write — landing
+it first would let the reset's own zeroed `answer_count` make the guard newly permissive for that
+write, letting it clobber the reset right back. `upsert_calibration_status`'s guard itself and
+`user_criterion_weights` (already correct) remain untouched. 55/55 files, 439/439 tests. Live
+re-verification of the exact §6 scenario on the QA account is still owed. Full detail:
+`docs/decisions/criteria-calibration/criteria-calibration-insufficient-data-state.md`.
 
 Most recent merge: `existing-match-release-date-gate` — closes the gap where favoriting an
 existing catalog album with `release_date: null` skipped the manual-date requirement entirely

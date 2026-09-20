@@ -127,3 +127,54 @@ page derives from a live fetch.
 Both changed surfaces sit behind `RequireAuth` and no credentials are stored anywhere in this
 project, so the brief's §6 replay (mature session, then Restart, on the disposable QA account) is
 Dan's step, not one this session could run.
+
+## Urgent follow-up (same day) — Restart's own status write never landed either
+
+Dan's §6 replay found the fix above doing exactly what it was built to do — showing
+insufficient-data correctly — but the state never cleared: mature session → Restart →
+re-calibrated past Blurry (degree 2 complete, +5 into degree 3) → still insufficient-data,
+unchanged, one more answer later too.
+
+**Root cause.** `handleRestart` calls `applyCommitComputation(computation)` on the
+freshly-emptied local answer array before touching the database. That function's own status
+write goes through the guarded `upsert_calibration_status` RPC, carrying `tierRef.current` — a
+ref that still holds the OLD session's tier at this exact instant, since it only updates on a
+later render — at `p_answer_count: 0`. Against any mature session's stored `answer_count`, the
+guard's `0 >= stored` is false, so the RPC rejects it outright. This is not new: the original
+diagnostic (`criteria-calibration-restart-stale-state-diagnostic.md`, Q2) already described this
+exact write and its rejection. What was missed at plan time is that **nothing else in Restart
+ever attempted to reset `user_calibration_status`** — `deleteAllAnswers` only ever touched
+`user_calibration_answers`. So Restart's only status write was this one, doomed write, and the
+row was never actually cleared, regardless of how much progress the new session made. The
+exposure window this bug produces is tied to how mature the OLD session was (the guard only
+releases once the new session's answer count catches back up to the old one), not to real
+progress in the new session, which is exactly what Dan observed.
+
+**Fix.** New `resetCalibrationStatus(userId)` in `persistence.ts`: a plain client `.upsert()` on
+`user_calibration_status` setting `{ tier: 'none', accuracy_value: 0, answer_count: 0 }`,
+bypassing `upsert_calibration_status` entirely. This is safe because the table's own RLS policy
+(`for all using/with check auth.uid() = user_id`) already permits a plain client upsert — the
+RPC's guard is application logic layered on top of that policy for the guard's own purpose
+(rejecting a stale write racing a fresher one within a live session), not a security boundary,
+and Restart is the opposite case: a deliberate full reset, not a race.
+
+**Why ordering, not just calling the new function, was the actual fix.** If
+`resetCalibrationStatus` ran BEFORE the stale-tier write settles, its own `answer_count: 0` would
+make the guard newly PERMISSIVE for that still-in-flight write (`0 >= 0` is true), so the stale
+write could land second and clobber the correct reset right back to the old tier — the same bug,
+now racing instead of failing outright. `applyCommitComputation` was changed to return its write
+promise (previously fire-and-forget, already internally `.catch()`-guarded so it never rejects),
+and `handleRestart` — now `async` — awaits it before calling `deleteAllAnswers` and
+`resetCalibrationStatus`, guaranteeing the reset is the temporally last write to the row.
+
+**Untouched, still.** `upsert_calibration_status`'s guard itself, `user_criterion_weights`'s
+unconditional overwrite (already correct — Restart really does want a fresh zero-answer solve
+there), and every other item in "What was deliberately not touched" above.
+
+**Verification.** New regression test (`CriteriaCalibrationRestart.test.tsx`) drives a real
+Restart click (confirm dialog included) against a resumed 29-answer session and asserts both that
+`resetCalibrationStatus` is reached and that it lands strictly after the stale-tier write —
+resolving both mocks synchronously would have let a same-tick reordering bug pass, so the
+stale-tier mock resolves on a real delay. 55/55 test files, 439/439 tests. Re-verification of
+Dan's exact §6 scenario (mature session → Restart → re-reach Blurry) against the disposable QA
+account is still owed — this session cannot log in.
