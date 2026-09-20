@@ -103,40 +103,20 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-`insufficient-data-score-state` (in progress, not merged) — stops Album Evaluation and Favorites
-showing a score, rank or tier name while the persisted tier describes a session the user has
-since restarted. New `hasInsufficientData` on `useCalibrationGate`, computed as `live
-user_calibration_answers count < persisted user_calibration_status.answer_count` — exactly the
-window in which the status RPC's monotonic guard freezes the tier. Deliberately NOT the brief's
-original "recompute degree-2 coverage live" signal: that needs an LP solve per page mount and
-would have reversed `album-rating-soft-gate` for every pre-degree-2 user; both objections were
-put to Dan before any code was written and he picked the narrower signal. Also adds the
-`status.info` token. **Same-day urgent follow-up:** Dan's live §6 replay found Restart itself
-never actually cleared `user_calibration_status` — its own status write (the guarded RPC, called
-with the stale pre-restart tier at `p_answer_count: 0`) was silently rejected against any mature
-session, so the row stayed pinned no matter how far the new session progressed. Fixed with
-`resetCalibrationStatus()`, a direct upsert bypassing the RPC (the table's RLS already permits
-it), sequenced via an awaited promise chain to land strictly after the stale-tier write — landing
-it first would let the reset's own zeroed `answer_count` make the guard newly permissive for that
-write, letting it clobber the reset right back. `upsert_calibration_status`'s guard itself and
-`user_criterion_weights` (already correct) remain untouched. **Second same-day follow-up:** Dan
-tested a real Restart live on the QA account — the DB reset correctly (confirmed via direct REST
-API reads, not the UI) but Album Evaluation/Favorites still showed a real, live-recomputed score
-(mathematically verified against the reset weights, not a cache). `hasInsufficientData`'s
-`live < persisted` reads `0 < 0 = false` right after a correct reset — honest tier, but the
-weights are still the flat zero-answer ramp. Added `weightsPresent && liveAnswerCount === 0` as a
-second condition, gated on `weightsPresent` so a genuine brand-new account doesn't trip the
-Restart-specific banner. 56/56 files, 444/444 tests. Live re-verified on the QA account: both
-surfaces now dash correctly at this boundary. **Third same-day follow-up:** the same
-guard-rejection root cause turned out to hit every Undo too, not just Restart — Undo always
-decreases the live count, which the guard's `>=` can never accept, so `user_calibration_status`
-stayed one commit stale after every Undo, blanking score/rank on a normal, frequent action.
-Generalized `resetCalibrationStatus` into `syncCalibrationStatus(userId, tier, accuracy,
-answerCount)`; `handleUndo` now awaits its own stale-tier write before force-syncing the correct
-post-undo triple, same ordering discipline as Restart. 57/57 files, 446/446 tests, live-verified
-on the QA account via direct Supabase REST reads before/after each Undo (both a (0,0) case and a
-mid-session (1,1)→ pre-undo (2,2) → post-undo (1,1) case). Dan's exact §6 replay (re-answer past
-Blurry after Restart) is still owed. Full detail:
+No branches currently in progress.
+
+Most recent merge: `insufficient-data-score-state` — Album Evaluation and Favorites stop showing
+a score, rank or tier name while the persisted calibration tier describes a session the user has
+since restarted (`hasInsufficientData` on `useCalibrationGate`, plus a new `status.info` token).
+Two same-day live-caught follow-ups landed on the same branch: Restart never actually reset
+`user_calibration_status` (its own status write was silently rejected by the guarded RPC) — fixed
+with a guard-bypassing `resetCalibrationStatus()`; Undo had the identical bug, far more often
+(any answer-count decrease loses the RPC's `>=` guard) — fixed by generalizing that into
+`syncCalibrationStatus()`. Both fixes await the stale write's settlement before force-syncing, so
+the sync is guaranteed to land last. Full §6 retest pass (including rapid repeated Undo/Redo)
+confirmed live on the QA account, reading the DB directly via the Supabase REST API, not just the
+UI. 57/57 files, 446/446 tests. Merged to `master` `--no-ff` at `341a732` on 2026-09-20. Rollback
+tag: `pre-merge-insufficient-data-score-state`. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-insufficient-data-state.md`.
 
 Most recent merge: `existing-match-release-date-gate` — closes the gap where favoriting an
