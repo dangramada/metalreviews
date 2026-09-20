@@ -209,5 +209,42 @@ post-reset boundary now asserts TRUE; brand-new-account still asserts false; the
 guard-rejection bug; a healthy caught-up mid-session; Undo dropping live behind persisted).
 56/56 files, 444/444 tests. Re-verified live on the QA account after the fix: `/rate/:albumId`
 shows the info banner with dashed Score/Rank/score-level and zero filled segments;
-`/favorites` shows a dashed rank badge on both rows. Dan's exact §6 replay (re-answer past Blurry
-after Restart and confirm the state clears at the right point) is still owed.
+`/favorites` shows a dashed rank badge on both rows.
+
+## Third follow-up (same day) — Undo has the same bug as Restart, far more often
+
+Requested explicitly, same root-cause class flagged proactively rather than found live: any Undo
+decreases the live answer count, and `upsert_calibration_status`'s guard is `>=` only — it can
+never accept a decrease. `handleUndo` calls `applyCommitComputation` exactly like Restart does,
+carrying the pre-undo `tierRef.current` at the post-undo (lower) `answer_count`, and that write
+was always expected to lose the guard's race. Unlike Restart, this fires on every single Undo, a
+frequent, ordinary action — so once `hasInsufficientData` started reading `live < persisted`
+(first follow-up), every Undo anywhere in a session would blank Score/Rank on Album
+Evaluation/Favorites until enough new answers caught the persisted count back up.
+
+**Fix.** Generalized `resetCalibrationStatus` into `syncCalibrationStatus(userId, tier, accuracy,
+answerCount)` — the same guard-bypassing direct upsert, parameterized instead of hardcoded to
+zero (`resetCalibrationStatus` is now a one-line call to it with `('none', 0, 0)`).
+`handleUndo` is now `async`: it awaits `applyCommitComputation`'s stale-tier write (same
+ordering discipline as `handleRestart` — see `syncCalibrationStatus`'s own comment for why
+landing first would make the guard newly permissive for the still-in-flight stale write), then
+calls `syncCalibrationStatus` with `tierRef.current`, `computation.accuracy`, and
+`computation.answerCount` — literally the same triple the stale write already attempted, just
+forced through unconditionally.
+
+Redo needs no equivalent fix: it only ever increments the count forward from an already-synced
+state, which the guard's `>=` accepts on its own.
+
+**Verification.** New regression test (`CriteriaCalibrationUndo.test.tsx`, mirroring
+`CriteriaCalibrationRestart.test.tsx`'s approach) drives a real Undo click and asserts
+`syncCalibrationStatus` is reached with the correct post-undo count and lands strictly after the
+stale-tier write settles, plus that Undo with zero answers is a true no-op. Every persistence
+mock in the criteria-calibration test suite needed `syncCalibrationStatus` added, including
+`CriteriaCalibrationPage.test.tsx` (the pre-existing cross-degree Undo/Redo regression test,
+which exercises real Undo and would otherwise crash outright). 57/57 files, 446/446 tests.
+
+Live-verified on the QA account, reading `user_calibration_status`/`user_calibration_answers`
+directly via the Supabase REST API before and after each action (not just the UI): answered once
+(persisted 1, live 1) → Undo (persisted 0, live 0, correctly synced, not stuck at 1) → answered
+twice more (persisted 2, live 2) → Undo once (persisted 1, live 1, correctly synced, not stuck at 2) → `/favorites` showed real rank badges, not dashes, confirming a normal mid-session Undo no
+longer blanks the score.

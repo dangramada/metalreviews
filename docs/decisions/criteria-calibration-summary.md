@@ -32,7 +32,12 @@ directly) while Album Evaluation/Favorites still showed a real, live-recomputed 
 not cached) — `hasInsufficientData`'s `live < persisted` reads `0 < 0 = false` right after a
 correct reset, since the tier is honest at that instant even though the weights are still the
 flat zero-answer ramp. Added `weightsPresent && liveAnswerCount === 0` as a second, independent
-condition. 56/56 files, 444/444 tests. Full detail:
+condition. **Third same-day follow-up:** the same guard-rejection bug hits every Undo, not just
+Restart — decreasing the live count always loses the `>=` guard's race. Generalized
+`resetCalibrationStatus` into `syncCalibrationStatus(userId, tier, accuracy, answerCount)`;
+`handleUndo` now awaits its own stale-tier write before force-syncing the correct post-undo
+count, same ordering discipline as Restart. 57/57 files, 446/446 tests, live-reverified on the
+QA account via direct REST reads. Full detail:
 `criteria-calibration-insufficient-data-state.md`.
 
 **2026-09-18 — terminology unification + Favorites gate redesign:** unifies tier terminology

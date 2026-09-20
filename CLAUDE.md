@@ -127,8 +127,16 @@ API reads, not the UI) but Album Evaluation/Favorites still showed a real, live-
 weights are still the flat zero-answer ramp. Added `weightsPresent && liveAnswerCount === 0` as a
 second condition, gated on `weightsPresent` so a genuine brand-new account doesn't trip the
 Restart-specific banner. 56/56 files, 444/444 tests. Live re-verified on the QA account: both
-surfaces now dash correctly at this boundary. Dan's exact §6 replay (re-answer past Blurry after
-Restart) is still owed. Full detail:
+surfaces now dash correctly at this boundary. **Third same-day follow-up:** the same
+guard-rejection root cause turned out to hit every Undo too, not just Restart — Undo always
+decreases the live count, which the guard's `>=` can never accept, so `user_calibration_status`
+stayed one commit stale after every Undo, blanking score/rank on a normal, frequent action.
+Generalized `resetCalibrationStatus` into `syncCalibrationStatus(userId, tier, accuracy,
+answerCount)`; `handleUndo` now awaits its own stale-tier write before force-syncing the correct
+post-undo triple, same ordering discipline as Restart. 57/57 files, 446/446 tests, live-verified
+on the QA account via direct Supabase REST reads before/after each Undo (both a (0,0) case and a
+mid-session (1,1)→ pre-undo (2,2) → post-undo (1,1) case). Dan's exact §6 replay (re-answer past
+Blurry after Restart) is still owed. Full detail:
 `docs/decisions/criteria-calibration/criteria-calibration-insufficient-data-state.md`.
 
 Most recent merge: `existing-match-release-date-gate` — closes the gap where favoriting an
