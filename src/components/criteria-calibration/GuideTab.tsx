@@ -28,9 +28,10 @@ export function GuideTab({ catalog, onStart }: GuideTabProps) {
         row, so the intro no longer needs the carousel's context, and keeping it here means one
         copy in the DOM instead of one per breakpoint-mounted carousel. */}
       <Text color="text.dim" fontFamily="body" maxW="2xl">
-        Criteria Calibration compares your criteria two at a time to figure out what matters most to
-        you. It builds a personal weighting used to score every album you rate — here&apos;s what
-        each of the {catalog.entries.length} criteria measures.
+        Criteria Calibration starts by comparing two criteria at a time, then gradually compares
+        more together, to learn what matters most to you and score every album you evaluate. Along
+        the way, your progress moves through four levels: Unfocused, Blurry, Clear, Sharp.
+        Here&apos;s what each of the {catalog.entries.length} criteria measures.
       </Text>
 
       <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
