@@ -547,8 +547,8 @@ export const rankOverlayBadge = {
 export const confidenceWarningBadge = {
   bg: 'black',
   color: 'red.400',
-  borderLeft: '2px solid',
-  borderLeftColor: 'red.900',
+  borderRight: '2px solid',
+  borderRightColor: 'red.900',
   borderTop: '2px solid',
   borderTopColor: 'red.900',
   borderRadius: '0',
