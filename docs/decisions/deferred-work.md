@@ -1158,6 +1158,24 @@ which fixes the display layer only.
   `/rate/:albumId` across a Restart in the first keeps serving what it fetched at mount,
   including the new signal. Fixing it needs a Supabase realtime subscription or a shared cache;
   flagged to Dan at plan time and left out.
+- **Same-tab version of the above, live-caught during §6 retest (2026-09-20): a degree-boundary
+  tier promotion (e.g. reaching the Blurry checkpoint) can lose a race against fast client-side
+  navigation.** Reaching a boundary fires the tier-change effect's `upsertCalibrationStatus`
+  write (`CriteriaCalibrationPage.tsx`, the `lastWrittenTierRef` effect) — async, not awaited by
+  anything, and not blocking navigation. Clicking straight to Favorites right after the
+  checkpoint screen can mount `useCalibrationGate` before that write's network round trip
+  resolves, so the freshly-mounted page reads the OLD tier for one visit (confirmed live,
+  reproduced twice: "Unfocused" + the warning badge shown instead of "Blurry", though Score/Rank
+  themselves stayed correct throughout — `hasInsufficientData` was correctly false the whole
+  time, since `answer_count` isn't what's racing here, only the tier label is). Navigating away
+  and back (a fresh mount, by which point the write has long since landed) shows the correct
+  tier. Same root cause as the cross-tab item above (fetch-once-per-mount, no invalidation
+  signal) manifesting on a shorter timescale within one tab rather than across two — not
+  something `hasInsufficientData`'s guard-bypass fixes touch or could fix, since the guard isn't
+  what's rejecting this write; it's just slower than the click. A real fix needs the same bigger
+  change (realtime subscription/shared cache) or, narrower, blocking navigation while
+  `usePendingWritesGuard`'s `hasPendingWrites` is true — both explicitly deferred, not attempted,
+  per Dan's instruction to log rather than fix during this retest.
 - **`npm run type-check` checks nothing, and `npm run lint` is dirty on `master`.** Root
   `tsconfig.json` has `"files": []` plus two `references`, so a plain `tsc --noEmit` (which is
   what the script runs) type-checks zero files. The real check is `tsc -b`, which is already
