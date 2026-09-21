@@ -137,6 +137,12 @@ export function HomeReviewGrid({
             top={0}
             left={0}
             w="100%"
+            // pb matches the inner Grid's own gap={2} (Chakra's "2" token, 8px) — the vertical
+            // row-to-row gap the old flat SimpleGrid got for free from one shared `gap` prop.
+            // Each row is its own absolutely-positioned block now, so nothing else adds space
+            // between rows; measureElement picks this up automatically as part of the row's
+            // real measured height.
+            pb={2}
             transform={`translateY(${virtualRow.start - rowVirtualizer.options.scrollMargin}px)`}
           >
             <Grid templateColumns={`repeat(${columns}, 1fr)`} gap={2}>
