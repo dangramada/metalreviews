@@ -24,6 +24,7 @@
     "@emotion/styled": "^11.11.0",
     "@floating-ui/react": "^0.27.19",
     "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/react-virtual": "^3.14.13",
     "@tiptap/pm": "^3.27.1",
     "@tiptap/react": "^3.27.1",
     "@vercel/analytics": "^1.6.1",

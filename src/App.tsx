@@ -25,15 +25,12 @@ import {
   Container,
   Input,
   NativeSelect,
-  SimpleGrid,
   Wrap,
   WrapItem,
   Flex,
-  Link,
   Image,
   Skeleton,
   Icon,
-  List,
 } from '@chakra-ui/react';
 
 // Heart icons for favoriting
@@ -52,9 +49,9 @@ import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
-import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
 import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
 import { ListenMenuItems } from './components/ListenMenuItems';
+import { HomeReviewGrid } from './components/HomeReviewGrid';
 
 // PostgREST embed string: fetches every `albums` row with its attached `reviews` nested as
 // an array (via the reviews.album_id FK). `reviews!inner` forces an inner join, so only
@@ -729,28 +726,6 @@ function App() {
   } as const;
   const controlStyle = { ...controlRootStyle, ...controlFieldStyle } as const;
 
-  // Card footprint/border never move on hover (pass 9) — only the artwork inside zooms.
-  // The zoom target is `& img`, scoped to ArtworkBlock's <Image>; the card's own `_hover`
-  // below only ever touches borderColor (the pre-existing score-linked mechanism).
-  const cardStyle = {
-    bg: 'surface.card',
-    borderRadius: 'none',
-    overflow: 'hidden',
-    border: '2px solid',
-    borderColor: 'border.ruleStrong',
-    css: { '&:hover img': { transform: 'scale(0.97)' } },
-  };
-
-  // Card hover border color is earned the same way the score slab's accent fill is: only
-  // albums at/above the 8.0 threshold get the ember border on hover, everything else gets
-  // the neutral bone tone. An album with no score at all (averageScore === null) is treated
-  // as below threshold — there's nothing to "earn" the accent with.
-  function cardHoverBorderColor(averageScore: number | null): string {
-    return averageScore !== null && averageScore >= SCORE_SLAB_HIGH_THRESHOLD
-      ? 'accent.border'
-      : 'slab.bg';
-  }
-
   // =============================================================================
   // RENDER
   // =============================================================================
@@ -843,140 +818,23 @@ function App() {
             </Flex>
           )}
 
-          {/* Marching-text loading indicator while reviews load; card grid once ready */}
+          {/* Marching-text loading indicator while reviews load; card grid once ready.
+              The grid itself is windowed (only rows near the viewport are mounted) —
+              see HomeReviewGrid.tsx / docs/decisions/home-grid-virtualization.md.
+              resetKey is built from the four actual pipeline inputs (not `filtered`
+              itself, which is a fresh array reference every render) so scroll only
+              resets when the user actually changes search/sort/source/score. */}
           {loading ? (
             <Flex justify="center" align="center" minH="200px">
               <LoadingIndicator />
             </Flex>
           ) : (
-            // 1 column on mobile, 2 on tablet, 3 on desktop
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={2}>
-              {filtered.map((rev) => {
-                // Card rendering branches on review count (see docs/decisions/
-                // album-identity-frontend-homepage.md's bugfix note):
-                //   0 reviews  -> album-info-only, no card-level link (manually added, not
-                //                 yet scraped; ArtworkBlock shows no badges either).
-                //   1 review   -> original single-review layout: summary excerpt, one
-                //                 review-date line, and the whole card links out to that
-                //                 review's url.
-                //   2+ reviews -> multi-source layout: per-source <li> lines instead of a
-                //                 summary, no card-level link (each line links out on its own).
-                const singleReview = rev.reviews.length === 1 ? rev.reviews[0] : null;
-
-                const cardBody = (
-                  <Box
-                    {...cardStyle}
-                    _hover={{ borderColor: cardHoverBorderColor(rev.averageScore) }}
-                    h="100%"
-                  >
-                    <ArtworkBlock
-                      rev={rev}
-                      isFavorited={favoritedIds.has(rev.albumId)}
-                      onToggle={() => toggleFavorite(rev.albumId)}
-                    />
-                    {/* Title + release date + genre — standardized spacing via AlbumMetaBlock
-                        (design-system-audit-2026-08.md, Pass 4). Its own px/py padding replaces
-                        this Box's former p={4} for the title/meta portion only; the remaining
-                        summary/review-list content below keeps px={4}/pb={4} so its edges still
-                        align with AlbumMetaBlock's. Bottom padding tightened to 12px (custom
-                        adjustment, review card only) so the gap to the summary text below isn't
-                        as wide as the full 20px default. */}
-                    <AlbumMetaBlock
-                      band={rev.band || 'Unknown Band'}
-                      album={rev.album || 'Untitled Album'}
-                      releaseDate={rev.releaseDate}
-                      genre={rev.genre ?? []}
-                      titleLayout="stacked"
-                      padding={{ bottom: 3 }}
-                    />
-                    <Box px={4} pb={4}>
-                      {singleReview && (
-                        <>
-                          {/* lineClamp={3} truncates long summaries with an ellipsis (v3 prop) */}
-                          <Text fontSize="m" color="text.dim" lineClamp={3} mb={2}>
-                            {singleReview.summary || 'No summary available.'}
-                          </Text>
-                          {singleReview.publishedDate && (
-                            <Text
-                              fontFamily="mono"
-                              fontSize="11px"
-                              letterSpacing="0.06em"
-                              color="text.muted"
-                              title="Review date"
-                            >
-                              {singleReview.publishedDate}
-                            </Text>
-                          )}
-                        </>
-                      )}
-                      {rev.reviews.length > 1 && (
-                        <List.Root as="ul" listStyleType="none" ml={0} mb={2}>
-                          {rev.reviews.map((r) => (
-                            <List.Item key={r.source} fontSize="sm" color="text.dim">
-                              {r.source}: {r.score}
-                              {r.publishedDate ? ` — ${r.publishedDate}` : ''}{' '}
-                              {r.url && (
-                                <Link
-                                  href={r.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  color="accent.start"
-                                >
-                                  [see review]
-                                </Link>
-                              )}
-                            </List.Item>
-                          ))}
-                        </List.Root>
-                      )}
-                    </Box>
-                  </Box>
-                );
-
-                return singleReview?.url ? (
-                  // Exactly one review — the whole card links out to it, same as the
-                  // pre-multi-source-display behavior. _hover textDecoration="none" stops
-                  // Chakra underlining the card on hover.
-                  <Link
-                    href={singleReview.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    key={rev.albumId}
-                    color="inherit"
-                    _hover={{ textDecoration: 'none' }}
-                    display="block"
-                    onClick={(e: React.MouseEvent) => {
-                      // Clicking outside an open Listen menu to dismiss it (see
-                      // ArtworkBlock's MenuRoot onOpenChange, which sets this marker on this
-                      // very anchor) still lands on this anchor's own click — without this
-                      // check that click would also navigate to the review, when the user
-                      // only meant to close the menu.
-                      const anchor = e.currentTarget as HTMLElement;
-                      if (anchor.hasAttribute('data-menu-just-closed')) {
-                        anchor.removeAttribute('data-menu-just-closed');
-                        e.preventDefault();
-                        return;
-                      }
-                      // The Listen chip is a Menu trigger nested inside this anchor (see
-                      // ArtworkBlock) and deliberately doesn't call preventDefault() itself —
-                      // doing so there would stop the menu from opening at all. Catching it
-                      // here instead, after the trigger's own click handling has already run,
-                      // stops this card-level link from following its href when the click
-                      // originated on the chip.
-                      if ((e.target as HTMLElement).closest('[data-listen-trigger]')) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    {cardBody}
-                  </Link>
-                ) : (
-                  <Box key={rev.albumId} display="block">
-                    {cardBody}
-                  </Box>
-                );
-              })}
-            </SimpleGrid>
+            <HomeReviewGrid
+              filtered={filtered}
+              favoritedIds={favoritedIds}
+              toggleFavorite={toggleFavorite}
+              resetKey={`${search}|${sortKey}|${filterSource}|${minScore}`}
+            />
           )}
 
           {/* Empty state — only shown after loading with zero matching results */}

@@ -387,6 +387,19 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `slant-take-design-system.md` — consolidated decision doc for all nine passes plus two follow-up tweaks; Chakra v3 gotchas, badge positioning, `averageScore` vs raw `score`
 - `naming-decisions.md` — product name (Slant Take), display face, logo mark, accent-colour change
 - `deferred-work.md` — consolidated tracker of deferred/postponed work — check here first for what's outstanding
+- `review-volume-growth-forecast.md` — 2026-09-21 read-only data pass: weekly review/album growth
+  series, linear-fit trend vs. flat-rate projections, real payload-size measurement. Input to the
+  Home page pagination/virtualization architecture choice — see `home-grid-virtualization.md`
+  for the decision it fed into
+- `home-grid-virtualization.md` — 2026-09-21: windows the Home page review grid with
+  `@tanstack/react-virtual` (`src/components/HomeReviewGrid.tsx`, extracted from `App.tsx`) so
+  only rows near the viewport mount, instead of all filtered cards (and their image requests)
+  firing at once. Fetch/filter/sort/search unchanged. Documents a deliberate, scoped exception
+  to the project's "no `useBreakpointValue`" convention (uses `window.innerWidth` + a debounced
+  resize listener instead, for the same jsdom-testability reason, not `matchMedia`), and a real
+  but verified-safe module cycle between `App.tsx` and the new file. Ctrl+F/screen-reader
+  reachability trade-off (windowed rows don't exist in the DOM) flagged, not yet confirmed with
+  Dan. Not yet committed as of this write-up — see git status before assuming this has landed
 - `finished-work.md` — the closed-items counterpart to `deferred-work.md`: items confirmed fully shipped/verified/resolved, relocated there rather than deleted
 - `auth-email-smtp.md` — Resend/SMTP findings: Supabase's default mailer refuses delivery outside the project org team; custom SMTP lifts that but hits Resend's own sandbox restriction until a domain is verified
 - `unknown-band-collision-audit.md` — read-only audit of non-review posts across AMG/PS/Metal Storm, RSS category-tag signal discovery
