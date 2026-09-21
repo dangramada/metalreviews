@@ -387,10 +387,6 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `slant-take-design-system.md` — consolidated decision doc for all nine passes plus two follow-up tweaks; Chakra v3 gotchas, badge positioning, `averageScore` vs raw `score`
 - `naming-decisions.md` — product name (Slant Take), display face, logo mark, accent-colour change
 - `deferred-work.md` — consolidated tracker of deferred/postponed work — check here first for what's outstanding
-- `review-volume-growth-forecast.md` — 2026-09-21 read-only data pass: weekly review/album growth
-  series, linear-fit trend vs. flat-rate projections, real payload-size measurement. Input to the
-  Home page pagination/virtualization architecture choice — see `home-grid-virtualization.md`
-  for the decision it fed into
 - `home-grid-virtualization.md` — 2026-09-21: windows the Home page review grid with
   `@tanstack/react-virtual` (`src/components/HomeReviewGrid.tsx`, extracted from `App.tsx`) so
   only rows near the viewport mount, instead of all filtered cards (and their image requests)

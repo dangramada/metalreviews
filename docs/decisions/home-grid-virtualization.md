@@ -2,7 +2,9 @@
 
 ## Problem
 
-`docs/decisions/review-volume-growth-forecast.md` projects the catalogue roughly doubling to
+`docs/data/review-volume/review-volume-growth-forecast-2026-09-21.md` (generated diagnostic
+output, not a prose decision — see `CLAUDE.md`'s `docs/data/<cluster>/` convention) projects the
+catalogue roughly doubling to
 tripling over the next 12 months — still fine to fetch entirely client-side. The real cost was
 DOM/network, not data: the old `SimpleGrid` in `src/App.tsx` mounted every filtered album card
 at once, so every card's `ArtworkBlock` fired its image request on load — hundreds of
