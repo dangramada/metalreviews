@@ -105,6 +105,21 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 No branches currently in progress.
 
+Most recent work landed as a direct commit to `master` (no feature branch, no rollback tag —
+small, well-scoped bug fix, same precedent as `streaming-links.md`/the mobile-layout pass
+below): `filterMetalStormBackCatalogue()` (`src/App.tsx`) replaced its calendar-year comparison
+with a release-date-to-published-date gap check (hide only if the gap exceeds 365 days) — the
+old rule tied "is this back-catalogue" to today's date, so every review of a late-in-the-year
+album would have silently vanished the moment the calendar rolled over (e.g. on 2027-01-01),
+with nothing in the data having changed. Bug, not intended behavior; caught before any calendar
+boundary was actually crossed. `now` parameter removed from the function entirely — the result
+is now fixed by the row's own two dates. Verified against real data: 0 rows where the old and
+new rules disagree at this snapshot, all 6 originally-flagged back-catalogue reviews still
+correctly hidden (gaps in the thousands of days). 448/448 tests (446 + 2 net new,
+`metalStormBackCatalogue.test.ts` rewritten from calendar-year mocking to gap-based cases —
+also drops the need for date-freezing in tests), `tsc --noEmit` clean. Full detail:
+`docs/decisions/metalstorm-backcatalogue-exclusion.md` ("2026-09-21 fix" section).
+
 Most recent merge: `insufficient-data-score-state` — Album Evaluation and Favorites stop showing
 a score, rank or tier name while the persisted calibration tier describes a session the user has
 since restarted (`hasInsufficientData` on `useCalibrationGate`, plus a new `status.info` token).

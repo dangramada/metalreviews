@@ -16,8 +16,6 @@ vi.mock('../supabaseClient', () => ({
   },
 }));
 
-const NOW_2026 = new Date('2026-09-18T12:00:00.000Z');
-
 function review(overrides: Partial<NestedReviewRow> = {}): NestedReviewRow {
   return {
     id: overrides.id ?? 'r1',
@@ -26,7 +24,10 @@ function review(overrides: Partial<NestedReviewRow> = {}): NestedReviewRow {
     normalized_score: overrides.normalized_score ?? 80,
     summary: overrides.summary ?? 'A great record.',
     url: overrides.url ?? 'https://example.com/review',
-    published_at: overrides.published_at ?? '2026-09-01T00:00:00.000Z',
+    published_at:
+      'published_at' in overrides
+        ? (overrides.published_at as string | null)
+        : '2026-09-01T00:00:00.000Z',
     published_date: overrides.published_date ?? '01 Sep 2026',
   };
 }
@@ -47,14 +48,19 @@ function albumRow(overrides: Partial<AlbumWithReviewsRow> = {}): AlbumWithReview
 describe('filterMetalStormBackCatalogue', () => {
   it('required case: AMG review + excluded back-catalogue Metal Storm review renders as single-source, not multi-source with a gap', () => {
     const row = albumRow({
-      release_date: '2010-03-15', // old year — the Metal Storm review is stale back-catalogue
+      release_date: '2010-03-15',
       reviews: [
         review({ id: 'amg-1', source: 'Angry Metal Guy', score: '8/10' }),
-        review({ id: 'ms-1', source: 'Metal Storm', score: '7/10' }),
+        review({
+          id: 'ms-1',
+          source: 'Metal Storm',
+          score: '7/10',
+          published_at: '2015-01-01T00:00:00.000Z', // years after release — stale back-catalogue
+        }),
       ],
     });
 
-    const [filtered] = filterMetalStormBackCatalogue([row], NOW_2026);
+    const [filtered] = filterMetalStormBackCatalogue([row]);
     expect(filtered.reviews).toHaveLength(1);
     expect(filtered.reviews[0].source).toBe('Angry Metal Guy');
     expect(filtered.reviews.map((r) => r.id)).not.toContain('ms-1');
@@ -66,12 +72,12 @@ describe('filterMetalStormBackCatalogue', () => {
     expect(card.reviews[0].source).toBe('Angry Metal Guy');
   });
 
-  it('keeps a Metal Storm review whose album release_date year matches the current year', () => {
+  it('keeps a Metal Storm review published within 12 months of release', () => {
     const row = albumRow({
-      release_date: '2026-06-01',
-      reviews: [review({ source: 'Metal Storm' })],
+      release_date: '2026-01-01',
+      reviews: [review({ source: 'Metal Storm', published_at: '2026-06-01T00:00:00.000Z' })],
     });
-    const [filtered] = filterMetalStormBackCatalogue([row], NOW_2026);
+    const [filtered] = filterMetalStormBackCatalogue([row]);
     expect(filtered.reviews).toHaveLength(1);
   });
 
@@ -80,47 +86,67 @@ describe('filterMetalStormBackCatalogue', () => {
       release_date: null,
       reviews: [review({ source: 'Metal Storm' })],
     });
-    const [filtered] = filterMetalStormBackCatalogue([row], NOW_2026);
+    const [filtered] = filterMetalStormBackCatalogue([row]);
     expect(filtered.reviews).toHaveLength(1);
   });
 
-  it('drops a Metal Storm review whose album release_date year does not match the current year', () => {
+  it('keeps a Metal Storm review when published_at is null (fail-safe — gap unknowable)', () => {
+    const row = albumRow({
+      release_date: '2010-01-01',
+      reviews: [review({ source: 'Metal Storm', published_at: null })],
+    });
+    const [filtered] = filterMetalStormBackCatalogue([row]);
+    expect(filtered.reviews).toHaveLength(1);
+  });
+
+  it('drops a Metal Storm review published more than 12 months after release', () => {
     const row = albumRow({
       release_date: '2015-01-01',
-      reviews: [review({ source: 'Metal Storm' })],
+      reviews: [review({ source: 'Metal Storm', published_at: '2016-06-01T00:00:00.000Z' })],
     });
-    const filtered = filterMetalStormBackCatalogue([row], NOW_2026);
+    const filtered = filterMetalStormBackCatalogue([row]);
     expect(filtered).toHaveLength(0); // zero reviews left -> album row dropped entirely
   });
 
-  it('does not apply the year rule to non-Metal-Storm sources', () => {
+  it('does not apply the gap rule to non-Metal-Storm sources', () => {
     const row = albumRow({
-      release_date: '2015-01-01', // old year, but not Metal Storm — rule is source-specific
+      release_date: '2015-01-01', // stale gap, but not Metal Storm — rule is source-specific
       reviews: [
         review({ source: 'Angry Metal Guy' }),
         review({ source: 'The Progressive Subway' }),
       ],
     });
-    const [filtered] = filterMetalStormBackCatalogue([row], NOW_2026);
+    const [filtered] = filterMetalStormBackCatalogue([row]);
     expect(filtered.reviews).toHaveLength(2);
   });
 
   it('drops the whole album row when its only review is an excluded Metal Storm one', () => {
     const row = albumRow({
       release_date: '2013-11-14',
-      reviews: [review({ source: 'Metal Storm' })],
+      reviews: [review({ source: 'Metal Storm', published_at: '2015-01-01T00:00:00.000Z' })],
     });
-    const filtered = filterMetalStormBackCatalogue([row], NOW_2026);
+    const filtered = filterMetalStormBackCatalogue([row]);
     expect(filtered).toHaveLength(0);
   });
 
-  it('leaves a multi-source album with two current-year reviews as multi-source (no over-filtering)', () => {
+  it('leaves a multi-source album with two promptly-reviewed sources as multi-source (no over-filtering)', () => {
     const row = albumRow({
       release_date: '2026-06-01',
       reviews: [review({ id: 'a', source: 'Angry Metal Guy' }), review({ id: 'b', source: 'Metal Storm' })],
     });
-    const [filtered] = filterMetalStormBackCatalogue([row], NOW_2026);
+    const [filtered] = filterMetalStormBackCatalogue([row]);
     expect(filtered.reviews).toHaveLength(2);
+  });
+
+  it('does not hide a same-year review just because today is many months later (gap is release→review, never review→today)', () => {
+    // Released and reviewed in the same January; today being in December must not matter —
+    // the old calendar-year rule would have gotten this right too, but only by accident.
+    const row = albumRow({
+      release_date: '2026-01-05',
+      reviews: [review({ source: 'Metal Storm', published_at: '2026-01-20T00:00:00.000Z' })],
+    });
+    const [filtered] = filterMetalStormBackCatalogue([row]);
+    expect(filtered.reviews).toHaveLength(1);
   });
 });
 

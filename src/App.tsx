@@ -111,22 +111,23 @@ export function getReleaseYear(dateStr: string | null): number | null {
   return isNaN(year) ? null : year;
 }
 
+// A calendar-year comparison ties "is this an old-album retrospective" to today's date rather
+// than the album's actual age — every review of a late-year album would silently vanish the
+// moment the calendar rolls over (see docs/decisions/metalstorm-backcatalogue-exclusion.md).
+const BACK_CATALOGUE_GAP_MS = 365 * 24 * 60 * 60 * 1000;
+
 // Metal Storm back-catalogue exclusion (docs/decisions/metalstorm-backcatalogue-exclusion.md):
 // Metal Storm reviews albums well after release, unlike AMG/PS/Sputnik's near-simultaneous
-// coverage — a Metal Storm review whose album released in a prior calendar year is stale
-// back-catalogue content, not "new" for this site's purposes. Hides just that source's review
-// on an album, not the whole album — an AMG/PS review on the same album still shows.
+// coverage — a Metal Storm review published more than ~12 months after the album's release is
+// stale back-catalogue content, not "new" for this site's purposes. Hides just that source's
+// review on an album, not the whole album — an AMG/PS review on the same album still shows.
 // `release_date` null stays visible (fail-safe, matches every other null-date handling in this
-// app). Computed at fetch time, not a stored flag — retroactive by construction: a date fixed
-// upstream (e.g. a MusicBrainz release-group correction) or a new calendar year both take
-// effect on the very next load, no backfill needed. `now` is injected (defaults to `new Date()`)
-// so this stays a pure, easily-testable function, same pattern as
-// scripts/ingest.ts's selectAlbumBackfillCandidates.
+// app); a null `published_at` gets the same fail-safe treatment since the gap can't be computed.
+// Fixed at ingest time by construction (release_date and published_at don't change once set), no
+// `now` dependency and no calendar-boundary cliff.
 export function filterMetalStormBackCatalogue(
-  rows: AlbumWithReviewsRow[],
-  now: Date = new Date()
+  rows: AlbumWithReviewsRow[]
 ): AlbumWithReviewsRow[] {
-  const currentYear = now.getFullYear();
   return rows.flatMap((row) => {
     // A row with no reviews at all didn't lose anything to this filter — leave it exactly as
     // it arrived. The real query's `reviews!inner` join means this never happens in
@@ -136,8 +137,9 @@ export function filterMetalStormBackCatalogue(
     if (row.reviews.length === 0) return [row];
     const filtered = row.reviews.filter((r) => {
       if (r.source !== 'Metal Storm') return true;
-      const year = getReleaseYear(row.release_date);
-      return year === null || year === currentYear;
+      if (!row.release_date || !r.published_at) return true;
+      const gap = new Date(r.published_at).getTime() - new Date(row.release_date).getTime();
+      return gap <= BACK_CATALOGUE_GAP_MS;
     });
     // Only drop the row if this filter is what emptied it — a genuine "all its reviews were
     // stale back-catalogue Metal Storm" case, not a pre-existing zero-review row.
