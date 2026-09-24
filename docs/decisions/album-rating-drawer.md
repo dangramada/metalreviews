@@ -162,3 +162,19 @@ feature commit + this doc in a separate commit, matching prior parts' convention
 display bug was found and fixed *during* this session's own verification step, not deferred —
 consistent with the brief's explicit instruction to verify the normalization claim rather
 than assume it.
+
+## 2026-09-24 - Status update: superseded vs. still in effect
+
+This doc mixes dead UI with live engine findings. Nothing above is edited; this section marks which is which.
+
+**Superseded**
+- Part B, the drawer UI, and its `onRatingChange` wiring and confirmation view: `AlbumRatingDrawer` is gone. See `docs/decisions/album-rating-page.md`.
+- The `rankBadge` chip: replaced by `rankOverlayBadge` (`src/theme.ts`). See `docs/decisions/favorites-row-desktop-redesign.md`.
+- The `FaSlidersH` rate icon: now `LuClipboardCheck` / "Evaluate". See `docs/decisions/favorites-row-mobile-compact-redesign.md`.
+- Part A's hard gate on rating: reversed 2026-08-09 by `docs/decisions/album-rating-soft-gate.md`. Current behavior lives in `handleRate` (`src/FavoritesPage.tsx`) and `src/hooks/useCalibrationGate.ts`. A missing model opens a hard dialog. `tier === 'none'` opens a soft, bypassable nudge. `/rate/:albumId` is ungated.
+- The normalization finding (level-5 values summing to 1.308, raw score 122%): fixed 2026-08-09 by `docs/decisions/criteria-calibration/criteria-calibration-joint-point-estimate.md` (sum now 1.0). The 100% display clamp remains in `src/components/album-rating/RatingProgressBox.tsx` as a float-noise safety net. The clamp-compression caveat above no longer applies.
+
+**Still in effect**
+- `src/lib/album-rating/scoreAndRank.ts`: `computeScore` returns null on a missing (criterion, level) value. `rankAlbum` sorts by score descending, tie-broken by `albumId`.
+- `src/hooks/useAlbumRatingsSummary.ts`: rank is computed per release year (`getReleaseYear`).
+- Medium-tier flatness: adjacent levels can share one point value while a session is confined to degree 2, so exact score ties happen and the `albumId` tie-break does real work. Confirmed to persist after the joint fix (`docs/decisions/deferred-work.md`, degree-2 flatness item). It dissolves once degree 3+ answers exist. The specific "levels 2-4 identical" shape was observed only pre-fix; post-fix diagnostics saw flat pairs at levels 1-2/1-3 instead.
