@@ -248,6 +248,13 @@ rewriting them, which this reorg pass deliberately avoided.
   plausible upstream cause of both the timeouts and the memory spike. Unconfirmed. Deciding
   evidence: the next post-fix run's log. If all fetches still fail (now as 30s protocol
   timeouts), or scores stay `null` silently, it's the block, and (4) becomes a prerequisite.
+  **(5) CLOSED 2026-09-25 — reframed: not Render-specific, cloud/datacenter-ASN-wide.** Four
+  scheduled/manual Render runs (9/23–9/25) each logged `scored 0, cloudflare-challenge N` (74/74
+  blocked); a GitHub Actions runner running the unmodified `fetchMetalStormRating()` was 8/8
+  blocked; a local residential IP passed 3/8 before locking out from volume. Cloudflare blocks
+  by IP/ASN class, not browser fingerprint, so stealth is ruled out. Full evidence:
+  `metalstorm-ingest-memory-fix.md` ("2026-09-25 — final summary"). Whether to pursue any
+  proxy/residential egress is a separate, still-open product decision, not scoped here.
   (4) **Fetch-outcome logging: merged 2026-09-17 (`f54c25b`, branch
   `metalstorm-fetch-status-logging`).** Triggered because the first post-fix Render run (2026-09-16 21:53 UTC) was
   memory-clean (`fetching 9 of 20`, completed) but stored all 9 as `null` with nothing logged.

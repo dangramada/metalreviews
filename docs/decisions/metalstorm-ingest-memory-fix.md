@@ -163,3 +163,69 @@ fixtures are hand-written from yesterday's inspection.
 
 Tracked in `deferred-work.md` section B: watch Render memory across two scheduled runs after
 deploy; check Supabase for Metal Storm rows written during the 2026-09-16 incident.
+
+## 2026-09-25 — Cloudflare block diagnosis and Stage 1 stealth test
+
+**Diagnosis (read-only).** Metal Storm scores vanished from review cards. Supabase: 26 of 28
+Metal Storm rows published 2026-09-09 onward have `normalized_score: null` (last scored:
+Devil Master 9/6, Boundaries 9/14). Render logs for four consecutive scheduled runs (9/23
+22:04 → 9/25 12:34) each end `scored 0, cloudflare-challenge N` for all 74 fetches (status 403,
+title "Just a moment..."). Ingest still reports success, so the failure is silent. Cause: Cloudflare challenges
+Render's fetches. The card's "honest null" state (badge kept, score slab omitted, excluded from
+average/filter) is correct and unchanged.
+
+**Step 0 gate (scraping policy), passed.** `robots.txt` has `Crawl-delay: 6` and does not
+disallow `/pub/review.php`; the rules/policies FAQ (`faq_id=1`) and Author Agreement
+(`faq_id=27`, contributors only) have no scraping/bot clause. Site is a nonprofit run by
+volunteers, so any fetch change must respect the 6s crawl delay (current ingest: concurrency 2,
+~6.5s effective per page, roughly compliant; don't raise concurrency).
+
+**Stage 1 (local, no commits, `scratch/ms-stealth-test.mjs`, system Google Chrome via
+`executablePath` — the bundled `.cache` Chrome for Testing was corrupted).** Pages 21428,
+21399, 21423, 21379, 7s apart:
+
+| Run | 21428 | 21399 | 21423 | 21379 |
+|---|---|---|---|---|
+| plain puppeteer (control) | 200, 8.3 | 200, no score | 200, 7.7 | **403 challenge** |
+| puppeteer-extra + stealth | 200, 8.3 | 200, no score | 200, 7.7 | 200, no score selector |
+
+No 403 under stealth, so the stop condition wasn't hit. But the control mostly passed too, so
+**this does not show stealth is what clears the block**: from a residential IP, plain Puppeteer
+gets through most of the time, and the one control challenge (last page) may be rate/reputation
+noise. The evidence points toward IP reputation (Render's datacenter range) rather than a pure
+headless fingerprint, which contradicts the earlier "local also blocked" note — that was curl
+and an older run. Stage 2 (a real Render run) is still the only real test, and stealth may add
+nothing. (21399 and 21379 showed `.album-rating` but no score span: too few votes /
+not-yet-scored, a different outcome from a challenge.)
+
+**Caveat, not a durable fix.** `puppeteer-extra-plugin-stealth` is community-maintained and
+largely inactive; it patches only in-page JS signals (`navigator.webdriver`, WebGL, etc.) and
+not the `Runtime.enable` CDP-level leak. It beats simple Cloudflare setups and fails against
+advanced ones; a pass today may regress. If Stage 2 fails or later regresses, candidates (not
+tried, not implemented): `rebrowser-patches`, `patchright`, `puppeteer-real-browser`. A local
+pass is not proof Render's IP will pass — `deferred-work.md` item (5) stays open.
+
+### 2026-09-25 — final summary: stealth investigation concluded, not pursued further
+
+Three independent origins, same review IDs, real unmodified `fetchMetalStormRating()` (no
+stealth) for the last two:
+
+| Origin | Result |
+|---|---|
+| Render (scheduled + manual, 9/23–9/25) | 74/74 `cloudflare-challenge`; latest manual run 19/19 |
+| GitHub Actions `ubuntu-latest` runner (8 pages, 7s apart, single run, fresh IP) | 8/8 blocked (result per Dan, read from the run's log) |
+| Local residential IP (8 pages, 7s apart) | 3/8 scored, then challenged for the rest as volume accumulated |
+
+**Conclusion:** Cloudflare is blocking by IP/ASN class (datacenter vs. residential), not by
+browser fingerprint, and not specifically Render's range: both cloud origins were blocked from
+the first request, while only the residential IP got pages through. `puppeteer-extra-plugin-
+stealth` patches JS-level signals, the wrong layer for an IP-level block, so it is ruled out
+and not pursued. The Stage 1 stealth pass (above) was real but uninformative: plain Puppeteer
+passed the same pages from the same residential IP before its reputation dropped.
+
+**Not approved / not scoped:** no proxy, no residential egress, no further evasion work of any
+kind. Whether Metal Storm scores are worth that is a separate, still-open product decision;
+until then scores stay best-effort, and the card's "honest null" state (badge kept, score
+omitted) is correct as-is. `deferred-work.md` item (5) is closed accordingly. The throwaway
+workflow and `scratch/` scripts lived only on the deleted `scratch/metalstorm-stealth-test`
+branch and were never merged.
