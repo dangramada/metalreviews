@@ -84,7 +84,7 @@ import {
   confidenceWarningBadge,
   genreBadge,
   primaryButton,
-  rankOverlayBadge,
+  scoreOverlayBadge,
   secondaryButton,
 } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
@@ -98,6 +98,10 @@ import { useNavigate } from 'react-router-dom';
 // the two cannot drift. Says what the user has to do, not how settled the old score was: there
 // is no old score left to describe.
 const INSUFFICIENT_DATA_BADGE_TEXT = 'No score yet. Answer a round of comparisons in calibration.';
+
+// 0–1 score → "x.x" on the /10 scale. Clamped: normalization can overshoot 1 by epsilon
+// (RatingProgressBox warns on it), which would otherwise render an impossible "10.1".
+export const formatBadgeScore = (score: number) => (Math.min(1, score) * 10).toFixed(1);
 
 export function FavoriteListItemRow({
   item,
@@ -221,23 +225,30 @@ export function FavoriteListItemRow({
                   </Text>
                 </Flex>
               )}
-              {/* Rank overlay (+ low-confidence warning, when applicable) — flush bottom-left
+              {/* Score overlay (+ low-confidence warning, when applicable) — flush bottom-left
                 corner, same technique as the home page's sourceBadge/scoreSlab overlays
                 (position="absolute" + bottom={0}/left={0}, not an inset offset — that was
                 tried on other badges and rejected since partial borders only read correctly
-                flush into the corner). Only rendered when this album has a rank; no
+                flush into the corner). Only rendered when this album has a score; no
                 placeholder otherwise. The warning badge sits directly beside it (not a
                 separate corner) so both read as one strip. */}
               {/* display="grid" + gridAutoFlow="column" (not Flex/row) is load-bearing: a plain
                 flex row's default `align-items: stretch` matches the warning badge's *height*
-                to its taller rankOverlayBadge sibling, but its `aspectRatio: 1/1` (see
+                to its taller scoreOverlayBadge sibling, but its `aspectRatio: 1/1` (see
                 confidenceWarningBadge) is ignored for the *width* — confirmed live, the badge
                 rendered ~7px wide against the rank badge's ~31px. CSS Grid's track-sizing
                 algorithm honors aspect-ratio against the stretched cross size correctly. */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                  <Box {...rankOverlayBadge}>
-                    {hasInsufficientData ? '—' : `#${ratingSummary.rank}`}
+                  <Box
+                    {...scoreOverlayBadge}
+                    aria-label={
+                      hasInsufficientData
+                        ? undefined
+                        : `Score ${formatBadgeScore(ratingSummary.score)}`
+                    }
+                  >
+                    {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
                   </Box>
                   {(hasInsufficientData || confidenceTier === 'none') && (
                     <Tooltip
@@ -393,7 +404,7 @@ export function FavoriteListItemRow({
                   </Text>
                 </Flex>
               )}
-              {/* Same rankOverlayBadge token as desktop, reused unmodified — it was built
+              {/* Same scoreOverlayBadge token as desktop, reused unmodified — it was built
                 layout-agnostic (favorites-row-desktop-redesign). Warning badge uses a plain
                 title/aria-label instead of Tooltip — touch has no hover state, same
                 reasoning as the Rate/Remove buttons below. Grid, not Flex — see the desktop
@@ -401,8 +412,15 @@ export function FavoriteListItemRow({
                 stretched item, but honored by CSS Grid's track sizing). */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                  <Box {...rankOverlayBadge}>
-                    {hasInsufficientData ? '—' : `#${ratingSummary.rank}`}
+                  <Box
+                    {...scoreOverlayBadge}
+                    aria-label={
+                      hasInsufficientData
+                        ? undefined
+                        : `Score ${formatBadgeScore(ratingSummary.score)}`
+                    }
+                  >
+                    {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
                   </Box>
                   {(hasInsufficientData || confidenceTier === 'none') && (
                     <Box

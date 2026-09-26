@@ -4,7 +4,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
-import { FavoritesPage, FavoriteListItemRow } from '../FavoritesPage';
+import { FavoritesPage, FavoriteListItemRow, formatBadgeScore } from '../FavoritesPage';
 import system from '../theme';
 import type { FavoriteListItem } from '../hooks/useFavoritesList';
 
@@ -585,7 +585,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
 });
 
 // Insufficient data (2026-09-20). Exercised on the row directly rather than through the page:
-// the rank badge only renders alongside a ratingSummary, which the page derives from a live
+// the score badge only renders alongside a ratingSummary, which the page derives from a live
 // useAlbumRatingsSummary fetch, and the signal itself is per-account and reaches every row the
 // same way. Both breakpoints' markup mounts at once in jsdom, hence the getAllBy* queries.
 describe('FavoriteListItemRow — insufficient data', () => {
@@ -603,16 +603,23 @@ describe('FavoriteListItemRow — insufficient data', () => {
     );
   }
 
-  it('replaces the rank with a dash and warns, at a stale very_high tier', () => {
+  it('replaces the score with a dash and warns, at a stale very_high tier', () => {
     renderRow(true);
-    expect(screen.queryByText('#1')).not.toBeInTheDocument();
+    expect(screen.queryByText('8.2')).not.toBeInTheDocument();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expect(screen.getAllByTitle(INSUFFICIENT_DATA_TEXT).length).toBeGreaterThan(0);
   });
 
-  it('leaves the rank alone when the data is current', () => {
+  it('shows the score when the data is current', () => {
     renderRow(false);
-    expect(screen.getAllByText('#1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('8.2').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Score 8.2').length).toBeGreaterThan(0);
     expect(screen.queryByTitle(INSUFFICIENT_DATA_TEXT)).not.toBeInTheDocument();
+  });
+
+  it('clamps an epsilon-overshoot score to 10.0, never 10.1', () => {
+    expect(formatBadgeScore(1.004)).toBe('10.0');
+    expect(formatBadgeScore(1.2)).toBe('10.0');
+    expect(formatBadgeScore(0.7)).toBe('7.0');
   });
 });
