@@ -515,18 +515,18 @@ export const genreBadge = {
   py: '4px',
 } as const;
 
-// Rank overlay badge — favorites row desktop redesign. Flush-corner overlay on the
-// artwork thumbnail (bottom-left), structurally modeled on scoreSlabHigh (accent fill,
-// 2px structural border, zero radius) but single-node: just "#{rank}", no second
-// value node like ScoreSlab's score/denominator pair. Always accent-filled — unlike
-// scoreSlabHigh there's no threshold, every rank renders identically.
-export const rankOverlayBadge = {
-  bg: 'accent.border',
-  color: 'accent.ink',
+// Score overlay badge — favorites row. Flush-corner overlay on the artwork thumbnail
+// (bottom-left), single node: the album's own score as "x.x" (no suffix). Replaced the
+// accent-filled rank badge; dark fill + sand text so it reads on any artwork, including
+// dark covers. Same box metrics as the rank badge had, so confidenceWarningBadge's derived
+// width is unchanged. Top + right borders only.
+export const scoreOverlayBadge = {
+  bg: 'ink.950',
+  color: 'sand.200',
   borderTop: '2px solid',
-  borderTopColor: 'border.rule',
+  borderTopColor: 'ink.800',
   borderRight: '2px solid',
-  borderRightColor: 'border.rule',
+  borderRightColor: 'ink.800',
   borderRadius: '0',
   fontFamily: 'heading',
   fontSize: '14px',
@@ -536,12 +536,12 @@ export const rankOverlayBadge = {
   py: '4px',
 } as const;
 
-// Low-confidence warning badge — flush against rankOverlayBadge (same corner, same row, no
+// Low-confidence warning badge — flush against scoreOverlayBadge (same corner, same row, no
 // gap between them: they read as one contiguous strip), not a separate corner. Only ever
 // appears for tier 'none'. Square with equal sides: no fixed px/py, instead `aspectRatio:
 // '1/1'` + flex centering, so its width self-matches whatever height the row's own flex
-// stretch (the parent Flex's default align-items) gives it from the taller rankOverlayBadge
-// sibling — deliberately not hardcoded, since rankOverlayBadge's own height isn't fixed
+// stretch (the parent Flex's default align-items) gives it from the taller scoreOverlayBadge
+// sibling — deliberately not hardcoded, since scoreOverlayBadge's own height isn't fixed
 // either. `cursor: 'help'`, not `pointer` — this badge isn't clickable, only hoverable for
 // its tooltip/title, so no hover background change either.
 export const confidenceWarningBadge = {

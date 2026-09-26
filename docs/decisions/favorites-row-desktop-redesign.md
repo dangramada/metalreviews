@@ -4,6 +4,13 @@ Desktop-only restyle of `FavoriteListItemRow` (`src/FavoritesPage.tsx`), used by
 `/favorites` list and the `AddAlbumDrawer` preview. Mobile untouched — a separate brief follows.
 Branch `favorites-row-desktop-redesign`, merged to `master` 2026-08-07 (merge commit `5055ba7`).
 
+> **2026-09-26 update:** `rankOverlayBadge` (`#N`, accent fill) was replaced on both breakpoints
+> by `scoreOverlayBadge` — the album's own score as `x.x` (0–1 score × 10, clamped at 10.0),
+> `ink.950` fill, `sand.200` text, `ink.800` top/right borders, same box metrics. `aria-label`
+> "Score x.x" added (masked to `—` with no label under insufficient data). Rank now appears only
+> on the Album Rating page. References to `rankOverlayBadge` below and in the other decision docs
+> are historical. Branch `feature/favorites-score-badge`.
+
 ## What shipped
 
 **Artwork:** 96px → 128px, flush against the row's left/top/bottom edges (row padding zeroed,

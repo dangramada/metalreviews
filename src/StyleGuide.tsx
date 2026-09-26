@@ -24,7 +24,7 @@ import {
   scoreSlabBase,
   scoreSlabHigh,
   genreBadge,
-  rankOverlayBadge,
+  scoreOverlayBadge,
   cardTitleBand,
   cardTitleAlbum,
 } from './theme';
@@ -530,14 +530,16 @@ export function StyleGuide() {
                 </HStack>
               </Box>
               <Box>
-                <Label>
-                  rankOverlayBadge — favorites row desktop, flush bottom-left of artwork
-                </Label>
-                <HStack gap={2}>
-                  <Badge {...rankOverlayBadge}>#1</Badge>
-                  <Badge {...rankOverlayBadge}>#2</Badge>
-                  <Badge {...rankOverlayBadge}>#3</Badge>
-                </HStack>
+                <Label>scoreOverlayBadge — favorites row, flush bottom-left of artwork</Label>
+                {/* Neutral backing: the badge fill (ink.950) equals the page background, so on the bare page
+                    only its borders would show. Real use sits on artwork. */}
+                <Box bg="sand.600" p={4} display="inline-block">
+                  <HStack gap={2}>
+                    <Badge {...scoreOverlayBadge}>7.0</Badge>
+                    <Badge {...scoreOverlayBadge}>8.2</Badge>
+                    <Badge {...scoreOverlayBadge}>9.1</Badge>
+                  </HStack>
+                </Box>
               </Box>
             </VStack>
           </Section>
