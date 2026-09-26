@@ -103,7 +103,10 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-No branches currently in progress.
+In progress: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a Score
+badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating page.
+Live-confirmed by Dan. Not yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
+(2026-09-26 note).
 
 Most recent work landed as a direct commit to `master` (no feature branch, no rollback tag —
 small, well-scoped bug fix, same precedent as `streaming-links.md`/the mobile-layout pass
