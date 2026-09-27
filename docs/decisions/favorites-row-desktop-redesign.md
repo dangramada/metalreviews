@@ -10,6 +10,14 @@ Branch `favorites-row-desktop-redesign`, merged to `master` 2026-08-07 (merge co
 > "Score x.x" added (masked to `—` with no label under insufficient data). Rank now appears only
 > on the Album Rating page. References to `rankOverlayBadge` below and in the other decision docs
 > are historical. Branch `feature/favorites-score-badge`.
+>
+> **2026-09-27 update:** the Album Rating page's `RatingSlab` Score (`RatingProgressBox.tsx`,
+> previously `Math.round(score*100)%`) now uses the same `formatBadgeScore` output as this
+> badge, via a new `scoreSlabPersonal` theme key (`ink.950`/`sand.200`, matching
+> `scoreOverlayBadge`'s colors). `formatBadgeScore` moved from `FavoritesPage.tsx` to shared
+> `src/utils/formatScore.ts`; both surfaces import it from there now. `scoreSlabBase` (homepage
+> `ScoreSlab`, critic average) and `scoreSlabHigh` (Rank) are untouched. Branch
+> `feature/rating-page-score-format`.
 
 ## What shipped
 
