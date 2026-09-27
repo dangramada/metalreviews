@@ -142,21 +142,28 @@ describe('within-degree coverage fill', () => {
 });
 
 describe('segmented progress', () => {
-  it('gives each visitable degree an equal segment', () => {
+  it('gives each visitable degree an equal starting baseline', () => {
     expect(computeProgressPercent(2, 0, 6)).toBe(0);
-    expect(computeProgressPercent(2, 0.5, 6)).toBeCloseTo(10, 6);
+    expect(computeProgressPercent(2, 0.5, 6)).toBeCloseTo(50, 6);
     expect(computeProgressPercent(3, 0, 6)).toBeCloseTo(20, 6);
     expect(computeProgressPercent(6, 1, 6)).toBeCloseTo(100, 6);
   });
 
-  // The seam is exact by construction: a degree only ends when its gate is satisfied, at which
-  // point fill is 1.0, so the last frame of degree d equals the first frame of degree d+1.
-  it('joins the segments exactly at every boundary', () => {
-    for (let degree = 2; degree < 6; degree++) {
-      expect(computeProgressPercent(degree, 1, 6)).toBeCloseTo(
-        computeProgressPercent(degree + 1, 0, 6),
-        9
-      );
+  // Per-degree ceiling (criteria-calibration-degree-tiers-and-progress.md §14): fill scales
+  // toward 100 within a degree, not toward baseline + segmentSize, so every degree reaches the
+  // same ceiling and only the starting baseline differs.
+  it('fills every degree toward 100, per criteria-calibration-degree-tiers-and-progress.md §14', () => {
+    const table: Array<[degree: number, start: number]> = [
+      [2, 0],
+      [3, 20],
+      [4, 40],
+      [5, 60],
+      [6, 80],
+    ];
+    for (const [degree, start] of table) {
+      expect(computeProgressPercent(degree, 0, 6)).toBeCloseTo(start, 6);
+      expect(computeProgressPercent(degree, 0.5, 6)).toBeCloseTo(start + 0.5 * (100 - start), 6);
+      expect(computeProgressPercent(degree, 1, 6)).toBeCloseTo(100, 6);
     }
   });
 

@@ -220,19 +220,22 @@ export function clampFillMonotone(previous: FillClampState | null, next: FillCla
 }
 
 /**
- * Whole-session progress, 0..100. One equal segment per degree the session can visit — degrees
- * 2..numCriteria, so 5 segments of 20% for the production 6-criterion catalog, derived rather
- * than hardcoded so a different catalog shape stays correct.
+ * Whole-session progress, 0..100. `baseline` gives each visitable degree — 2..numCriteria, so
+ * 20%-wide baselines for the production 6-criterion catalog — an equal starting point, derived
+ * rather than hardcoded so a different catalog shape stays correct. But `fill` scales toward
+ * 100, not toward `baseline + segmentSize`: matches 1000minds' own bar, which fills toward 100%
+ * within a degree and drops to the next baseline at the transition, rather than filling a fixed
+ * equal segment. See criteria-calibration-degree-tiers-and-progress.md §14 for the correction
+ * and the per-degree start/end table.
  *
- * The seam is exact, not approximate: a degree ends only when the coverage gate is satisfied, at
- * which point `fill` is 1.0 by construction, so the last frame of degree d reads (d-2)*S + S =
- * (d-1)*S — the first frame of degree d+1. Verified across all 18 exhaustion boundaries in the
- * replayed evidence set.
+ * The 100%→next-baseline drop is real and larger than the old exact seam, but stays invisible
+ * for the same reason the old baseline jump was: the bar is hidden during checkpoints, and
+ * `commitAdvance()` sets the new degree before a checkpoint ever renders.
  *
  * PACING IS DELIBERATELY UNEVEN and should not be "fixed". Degree 2 is 34-100% of a real
- * session's answers but worth one segment; later degrees are progressively cheaper (oracle #1
- * spends 30 answers on segment 1 and 7 on segment 5). That reflects the truth that the first
- * degree carries most of the information.
+ * session's answers but worth one baseline step; later degrees are progressively cheaper
+ * (oracle #1 spends 30 answers on step 1 and 7 on step 5). That reflects the truth that the
+ * first degree carries most of the information.
  */
 export function computeProgressPercent(
   currentDegree: number,
@@ -242,6 +245,7 @@ export function computeProgressPercent(
   const segments = Math.max(1, numCriteria - STARTING_DEGREE + 1);
   const segmentSize = 100 / segments;
   const completed = Math.max(0, currentDegree - STARTING_DEGREE);
-  const raw = completed * segmentSize + Math.max(0, Math.min(1, fill)) * segmentSize;
+  const baseline = completed * segmentSize;
+  const raw = baseline + Math.max(0, Math.min(1, fill)) * (100 - baseline);
   return Math.max(0, Math.min(100, raw));
 }
