@@ -495,6 +495,16 @@ export const scoreSlabHigh = {
   color: 'accent.ink',
 } as const;
 
+// Personal Score on the Album Rating page (RatingSlab) — same bg/text pairing as
+// Favorites' scoreOverlayBadge, so the one score value reads consistently across
+// both surfaces. Spreads scoreSlabBase rather than mutating it: scoreSlabBase itself
+// stays exactly as-is for the homepage ScoreSlab (App.tsx).
+export const scoreSlabPersonal = {
+  ...scoreSlabBase,
+  bg: 'ink.950',
+  color: 'sand.200',
+} as const;
+
 // Genre tag — inline chip inside the card body, one per genre.
 // The 1px border is intentional and deliberately thinner than the 2px structural
 // borders used by the flush-corner elements above: inline chips should read

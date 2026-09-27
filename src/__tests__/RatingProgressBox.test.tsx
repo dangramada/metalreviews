@@ -66,7 +66,7 @@ describe('RatingProgressBox — insufficient data', () => {
   it('shows no score, no rank and no tier name', () => {
     renderBox('very_high', true);
     expect(screen.queryByText('Sharp')).not.toBeInTheDocument();
-    expect(screen.queryByText('50%')).not.toBeInTheDocument();
+    expect(screen.queryByText('5.0')).not.toBeInTheDocument();
     expect(screen.queryByText('#3')).not.toBeInTheDocument();
     // Score, Rank and the score-level value.
     expect(screen.getAllByText('—')).toHaveLength(3);
