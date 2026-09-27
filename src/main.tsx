@@ -16,10 +16,18 @@ function CalibrationRouteRedirect() {
   return <Navigate to={{ pathname: '/calibration', search: location.search }} replace />;
 }
 // Lazy-loaded to prevent FavoritesPage from crashing the module graph on import.
-const FavoritesPage = React.lazy(() => import('./FavoritesPage').then(m => ({ default: m.FavoritesPage })));
+const FavoritesPage = React.lazy(() =>
+  import('./FavoritesPage').then((m) => ({ default: m.FavoritesPage }))
+);
+// Lazy-loaded for the same reason.
+const ContendersPage = React.lazy(() =>
+  import('./ContendersPage').then((m) => ({ default: m.ContendersPage }))
+);
 // Lazy-loaded for the same reason, plus this page pulls in @chakra-ui/charts/recharts —
 // no need to add that to every route's initial bundle.
-const AlbumRatingPage = React.lazy(() => import('./AlbumRatingPage').then(m => ({ default: m.AlbumRatingPage })));
+const AlbumRatingPage = React.lazy(() =>
+  import('./AlbumRatingPage').then((m) => ({ default: m.AlbumRatingPage }))
+);
 import system from './theme';
 import { Toaster } from './components/ui/toaster';
 
@@ -33,6 +41,18 @@ const router = createBrowserRouter([
       <RequireAuth>
         <React.Suspense fallback={null}>
           <FavoritesPage />
+        </React.Suspense>
+      </RequireAuth>
+    ),
+  },
+  {
+    // Under /aoty/ (not bare /contenders) so the URL doesn't need to change once AOTY itself
+    // ships and Contenders becomes its sub-path — see aoty-hub-population.md's 2026-09-28 note.
+    path: '/aoty/contenders',
+    element: (
+      <RequireAuth>
+        <React.Suspense fallback={null}>
+          <ContendersPage />
         </React.Suspense>
       </RequireAuth>
     ),

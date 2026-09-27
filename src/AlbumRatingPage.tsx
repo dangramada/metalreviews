@@ -10,7 +10,7 @@ import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useCriteriaCatalog } from './hooks/useCriteriaCatalog';
-import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
+import { useAlbumRatingsSummary, CRITERIA_COUNT } from './hooks/useAlbumRatingsSummary';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { supabase } from './supabaseClient';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
@@ -45,13 +45,23 @@ type AlbumRow = {
 // shape.
 const RATING_FALLBACK_SOURCE: FromSourceEntry = { href: '/favorites', label: 'Favorites' };
 const RATING_FROM_SOURCES: Record<string, FromSourceEntry> = {
-  // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
+  // TODO: point at the real AOTY final-list route once it exists (Contenders now has its own
+  // real route below — only the AOTY side of this stub is still unbuilt).
   aoty: { href: '/favorites', label: 'AOTY' },
   favorites: RATING_FALLBACK_SOURCE,
+  contenders: { href: '/aoty/contenders', label: 'Contenders' },
 };
 function resolveBackDestination(from: string | null): { href: string; sourceLabel: string } {
   const { href, label } = resolveFromSource(from, RATING_FROM_SOURCES, RATING_FALLBACK_SOURCE);
   return { href, sourceLabel: label };
+}
+
+// The auto-entry-into-Contenders trigger (docs/decisions/aoty-hub-population.md): true only on
+// the transition into fully-rated, never on a subsequent edit to an already-fully-rated album
+// (so a manual Contenders removal isn't silently undone by editing one criterion's level
+// afterward). Exported for direct unit testing — see src/__tests__/isFirstFullRating.test.ts.
+export function isFirstFullRating(ratedCountBefore: number, ratedCountAfter: number): boolean {
+  return ratedCountBefore < CRITERIA_COUNT && ratedCountAfter === CRITERIA_COUNT;
 }
 
 export function AlbumRatingPage() {
@@ -152,6 +162,18 @@ export function AlbumRatingPage() {
     if (error) {
       showError('Could not save rating — try again');
       return;
+    }
+    // Any scored album auto-enters Contenders (docs/decisions/aoty-hub-population.md).
+    // Idempotent via the table's own (user_id, album_id) PK; a failure here just means a missed
+    // auto-add, recoverable via the manual "+ Add from Favorites" picker, so it's not surfaced
+    // as a user-facing error.
+    if (isFirstFullRating(ratings.size, new Map(ratings).set(criterionId, level).size)) {
+      supabase
+        .from('contenders')
+        .insert({ user_id: user.id, album_id: albumId })
+        .then(({ error: contendersError }) => {
+          if (contendersError) console.warn('Auto-add to Contenders failed', contendersError);
+        });
     }
     setRatings((prev) => new Map(prev).set(criterionId, level));
     refetchRatingSummary();

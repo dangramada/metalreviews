@@ -39,6 +39,9 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
 
   const isReviewsActive = location.pathname === '/';
   const isFavoritesActive = location.pathname === '/favorites';
+  // startsWith, not exact match: Contenders is nested under /aoty/... (see main.tsx) so this
+  // stays lit for any future sub-path under that prefix too.
+  const isContendersActive = location.pathname.startsWith('/aoty');
 
   return (
     <Box mb={breadcrumb ? 0 : 3}>
@@ -119,6 +122,20 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                 }}
               >
                 Favorites
+              </Link>
+              <Link
+                as={RouterLink}
+                to="/aoty/contenders"
+                {...navPillBase}
+                bg={isContendersActive ? 'accent.border' : 'transparent'}
+                color={isContendersActive ? 'accent.ink' : 'text.dim'}
+                _hover={{
+                  textDecoration: 'none',
+                  bg: isContendersActive ? 'accent.border' : 'surface.raised',
+                  color: isContendersActive ? 'accent.ink' : 'accent.start',
+                }}
+              >
+                Contenders
               </Link>
 
               {/* Vertical divider between nav links and account control */}
@@ -221,6 +238,15 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                         onSelect={() => navigate('/favorites')}
                       >
                         Favorites
+                      </Menu.Item>
+                      <Menu.Item
+                        value="contenders"
+                        bg="surface.card"
+                        color="text.primary"
+                        _hover={{ bg: 'surface.raised' }}
+                        onSelect={() => navigate('/aoty/contenders')}
+                      >
+                        Contenders
                       </Menu.Item>
                       {user ? (
                         <Menu.Item

@@ -46,7 +46,7 @@ const FAVORITES_SELECT =
 // Most recent attached review's date, mirroring AlbumCard.publishedAt's precedent
 // (src/dbMapping.ts) for albums with more than one review — recency is the most useful
 // signal for a fallback used only to bucket an item into a year.
-function latestPublishedAt(reviews: NestedReviewRow[]): string | null {
+export function latestPublishedAt(reviews: NestedReviewRow[]): string | null {
   const dated = reviews.map((r) => r.published_at).filter((d): d is string => d != null);
   if (dated.length === 0) return null;
   return dated.reduce((latest, d) => (new Date(d) > new Date(latest) ? d : latest));

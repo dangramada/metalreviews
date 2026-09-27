@@ -32,6 +32,7 @@ import {
   parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
+import { Checkbox } from './components/ui/checkbox';
 import { Tooltip } from './components/ui/tooltip';
 import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
 import { ListenMenuItems } from './components/ListenMenuItems';
@@ -111,6 +112,10 @@ export function FavoriteListItemRow({
   confidenceTier,
   hasInsufficientData = false,
   previewMode = false,
+  removeLabel = 'favorites',
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -134,6 +139,16 @@ export function FavoriteListItemRow({
   // button, which has no onRate/onRemove-style gate of its own). The /favorites list omits
   // this so its footer is unaffected.
   previewMode?: boolean;
+  // What onRemove removes this row from — feeds the remove tooltip/aria-label and the confirm
+  // dialog's title (e.g. "Remove from Contenders?" on ContendersPage). Body text still uses
+  // item.band/item.album regardless, so this only ever needs the destination noun.
+  removeLabel?: string;
+  // ContendersPage's desktop bulk-remove selection — Contenders-only, desktop-only (per
+  // docs/decisions/aoty-hub-population.md), so this renders solely inside the desktop tree
+  // below and is never passed true from Favorites or from a previewMode instance.
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (checked: boolean) => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -188,6 +203,15 @@ export function FavoriteListItemRow({
             _hover={{ borderColor: 'border.hover' }}
             css={{ '&:hover img': { transform: 'scale(1.06)' } }}
           >
+            {selectable && (
+              <Box pl={3} flexShrink={0} onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={selected}
+                  onCheckedChange={(details) => onToggleSelect?.(!!details.checked)}
+                  aria-label={`${selected ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                />
+              </Box>
+            )}
             <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
               {item.artworkUrl && !imgFailed ? (
                 <>
@@ -336,9 +360,9 @@ export function FavoriteListItemRow({
               </MenuRoot>
 
               {onRemove && (
-                <Tooltip content="Remove from favorites">
+                <Tooltip content={`Remove from ${removeLabel}`}>
                   <IconButton
-                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    aria-label={removing ? 'Loading' : `Remove from ${removeLabel}`}
                     size="sm"
                     variant="ghost"
                     color="text.muted"
@@ -558,7 +582,7 @@ export function FavoriteListItemRow({
                     size="sm"
                     color="text.muted"
                     _hover={{ color: 'red.400' }}
-                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    aria-label={removing ? 'Loading' : `Remove from ${removeLabel}`}
                     loading={removing}
                     spinner={<LoadingIndicatorBars />}
                     onClick={() => setShowRemoveConfirm(true)}
@@ -584,10 +608,10 @@ export function FavoriteListItemRow({
         >
           <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
             <DialogHeader>
-              <DialogTitle fontWeight="semibold">Remove from favorites?</DialogTitle>
+              <DialogTitle fontWeight="semibold">Remove from {removeLabel}?</DialogTitle>
             </DialogHeader>
             <DialogBody>
-              Remove &quot;{item.band} – {item.album}&quot; from your favorites?
+              Remove &quot;{item.band} – {item.album}&quot; from your {removeLabel}?
             </DialogBody>
             <DialogFooter gap={3}>
               <Button

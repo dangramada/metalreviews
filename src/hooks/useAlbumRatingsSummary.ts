@@ -4,7 +4,7 @@ import { useAuth } from '../AuthContext';
 import { getReleaseYear } from '../App';
 import { computeScore, rankAlbum } from '../lib/album-rating/scoreAndRank';
 
-const CRITERIA_COUNT = 6;
+export const CRITERIA_COUNT = 6;
 
 export interface AlbumRatingSummary {
   score: number;
