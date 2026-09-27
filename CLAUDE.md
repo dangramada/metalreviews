@@ -103,6 +103,13 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+In progress: `progress-bar-per-degree-ceiling` — Criteria Calibration's progress bar now fills
+toward 100% within each degree instead of a fixed equal segment, matching 1000minds' own bar
+(baseline per degree unchanged, only the ceiling `fill` scales toward). Formula change in
+`computeProgressPercent` (`degreeTiers.ts`), tests updated, `tsc`/lint clean, 449/449 tests.
+Not yet live-verified by Dan. Detail: `docs/decisions/criteria-calibration/criteria-calibration-
+degree-tiers-and-progress.md` §14.
+
 In progress: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a Score
 badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating page.
 Live-confirmed by Dan. Not yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
