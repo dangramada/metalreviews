@@ -111,10 +111,12 @@ live-verified by Dan. Merged to `master` `--no-ff` at `f420bfb` on 2026-09-27. R
 `pre-merge-feature-rating-page-score-format`. Detail:
 `docs/decisions/favorites-row-desktop-redesign.md` (2026-09-27 note).
 
-In progress: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a Score
-badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating page.
-Live-confirmed by Dan. Not yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
-(2026-09-26 note).
+Most recent merge: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a
+Score badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating
+page. Live-confirmed by Dan. Merged to `master` `--no-ff` at `12b3b4a` on 2026-09-26. Rollback
+tag: `pre-merge-favorites-score-badge`. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
+(2026-09-26 note). (This entry had been stale as "In progress... Not yet merged" — caught and
+fixed during `feature/aoty-contenders`'s 2026-09-28 architecture-verification pass.)
 
 Paused: `mobile-audit-app-shell-2026-09` — read-only mobile/overlay-navigation diagnostic for a
 possible app-shell redesign (bottom tab bar, persistent chrome). Findings-only, no code
