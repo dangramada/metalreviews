@@ -2,13 +2,13 @@
 // scoreSlabBase/scoreSlabHigh style configs (theme.ts) for visual consistency, but not
 // App.tsx's own ScoreSlab component: that component isn't exported and hardcodes a bare
 // number + dimmed "/10" as its content, whereas this needs a small label plus an arbitrary
-// value string (a rank "#N", a percentage, or an em dash pre-completion).
+// value string (a rank "#N", a decimal score, or an em dash pre-completion).
 // flex="1 1 0" gives an even 50/50 split when paired with a sibling RatingSlab (Rank/Score), or
 // fills the full row width when rendered alone (the progress variant, pre-completion) — safe
 // because this component only ever renders inside RatingProgressBox (used by both
 // DesktopRatingLayout's Section 3 and MobileRatingLayout), not as a general-purpose slab.
 import { Box, Text } from '@chakra-ui/react';
-import { scoreSlabBase, scoreSlabHigh } from '../../theme';
+import { scoreSlabPersonal, scoreSlabHigh } from '../../theme';
 
 // In-progress state — single full-width box (see DesktopRatingLayout) shown in place of the
 // Rank/Score pair while rating is incomplete. Not a theme.ts style object like scoreSlabBase/
@@ -31,10 +31,14 @@ export function RatingSlab({
   label: string;
   value: string;
   valueSuffix?: string;
-  variant: 'base' | 'high' | 'progress';
+  variant: 'personal' | 'high' | 'progress';
 }) {
   const styles =
-    variant === 'progress' ? scoreSlabProgress : variant === 'high' ? scoreSlabHigh : scoreSlabBase;
+    variant === 'progress'
+      ? scoreSlabProgress
+      : variant === 'high'
+        ? scoreSlabHigh
+        : scoreSlabPersonal;
   return (
     <Box
       {...styles}

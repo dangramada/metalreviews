@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { LuSlidersVertical } from 'react-icons/lu';
 import { Tooltip } from '../ui/tooltip';
 import { RatingSlab } from './RatingSlab';
+import { formatBadgeScore } from '../../utils/formatScore';
 import type { AlbumRatingSummary } from '../../hooks/useAlbumRatingsSummary';
 import { confidenceLabel, type CalibrationTier } from '../../hooks/useCalibrationGate';
 
@@ -67,9 +68,7 @@ export function RatingProgressBox({
   // icon accented.
   const isMuted = confidenceTier === 'very_high' && !hasInsufficientData;
   const scoreValue =
-    ratingSummary && !hasInsufficientData
-      ? `${Math.min(100, Math.round(ratingSummary.score * 100))}%`
-      : '—';
+    ratingSummary && !hasInsufficientData ? formatBadgeScore(ratingSummary.score) : '—';
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -98,7 +97,7 @@ export function RatingProgressBox({
         >
           <VStack align="stretch" gap={2}>
             <Flex gap={0}>
-              <RatingSlab label="Score" value={scoreValue} variant="base" />
+              <RatingSlab label="Score" value={scoreValue} variant="personal" />
               <RatingSlab label="Rank" value={rankValue} variant="high" />
             </Flex>
             {/* album-rating-soft-gate: v1, plain text label — no tooltip/explanation copy,
