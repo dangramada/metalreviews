@@ -108,6 +108,13 @@ badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Albu
 Live-confirmed by Dan. Not yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
 (2026-09-26 note).
 
+Paused: `mobile-audit-app-shell-2026-09` — read-only mobile/overlay-navigation diagnostic for a
+possible app-shell redesign (bottom tab bar, persistent chrome). Findings-only, no code
+changes; explicitly parked mid-review, not abandoned. To resume: `git checkout
+mobile-audit-app-shell-2026-09` — everything (the doc + its CLAUDE.md index entry) is already
+committed there (`840e331`), nothing lost by switching away. Detail:
+`docs/decisions/mobile-audit-app-shell-2026-09.md`.
+
 Most recent work landed as a direct commit to `master` (no feature branch, no rollback tag —
 small, well-scoped bug fix, same precedent as `streaming-links.md`/the mobile-layout pass
 below): `filterMetalStormBackCatalogue()` (`src/App.tsx`) replaced its calendar-year comparison
