@@ -103,11 +103,13 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-In progress: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
+Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
 matches Favorites' decimal format (`formatBadgeScore`, moved to shared `src/utils/formatScore.ts`)
 instead of `Math.round(score*100)%`, via a new `scoreSlabPersonal` theme key; homepage `ScoreSlab`
-and Rank (`scoreSlabHigh`) untouched. 898/898 tests, `tsc` clean. Not yet live-verified by Dan, not
-yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md` (2026-09-27 note).
+and Rank (`scoreSlabHigh`) untouched. 898/898 tests, `tsc` clean on `master` post-merge. Not yet
+live-verified by Dan. Merged to `master` `--no-ff` at `f420bfb` on 2026-09-27. Rollback tag:
+`pre-merge-feature-rating-page-score-format`. Detail:
+`docs/decisions/favorites-row-desktop-redesign.md` (2026-09-27 note).
 
 In progress: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a Score
 badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating page.
