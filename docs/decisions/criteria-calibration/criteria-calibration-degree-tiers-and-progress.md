@@ -600,3 +600,38 @@ per user, and the lazy path costs nothing.
   `clampFillMonotone`'s comment. Equally, don't "fix" it to survive an Undo.
 - **Don't reword the exhaustion screen** in either direction — the open question behind it
   (`deferred-work.md`) is still open, and a test asserts both directions.
+
+## 14. 2026-09-27 correction — per-degree ceiling instead of per-degree segment
+
+§4b's bar filled each degree's own equal segment: degree *d* ran from `(d-2)*S` to `(d-1)*S`
+(`S = 100/segments`), so the last frame of degree *d* and the first frame of degree *d+1* were
+the same number (§4b's "seam is exact" claim, now retired by this section).
+
+Confirmed against 1000minds' own screenshots that their bar does not work that way: it fills
+toward 100% *within* each degree, then drops to a lower baseline at the next degree — a "how
+much is left in this batch" signal, not a global completion signal. Product decision: match it.
+
+**New formula.** `baseline` is unchanged — still `(currentDegree - STARTING_DEGREE) * segmentSize`.
+Only the ceiling each degree fills toward changes, from `baseline + segmentSize` to `100`:
+
+```
+displayed% = baseline + fill * (100 - baseline)
+```
+
+Per-degree ranges on the live 6-criterion catalog:
+
+| Degree | Start | End  |
+|--------|-------|------|
+| 2      | 0%    | 100% |
+| 3      | 20%   | 100% |
+| 4      | 40%   | 100% |
+| 5      | 60%   | 100% |
+| 6      | 80%   | 100% |
+
+**What did not change:** `computeDegreeCoverageFill`, `clampFillMonotone`, tier derivation,
+checkpoint precedence, and the bar-hidden-during-checkpoints behavior that makes the now-larger
+100%→next-baseline drop invisible (§13's "share one number" and "don't drop the monotone clamp"
+rules still apply — this section only reassigns what the fill scales toward, not how fill or
+`baseline` are computed). §4b's "seam is exact" invariant is gone by design: that IS the visible
+jump this change introduces, hidden only by the checkpoint gap exactly as the old baseline jump
+was.
