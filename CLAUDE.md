@@ -103,13 +103,6 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-In progress: `progress-bar-per-degree-ceiling` — Criteria Calibration's progress bar now fills
-toward 100% within each degree instead of a fixed equal segment, matching 1000minds' own bar
-(baseline per degree unchanged, only the ceiling `fill` scales toward). Formula change in
-`computeProgressPercent` (`degreeTiers.ts`), tests updated, `tsc`/lint clean, 449/449 tests.
-Not yet live-verified by Dan. Detail: `docs/decisions/criteria-calibration/criteria-calibration-
-degree-tiers-and-progress.md` §14.
-
 In progress: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a Score
 badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating page.
 Live-confirmed by Dan. Not yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
@@ -121,6 +114,14 @@ changes; explicitly parked mid-review, not abandoned. To resume: `git checkout
 mobile-audit-app-shell-2026-09` — everything (the doc + its CLAUDE.md index entry) is already
 committed there (`840e331`), nothing lost by switching away. Detail:
 `docs/decisions/mobile-audit-app-shell-2026-09.md`.
+
+Most recent merge: `progress-bar-per-degree-ceiling` — Criteria Calibration's progress bar now
+fills toward 100% within each degree instead of a fixed equal segment, matching 1000minds' own
+bar (per-degree starting baseline unchanged, only the ceiling `fill` scales toward changes, in
+`computeProgressPercent`, `degreeTiers.ts`). 898/898 tests, `tsc` clean on `master` post-merge.
+Live-verified by Dan before merge. Merged to `master` `--no-ff` at `858ce8b` on 2026-09-27.
+Rollback tag: `pre-merge-progress-bar-per-degree-ceiling`. Full detail: `docs/decisions/criteria-
+calibration/criteria-calibration-degree-tiers-and-progress.md` §14.
 
 Most recent work landed as a direct commit to `master` (no feature branch, no rollback tag —
 small, well-scoped bug fix, same precedent as `streaming-links.md`/the mobile-layout pass
