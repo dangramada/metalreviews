@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Container, Flex, Heading, Icon, Text, VStack } from '@chakra-ui/react';
-import { LuOctagonAlert } from 'react-icons/lu';
+import { Box, Button, Container, Flex, Heading, Text, VStack } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
+import { Alert } from './components/ui/alert';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
 import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
@@ -18,10 +18,6 @@ import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { secondaryButton } from './theme';
-
-// Contenders' own low-confidence copy — not FavoritesPage's private INSUFFICIENT_DATA_BADGE_TEXT
-// (unexported), but the same "what to do" tone rule.
-const INSUFFICIENT_DATA_TEXT = 'No score yet. Answer a round of comparisons in calibration.';
 
 // The intermediate candidate pool between Favorites and AOTY (docs/decisions/
 // aoty-hub-population.md). Scoped to Contenders only this pass — no AOTY final-list screen yet,
@@ -138,28 +134,27 @@ export function ContendersPage() {
           </Flex>
 
           {/* "More prominent than Favorites' current use" (aoty-hub-population.md) — a
-              full-width banner rather than a per-row corner badge. Deliberately not
+              full-width banner rather than a per-row corner badge. Reuses the shared `Alert`
+              component and `status.info` tokens exactly as AlbumRatingPage's insufficient-data
+              banner and CriteriaCalibrationPage's resume banner already do for this same
+              tier === 'none' condition — not a new banner pattern. Deliberately not
               TierAccuracyBadge/its `percent` prop: that's computed from live calibration-engine
-              solver state in CriteriaCalibrationPage, not something to replay for a simple gate
-              banner — see criteria-calibration-degree-tiers-and-progress.md's "What NOT to
-              change". This reuses the same tier/hasInsufficientData signal Favorites' own
-              confidenceWarningBadge already keys off. */}
-          {!gateLoading && (calibrationTier === 'none' || hasInsufficientData) && (
-            <Flex
-              align="center"
-              gap={3}
-              p={4}
-              border="2px solid"
-              borderColor="border.ruleStrong"
-              bg="surface.card"
+              solver state in CriteriaCalibrationPage, not something to replay here — see
+              criteria-calibration-degree-tiers-and-progress.md's "What NOT to change", and
+              aoty-hub-population.md's 2026-09-28 note for the fuller rationale. Body copy is the
+              same "settle the score" sentence CalibrationGateDialog's soft mode and
+              CriteriaCalibrationPage's resume banner already use for tier === 'none' — same
+              event, same words, not a fourth variant. */}
+          {!gateLoading && calibrationTier === 'none' && (
+            <Alert
+              status="info"
+              variant="surface"
+              bg="status.info.bg"
+              color="status.info.text"
+              title={`Score level: ${confidenceLabel(calibrationTier)}`}
             >
-              <Icon as={LuOctagonAlert} boxSize={5} color="text.muted" flexShrink={0} />
-              <Text fontSize="sm" color="text.muted">
-                {hasInsufficientData
-                  ? INSUFFICIENT_DATA_TEXT
-                  : `Score level: ${confidenceLabel(calibrationTier)}. Scores here may shift as you keep calibrating.`}
-              </Text>
-            </Flex>
+              A few more comparisons usually settle the score closer to what matters most to you.
+            </Alert>
           )}
 
           {/* Bulk action bar — desktop only, same raw-CSS `@media` toggle convention as

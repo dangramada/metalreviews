@@ -153,6 +153,38 @@ final-list screen becomes a third call site for the same flow.
 
 913/913 tests, `tsc` clean, lint clean on all touched files.
 
+## 2026-09-28 banner revision — Alert reuse, insufficient-data branch dropped
+
+Two deviations from the original build, caught when Dan asked whether the "more prominent"
+Contenders banner duplicated an existing component before any code changed:
+
+- **Built with the shared `Alert` component (`status="info"`, `variant="surface"`,
+  `status.info` tokens), not `TierAccuracyBadge size="lg"`.** The original build plan (this
+  doc's Decisions section) named `TierAccuracyBadge`, but the actual first-pass implementation
+  used neither that nor `Alert` — a hand-rolled `Flex`+icon+`Text`, styled ad hoc
+  (`border.ruleStrong`/`surface.card`/`text.muted`) rather than reusing anything. A grep for
+  existing banner/alert/callout patterns turned up two direct precedents for this exact
+  `tier === 'none'` condition, both already using `Alert`: `AlbumRatingPage.tsx`'s
+  insufficient-data banner and `CriteriaCalibrationPage.tsx`'s resume banner. Replaced the
+  hand-rolled version with `Alert`, matching both. `TierAccuracyBadge`'s `percent` prop was
+  never adopted either pass, for the reason already recorded above (computed from live
+  calibration-solver state in `CriteriaCalibrationPage`, not something to replay for a page
+  banner) — see `criteria-calibration-degree-tiers-and-progress.md`'s "What NOT to change".
+- **Dropped, not kept: the banner no longer also fires on `hasInsufficientData`.** The first
+  pass OR'd `tier === 'none'` with `hasInsufficientData` into one combined condition; this doc's
+  own Decisions section only ever specified `tier === 'none'`. Dropped rather than kept as a
+  recorded extra decision: no page-level banner for `hasInsufficientData` exists anywhere else
+  in the app (Favorites — the closest sibling list page — only surfaces it via the existing
+  per-row `confidenceWarningBadge`/dash treatment, which Contenders rows already inherit
+  unchanged through `FavoriteListItemRow`), so a page-level banner for it here would have been a
+  new, undiscussed pattern rather than reuse.
+- **Banner copy** now reuses the exact sentence `CalibrationGateDialog`'s soft-gate mode and
+  `CriteriaCalibrationPage`'s resume banner already use for this same `tier === 'none'` state
+  ("A few more comparisons usually settle the score closer to what matters most to you."),
+  title `` `Score level: ${label}` `` matching the established feature-name convention
+  (`criteria-calibration-terminology-and-gate-unification.md`). A third reuse of the same
+  words for the same event, not a fourth variant.
+
 ## References
 
 - `docs/discovery/aoty-hub-population/understand-the-problem.md`

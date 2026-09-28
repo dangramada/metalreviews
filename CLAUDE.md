@@ -8,6 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   starting any task; consult the historical/reference section below only when the task at
   hand touches it
 - Always show a plan and wait for approval before writing code
+- Before adding a new UI component or variant, grep the existing component tree (`src/components`,
+  `theme.ts`) for something that already covers it, and state in the plan what was checked —
+  don't rely on the brief's own naming (see `aoty-hub-population.md`'s 2026-09-28 banner
+  revision: the planned `TierAccuracyBadge size="lg"` turned out to be neither built nor the
+  right reuse — a grep turned up the existing `Alert` component already covering the same
+  condition twice elsewhere)
 - After each completed feature, update this file (or the relevant `docs/decisions/` file — see below) with decisions made
 - Target deployment: Render (current). Vercel migration is a possible future move — avoid permanent server dependencies where reasonably easy
 - Code commenting style (WHY not what, what to comment, what to skip): see `docs/commenting-style-guide.md`.
