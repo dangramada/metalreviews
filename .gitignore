@@ -4,7 +4,12 @@ dist/
 public/reviews.json
 .env
 *.local
-.claude/
+# .claude/* (not .claude/) so contents can be selectively un-ignored below — launch.json and
+# worktrees/ stay local-only, but agents/ ships with the repo so teammates get the same
+# subagent definitions (e.g. architecture-verifier.md).
+.claude/*
+!.claude/agents/
+!.claude/agents/**
 CLAUDE - Copy.md
 .DS_Store
 CLAUDEbk1.md
