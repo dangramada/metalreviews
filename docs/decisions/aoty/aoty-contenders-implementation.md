@@ -162,14 +162,18 @@ Selection now lives in a new shared `src/components/SelectableRow.tsx`, wrapping
   breakpoint, so a `desktopOnly` hide would blank its only selection affordance entirely. One
   boolean, not two components. `ContendersPage` passes `desktopOnly`; the picker leaves it
   `false`.
-- **Accepted gap, not fixed:** with `desktopOnly`, the wrapper's `onClick` still fires on mobile
-  taps outside any action button — harmless (the checkbox and the ring are both CSS-hidden below
-  `md`, so nothing reflects it), but it does mean `ContendersPage`'s `selectedIds` state can hold
-  a phantom selection if the viewport later crosses the breakpoint mid-session without a remount.
-  Fixing that cleanly needs JS viewport detection, which this codebase deliberately avoids outside
-  the one flagged exception in `home-grid-virtualization.md`; not worth a second exception for an
-  invisible, non-persisted, low-likelihood edge case. Marked with a `ponytail:` comment in the
-  component itself rather than silently accepted.
+- **2026-09-29 follow-up — the mobile gap above is now closed.** `handleClick` checks
+  `getComputedStyle(checkboxColumnRef.current).display === 'none'` before toggling (only when
+  `desktopOnly`), and no-ops if so. `getComputedStyle` re-reads the live cascade on every call —
+  no cached value, no `matchMedia`/`resize` listener needed, stays correct across a mid-session
+  resize. Not JS viewport detection in the sense the `home-grid-virtualization.md` exception
+  means (no `window.innerWidth` read, no breakpoint constant duplicated in JS) — it asks the DOM
+  what the existing CSS already decided, which is a materially smaller exception than that one.
+  Tests: jsdom doesn't evaluate the emotion-injected `@media` rule for `getComputedStyle`
+  regardless of `window.innerWidth` (empirically confirmed — forcing `innerWidth` to 500 still
+  reported `display: block`), so the regression test stubs `getComputedStyle` for the checkbox
+  column element directly rather than attempting a real-viewport test that couldn't actually
+  exercise the branch.
 
 New tests: `src/__tests__/SelectableRow.test.tsx` (card-body click toggles; action-button click
 does not toggle and the button still fires; checkbox click toggles exactly once, asserted on the
