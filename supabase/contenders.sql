@@ -6,6 +6,10 @@
 -- no RPC needed (the RPC on `albums` exists only because that table is a shared catalog row;
 -- this one isn't). Run this in the Supabase SQL editor.
 --
+-- Already run: Dan ran this against the live project on 2026-09-28, before the frontend code
+-- in this branch was written — confirmed via a read-only query against the table. Kept here as
+-- the durable schema record, same as every other file in this directory.
+--
 -- PK note: `primary key (user_id, album_id)` assumes one global Contenders pool per user. The
 -- discovery docs flag a possible future "list" entity (year/genre-scoped lists) that must not be
 -- architecturally blocked — this PK doesn't block it, but isn't free either: adding list support

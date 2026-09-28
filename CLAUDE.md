@@ -110,11 +110,14 @@ npx vitest run src/__tests__/angrymetal.test.js
 ## Active branches
 
 In progress: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
-`/aoty/contenders` route + nav entry, `contenders` Supabase table, bulk picker/add/remove,
-auto-add on full rating. Scoped to Contenders only, no AOTY final-list screen this pass.
-Code-reviewed 2026-09-28 — one accessibility bug and one non-idempotent-insert bug fixed; one
-extraction deliberately deferred to `deferred-work.md` §B. 913/913 tests, `tsc` clean. Not yet
-merged. Detail: `docs/decisions/aoty-hub-population.md` (2026-09-28 code-review note).
+`/aoty/contenders` route + nav entry, `contenders` Supabase table (already run against the live
+project), bulk picker/add/remove, auto-add on full rating. Scoped to Contenders only, no AOTY
+final-list screen this pass. Code-reviewed 2026-09-28 — one accessibility bug and one
+non-idempotent-insert bug fixed; the low-confidence banner swapped to reuse the existing
+`Alert` component instead of a hand-rolled one; empty state swapped to the existing (previously
+unused) `EmptyState` component; one extraction and one cross-app consistency audit deliberately
+deferred to `deferred-work.md` §B. 914/914 tests, `tsc` clean. Not yet merged. Detail:
+`docs/decisions/aoty-hub-population.md` (dated sections, 2026-09-28).
 
 Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
 matches Favorites' decimal format (`formatBadgeScore`, moved to shared `src/utils/formatScore.ts`)

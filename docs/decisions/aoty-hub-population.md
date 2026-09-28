@@ -1,8 +1,10 @@
 # AOTY Hub Population — Decision Record
 
-**Status:** Discovery complete (structural concept + naming pass). Visual design (Figma)
-and the mobile empty-state CTA copy are still pending.
-**Date:** 2026-09-22
+**Status:** Discovery complete (structural concept + naming pass). Contenders stage in
+implementation on `feature/aoty-contenders`, not yet merged — see dated sections below and
+`CLAUDE.md`'s Active branches entry. Visual design (Figma) for the rest of the hub (AOTY
+final-list screen) and its mobile empty-state CTA copy are still pending.
+**Date:** 2026-09-22 (discovery) / updated 2026-09-28
 
 ---
 
@@ -184,6 +186,25 @@ Contenders banner duplicated an existing component before any code changed:
   title `` `Score level: ${label}` `` matching the established feature-name convention
   (`criteria-calibration-terminology-and-gate-unification.md`). A third reuse of the same
   words for the same event, not a fourth variant.
+
+## 2026-09-28 empty state — EmptyState component adopted
+
+Contenders' "no rows yet" message was a plain `<Text>`, copied from `FavoritesPage.tsx`'s own
+bare-Text empty state. Switched to the shared `EmptyState` component
+(`src/components/ui/empty-state.tsx`) — previously scaffolded but never imported anywhere in
+the app — with a Lucide `Info` icon, title "No contenders yet.", description "Score an album,
+or add one from your favorites."
+
+`FavoritesPage.tsx`'s matching empty state is untouched (still bare `Text`), so the two sibling
+list pages now diverge visually. Not fixed here — out of this branch's stated scope. Logged as
+an app-wide empty-state consistency audit in `docs/decisions/deferred-work.md` §B rather than
+expanding scope to fix every instance found.
+
+`supabase/contenders.sql` has already been run against the live project (Dan, 2026-09-28,
+before this branch's frontend code was written) — confirmed via a read-only query, noted in the
+migration file's own header. Not still pending.
+
+914/914 tests, `tsc` clean, lint clean.
 
 ## References
 
