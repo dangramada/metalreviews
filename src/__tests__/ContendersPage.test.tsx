@@ -134,14 +134,30 @@ describe('ContendersPage', () => {
   it('shows the bulk action bar after selecting a row, and bulk-removes on confirm', async () => {
     render(<ContendersPage />, { wrapper });
     await waitFor(() => expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0));
-    // The checkbox only renders in the desktop tree (selectable is Contenders/desktop-only),
-    // so this one is singular even though the row's text isn't.
+    // SelectableRow renders one checkbox per row (not duplicated per desktop/mobile tree like
+    // the row's own text), so this is singular regardless of viewport.
     fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
     // Ark's checkbox machine dispatches CHECKED.SET asynchronously — the callback (and the
     // state update it drives) lands a tick after the click, not synchronously within it.
     await waitFor(() => screen.getByText('1 selected'));
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('1 removed from Contenders'));
+  });
+
+  it('toggles selection when the card body is clicked, not just the checkbox', async () => {
+    render(<ContendersPage />, { wrapper });
+    await waitFor(() => expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByText(/Opeth/)[0]);
+    await waitFor(() => screen.getByText('1 selected'));
+  });
+
+  it('does not select when the Rate/Listen/Remove row actions are clicked', async () => {
+    render(<ContendersPage />, { wrapper });
+    await waitFor(() => expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove from Contenders' })[0]);
+    // The remove-confirm dialog opened instead of anything toggling selection.
+    await screen.findByRole('button', { name: 'Remove' });
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
   });
 
   it('shows the low-confidence banner when calibration tier is none', async () => {

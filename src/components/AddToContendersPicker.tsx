@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Flex, Text, VStack } from '@chakra-ui/react';
+import { Button, Flex, Text, VStack } from '@chakra-ui/react';
 import { CloseButton } from './ui/close-button';
-import { Checkbox } from './ui/checkbox';
 import {
   DrawerRoot,
   DrawerContent,
@@ -12,6 +11,7 @@ import {
 } from './ui/drawer';
 import { LoadingIndicator, LoadingIndicatorBars } from '../LoadingIndicator';
 import { FavoriteListItemRow } from '../FavoritesPage';
+import { SelectableRow } from './SelectableRow';
 import { useFavoritesList } from '../hooks/useFavoritesList';
 import { useAuth } from '../AuthContext';
 import { useFeedbackToast } from '../hooks/useFeedbackToast';
@@ -24,10 +24,10 @@ import { primaryButton, secondaryButton } from '../theme';
 //
 // Rows always render via FavoriteListItemRow's previewMode (forces its mobile tree, no
 // footer — same reason AddAlbumDrawer's own preview uses it: a Drawer is always narrower than
-// the desktop breakpoint). Selection is this component's own checkbox, not
-// FavoriteListItemRow's `selectable` prop — that prop drives ContendersPage's real desktop
-// rows specifically; previewMode already forces the mobile tree here, where `selectable`
-// would never render anyway.
+// the desktop breakpoint). Selection is the shared SelectableRow wrapper, with desktopOnly left
+// false — unlike ContendersPage's real desktop rows, this checkbox is the only selection
+// affordance the picker has, and the Drawer is always narrower than the desktop breakpoint, so
+// it must always show.
 interface AddToContendersPickerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -118,20 +118,14 @@ export function AddToContendersPicker({
           ) : (
             <VStack gap={3} align="stretch">
               {candidates.map((item) => (
-                <Flex key={item.albumId} align="center" gap={3}>
-                  <Checkbox
-                    checked={selected.has(item.albumId)}
-                    onCheckedChange={(details) => toggle(item.albumId, !!details.checked)}
-                    // See FavoritesPage.tsx's identical checkbox usage for why this is
-                    // inputProps, not a bare aria-label prop.
-                    inputProps={{
-                      'aria-label': `${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`,
-                    }}
-                  />
-                  <Box flex={1} minW={0}>
-                    <FavoriteListItemRow item={item} previewMode />
-                  </Box>
-                </Flex>
+                <SelectableRow
+                  key={item.albumId}
+                  selected={selected.has(item.albumId)}
+                  onToggleSelect={(checked) => toggle(item.albumId, checked)}
+                  ariaLabel={`${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                >
+                  <FavoriteListItemRow item={item} previewMode />
+                </SelectableRow>
               ))}
             </VStack>
           )}

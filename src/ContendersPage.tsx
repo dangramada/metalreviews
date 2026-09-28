@@ -16,6 +16,7 @@ import {
   type CalibrationGateMode,
 } from './components/criteria-calibration/CalibrationGateDialog';
 import { AddToContendersPicker } from './components/AddToContendersPicker';
+import { SelectableRow } from './components/SelectableRow';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
@@ -208,20 +209,24 @@ export function ContendersPage() {
           ) : (
             <VStack gap={3} align="stretch">
               {items.map((item) => (
-                <FavoriteListItemRow
+                <SelectableRow
                   key={item.albumId}
-                  item={item}
-                  onRemove={() => handleRemove(item.albumId, `${item.band} – ${item.album}`)}
-                  removing={removingId === item.albumId}
-                  removeLabel="Contenders"
-                  ratingSummary={ratingSummary.get(item.albumId)}
-                  onRate={() => handleRate(item.albumId)}
-                  confidenceTier={calibrationTier}
-                  hasInsufficientData={hasInsufficientData}
-                  selectable
+                  desktopOnly
                   selected={selectedIds.has(item.albumId)}
                   onToggleSelect={(checked) => toggleSelect(item.albumId, checked)}
-                />
+                  ariaLabel={`${selectedIds.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                >
+                  <FavoriteListItemRow
+                    item={item}
+                    onRemove={() => handleRemove(item.albumId, `${item.band} – ${item.album}`)}
+                    removing={removingId === item.albumId}
+                    removeLabel="Contenders"
+                    ratingSummary={ratingSummary.get(item.albumId)}
+                    onRate={() => handleRate(item.albumId)}
+                    confidenceTier={calibrationTier}
+                    hasInsufficientData={hasInsufficientData}
+                  />
+                </SelectableRow>
               ))}
             </VStack>
           )}

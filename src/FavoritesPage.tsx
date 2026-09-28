@@ -32,7 +32,6 @@ import {
   parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
-import { Checkbox } from './components/ui/checkbox';
 import { Tooltip } from './components/ui/tooltip';
 import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
 import { ListenMenuItems } from './components/ListenMenuItems';
@@ -113,9 +112,6 @@ export function FavoriteListItemRow({
   hasInsufficientData = false,
   previewMode = false,
   removeLabel = 'favorites',
-  selectable = false,
-  selected = false,
-  onToggleSelect,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -143,12 +139,6 @@ export function FavoriteListItemRow({
   // dialog's title (e.g. "Remove from Contenders?" on ContendersPage). Body text still uses
   // item.band/item.album regardless, so this only ever needs the destination noun.
   removeLabel?: string;
-  // ContendersPage's desktop bulk-remove selection — Contenders-only, desktop-only (per
-  // docs/decisions/aoty/aoty-hub-population.md), so this renders solely inside the desktop tree
-  // below and is never passed true from Favorites or from a previewMode instance.
-  selectable?: boolean;
-  selected?: boolean;
-  onToggleSelect?: (checked: boolean) => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -203,23 +193,6 @@ export function FavoriteListItemRow({
             _hover={{ borderColor: 'border.hover' }}
             css={{ '&:hover img': { transform: 'scale(1.06)' } }}
           >
-            {selectable && (
-              <Box pl={3} flexShrink={0} onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  checked={selected}
-                  onCheckedChange={(details) => onToggleSelect?.(!!details.checked)}
-                  // aria-label on <Checkbox> itself lands on Ark's wrapping <label> (spread via
-                  // ...rest in ui/checkbox.tsx), not on the actual role="checkbox" element — the
-                  // hidden input's accessible name comes from aria-labelledby pointing at a
-                  // Checkbox.Label part we never render. inputProps forwards straight onto that
-                  // hidden input instead. See src/__tests__/FavoritesPage.test.tsx's "selection
-                  // checkbox" describe block for the regression test.
-                  inputProps={{
-                    'aria-label': `${selected ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`,
-                  }}
-                />
-              </Box>
-            )}
             <Box flexShrink={0} position="relative" w="128px" h="128px" bg="surface.darkest">
               {item.artworkUrl && !imgFailed ? (
                 <>
