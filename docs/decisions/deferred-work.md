@@ -844,6 +844,16 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   `keepalive` fetch flag threaded through the Supabase client (non-trivial — no per-call fetch
   override currently exists in `supabaseClient.ts`), deferred as not urgent enough to justify
   that plumbing on top of the same pass's other fixes.
+- **`ContendersPage.tsx`'s hard/soft calibration-gate `handleRate` flow (`gateMode`,
+  `pendingRateAlbumId`, the `CalibrationGateDialog` wiring) duplicates `FavoritesPage.tsx`'s
+  identical logic almost verbatim** — only the `?from=` query suffix differs
+  (`feature/aoty-contenders`, 2026-09-28 code review). Deliberately not extracted on that
+  branch: it only touches navigation glue around `useCalibrationGate`, never the gate/solver
+  logic itself, so there's no real risk in sharing it — but extracting would mean editing
+  `FavoritesPage.tsx`'s already-shipped, live-verified code, which widened that branch's diff
+  beyond its stated Contenders-only scope. Extract a `useCalibrationGateNavigation(fromParam)`
+  hook (returning `{ handleRate, gateMode, dialog props }`) once the AOTY final-list screen
+  (a third call site for this exact flow) exists — not worth it for two call sites alone.
 
 ## C. Design/branding (open)
 

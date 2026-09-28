@@ -623,3 +623,31 @@ describe('FavoriteListItemRow — insufficient data', () => {
     expect(formatBadgeScore(0.7)).toBe('7.0');
   });
 });
+
+// Regression test for the aria-label-lands-on-the-wrong-element bug (feature/aoty-contenders code
+// review): a bare `aria-label` prop on <Checkbox> lands on Ark's wrapping <label> (spread via
+// ...rest in components/ui/checkbox.tsx), not on the actual role="checkbox" <input> — the input's
+// name comes from aria-labelledby pointing at a Checkbox.Label part this app never renders. A
+// `getByRole('checkbox', { name: ... })` query alone doesn't catch this: jsdom/dom-accessibility-api
+// resolves a name from the ancestor label's own aria-label anyway, more leniently than a real
+// screen reader would. So this asserts the attribute on the actual <input> element directly.
+describe('FavoriteListItemRow selection checkbox', () => {
+  it('puts aria-label on the hidden input itself, not just the wrapping label', () => {
+    const { container } = render(
+      <FavoriteListItemRow item={mockItem} selectable selected={false} onToggleSelect={vi.fn()} />,
+      { wrapper }
+    );
+    const input = container.querySelector('input[type="checkbox"]');
+    expect(input).not.toBeNull();
+    expect(input).toHaveAttribute('aria-label', `Select ${mockItem.band} – ${mockItem.album}`);
+  });
+
+  it('flips the label to Deselect when already selected', () => {
+    const { container } = render(
+      <FavoriteListItemRow item={mockItem} selectable selected onToggleSelect={vi.fn()} />,
+      { wrapper }
+    );
+    const input = container.querySelector('input[type="checkbox"]');
+    expect(input).toHaveAttribute('aria-label', `Deselect ${mockItem.band} – ${mockItem.album}`);
+  });
+});

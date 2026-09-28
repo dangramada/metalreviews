@@ -110,4 +110,24 @@ describe('AddToContendersPicker', () => {
     expect(onAdded).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
+
+  // Regression test — see FavoritesPage.test.tsx's identical describe block for why this checks
+  // the actual <input> rather than relying on getByRole's name matching.
+  it('puts aria-label on the hidden input itself, not just the wrapping label', async () => {
+    render(
+      <AddToContendersPicker
+        isOpen
+        onClose={onClose}
+        contenderAlbumIds={new Set()}
+        onAdded={onAdded}
+      />,
+      { wrapper }
+    );
+    await waitFor(() => screen.getByText(/Opeth/));
+    // Chakra's DrawerContent portals to document.body, so it isn't under render()'s own
+    // container — query the whole document, same as `screen`'s own queries already do.
+    const input = document.querySelector('input[type="checkbox"]');
+    expect(input).not.toBeNull();
+    expect(input).toHaveAttribute('aria-label', 'Select Opeth – Blackwater Park');
+  });
 });

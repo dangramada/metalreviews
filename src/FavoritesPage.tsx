@@ -208,7 +208,15 @@ export function FavoriteListItemRow({
                 <Checkbox
                   checked={selected}
                   onCheckedChange={(details) => onToggleSelect?.(!!details.checked)}
-                  aria-label={`${selected ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                  // aria-label on <Checkbox> itself lands on Ark's wrapping <label> (spread via
+                  // ...rest in ui/checkbox.tsx), not on the actual role="checkbox" element — the
+                  // hidden input's accessible name comes from aria-labelledby pointing at a
+                  // Checkbox.Label part we never render. inputProps forwards straight onto that
+                  // hidden input instead. See src/__tests__/FavoritesPage.test.tsx's "selection
+                  // checkbox" describe block for the regression test.
+                  inputProps={{
+                    'aria-label': `${selected ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`,
+                  }}
                 />
               </Box>
             )}

@@ -163,14 +163,20 @@ export function AlbumRatingPage() {
       showError('Could not save rating — try again');
       return;
     }
-    // Any scored album auto-enters Contenders (docs/decisions/aoty-hub-population.md).
-    // Idempotent via the table's own (user_id, album_id) PK; a failure here just means a missed
-    // auto-add, recoverable via the manual "+ Add from Favorites" picker, so it's not surfaced
-    // as a user-facing error.
+    // Any scored album auto-enters Contenders (docs/decisions/aoty-hub-population.md). Uses
+    // upsert+ignoreDuplicates, not a plain insert: the album may already be a Contender (added
+    // manually via "+ Add from Favorites" while only partway rated), and a plain insert would
+    // hit the table's (user_id, album_id) PK as a real 23505 conflict — not a failure, but
+    // console.warn would have called it one every time this ordinary case occurred. A genuine
+    // failure here (network, RLS) just means a missed auto-add, recoverable via the manual
+    // picker, so it's not surfaced as a user-facing error.
     if (isFirstFullRating(ratings.size, new Map(ratings).set(criterionId, level).size)) {
       supabase
         .from('contenders')
-        .insert({ user_id: user.id, album_id: albumId })
+        .upsert(
+          { user_id: user.id, album_id: albumId },
+          { onConflict: 'user_id,album_id', ignoreDuplicates: true }
+        )
         .then(({ error: contendersError }) => {
           if (contendersError) console.warn('Auto-add to Contenders failed', contendersError);
         });

@@ -122,6 +122,37 @@ were designed as one coupled two-column screen but AOTY itself isn't built yet. 
 action bar does bulk-remove only for now; "Select for AOTY" gets added once AOTY ships.
 Nav label becomes "AOTY" at that point too.
 
+## 2026-09-28 code review — Contenders implementation
+
+Three parallel review passes (simplicity/DRY, bugs/correctness, conventions) against the
+Contenders implementation (`/aoty/contenders`, `useContendersList`, `AddToContendersPicker`,
+`FavoriteListItemRow`'s `selectable`/`removeLabel` extension, the auto-add hook in
+`AlbumRatingPage.handlePick`). Two real bugs fixed, both independently verified against the
+actual installed packages/code before fixing:
+
+- **Checkbox accessible name was broken.** A bare `aria-label` prop on the shared `<Checkbox>`
+  wrapper lands on Ark's wrapping `<label>` (spread via `...rest`), not on the actual
+  `role="checkbox"` `<input>` — the input's name comes from `aria-labelledby` pointing at a
+  `Checkbox.Label` part this app never renders, so real screen readers would hear an unnamed
+  checkbox. `getByRole('checkbox', { name })` in the original tests didn't catch this because
+  jsdom's accessible-name computation is more lenient than a real AT. Fixed by using the
+  wrapper's `inputProps={{ 'aria-label': ... }}` passthrough instead, at both call sites
+  (`FavoritesPage.tsx`, `AddToContendersPicker.tsx`). Regression tests now assert the
+  `aria-label` attribute directly on the `<input>` element, not just via role/name matching.
+- **Auto-add-to-Contenders insert wasn't idempotent.** A plain `.insert()` on a PK'd table hits
+  a real Postgres 23505 conflict — not hypothetical — whenever an album is manually added to
+  Contenders (via the picker) while only partially rated, then later finishes rating. That
+  logged a misleading "failed" warning for an entirely benign case. Fixed with
+  `.upsert(..., { onConflict: 'user_id,album_id', ignoreDuplicates: true })`.
+
+One extraction was flagged (`ContendersPage`'s calibration-gate `handleRate` duplicates
+`FavoritesPage.tsx`'s almost verbatim) but deliberately deferred rather than fixed on this
+branch — it would mean editing already-shipped Favorites code, widening this branch's diff
+beyond Contenders. Logged in `docs/decisions/deferred-work.md` §B, to revisit once the AOTY
+final-list screen becomes a third call site for the same flow.
+
+913/913 tests, `tsc` clean, lint clean on all touched files.
+
 ## References
 
 - `docs/discovery/aoty-hub-population/understand-the-problem.md`

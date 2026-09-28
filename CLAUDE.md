@@ -103,6 +103,13 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+In progress: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
+`/aoty/contenders` route + nav entry, `contenders` Supabase table, bulk picker/add/remove,
+auto-add on full rating. Scoped to Contenders only, no AOTY final-list screen this pass.
+Code-reviewed 2026-09-28 — one accessibility bug and one non-idempotent-insert bug fixed; one
+extraction deliberately deferred to `deferred-work.md` §B. 913/913 tests, `tsc` clean. Not yet
+merged. Detail: `docs/decisions/aoty-hub-population.md` (2026-09-28 code-review note).
+
 Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
 matches Favorites' decimal format (`formatBadgeScore`, moved to shared `src/utils/formatScore.ts`)
 instead of `Math.round(score*100)%`, via a new `scoreSlabPersonal` theme key; homepage `ScoreSlab`
@@ -404,6 +411,9 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `release-date.md` — historical only (session-by-session detail): release date field, MB data source, precision-aware merge guard
 - `header-redesign.md` — Header rewrite: useLocation active state, responsive breakpoints
 - `favorites-view.md` — `/favorites` route: RequireAuth, useFavoritesList, AddAlbumDrawer flow
+- `aoty-hub-population.md` — Contenders/AOTY hub decision record: Favorite → Contenders → AOTY
+  flow, `contenders` table, naming decisions. Contenders stage in progress on branch
+  `feature/aoty-contenders` — see Active branches
 - `manual-albums.md` — `manual_albums` table schema, MB lookup endpoint, year-bounding decisions
 - `chakra-v3-migration-plan.md` — Chakra v2→v3 migration, complete and verified (210/210 tests, `tsc` clean); full sequenced history (Steps 0–7)
 - `chakra-v3-foundation-audit-brief.md` — re-examining v2-era styling hacks; eligible to start, not started

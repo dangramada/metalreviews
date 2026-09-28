@@ -122,7 +122,11 @@ export function AddToContendersPicker({
                   <Checkbox
                     checked={selected.has(item.albumId)}
                     onCheckedChange={(details) => toggle(item.albumId, !!details.checked)}
-                    aria-label={`${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                    // See FavoritesPage.tsx's identical checkbox usage for why this is
+                    // inputProps, not a bare aria-label prop.
+                    inputProps={{
+                      'aria-label': `${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`,
+                    }}
                   />
                   <Box flex={1} minW={0}>
                     <FavoriteListItemRow item={item} previewMode />
