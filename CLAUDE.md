@@ -116,8 +116,12 @@ final-list screen this pass. Code-reviewed 2026-09-28 — one accessibility bug 
 non-idempotent-insert bug fixed; the low-confidence banner swapped to reuse the existing
 `Alert` component instead of a hand-rolled one; empty state swapped to the existing (previously
 unused) `EmptyState` component; one extraction and one cross-app consistency audit deliberately
-deferred to `deferred-work.md` §B. 914/914 tests, `tsc` clean. Not yet merged. Detail:
-`docs/decisions/aoty/aoty-contenders-implementation.md`; gateway: `docs/decisions/aoty-summary.md`.
+deferred to `deferred-work.md` §B. Same-day follow-up pass: selection checkbox moved off
+`FavoriteListItemRow` (reverted to selection-agnostic) onto a new shared `SelectableRow`
+wrapper used by both `ContendersPage` (desktop-only) and `AddToContendersPicker` (always-on);
+click-anywhere-on-the-row toggle, selected-state ring via `accent.border`. 919/919 tests, `tsc`
+clean. Not yet merged. Detail: `docs/decisions/aoty/aoty-contenders-implementation.md`; gateway:
+`docs/decisions/aoty-summary.md`.
 
 Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
 matches Favorites' decimal format (`formatBadgeScore`, moved to shared `src/utils/formatScore.ts`)

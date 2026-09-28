@@ -115,3 +115,73 @@ and moved into `docs/decisions/aoty/` once a second file existed to organize, ma
 folder + gateway only after accumulating multiple files, not preemptively). `docs/discovery/`
 (the design-discovery source files referenced above) confirmed gitignored, not committed — per
 `documentation-governance.md`'s two-layer rule, that content belongs in Project Knowledge only.
+
+## Selection UX — checkbox moved off FavoriteListItemRow onto a shared SelectableRow wrapper
+
+**Date:** 2026-09-28
+
+**Correction to the "Code review — Contenders implementation" section above:** that section
+described `FavoriteListItemRow`'s `selectable`/`selected`/`onToggleSelect` extension as shipped.
+This pass reverses that — those three props (and the checkbox they rendered, inline in the
+row's desktop tree) are removed from `FavoriteListItemRow` entirely. `FavoritesPage.tsx` is back
+to selection-agnostic, matching its pre-Contenders shape.
+
+Selection now lives in a new shared `src/components/SelectableRow.tsx`, wrapping either
+`FavoriteListItemRow` instance from the outside:
+
+- **Checkbox outside the card frame, not inside it.** Layout is `[checkbox column][wrapped
+  row]`, checkbox column on the left, vertically centered via `Flex align="center"`. Checked
+  Chakra's installed `CheckboxCard` first (`node_modules/@chakra-ui/react`) — its `Root` wraps
+  `Checkbox.Root` (Ark), which itself renders as a literal `<label>`
+  (`@ark-ui/react/.../checkbox-root.js`). Nesting the row's own action buttons inside that label
+  would make their text/labels contribute to the checkbox's accessible name — rejected for
+  exactly the reason the brief flagged. Went with a plain wrapper instead: the row's own actions
+  and the checkbox stay siblings, not label descendants.
+- **Why outside, not overlaid on the row's own border:** keeping the checkbox physically
+  separate from the card is what lets `FavoriteListItemRow` stay selection-agnostic — the row
+  never needs to know it's being rendered inside a selectable context, so `FavoritesPage.tsx`
+  (which never wraps its rows in `SelectableRow`) is untouched by this feature entirely.
+- **Selected-state ring, not a second border color on the row itself.** Same constraint (the row
+  can't be told it's selected) rules out styling its own `border.ruleStrong` frame directly. A
+  `boxShadow` ring (`0 0 0 2px accent.border`) on `SelectableRow`'s own wrapping `Box` sits just
+  outside the row's real border instead, using `useToken('colors', 'accent.border')` rather than
+  a `{colors.accent.border}` brace-interpolated string — `MobileRatingLayout.tsx` already
+  documents (and live-confirmed) that brace-interpolation doesn't reliably resolve inside a
+  compound `boxShadow` value at runtime; this reuses that same resolved-token pattern rather
+  than re-discovering the bug.
+- **Click-anywhere-on-the-row toggle** via one `onClick` on the outer `Flex`, using
+  `e.target.closest('button, a, input, label, [data-no-select]')` to no-op on the row's own
+  actions and on the checkbox itself (Ark's checkbox root is a `<label>`, so this same check also
+  absorbs the synthetic click it forwards to the hidden input — without it, a single visible
+  click would toggle twice). `closest()` over `stopPropagation` on each action, so anything added
+  to the row later is covered automatically rather than needing its own opt-out.
+- **`desktopOnly` prop, not a hardcoded breakpoint.** `ContendersPage`'s real rows need the
+  checkbox/ring hidden below `md` (checkboxes are desktop-only per this doc's own Decisions
+  section); `AddToContendersPicker`'s rows need it *always* visible — they render in
+  `FavoriteListItemRow`'s `previewMode` inside a Drawer that's always narrower than the desktop
+  breakpoint, so a `desktopOnly` hide would blank its only selection affordance entirely. One
+  boolean, not two components. `ContendersPage` passes `desktopOnly`; the picker leaves it
+  `false`.
+- **Accepted gap, not fixed:** with `desktopOnly`, the wrapper's `onClick` still fires on mobile
+  taps outside any action button — harmless (the checkbox and the ring are both CSS-hidden below
+  `md`, so nothing reflects it), but it does mean `ContendersPage`'s `selectedIds` state can hold
+  a phantom selection if the viewport later crosses the breakpoint mid-session without a remount.
+  Fixing that cleanly needs JS viewport detection, which this codebase deliberately avoids outside
+  the one flagged exception in `home-grid-virtualization.md`; not worth a second exception for an
+  invisible, non-persisted, low-likelihood edge case. Marked with a `ponytail:` comment in the
+  component itself rather than silently accepted.
+
+New tests: `src/__tests__/SelectableRow.test.tsx` (card-body click toggles; action-button click
+does not toggle and the button still fires; checkbox click toggles exactly once, asserted on the
+real `<input>` element per this doc's existing aria-label-on-the-input regression; a
+keyboard-triggered click on the focused checkbox toggles exactly once — jsdom doesn't wire native
+Space-activates-a-checkbox without `@testing-library/user-event`, which isn't installed, so this
+simulates the browser's own default action directly rather than adding a dependency for one
+test). Two integration cases added to `ContendersPage.test.tsx` (card-body click selects; Remove
+does not select). `FavoritesPage.test.tsx`'s now-obsolete `FavoriteListItemRow selection
+checkbox` describe block removed.
+
+919/919 tests (914 baseline − 2 removed + 5 + 2 new), `tsc` clean, lint clean on every touched
+file (`npx eslint` scoped to the touched files — the full-repo `npm run lint` currently reports
+~7000 pre-existing prettier-formatting problems across unrelated files, not something this pass
+introduced or is scoped to fix).
