@@ -29,6 +29,59 @@ describe('SelectableRow', () => {
     expect(onToggleSelect).toHaveBeenCalledWith(true);
   });
 
+  // desktopOnly's checkbox/ring hide is real CSS (an @media rule in an emotion-injected
+  // stylesheet), not a conditional render — and jsdom doesn't evaluate that stylesheet's @media
+  // rules for getComputedStyle regardless of window.innerWidth (empirically confirmed: forcing
+  // innerWidth to 500 still reported `display: block`). So rather than a real-viewport test that
+  // can't actually exercise the branch, this stubs getComputedStyle for the checkbox column
+  // element directly — verifying our click-handler logic (does it correctly no-op when the
+  // column is computed-hidden?) independent of jsdom's incomplete CSS engine.
+  it('does not toggle a card-body click when the checkbox column is computed-hidden (desktopOnly, mobile width)', () => {
+    const { container } = render(
+      <SelectableRow
+        desktopOnly
+        selected={false}
+        onToggleSelect={onToggleSelect}
+        ariaLabel="Select X"
+      >
+        <div data-testid="card-body">Card content</div>
+      </SelectableRow>,
+      { wrapper }
+    );
+    const checkboxColumn = container.querySelector('input[type="checkbox"]')!.closest('label')!
+      .parentElement as HTMLElement;
+    const realGetComputedStyle = window.getComputedStyle;
+    const spy = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockImplementation((el: Element, pseudo?: string | null) =>
+        el === checkboxColumn
+          ? ({ display: 'none' } as CSSStyleDeclaration)
+          : realGetComputedStyle(el, pseudo)
+      );
+    try {
+      fireEvent.click(screen.getByTestId('card-body'));
+      expect(onToggleSelect).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('still toggles a card-body click when desktopOnly but the checkbox column is visible', () => {
+    render(
+      <SelectableRow
+        desktopOnly
+        selected={false}
+        onToggleSelect={onToggleSelect}
+        ariaLabel="Select X"
+      >
+        <div data-testid="card-body">Card content</div>
+      </SelectableRow>,
+      { wrapper }
+    );
+    fireEvent.click(screen.getByTestId('card-body'));
+    expect(onToggleSelect).toHaveBeenCalledTimes(1);
+  });
+
   it('does not toggle when an action button inside the row is clicked, and the button still fires', () => {
     const onAction = vi.fn();
     render(

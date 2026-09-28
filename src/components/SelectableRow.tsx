@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import { useRef, type MouseEvent, type ReactNode } from 'react';
 import { Box, Flex, useToken } from '@chakra-ui/react';
 import { Checkbox } from './ui/checkbox';
 
@@ -36,19 +36,31 @@ export function SelectableRow({
   desktopOnly = false,
 }: SelectableRowProps) {
   const [accentBorderColor] = useToken('colors', 'accent.border');
+  const checkboxColumnRef = useRef<HTMLDivElement>(null);
 
   function handleClick(e: MouseEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest(IGNORE_SELECTOR)) return;
+    // desktopOnly hides the checkbox column below md via CSS, not a conditional render — so a
+    // stale ref isn't a risk, but there's genuinely no selection UI to react to at that width.
+    // getComputedStyle re-reads the live cascade on every call (no cached/stale value, no
+    // matchMedia/resize listener needed), so this stays correct across a mid-session resize too.
+    if (
+      desktopOnly &&
+      checkboxColumnRef.current &&
+      getComputedStyle(checkboxColumnRef.current).display === 'none'
+    ) {
+      return;
+    }
     onToggleSelect(!selected);
   }
 
   return (
     <Flex align="center" gap={3} cursor="pointer" onClick={handleClick}>
-      {/* ponytail: click-to-toggle stays wired on mobile even when desktopOnly hides the
-        checkbox/ring below md — harmless (nothing visible reflects it there), simplest correct
-        option without reaching for JS viewport detection. Revisit with a real breakpoint check
-        only if a resize-mid-session leak ever surfaces in practice. */}
-      <Box flexShrink={0} css={desktopOnly ? { [MOBILE_QUERY]: { display: 'none' } } : undefined}>
+      <Box
+        ref={checkboxColumnRef}
+        flexShrink={0}
+        css={desktopOnly ? { [MOBILE_QUERY]: { display: 'none' } } : undefined}
+      >
         <Checkbox
           checked={selected}
           onCheckedChange={(details) => onToggleSelect(!!details.checked)}
