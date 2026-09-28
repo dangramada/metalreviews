@@ -22,9 +22,10 @@ import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { secondaryButton } from './theme';
 
 // The intermediate candidate pool between Favorites and AOTY (docs/decisions/
-// aoty-hub-population.md). Scoped to Contenders only this pass — no AOTY final-list screen yet,
-// see that doc's 2026-09-28 correction. Structured like FavoritesPage (same row component, same
-// calibration-gate flow, duplicated rather than shared — see handleRate's comment below).
+// aoty/aoty-hub-population.md). Scoped to Contenders only this pass — no AOTY final-list screen
+// yet, see aoty-contenders-implementation.md's first dated section. Structured like
+// FavoritesPage (same row component, same calibration-gate flow, duplicated rather than shared
+// — see handleRate's comment below).
 export function ContendersPage() {
   const { items, loading, error, refetch } = useContendersList();
   const { user } = useAuth();
@@ -135,7 +136,7 @@ export function ContendersPage() {
             </Button>
           </Flex>
 
-          {/* "More prominent than Favorites' current use" (aoty-hub-population.md) — a
+          {/* "More prominent than Favorites' current use" (aoty/aoty-hub-population.md) — a
               full-width banner rather than a per-row corner badge. Reuses the shared `Alert`
               component and `status.info` tokens exactly as AlbumRatingPage's insufficient-data
               banner and CriteriaCalibrationPage's resume banner already do for this same
@@ -143,10 +144,10 @@ export function ContendersPage() {
               TierAccuracyBadge/its `percent` prop: that's computed from live calibration-engine
               solver state in CriteriaCalibrationPage, not something to replay here — see
               criteria-calibration-degree-tiers-and-progress.md's "What NOT to change", and
-              aoty-hub-population.md's 2026-09-28 note for the fuller rationale. Body copy is the
-              same "settle the score" sentence CalibrationGateDialog's soft mode and
-              CriteriaCalibrationPage's resume banner already use for tier === 'none' — same
-              event, same words, not a fourth variant. */}
+              aoty-contenders-implementation.md's banner-revision section for the fuller
+              rationale. Body copy is the same "settle the score" sentence
+              CalibrationGateDialog's soft mode and CriteriaCalibrationPage's resume banner
+              already use for tier === 'none' — same event, same words, not a fourth variant. */}
           {!gateLoading && calibrationTier === 'none' && (
             <Alert
               status="info"

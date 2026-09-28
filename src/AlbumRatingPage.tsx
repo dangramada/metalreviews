@@ -56,7 +56,7 @@ function resolveBackDestination(from: string | null): { href: string; sourceLabe
   return { href, sourceLabel: label };
 }
 
-// The auto-entry-into-Contenders trigger (docs/decisions/aoty-hub-population.md): true only on
+// The auto-entry-into-Contenders trigger (docs/decisions/aoty/aoty-hub-population.md): true only on
 // the transition into fully-rated, never on a subsequent edit to an already-fully-rated album
 // (so a manual Contenders removal isn't silently undone by editing one criterion's level
 // afterward). Exported for direct unit testing — see src/__tests__/isFirstFullRating.test.ts.
@@ -163,7 +163,7 @@ export function AlbumRatingPage() {
       showError('Could not save rating — try again');
       return;
     }
-    // Any scored album auto-enters Contenders (docs/decisions/aoty-hub-population.md). Uses
+    // Any scored album auto-enters Contenders (docs/decisions/aoty/aoty-hub-population.md). Uses
     // upsert+ignoreDuplicates, not a plain insert: the album may already be a Contender (added
     // manually via "+ Add from Favorites" while only partway rated), and a plain insert would
     // hit the table's (user_id, album_id) PK as a real 23505 conflict — not a failure, but

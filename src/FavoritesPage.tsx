@@ -144,7 +144,7 @@ export function FavoriteListItemRow({
   // item.band/item.album regardless, so this only ever needs the destination noun.
   removeLabel?: string;
   // ContendersPage's desktop bulk-remove selection — Contenders-only, desktop-only (per
-  // docs/decisions/aoty-hub-population.md), so this renders solely inside the desktop tree
+  // docs/decisions/aoty/aoty-hub-population.md), so this renders solely inside the desktop tree
   // below and is never passed true from Favorites or from a previewMode instance.
   selectable?: boolean;
   selected?: boolean;

@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Always show a plan and wait for approval before writing code
 - Before adding a new UI component or variant, grep the existing component tree (`src/components`,
   `theme.ts`) for something that already covers it, and state in the plan what was checked —
-  don't rely on the brief's own naming (see `aoty-hub-population.md`'s 2026-09-28 banner
+  don't rely on the brief's own naming (see `aoty/aoty-contenders-implementation.md`'s banner
   revision: the planned `TierAccuracyBadge size="lg"` turned out to be neither built nor the
   right reuse — a grep turned up the existing `Alert` component already covering the same
   condition twice elsewhere)
@@ -117,7 +117,7 @@ non-idempotent-insert bug fixed; the low-confidence banner swapped to reuse the 
 `Alert` component instead of a hand-rolled one; empty state swapped to the existing (previously
 unused) `EmptyState` component; one extraction and one cross-app consistency audit deliberately
 deferred to `deferred-work.md` §B. 914/914 tests, `tsc` clean. Not yet merged. Detail:
-`docs/decisions/aoty-hub-population.md` (dated sections, 2026-09-28).
+`docs/decisions/aoty/aoty-contenders-implementation.md`; gateway: `docs/decisions/aoty-summary.md`.
 
 Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
 matches Favorites' decimal format (`formatBadgeScore`, moved to shared `src/utils/formatScore.ts`)
@@ -420,9 +420,10 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `release-date.md` — historical only (session-by-session detail): release date field, MB data source, precision-aware merge guard
 - `header-redesign.md` — Header rewrite: useLocation active state, responsive breakpoints
 - `favorites-view.md` — `/favorites` route: RequireAuth, useFavoritesList, AddAlbumDrawer flow
-- `aoty-hub-population.md` — Contenders/AOTY hub decision record: Favorite → Contenders → AOTY
-  flow, `contenders` table, naming decisions. Contenders stage in progress on branch
-  `feature/aoty-contenders` — see Active branches
+- `aoty-summary.md` — gateway/index for the AOTY hub decision-doc cluster (2 files, in
+  `docs/decisions/aoty/`); read this first for anything AOTY/Contenders-related. Favorite →
+  Contenders → AOTY flow, `contenders` table, naming decisions. Contenders stage in progress on
+  branch `feature/aoty-contenders` — see Active branches
 - `manual-albums.md` — `manual_albums` table schema, MB lookup endpoint, year-bounding decisions
 - `chakra-v3-migration-plan.md` — Chakra v2→v3 migration, complete and verified (210/210 tests, `tsc` clean); full sequenced history (Steps 0–7)
 - `chakra-v3-foundation-audit-brief.md` — re-examining v2-era styling hacks; eligible to start, not started

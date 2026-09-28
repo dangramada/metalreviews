@@ -4,8 +4,9 @@ import { latestPublishedAt } from './useFavoritesList';
 import type { FavoriteListItem } from './useFavoritesList';
 
 // Returns FavoriteListItem — not a separate type — so FavoriteListItemRow can render a
-// Contenders row exactly as it renders a Favorites row (see docs/decisions/aoty-hub-population.md:
-// Contenders rows need the same Score treatment Favorites already has).
+// Contenders row exactly as it renders a Favorites row (Favorites already has the Score
+// treatment Contenders needs — see docs/decisions/aoty/aoty-contenders-implementation.md's
+// Favorites-Score correction).
 
 type NestedReviewRow = { published_at: string | null };
 
@@ -26,8 +27,8 @@ type ContenderRow = {
 
 // contenders -> albums (many-to-one) -> reviews (one-to-many), same embed shape as
 // useFavoritesList's FAVORITES_SELECT. Ordered by the contenders row's own created_at (newest
-// added first) — "unordered pool" (aoty-hub-population.md) means no algorithmic ranking, not no
-// display order at all.
+// added first) — "unordered pool" (docs/decisions/aoty/aoty-hub-population.md) means no
+// algorithmic ranking, not no display order at all.
 const CONTENDERS_SELECT =
   'album_id, albums(id, band, album, artwork_url, release_date, genre, reviews(published_at))';
 

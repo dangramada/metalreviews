@@ -18,7 +18,7 @@ import { useFeedbackToast } from '../hooks/useFeedbackToast';
 import { supabase } from '../supabaseClient';
 import { primaryButton, secondaryButton } from '../theme';
 
-// The "bulk picker" flagged in docs/decisions/aoty-hub-population.md — distinct from
+// The "bulk picker" flagged in docs/decisions/aoty/aoty-hub-population.md — distinct from
 // AddAlbumDrawer (external MusicBrainz lookup/new-album insert): this only selects among the
 // user's *existing* Favorites and writes `contenders` join rows, no album lookup at all.
 //

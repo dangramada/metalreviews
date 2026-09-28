@@ -47,7 +47,8 @@ const router = createBrowserRouter([
   },
   {
     // Under /aoty/ (not bare /contenders) so the URL doesn't need to change once AOTY itself
-    // ships and Contenders becomes its sub-path — see aoty-hub-population.md's 2026-09-28 note.
+    // ships and Contenders becomes its sub-path — see aoty-contenders-implementation.md's
+    // scope-correction section.
     path: '/aoty/contenders',
     element: (
       <RequireAuth>

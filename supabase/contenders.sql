@@ -1,4 +1,4 @@
--- contenders: the AOTY hub's intermediate candidate pool (docs/decisions/aoty-hub-population.md).
+-- contenders: the AOTY hub's intermediate candidate pool (docs/decisions/aoty/aoty-hub-population.md).
 -- One row per (user, album) the user has put forward as a contender — distinct from `favorites`
 -- (loose, low-intent) and from "has been scored" (album_criteria_ratings having 6 rows). Neither
 -- is reused as a proxy per that doc's explicit decision. Per-user private state, same shape as
