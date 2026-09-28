@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Box, Button, Container, Flex, Heading, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Icon, Text, VStack } from '@chakra-ui/react';
+import { Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
 import { Alert } from './components/ui/alert';
+import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
 import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
@@ -197,9 +199,11 @@ export function ContendersPage() {
               Failed to load Contenders. Please try again later.
             </Text>
           ) : items.length === 0 ? (
-            <Text textAlign="center" color="text.muted">
-              No contenders yet. Score an album, or add one from your favorites.
-            </Text>
+            <EmptyState
+              icon={<Icon as={Info} />}
+              title="No contenders yet."
+              description="Score an album, or add one from your favorites."
+            />
           ) : (
             <VStack gap={3} align="stretch">
               {items.map((item) => (

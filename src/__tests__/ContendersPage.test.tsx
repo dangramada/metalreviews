@@ -103,6 +103,13 @@ describe('ContendersPage', () => {
     );
   });
 
+  it('shows the shared EmptyState component when there are no contenders', async () => {
+    mockItems = [];
+    render(<ContendersPage />, { wrapper });
+    await waitFor(() => screen.getByText('No contenders yet.'));
+    expect(screen.getByText('Score an album, or add one from your favorites.')).toBeInTheDocument();
+  });
+
   it('renders each contender via the shared row component', async () => {
     render(<ContendersPage />, { wrapper });
     // Row component always mounts both its desktop and mobile trees (CSS-toggled, not
