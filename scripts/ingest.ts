@@ -3,7 +3,7 @@ import RSSParser from 'rss-parser';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import puppeteer from 'puppeteer';
-import { extractRating } from '../src/scraper/angrymetal.js';
+import { extractRating } from '../src/scraper/angrymetal';
 import { extractRating as extractPSRating } from '../src/scraper/progressivesubway';
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';

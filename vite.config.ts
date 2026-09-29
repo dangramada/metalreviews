@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import WebfontDownload from 'vite-plugin-webfont-dl';
 
 export default defineConfig({
@@ -12,11 +12,9 @@ export default defineConfig({
     },
   },
   test: {
-    environmentMatchGlobs: [
-      // Use jsdom for React component tests (.test.tsx files only).
-      // Existing .test.ts and .test.js files stay in the default Node environment.
-      ['src/__tests__/**/*.test.tsx', 'jsdom'],
-    ],
+    // environmentMatchGlobs was removed from Vitest (gone from its runtime and types as
+    // of the installed v4) — every .test.tsx file already carries its own
+    // `// @vitest-environment jsdom` pragma, which is what actually selects jsdom now.
     setupFiles: ['./src/__tests__/setup.ts'],
   },
 });

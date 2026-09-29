@@ -1,9 +1,9 @@
-// src/scraper/angrymetal.js
+// src/scraper/angrymetal.ts
 
 /**
  * Mapping of textual rating descriptors to numeric values on a 0‑10 scale.
  */
-export const RATING_MAP = {
+export const RATING_MAP: Record<string, number> = {
   Iconic: 10.0,
   Excellent: 9.0,
   Great: 8.0,
@@ -20,10 +20,8 @@ import * as cheerio from 'cheerio';
 
 /**
  * Normalises a rating string to a numeric value (0‑10).
- * @param {string} raw - Raw rating text from the page.
- * @returns {number|null} Normalised rating or null if not parsable.
  */
-function normaliseRating(raw) {
+function normaliseRating(raw: string | null | undefined): number | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   // Fractional form e.g. "3.0/5.0" or "8.5/10"
@@ -52,10 +50,8 @@ function normaliseRating(raw) {
 /**
  * Extracts the rating from the article HTML.
  * The function attempts a few common selectors used by Angry Metal Guy.
- * @param {string} html - Full HTML string of the article page.
- * @returns {number|null} Normalised rating (0‑10) or null if not found.
  */
-export function extractRating(html) {
+export function extractRating(html: string): number | null {
   const $ = cheerio.load(html);
 
   // 1️⃣ Look for a meta tag with name="rating"
@@ -70,7 +66,7 @@ export function extractRating(html) {
   }
 
   // 3️⃣ Look for "Rating:" in text elements (e.g. <strong>Rating:</strong> 3.0/5.0 or <strong>Rating:</strong> Great)
-  let extracted = null;
+  let extracted: number | null = null;
   const ratingWords = Object.keys(RATING_MAP)
     .map((w) => w.replace(/\s+/g, '\\s+'))
     .join('|');
