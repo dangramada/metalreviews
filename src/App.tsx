@@ -317,9 +317,7 @@ export function ArtworkBlock({
           which is what shipped originally and made the scrim invisible. Stick to a defined
           step. */}
       <Box
-        as="button"
-        type="button"
-        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+        asChild
         position="absolute"
         top={2}
         right={2}
@@ -340,37 +338,42 @@ export function ArtworkBlock({
           // outline→filled glyph swap.
           '&:hover .heart-outline, &:hover .heart-filled': { color: 'white' },
         }}
-        onClick={(e: React.MouseEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onToggle();
-        }}
       >
-        {isFavorited ? (
-          <Icon as={FaHeart} color="red.400" boxSize={5} />
-        ) : (
-          <Box position="relative" boxSize={5}>
-            <Icon
-              className="heart-outline"
-              as={FaRegHeart}
-              color="whiteAlpha.700"
-              boxSize={5}
-              position="absolute"
-              top={0}
-              left={0}
-            />
-            <Icon
-              className="heart-filled"
-              as={FaHeart}
-              color="whiteAlpha.700"
-              boxSize={5}
-              position="absolute"
-              top={0}
-              left={0}
-              opacity={0}
-            />
-          </Box>
-        )}
+        <button
+          type="button"
+          aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggle();
+          }}
+        >
+          {isFavorited ? (
+            <Icon as={FaHeart} color="red.400" boxSize={5} />
+          ) : (
+            <Box position="relative" boxSize={5}>
+              <Icon
+                className="heart-outline"
+                as={FaRegHeart}
+                color="whiteAlpha.700"
+                boxSize={5}
+                position="absolute"
+                top={0}
+                left={0}
+              />
+              <Icon
+                className="heart-filled"
+                as={FaHeart}
+                color="whiteAlpha.700"
+                boxSize={5}
+                position="absolute"
+                top={0}
+                left={0}
+                opacity={0}
+              />
+            </Box>
+          )}
+        </button>
       </Box>
 
       {/* Listen chip — top-right overlay, same row as the heart, directly to its left.
@@ -411,11 +414,8 @@ export function ArtworkBlock({
       >
         <MenuTrigger asChild>
           <Box
+            asChild
             ref={listenTriggerRef}
-            as="button"
-            type="button"
-            aria-label="Listen on a streaming platform"
-            data-listen-trigger
             position="absolute"
             top={2}
             right={12}
@@ -441,17 +441,19 @@ export function ArtworkBlock({
               },
             }}
           >
-            <Icon className="listen-icon" as={Headphones} color="whiteAlpha.700" boxSize={5} />
-            <Text
-              className="listen-label"
-              as="span"
-              fontSize="sm"
-              fontWeight="600"
-              lineHeight="1"
-              color="whiteAlpha.700"
-            >
-              Listen
-            </Text>
+            <button type="button" aria-label="Listen on a streaming platform" data-listen-trigger>
+              <Icon className="listen-icon" as={Headphones} color="whiteAlpha.700" boxSize={5} />
+              <Text
+                className="listen-label"
+                as="span"
+                fontSize="sm"
+                fontWeight="600"
+                lineHeight="1"
+                color="whiteAlpha.700"
+              >
+                Listen
+              </Text>
+            </button>
           </Box>
         </MenuTrigger>
         {/* Same blackAlpha.800 as the trigger chip, rather than the default panel token, so

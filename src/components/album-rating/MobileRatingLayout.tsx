@@ -253,31 +253,23 @@ export function MobileRatingLayout({
           Stage 2: an interactive wrapper *around* RatingProgressBox opens the radar-chart
           modal — RatingProgressBox itself gets no onClick/prop change so desktop's usage
           (DesktopRatingLayout.tsx) stays byte-for-byte unaffected. */}
-      <Box
-        as="button"
-        type="button"
-        onClick={() => setRadarOpen(true)}
-        aria-label="View radar chart"
-        w="100%"
-        textAlign="left"
-        cursor="pointer"
-        px={0}
-        py={0}
-      >
-        {/* While hidden (`!revealed`), shows the fixed `progressSnapshot` rather than live props
-            — the save resolves, and `ratedCount` updates, well before the feedback+pause+slide
-            sequence finishes, while this panel may still be off-screen mid-transition; without
-            gating, the 6th/final pick's crossfade would play (and finish) while invisible, so
-            arrival would show the already-settled final state instead of animating into it. Once
-            `revealed`, reads live props directly and keeps doing so — see `revealed`'s
-            declaration above for why this must be a persistent gate, not a one-shot copy. */}
-        <RatingProgressBox
-          ratedCount={revealed ? ratings.size : progressSnapshot.ratedCount}
-          totalCount={order.length}
-          ratingSummary={revealed ? ratingSummary : progressSnapshot.ratingSummary}
-          confidenceTier={confidenceTier}
-          hasInsufficientData={hasInsufficientData}
-        />
+      <Box asChild w="100%" textAlign="left" cursor="pointer" px={0} py={0}>
+        <button type="button" onClick={() => setRadarOpen(true)} aria-label="View radar chart">
+          {/* While hidden (`!revealed`), shows the fixed `progressSnapshot` rather than live props
+              — the save resolves, and `ratedCount` updates, well before the feedback+pause+slide
+              sequence finishes, while this panel may still be off-screen mid-transition; without
+              gating, the 6th/final pick's crossfade would play (and finish) while invisible, so
+              arrival would show the already-settled final state instead of animating into it. Once
+              `revealed`, reads live props directly and keeps doing so — see `revealed`'s
+              declaration above for why this must be a persistent gate, not a one-shot copy. */}
+          <RatingProgressBox
+            ratedCount={revealed ? ratings.size : progressSnapshot.ratedCount}
+            totalCount={order.length}
+            ratingSummary={revealed ? ratingSummary : progressSnapshot.ratingSummary}
+            confidenceTier={confidenceTier}
+            hasInsufficientData={hasInsufficientData}
+          />
+        </button>
       </Box>
       <VStack align="stretch" gap={0} borderTop="1px solid" borderColor="border.ruleStrong">
         {order.map((id, index) => {

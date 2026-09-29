@@ -66,16 +66,11 @@ export function Footer({ lastUpdated }: FooterProps) {
         {lastUpdated ? `Newest review: ${formatRelativeTime(lastUpdated, now)}` : ''}
       </Text>
       <Flex align="center" gap={4}>
-        <Link as={RouterLink} to="/" {...footerTextStyle} _hover={{ color: 'text.primary' }}>
-          Reviews
+        <Link asChild {...footerTextStyle} _hover={{ color: 'text.primary' }}>
+          <RouterLink to="/">Reviews</RouterLink>
         </Link>
-        <Link
-          as={RouterLink}
-          to="/favorites"
-          {...footerTextStyle}
-          _hover={{ color: 'text.primary' }}
-        >
-          Favorites
+        <Link asChild {...footerTextStyle} _hover={{ color: 'text.primary' }}>
+          <RouterLink to="/favorites">Favorites</RouterLink>
         </Link>
         <Text {...footerTextStyle}>&copy; {new Date().getFullYear()} Slant Take</Text>
       </Flex>

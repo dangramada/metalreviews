@@ -89,8 +89,8 @@ export function LoginPage() {
             <Text fontSize="sm" color="text.dim">
               Once confirmed, you can log in below.
             </Text>
-            <Link as={RouterLink} to="/login" color="accent.text" fontSize="sm">
-              Back to log in
+            <Link asChild color="accent.text" fontSize="sm">
+              <RouterLink to="/login">Back to log in</RouterLink>
             </Link>
           </VStack>
         </Container>
@@ -104,8 +104,8 @@ export function LoginPage() {
         <Container maxW="sm">
           <VStack gap={4} textAlign="center">
             <Text fontSize="lg">Check your email for a password reset link.</Text>
-            <Link as={RouterLink} to="/login" color="accent.text" fontSize="sm">
-              Back to log in
+            <Link asChild color="accent.text" fontSize="sm">
+              <RouterLink to="/login">Back to log in</RouterLink>
             </Link>
           </VStack>
         </Container>
@@ -242,8 +242,8 @@ export function LoginPage() {
           )}
 
           <Text textAlign="center" fontSize="sm">
-            <Link as={RouterLink} to="/" color="text.dim" _hover={{ color: 'text.primary' }}>
-              ← Back to dashboard
+            <Link asChild color="text.dim" _hover={{ color: 'text.primary' }}>
+              <RouterLink to="/">← Back to dashboard</RouterLink>
             </Link>
           </Text>
         </VStack>

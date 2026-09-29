@@ -96,8 +96,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                 slab's high state — dark text is required on any accent-filled background,
                 confirmed bug fixed in pass 4. Inactive/hover states are unaffected. */}
               <Link
-                as={RouterLink}
-                to="/"
+                asChild
                 {...navPillBase}
                 bg={isReviewsActive ? 'accent.border' : 'transparent'}
                 color={isReviewsActive ? 'accent.ink' : 'text.dim'}
@@ -107,11 +106,10 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                   color: isReviewsActive ? 'accent.ink' : 'accent.start',
                 }}
               >
-                Reviews
+                <RouterLink to="/">Reviews</RouterLink>
               </Link>
               <Link
-                as={RouterLink}
-                to="/favorites"
+                asChild
                 {...navPillBase}
                 bg={isFavoritesActive ? 'accent.border' : 'transparent'}
                 color={isFavoritesActive ? 'accent.ink' : 'text.dim'}
@@ -121,11 +119,10 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                   color: isFavoritesActive ? 'accent.ink' : 'accent.start',
                 }}
               >
-                Favorites
+                <RouterLink to="/favorites">Favorites</RouterLink>
               </Link>
               <Link
-                as={RouterLink}
-                to="/aoty/contenders"
+                asChild
                 {...navPillBase}
                 bg={isContendersActive ? 'accent.border' : 'transparent'}
                 color={isContendersActive ? 'accent.ink' : 'text.dim'}
@@ -135,7 +132,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                   color: isContendersActive ? 'accent.ink' : 'accent.start',
                 }}
               >
-                Contenders
+                <RouterLink to="/aoty/contenders">Contenders</RouterLink>
               </Link>
 
               {/* Vertical divider between nav links and account control */}
@@ -179,8 +176,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                 </Menu.Root>
               ) : (
                 <Link
-                  as={RouterLink}
-                  to="/login"
+                  asChild
                   {...navPillBase}
                   bg="transparent"
                   color="text.dim"
@@ -190,7 +186,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                     color: 'accent.start',
                   }}
                 >
-                  Log in
+                  <RouterLink to="/login">Log in</RouterLink>
                 </Link>
               )}
             </Flex>
