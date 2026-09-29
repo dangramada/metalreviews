@@ -559,11 +559,12 @@ function App() {
   // The Supabase client uses VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
   // from .env (frontend-safe, uses RLS if configured on the table).
   useEffect(() => {
-    supabase
-      .from('albums')
-      .select(ALBUMS_WITH_REVIEWS_SELECT)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('albums')
+          .select(ALBUMS_WITH_REVIEWS_SELECT)
+          .order('created_at', { ascending: false });
         if (error) {
           console.warn('Failed to load albums from Supabase', error);
         } else {
@@ -573,12 +574,16 @@ function App() {
             )
           );
         }
-        setLoading(false);
-      })
-      .catch((e) => {
+      } catch (e) {
+        // Same catch-all as the original .then().catch() chain: covers a rejected query
+        // (network failure) and a throw from the success branch above (e.g. a bad shape
+        // reaching filterMetalStormBackCatalogue/fromAlbumWithReviews) identically — finally
+        // below still runs setLoading(false) exactly once either way.
         console.warn('Failed to load albums', e);
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, []); // [] = run once on mount, never re-run
 
   // =============================================================================
