@@ -1216,3 +1216,26 @@ which fixes the display layer only.
   reads as verifying for some time. Not touched here (it is a whole pass of its own, and a noisy
   one), but it should be either fixed or the claim reworded — per-file lint and per-file `tsc -b`
   filtering is what this branch actually did instead.
+  **Re-confirmed 2026-09-29** (feature/aoty-contenders merge to master): `npm run lint` on
+  `master` post-merge reports ~7000 problems, up from the ~2981 counted above — same root cause,
+  not a new regression (`npx eslint` scoped to files actually touched by that branch was clean
+  throughout). `tsc -b` on `master` post-merge: zero errors in any file the branch added or
+  touched (`SelectableRow.tsx`, `ContendersPage.tsx`, `AddToContendersPicker.tsx` clean;
+  `FavoritesPage.tsx`'s pre-existing errors are identical in count before and after the branch's
+  edits — 17, confirmed by diffing against the pre-merge file directly). This item's fix/reword
+  decision is still open.
+
+## New items, 2026-09-29 (Contenders selection UX pass, merged to master)
+
+- **Real-device screen-reader verification (VoiceOver/TalkBack) of `AddToContendersPicker`'s
+  mobile checkbox is still open.** `hideCheckboxOnMobile` (`SelectableRow.tsx`) visually hides
+  the checkbox below `md` via the same technique as Chakra's own `srOnly` utility, keeping it in
+  the accessibility tree. Verified against a real Chromium tab's computed style and accessibility
+  tree (not jsdom, which doesn't evaluate the relevant `@media` rule at all) — confirmed
+  `role: checkbox`, correct name, `checked` state, and that the element uses `position: absolute`
+  + `clip`, not `display: none`/`visibility: hidden` (the two properties that actually remove an
+  element from the accessibility tree). Neither a live screen-reader session nor the live app
+  (no stored credentials — Dan always logs in himself) was reachable from that session, so this
+  stops short of an actual VoiceOver-on-iOS-Safari or TalkBack-on-Chrome-Android pass on a real
+  device. Full detail: `docs/decisions/aoty/aoty-contenders-implementation.md`'s 2026-09-29
+  "Mobile selection split" section.

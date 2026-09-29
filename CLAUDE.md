@@ -109,23 +109,17 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
-In progress: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
-`/aoty/contenders` route + nav entry, `contenders` Supabase table (already run against the live
-project), bulk picker/add/remove, auto-add on full rating. Scoped to Contenders only, no AOTY
-final-list screen this pass. Code-reviewed 2026-09-28 — one accessibility bug and one
-non-idempotent-insert bug fixed; the low-confidence banner swapped to reuse the existing
-`Alert` component instead of a hand-rolled one; empty state swapped to the existing (previously
-unused) `EmptyState` component; one extraction and one cross-app consistency audit deliberately
-deferred to `deferred-work.md` §B. Same-day follow-up pass: selection checkbox moved off
-`FavoriteListItemRow` (reverted to selection-agnostic) onto a new shared `SelectableRow`
-wrapper used by both `ContendersPage` (desktop-only) and `AddToContendersPicker` (always-on);
-click-anywhere-on-the-row toggle, selected-state ring via `accent.border`. 2026-09-29 follow-ups
-on the same branch: a `getComputedStyle` click-time guard closes the mobile phantom-toggle gap
-on `ContendersPage`; a separate `hideCheckboxOnMobile` prop (distinct from `desktopOnly` —
-reusing that one would have killed click-to-toggle) visually hides `AddToContendersPicker`'s
-checkbox below `md` without removing it from the accessibility tree, verified against a real
-Chromium a11y tree (no VoiceOver/TalkBack session reachable from here — real-device screen-reader
-pass still open). 923/923 tests, `tsc` clean. Not yet merged. Detail:
+Most recent merge: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
+`/aoty/contenders` route + nav entry, `contenders` Supabase table, bulk picker/add/remove,
+auto-add on full rating. Scoped to Contenders only, no AOTY final-list screen this pass.
+Code-reviewed 2026-09-28 (two bugs fixed; `Alert`/`EmptyState` component reuse over hand-rolled
+versions). Same-day and 2026-09-29 follow-ups moved selection off `FavoriteListItemRow` onto a
+shared `SelectableRow` wrapper (desktop-only on `ContendersPage`, always-on with a visually-only
+mobile hide on `AddToContendersPicker`) — real-device VoiceOver/TalkBack verification still open,
+see `deferred-work.md`'s 2026-09-29 entry. `npm run type-check` is a known no-op on this repo
+(`deferred-work.md`'s 2026-09-20 entry) — verified via `tsc -b` instead, zero errors in any file
+this branch touched. 923/923 tests. Merged to `master` `--no-ff` at `3ac157b` on 2026-09-29.
+Rollback tag: `pre-merge-feature-aoty-contenders`. Detail:
 `docs/decisions/aoty/aoty-contenders-implementation.md`; gateway:
 `docs/decisions/aoty-summary.md`.
 
