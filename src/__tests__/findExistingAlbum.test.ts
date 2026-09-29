@@ -10,6 +10,7 @@ vi.mock('../supabaseClient', () => ({
 
 import { supabase } from '../supabaseClient';
 import { findExistingAlbum } from '../FavoritesPage';
+import { mockSupabaseFrom } from './supabaseMock';
 
 const matchRow = {
   id: 'existing-album-1',
@@ -47,7 +48,7 @@ describe('findExistingAlbum', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('matches by mb_release_group_id first, without checking norm_key', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeAlbumsFromImpl({ byMbId: matchRow }));
+    mockSupabaseFrom(supabase.from, makeAlbumsFromImpl({ byMbId: matchRow }));
     const result = await findExistingAlbum('mb-release-group-123', 'Opeth', 'Blackwater Park');
     expect(result).toMatchObject({
       albumId: 'existing-album-1',
@@ -60,21 +61,19 @@ describe('findExistingAlbum', () => {
   });
 
   it('falls back to norm_key when no release-group id was resolved', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeAlbumsFromImpl({ byNormKey: matchRow }));
+    mockSupabaseFrom(supabase.from, makeAlbumsFromImpl({ byNormKey: matchRow }));
     const result = await findExistingAlbum(null, 'Opeth', 'Blackwater Park');
     expect(result?.albumId).toBe('existing-album-1');
   });
 
   it('falls back to norm_key when a release-group id was given but found no match', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeAlbumsFromImpl({ byMbId: null, byNormKey: matchRow })
-    );
+    mockSupabaseFrom(supabase.from, makeAlbumsFromImpl({ byMbId: null, byNormKey: matchRow }));
     const result = await findExistingAlbum('mb-release-group-999', 'Opeth', 'Blackwater Park');
     expect(result?.albumId).toBe('existing-album-1');
   });
 
   it('returns null when neither key matches', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeAlbumsFromImpl({}));
+    mockSupabaseFrom(supabase.from, makeAlbumsFromImpl({}));
     const result = await findExistingAlbum(null, 'Some New Band', 'Some New Album');
     expect(result).toBeNull();
   });
@@ -83,11 +82,14 @@ describe('findExistingAlbum', () => {
     const eqSpy = vi.fn().mockImplementation(() => ({
       maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     }));
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    mockSupabaseFrom(supabase.from, (table: string) => {
       if (table !== 'albums') throw new Error(`unexpected table ${table}`);
       return { select: vi.fn().mockReturnValue({ eq: eqSpy }) };
     });
     await findExistingAlbum(null, 'St. Louis', 'A Dark Poem, Part II');
-    expect(eqSpy).toHaveBeenCalledWith('norm_key', computeNormKey('St. Louis', 'A Dark Poem, Part II'));
+    expect(eqSpy).toHaveBeenCalledWith(
+      'norm_key',
+      computeNormKey('St. Louis', 'A Dark Poem, Part II')
+    );
   });
 });

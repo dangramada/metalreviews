@@ -10,6 +10,7 @@ function mb(overrides: Partial<MusicBrainzData> = {}): MusicBrainzData {
     genres: ['black metal'],
     releaseDate: '2024-03-15',
     releaseGroupId: 'mb-release-group-1',
+    status: 'ok',
     ...overrides,
   };
 }

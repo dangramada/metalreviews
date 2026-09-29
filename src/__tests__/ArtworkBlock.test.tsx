@@ -46,6 +46,7 @@ const mockReview = {
     {
       source: 'Angry Metal Guy',
       score: '9/10',
+      summary: 'A classic.',
       url: 'https://example.com',
       publishedAt: '2006-01-01T00:00:00Z',
       publishedDate: '1 Jan 2006',

@@ -43,7 +43,7 @@ vi.mock('../hooks/useFeedbackToast', () => ({
 
 import { useFavoritesList } from '../hooks/useFavoritesList';
 import { supabase } from '../supabaseClient';
-import { mockSupabaseFrom } from './supabaseMock';
+import { mockSupabaseFrom, mockSupabaseRpc } from './supabaseMock';
 
 // Use current year so items survive the default year filter
 const currentYear = new Date().getFullYear();
@@ -131,7 +131,7 @@ function stubCalibrationTable(table: string): unknown | undefined {
 }
 
 // Convenience: build a mock return value that includes refetch
-function mockHookReturn(overrides: Partial<ReturnType<typeof useFavoritesList>>) {
+function mockHookReturn(overrides: Partial<ReturnType<typeof useFavoritesList>> = {}) {
   return { items: [], loading: false, error: null, refetch: vi.fn(), ...overrides };
 }
 
@@ -539,7 +539,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
     it('calls fill_missing_release_date before favoriting once a manual date is entered', async () => {
       const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
       mockSupabaseFrom(supabase.from, makeSupabaseFromNoDate(favoritesInsert));
-      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null });
+      mockSupabaseRpc(supabase.rpc, { data: null, error: null });
       vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
       render(<FavoritesPage />, { wrapper });
       await openDrawerAndLookUp();
@@ -567,7 +567,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
     it('shows an error and does not favorite when fill_missing_release_date fails', async () => {
       const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
       mockSupabaseFrom(supabase.from, makeSupabaseFromNoDate(favoritesInsert));
-      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: { message: 'boom' } });
+      mockSupabaseRpc(supabase.rpc, { data: null, error: { message: 'boom' } });
       vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
       render(<FavoritesPage />, { wrapper });
       await openDrawerAndLookUp();

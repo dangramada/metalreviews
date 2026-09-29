@@ -9,3 +9,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export function mockSupabaseFrom(from: SupabaseClient['from'], impl: (table: string) => unknown) {
   vi.mocked(from).mockImplementation(impl as never);
 }
+
+// Same shape mismatch for supabase.rpc(): a mocked resolved value only ever carries
+// { data, error }, never the full PostgrestSingleResponse (status/statusText/success/count)
+// or the full PostgrestError (details/hint/code/toJSON/name) — one cast here instead of
+// scattering @ts-expect-error at each mockResolvedValue call site.
+export function mockSupabaseRpc(
+  rpc: SupabaseClient['rpc'],
+  value: { data: unknown; error: { message: string } | null }
+) {
+  vi.mocked(rpc).mockResolvedValue(value as never);
+}
