@@ -844,6 +844,28 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   `keepalive` fetch flag threaded through the Supabase client (non-trivial — no per-call fetch
   override currently exists in `supabaseClient.ts`), deferred as not urgent enough to justify
   that plumbing on top of the same pass's other fixes.
+- **`ContendersPage.tsx`'s hard/soft calibration-gate `handleRate` flow (`gateMode`,
+  `pendingRateAlbumId`, the `CalibrationGateDialog` wiring) duplicates `FavoritesPage.tsx`'s
+  identical logic almost verbatim** — only the `?from=` query suffix differs
+  (`feature/aoty-contenders`, 2026-09-28 code review). Deliberately not extracted on that
+  branch: it only touches navigation glue around `useCalibrationGate`, never the gate/solver
+  logic itself, so there's no real risk in sharing it — but extracting would mean editing
+  `FavoritesPage.tsx`'s already-shipped, live-verified code, which widened that branch's diff
+  beyond its stated Contenders-only scope. Extract a `useCalibrationGateNavigation(fromParam)`
+  hook (returning `{ handleRate, gateMode, dialog props }`) once the AOTY final-list screen
+  (a third call site for this exact flow) exists — not worth it for two call sites alone.
+- **Audit empty-state treatments across the app for consistency** (`feature/aoty-contenders`,
+  2026-09-28). `ContendersPage.tsx` now uses the shared `EmptyState` component
+  (`src/components/ui/empty-state.tsx`) — previously scaffolded but unused anywhere — with a
+  Lucide `Info` icon, title, and description. `FavoritesPage.tsx`'s matching empty state ("No
+  favorites yet...") is still the older bare-`Text` pattern Contenders copied before this
+  change, so the two sibling list pages now visually diverge. Likely other bare-`Text`
+  "nothing here" messages exist elsewhere in the app (e.g. filtered-empty states, search-no-
+  results) that were never audited against `EmptyState` either. Scope: grep the app for
+  empty/no-results copy, decide case by case whether each should adopt `EmptyState` (icon +
+  title + description) or stay as plain text, and make `FavoritesPage.tsx` consistent with
+  whatever `ContendersPage.tsx` settles into. Not done as part of the Contenders branch — that
+  branch only touched Contenders' own empty state, per its stated scope.
 
 ## C. Design/branding (open)
 

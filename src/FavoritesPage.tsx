@@ -111,6 +111,7 @@ export function FavoriteListItemRow({
   confidenceTier,
   hasInsufficientData = false,
   previewMode = false,
+  removeLabel = 'favorites',
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -134,6 +135,10 @@ export function FavoriteListItemRow({
   // button, which has no onRate/onRemove-style gate of its own). The /favorites list omits
   // this so its footer is unaffected.
   previewMode?: boolean;
+  // What onRemove removes this row from — feeds the remove tooltip/aria-label and the confirm
+  // dialog's title (e.g. "Remove from Contenders?" on ContendersPage). Body text still uses
+  // item.band/item.album regardless, so this only ever needs the destination noun.
+  removeLabel?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -336,9 +341,9 @@ export function FavoriteListItemRow({
               </MenuRoot>
 
               {onRemove && (
-                <Tooltip content="Remove from favorites">
+                <Tooltip content={`Remove from ${removeLabel}`}>
                   <IconButton
-                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    aria-label={removing ? 'Loading' : `Remove from ${removeLabel}`}
                     size="sm"
                     variant="ghost"
                     color="text.muted"
@@ -558,7 +563,7 @@ export function FavoriteListItemRow({
                     size="sm"
                     color="text.muted"
                     _hover={{ color: 'red.400' }}
-                    aria-label={removing ? 'Loading' : 'Remove from favorites'}
+                    aria-label={removing ? 'Loading' : `Remove from ${removeLabel}`}
                     loading={removing}
                     spinner={<LoadingIndicatorBars />}
                     onClick={() => setShowRemoveConfirm(true)}
@@ -584,10 +589,10 @@ export function FavoriteListItemRow({
         >
           <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
             <DialogHeader>
-              <DialogTitle fontWeight="semibold">Remove from favorites?</DialogTitle>
+              <DialogTitle fontWeight="semibold">Remove from {removeLabel}?</DialogTitle>
             </DialogHeader>
             <DialogBody>
-              Remove &quot;{item.band} – {item.album}&quot; from your favorites?
+              Remove &quot;{item.band} – {item.album}&quot; from your {removeLabel}?
             </DialogBody>
             <DialogFooter gap={3}>
               <Button

@@ -623,3 +623,8 @@ describe('FavoriteListItemRow — insufficient data', () => {
     expect(formatBadgeScore(0.7)).toBe('7.0');
   });
 });
+
+// FavoriteListItemRow no longer has selectable/selected/onToggleSelect props — that moved to the
+// shared SelectableRow wrapper (src/components/SelectableRow.tsx), which ContendersPage and
+// AddToContendersPicker use instead. See src/__tests__/SelectableRow.test.tsx for the
+// aria-label-lands-on-the-wrong-element regression test this block used to cover.

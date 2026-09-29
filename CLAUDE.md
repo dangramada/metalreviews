@@ -8,6 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   starting any task; consult the historical/reference section below only when the task at
   hand touches it
 - Always show a plan and wait for approval before writing code
+- Before adding a new UI component or variant, grep the existing component tree (`src/components`,
+  `theme.ts`) for something that already covers it, and state in the plan what was checked —
+  don't rely on the brief's own naming (see `aoty/aoty-contenders-implementation.md`'s banner
+  revision: the planned `TierAccuracyBadge size="lg"` turned out to be neither built nor the
+  right reuse — a grep turned up the existing `Alert` component already covering the same
+  condition twice elsewhere)
 - After each completed feature, update this file (or the relevant `docs/decisions/` file — see below) with decisions made
 - Target deployment: Render (current). Vercel migration is a possible future move — avoid permanent server dependencies where reasonably easy
 - Code commenting style (WHY not what, what to comment, what to skip): see `docs/commenting-style-guide.md`.
@@ -103,6 +109,26 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+In progress: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
+`/aoty/contenders` route + nav entry, `contenders` Supabase table (already run against the live
+project), bulk picker/add/remove, auto-add on full rating. Scoped to Contenders only, no AOTY
+final-list screen this pass. Code-reviewed 2026-09-28 — one accessibility bug and one
+non-idempotent-insert bug fixed; the low-confidence banner swapped to reuse the existing
+`Alert` component instead of a hand-rolled one; empty state swapped to the existing (previously
+unused) `EmptyState` component; one extraction and one cross-app consistency audit deliberately
+deferred to `deferred-work.md` §B. Same-day follow-up pass: selection checkbox moved off
+`FavoriteListItemRow` (reverted to selection-agnostic) onto a new shared `SelectableRow`
+wrapper used by both `ContendersPage` (desktop-only) and `AddToContendersPicker` (always-on);
+click-anywhere-on-the-row toggle, selected-state ring via `accent.border`. 2026-09-29 follow-ups
+on the same branch: a `getComputedStyle` click-time guard closes the mobile phantom-toggle gap
+on `ContendersPage`; a separate `hideCheckboxOnMobile` prop (distinct from `desktopOnly` —
+reusing that one would have killed click-to-toggle) visually hides `AddToContendersPicker`'s
+checkbox below `md` without removing it from the accessibility tree, verified against a real
+Chromium a11y tree (no VoiceOver/TalkBack session reachable from here — real-device screen-reader
+pass still open). 923/923 tests, `tsc` clean. Not yet merged. Detail:
+`docs/decisions/aoty/aoty-contenders-implementation.md`; gateway:
+`docs/decisions/aoty-summary.md`.
+
 Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
 matches Favorites' decimal format (`formatBadgeScore`, moved to shared `src/utils/formatScore.ts`)
 instead of `Math.round(score*100)%`, via a new `scoreSlabPersonal` theme key; homepage `ScoreSlab`
@@ -111,10 +137,12 @@ live-verified by Dan. Merged to `master` `--no-ff` at `f420bfb` on 2026-09-27. R
 `pre-merge-feature-rating-page-score-format`. Detail:
 `docs/decisions/favorites-row-desktop-redesign.md` (2026-09-27 note).
 
-In progress: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a Score
-badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating page.
-Live-confirmed by Dan. Not yet merged. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
-(2026-09-26 note).
+Most recent merge: `feature/favorites-score-badge` — Favorites row's `#N` rank badge replaced by a
+Score badge (`scoreOverlayBadge`, `x.x`, clamped at 10.0); rank stays only on the Album Rating
+page. Live-confirmed by Dan. Merged to `master` `--no-ff` at `12b3b4a` on 2026-09-26. Rollback
+tag: `pre-merge-favorites-score-badge`. Detail: `docs/decisions/favorites-row-desktop-redesign.md`
+(2026-09-26 note). (This entry had been stale as "In progress... Not yet merged" — caught and
+fixed during `feature/aoty-contenders`'s 2026-09-28 architecture-verification pass.)
 
 Paused: `mobile-audit-app-shell-2026-09` — read-only mobile/overlay-navigation diagnostic for a
 possible app-shell redesign (bottom tab bar, persistent chrome). Findings-only, no code
@@ -402,6 +430,10 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `release-date.md` — historical only (session-by-session detail): release date field, MB data source, precision-aware merge guard
 - `header-redesign.md` — Header rewrite: useLocation active state, responsive breakpoints
 - `favorites-view.md` — `/favorites` route: RequireAuth, useFavoritesList, AddAlbumDrawer flow
+- `aoty-summary.md` — gateway/index for the AOTY hub decision-doc cluster (2 files, in
+  `docs/decisions/aoty/`); read this first for anything AOTY/Contenders-related. Favorite →
+  Contenders → AOTY flow, `contenders` table, naming decisions. Contenders stage in progress on
+  branch `feature/aoty-contenders` — see Active branches
 - `manual-albums.md` — `manual_albums` table schema, MB lookup endpoint, year-bounding decisions
 - `chakra-v3-migration-plan.md` — Chakra v2→v3 migration, complete and verified (210/210 tests, `tsc` clean); full sequenced history (Steps 0–7)
 - `chakra-v3-foundation-audit-brief.md` — re-examining v2-era styling hacks; eligible to start, not started
