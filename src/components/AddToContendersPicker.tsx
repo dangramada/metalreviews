@@ -26,8 +26,12 @@ import { primaryButton, secondaryButton } from '../theme';
 // footer — same reason AddAlbumDrawer's own preview uses it: a Drawer is always narrower than
 // the desktop breakpoint). Selection is the shared SelectableRow wrapper, with desktopOnly left
 // false — unlike ContendersPage's real desktop rows, this checkbox is the only selection
-// affordance the picker has, and the Drawer is always narrower than the desktop breakpoint, so
-// it must always show.
+// affordance the picker has, so click-to-toggle and the selected-state ring must stay active at
+// every width; desktopOnly's display:none (which also disables click-to-toggle) would break
+// bulk-add on mobile entirely. hideCheckboxOnMobile is used instead — visually hides the
+// checkbox below md to give the title/artist column more room, while keeping it in the
+// accessibility tree (a screen reader must still announce checked/unchecked) and leaving
+// click-to-toggle/the ring untouched.
 interface AddToContendersPickerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -123,6 +127,7 @@ export function AddToContendersPicker({
                   selected={selected.has(item.albumId)}
                   onToggleSelect={(checked) => toggle(item.albumId, checked)}
                   ariaLabel={`${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                  hideCheckboxOnMobile
                 >
                   <FavoriteListItemRow item={item} previewMode />
                 </SelectableRow>

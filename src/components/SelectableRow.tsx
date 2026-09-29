@@ -13,16 +13,41 @@ const IGNORE_SELECTOR = 'button, a, input, label, [data-no-select]';
 // responsive prop — see that component's comment for why).
 const MOBILE_QUERY = '@media (max-width: 47.9375em)';
 
+// Visually hides the checkbox without pulling it out of the accessibility tree — a screen
+// reader must still announce it. This is Chakra's own `srOnly` utility's exact value
+// (node_modules/@chakra-ui/react/dist/esm/preset-base.js's `srMapping.true`), copied as raw CSS
+// rather than used via the `srOnly` prop itself: that prop's responsive form takes Chakra's own
+// breakpoint object, and this component stays on the raw-@media convention above instead.
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  padding: 0,
+  margin: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  borderWidth: 0,
+} as const;
+
 interface SelectableRowProps {
   selected: boolean;
   onToggleSelect: (checked: boolean) => void;
   ariaLabel: string;
   children: ReactNode;
   // ContendersPage's desktop-only bulk selection (docs/decisions/aoty/aoty-hub-population.md:
-  // checkboxes and the bulk action bar are desktop-only, mobile keeps single-row remove).
-  // AddToContendersPicker leaves this false — its checkbox is the only selection affordance it
-  // has, always narrower than md inside a Drawer, so it must always show.
+  // checkboxes and the bulk action bar are desktop-only, mobile keeps single-row remove). Hides
+  // the checkbox with display:none (removed from the a11y tree too — there's genuinely no
+  // selection feature on Contenders mobile) and disables click-to-toggle there via the
+  // getComputedStyle guard below. Never combine with hideCheckboxOnMobile.
   desktopOnly?: boolean;
+  // AddToContendersPicker: hides the checkbox visually below md to give the card's title/artist
+  // more width, without removing it from the accessibility tree (unlike desktopOnly's
+  // display:none) and without touching click-to-toggle or the selected-state ring — both stay
+  // the only way to select on that narrow layout, since the picker's checkbox is otherwise its
+  // sole selection affordance (see AddToContendersPicker's own comment on why desktopOnly
+  // itself doesn't fit there).
+  hideCheckboxOnMobile?: boolean;
 }
 
 // Shared selection wrapper for FavoriteListItemRow-shaped rows (ContendersPage, AddToContenders
@@ -34,6 +59,7 @@ export function SelectableRow({
   ariaLabel,
   children,
   desktopOnly = false,
+  hideCheckboxOnMobile = false,
 }: SelectableRowProps) {
   const [accentBorderColor] = useToken('colors', 'accent.border');
   const checkboxColumnRef = useRef<HTMLDivElement>(null);
@@ -59,7 +85,13 @@ export function SelectableRow({
       <Box
         ref={checkboxColumnRef}
         flexShrink={0}
-        css={desktopOnly ? { [MOBILE_QUERY]: { display: 'none' } } : undefined}
+        css={
+          desktopOnly
+            ? { [MOBILE_QUERY]: { display: 'none' } }
+            : hideCheckboxOnMobile
+              ? { [MOBILE_QUERY]: VISUALLY_HIDDEN }
+              : undefined
+        }
       >
         <Checkbox
           checked={selected}

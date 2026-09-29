@@ -82,6 +82,56 @@ describe('SelectableRow', () => {
     expect(onToggleSelect).toHaveBeenCalledTimes(1);
   });
 
+  // hideCheckboxOnMobile (AddToContendersPicker) must NOT behave like desktopOnly
+  // (ContendersPage) — that prop's display:none also disables click-to-toggle via the
+  // getComputedStyle guard above, which would break the picker's only selection affordance on
+  // mobile entirely. The checkbox stays in the a11y tree either way (findable by role), but only
+  // desktopOnly's guard can ever skip a toggle.
+  it('keeps the checkbox in the accessible tree when hideCheckboxOnMobile is set', () => {
+    render(
+      <SelectableRow
+        hideCheckboxOnMobile
+        selected={false}
+        onToggleSelect={onToggleSelect}
+        ariaLabel="Select X"
+      >
+        <div>Card</div>
+      </SelectableRow>,
+      { wrapper }
+    );
+    expect(screen.getByRole('checkbox', { name: 'Select X' })).toBeInTheDocument();
+  });
+
+  it('still toggles a card-body click with hideCheckboxOnMobile even if the checkbox column reports display:none — unlike desktopOnly, this prop never gates click-to-toggle', () => {
+    const { container } = render(
+      <SelectableRow
+        hideCheckboxOnMobile
+        selected={false}
+        onToggleSelect={onToggleSelect}
+        ariaLabel="Select X"
+      >
+        <div data-testid="card-body">Card content</div>
+      </SelectableRow>,
+      { wrapper }
+    );
+    const checkboxColumn = container.querySelector('input[type="checkbox"]')!.closest('label')!
+      .parentElement as HTMLElement;
+    const realGetComputedStyle = window.getComputedStyle;
+    const spy = vi
+      .spyOn(window, 'getComputedStyle')
+      .mockImplementation((el: Element, pseudo?: string | null) =>
+        el === checkboxColumn
+          ? ({ display: 'none' } as CSSStyleDeclaration)
+          : realGetComputedStyle(el, pseudo)
+      );
+    try {
+      fireEvent.click(screen.getByTestId('card-body'));
+      expect(onToggleSelect).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('does not toggle when an action button inside the row is clicked, and the button still fires', () => {
     const onAction = vi.fn();
     render(
