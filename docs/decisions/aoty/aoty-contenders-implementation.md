@@ -189,3 +189,51 @@ checkbox` describe block removed.
 file (`npx eslint` scoped to the touched files — the full-repo `npm run lint` currently reports
 ~7000 pre-existing prettier-formatting problems across unrelated files, not something this pass
 introduced or is scoped to fix).
+
+## Mobile selection split: Contenders (none) vs. the picker (tap + ring, checkbox visually hidden)
+
+**Date:** 2026-09-29
+
+Two different mobile behaviors, both intentional, easy to conflate since they're the same
+`SelectableRow` component:
+
+- **Contenders mobile still has no selection at all** — unchanged by this pass. Checkboxes and
+  the bulk action bar remain desktop-only, per this doc's own Decisions section
+  (`aoty-hub-population.md`: "checkboxes and a bulk action bar are desktop-only"; mobile keeps
+  single-row remove, one album/one action at a time). `ContendersPage.tsx` still passes
+  `desktopOnly`, which hides the checkbox with `display:none` (removed from the accessibility
+  tree too — there's genuinely no selection feature to announce on Contenders mobile) and
+  disables click-to-toggle there via `SelectableRow`'s `getComputedStyle` guard (2026-09-29,
+  above). Nothing about this changed in this section's work.
+- **`AddToContendersPicker`'s mobile selection is unchanged in *function*, changed in
+  *chrome*.** Its checkbox is the picker's only selection affordance (unlike Contenders, it has
+  no separate per-row action to fall back to), so click-to-toggle and the selected-state ring
+  stay fully active at every width — reusing `desktopOnly` here would have disabled
+  click-to-toggle via the same guard that's correct for Contenders, breaking bulk-add on mobile
+  entirely. Instead, a new `hideCheckboxOnMobile` prop visually hides the checkbox below `md`
+  (freeing that column's width for the title/artist text) using the same technique as Chakra's
+  own `srOnly` utility — `position: absolute` + 1px box + `clip: rect(0,0,0,0)`, not
+  `display: none` — so the checkbox stays in the accessibility tree. `AddToContendersPicker.tsx`
+  now passes `hideCheckboxOnMobile` instead of nothing.
+
+**Verification:** asked for VoiceOver/TalkBack. Neither is reachable from this session — no live
+screen-reader session, and the live app itself isn't reachable either (no stored credentials;
+this project's QA convention is that Dan always logs in himself). Verified with the strongest
+available substitute instead: rendered `SelectableRow` with `hideCheckboxOnMobile` via Vitest,
+dumped its real rendered markup + generated CSS to a static HTML file, served it locally, and
+loaded it in a real Chromium tab (not jsdom, which — as the 2026-09-29 fix above already found —
+doesn't evaluate the emotion-injected `@media` rule at all). At a 375px viewport, confirmed via
+live `getComputedStyle` and the browser's own accessibility-tree read: the checkbox column
+computes `position: absolute; width: 1px; clip: rect(0,0,0,0)` (not `display: none`, not
+`visibility: hidden` — the two properties that actually remove an element from the accessibility
+tree), the `<input>` remains queryable with `role: checkbox`, its correct `aria-label`, and
+`checked` reflecting `selected`. At 1280px the same element computes back to normal static
+layout. Chromium's accessibility tree is what TalkBack (Chrome/Android) reads directly and is
+structurally equivalent to what WebKit exposes to VoiceOver on iOS Safari — a strong proxy, but
+not a substitute for an actual screen-reader pass on a real device before this ships. That pass
+is still open; flagged rather than silently treated as done.
+
+New tests: `src/__tests__/SelectableRow.test.tsx` gains coverage for `hideCheckboxOnMobile` (the
+checkbox stays queryable by role/name; a card-body click still toggles even when the checkbox
+column is stubbed to report `display: none`, proving the prop never engages `desktopOnly`'s
+`getComputedStyle` guard). 923/923 tests, `tsc` clean, lint clean on every touched file.

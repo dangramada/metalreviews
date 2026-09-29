@@ -119,8 +119,14 @@ unused) `EmptyState` component; one extraction and one cross-app consistency aud
 deferred to `deferred-work.md` §B. Same-day follow-up pass: selection checkbox moved off
 `FavoriteListItemRow` (reverted to selection-agnostic) onto a new shared `SelectableRow`
 wrapper used by both `ContendersPage` (desktop-only) and `AddToContendersPicker` (always-on);
-click-anywhere-on-the-row toggle, selected-state ring via `accent.border`. 919/919 tests, `tsc`
-clean. Not yet merged. Detail: `docs/decisions/aoty/aoty-contenders-implementation.md`; gateway:
+click-anywhere-on-the-row toggle, selected-state ring via `accent.border`. 2026-09-29 follow-ups
+on the same branch: a `getComputedStyle` click-time guard closes the mobile phantom-toggle gap
+on `ContendersPage`; a separate `hideCheckboxOnMobile` prop (distinct from `desktopOnly` —
+reusing that one would have killed click-to-toggle) visually hides `AddToContendersPicker`'s
+checkbox below `md` without removing it from the accessibility tree, verified against a real
+Chromium a11y tree (no VoiceOver/TalkBack session reachable from here — real-device screen-reader
+pass still open). 923/923 tests, `tsc` clean. Not yet merged. Detail:
+`docs/decisions/aoty/aoty-contenders-implementation.md`; gateway:
 `docs/decisions/aoty-summary.md`.
 
 Most recent merge: `feature/rating-page-score-format` — Album Rating page's `RatingSlab` Score now
