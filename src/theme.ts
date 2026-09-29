@@ -1,4 +1,19 @@
 import { createSystem, defaultConfig } from '@chakra-ui/react';
+import type { SlotRecipeDefinition, SlotRecipeVariantRecord } from '@chakra-ui/react';
+
+// Chakra's SlotRecipeDefinition requires `slots` even when only partially overriding an
+// EXISTING built-in slot recipe by name (drawer/dialog/progress/tabs below) — createSystem's
+// merge is keyed by recipe name and inherits `slots` from the recipe being extended (verified
+// live: system.getRecipe('drawer').slots comes back fully populated with Chakra's own 11 slot
+// names even though this config never states them, and the override itself lands correctly).
+// This narrows the required-vs-optional shape to match that reality — `slots` is the only
+// thing cast in, `base`/`variants`/`compoundVariants` stay fully typed against real slot names
+// and SystemStyleObject, so a typo'd slot or a bad CSS property still errors.
+function partialSlotRecipe<S extends string>(
+  config: Omit<SlotRecipeDefinition<S, SlotRecipeVariantRecord<S>>, 'slots'>
+): SlotRecipeDefinition<S, SlotRecipeVariantRecord<S>> {
+  return config as SlotRecipeDefinition<S, SlotRecipeVariantRecord<S>>;
+}
 
 const system = createSystem(defaultConfig, {
   // Global CSS: set dark base so components inherit color instead of using
@@ -320,22 +335,22 @@ const system = createSystem(defaultConfig, {
     // colours without needing per-instance bg/color props. These set only the parts
     // that default to white; all other recipe slots are left at their defaults.
     slotRecipes: {
-      drawer: {
+      drawer: partialSlotRecipe({
         base: {
           content: { bg: 'surface.card', color: 'text.primary' },
         },
-      },
-      dialog: {
+      }),
+      dialog: partialSlotRecipe({
         base: {
           content: { bg: 'surface.card', color: 'text.primary' },
         },
-      },
+      }),
       // Progress bar colours (2026-09-12). Like tabs, Progress is a slot recipe (track/range)
       // and had no theme layer at all, so it rendered Chakra's defaults: a `bg.muted` track that
       // was nearly invisible on this page's dark panel, with a `colorPalette.solid` (white)
       // range. Overrides the DEFAULT `outline` variant, since that is what the unstyled
       // <ProgressRoot> resolves to — putting these in `base` would be silently overridden by it.
-      progress: {
+      progress: partialSlotRecipe({
         variants: {
           variant: {
             outline: {
@@ -352,7 +367,7 @@ const system = createSystem(defaultConfig, {
             },
           },
         },
-      },
+      }),
       // Tabs are styled through Chakra's `tabs` SLOT recipe (slots: root/list/trigger/content/
       // indicator; variants: line/subtle/enclosed/outline/plain), not through props on each
       // Tabs.Trigger. This overrides the built-in `outline` variant — the "folder tab" one from
@@ -375,7 +390,7 @@ const system = createSystem(defaultConfig, {
       // intends, and paints its bottom edge in the panel's fill instead of `transparent`, so it
       // covers exactly the stretch of the panel's border beneath it — the join in the Figma.
       // Consequence: an `outline` Tabs must sit directly on a panel with that border.
-      tabs: {
+      tabs: partialSlotRecipe({
         variants: {
           variant: {
             outline: {
@@ -406,7 +421,7 @@ const system = createSystem(defaultConfig, {
             },
           },
         },
-      },
+      }),
     },
   },
 });
