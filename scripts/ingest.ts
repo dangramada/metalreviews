@@ -345,7 +345,7 @@ async function fetchMetalStorm(scoreByNormKey: Map<string, string>): Promise<Raw
 
   // Pre-compute normKeys for all feed items so we can check the skip set before launching Puppeteer.
   const itemsWithMeta = feed.items.map((item) => {
-    const [bandRaw, albumRaw] = extractBandAlbum(item.title ?? '', '–');
+    const [bandRaw, albumRaw] = extractBandAlbum(item.title ?? '');
     const band = bandRaw.trim() || 'Unknown Band';
     const album = albumRaw.trim() || 'Unknown Album';
     const normKey = computeNormKey(band, album);
