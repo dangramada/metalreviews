@@ -43,6 +43,7 @@ vi.mock('../hooks/useFeedbackToast', () => ({
 
 import { useFavoritesList } from '../hooks/useFavoritesList';
 import { supabase } from '../supabaseClient';
+import { mockSupabaseFrom } from './supabaseMock';
 
 // Use current year so items survive the default year filter
 const currentYear = new Date().getFullYear();
@@ -141,7 +142,7 @@ describe('FavoritesPage', () => {
     stubCalibrationTier = null;
     stubLiveAnswerCount = 0;
     stubStatusAnswerCount = 0;
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    mockSupabaseFrom(supabase.from, (table: string) => {
       const calibrationStub = stubCalibrationTable(table);
       if (calibrationStub) return calibrationStub;
       throw new Error(`unexpected table ${table}`);
@@ -409,7 +410,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
     const eqSpy = vi.fn().mockReturnValue({
       maybeSingle: vi.fn().mockResolvedValue({ data: existingAlbumRow, error: null }),
     });
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    mockSupabaseFrom(supabase.from, (table: string) => {
       const calibrationStub = stubCalibrationTable(table);
       if (calibrationStub) return calibrationStub;
       if (table === 'albums') return { select: vi.fn().mockReturnValue({ eq: eqSpy }) };
@@ -428,7 +429,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
   it('favorites an existing album the user has not yet favorited, without creating a duplicate albums row', async () => {
     const albumsInsert = vi.fn();
     const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    mockSupabaseFrom(supabase.from, (table: string) => {
       const calibrationStub = stubCalibrationTable(table);
       if (calibrationStub) return calibrationStub;
       if (table === 'albums') {
@@ -467,7 +468,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
 
   it('treats confirming an already-favorited existing album as a no-op', async () => {
     const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    vi.mocked(supabase.from).mockImplementation(makeSupabaseFrom(favoritesInsert));
+    mockSupabaseFrom(supabase.from, makeSupabaseFrom(favoritesInsert));
     // This user already has `existing-album-1` favorited.
     vi.mocked(useFavoritesList).mockReturnValue(
       mockHookReturn({
@@ -526,7 +527,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
     }
 
     it('requires a manual date and renders the date input for a no-date existingMatch', async () => {
-      vi.mocked(supabase.from).mockImplementation(makeSupabaseFromNoDate());
+      mockSupabaseFrom(supabase.from, makeSupabaseFromNoDate());
       vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
       render(<FavoritesPage />, { wrapper });
       await openDrawerAndLookUp();
@@ -537,7 +538,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
 
     it('calls fill_missing_release_date before favoriting once a manual date is entered', async () => {
       const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
-      vi.mocked(supabase.from).mockImplementation(makeSupabaseFromNoDate(favoritesInsert));
+      mockSupabaseFrom(supabase.from, makeSupabaseFromNoDate(favoritesInsert));
       vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null });
       vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
       render(<FavoritesPage />, { wrapper });
@@ -565,7 +566,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
 
     it('shows an error and does not favorite when fill_missing_release_date fails', async () => {
       const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
-      vi.mocked(supabase.from).mockImplementation(makeSupabaseFromNoDate(favoritesInsert));
+      mockSupabaseFrom(supabase.from, makeSupabaseFromNoDate(favoritesInsert));
       vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: { message: 'boom' } });
       vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
       render(<FavoritesPage />, { wrapper });

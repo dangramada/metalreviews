@@ -10,6 +10,7 @@ vi.mock('../supabaseClient', () => ({
 }));
 
 import { supabase } from '../supabaseClient';
+import { mockSupabaseFrom } from './supabaseMock';
 
 // Helper: builds a supabase.from mock for the single-query pattern:
 //   .from('favorites').select('album_id, albums(...)').then(cb)
@@ -76,13 +77,13 @@ describe('useFavoritesList', () => {
   });
 
   it('starts with loading: true', () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl());
+    mockSupabaseFrom(supabase.from, makeFromImpl());
     const { result } = renderHook(() => useFavoritesList());
     expect(result.current.loading).toBe(true);
   });
 
   it('returns an empty list when the user has no favorites', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ data: [] }));
+    mockSupabaseFrom(supabase.from, makeFromImpl({ data: [] }));
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toEqual([]);
@@ -90,9 +91,7 @@ describe('useFavoritesList', () => {
   });
 
   it('maps a favorited, reviewed album to FavoriteListItem shape', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ data: [makeFavoriteRow({})] })
-    );
+    mockSupabaseFrom(supabase.from, makeFromImpl({ data: [makeFavoriteRow({})] }));
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(1);
@@ -108,7 +107,8 @@ describe('useFavoritesList', () => {
   });
 
   it('maps a favorited, zero-review (manually-added) album with publishedAt null', async () => {
-    vi.mocked(supabase.from).mockImplementation(
+    mockSupabaseFrom(
+      supabase.from,
       makeFromImpl({
         data: [
           makeFavoriteRow({
@@ -138,7 +138,8 @@ describe('useFavoritesList', () => {
   });
 
   it('uses the most recent review publishedAt as the fallback for multi-review albums', async () => {
-    vi.mocked(supabase.from).mockImplementation(
+    mockSupabaseFrom(
+      supabase.from,
       makeFromImpl({
         data: [
           makeFavoriteRow({
@@ -159,7 +160,8 @@ describe('useFavoritesList', () => {
   });
 
   it('sorts items by releaseDate descending, sorted by year', async () => {
-    vi.mocked(supabase.from).mockImplementation(
+    mockSupabaseFrom(
+      supabase.from,
       makeFromImpl({
         data: [
           makeFavoriteRow({ albumId: 'a', releaseDate: '2020-01-01' }),
@@ -174,7 +176,8 @@ describe('useFavoritesList', () => {
   });
 
   it('sorts items by releaseDate descending, nulls last', async () => {
-    vi.mocked(supabase.from).mockImplementation(
+    mockSupabaseFrom(
+      supabase.from,
       makeFromImpl({
         data: [
           makeFavoriteRow({ albumId: 'a', releaseDate: '2020-01-01' }),
@@ -190,9 +193,7 @@ describe('useFavoritesList', () => {
   });
 
   it('sets error state when the favorites query fails', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ error: { message: 'DB error' } })
-    );
+    mockSupabaseFrom(supabase.from, makeFromImpl({ error: { message: 'DB error' } }));
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe('Failed to load favorites');
@@ -210,7 +211,7 @@ describe('useFavoritesList', () => {
       then: (cb: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(cb),
       catch: (cb: (e: unknown) => unknown) => Promise.resolve().catch(cb),
     });
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    mockSupabaseFrom(supabase.from, (table: string) => {
       if (table === 'favorites') return { select: selectSpy };
       return { select: vi.fn() };
     });
@@ -222,11 +223,12 @@ describe('useFavoritesList', () => {
   });
 
   it('exposes refetch that triggers a re-load', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ data: [] }));
+    mockSupabaseFrom(supabase.from, makeFromImpl({ data: [] }));
     const { result } = renderHook(() => useFavoritesList());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    vi.mocked(supabase.from).mockImplementation(
+    mockSupabaseFrom(
+      supabase.from,
       makeFromImpl({ data: [makeFavoriteRow({ band: 'Tool', album: 'Lateralus' })] })
     );
     act(() => {
