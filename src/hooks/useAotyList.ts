@@ -1,26 +1,15 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { latestPublishedAt } from './useFavoritesList';
+import { CONTENDERS_SELECT, toFavoriteListItem, type ContenderRow } from './useContendersList';
 import type { AotyMember } from '../lib/aoty/aotyView';
 
-// aoty -> albums -> reviews, same embed shape as useContendersList. Membership rows only: no
-// rank/score/year is stored (docs/decisions/aoty/aoty-list-implementation.md), so this returns
-// members and lets buildAotyView derive the rest.
-const AOTY_SELECT =
-  'album_id, created_at, albums(id, band, album, artwork_url, release_date, genre, reviews(published_at))';
-
-type AotyRow = {
-  created_at: string | null;
-  albums: {
-    id: string;
-    band: string;
-    album: string;
-    artwork_url: string | null;
-    release_date: string | null;
-    genre: string[] | null;
-    reviews: { published_at: string | null }[];
-  };
-};
+// `aoty` has a foreign key only to `contenders` (composite), not to `albums`, so PostgREST cannot
+// embed albums from it (PGRST200). Two steps instead: read the membership rows, then fetch those
+// albums through the contenders -> albums embed ContendersPage already uses (CONTENDERS_SELECT,
+// a relationship that exists). Chosen over a nested `aoty -> contenders -> albums` embed because
+// that shape could not be demonstrated against real rows (the table was empty when tried), while
+// this reuses a proven one. Membership rows only: no rank/score/year is stored
+// (docs/decisions/aoty/aoty-list-implementation.md), buildAotyView derives the rest.
 
 export function useAotyList() {
   const [items, setItems] = useState<AotyMember[]>([]);
@@ -35,9 +24,9 @@ export function useAotyList() {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: fetchError } = await supabase
+        const { data: aotyRows, error: fetchError } = await supabase
           .from('aoty')
-          .select(AOTY_SELECT)
+          .select('album_id, created_at')
           .order('created_at', { ascending: false });
         if (cancelled) return;
         if (fetchError) {
@@ -45,17 +34,33 @@ export function useAotyList() {
           setLoading(false);
           return;
         }
+        const members = (aotyRows ?? []) as { album_id: string; created_at: string | null }[];
+        if (members.length === 0) {
+          setItems([]);
+          setLoading(false);
+          return;
+        }
+        const { data: contenderRows, error: albumsError } = await supabase
+          .from('contenders')
+          .select(CONTENDERS_SELECT)
+          .in(
+            'album_id',
+            members.map((m) => m.album_id)
+          );
+        if (cancelled) return;
+        if (albumsError) {
+          setError('Failed to load AOTY');
+          setLoading(false);
+          return;
+        }
+        const byId = new Map(
+          ((contenderRows ?? []) as unknown as ContenderRow[]).map((r) => [r.album_id, r])
+        );
         setItems(
-          ((data ?? []) as unknown as AotyRow[]).map((row) => ({
-            albumId: row.albums.id,
-            band: row.albums.band,
-            album: row.albums.album,
-            artworkUrl: row.albums.artwork_url,
-            releaseDate: row.albums.release_date ?? null,
-            genre: row.albums.genre ?? [],
-            publishedAt: latestPublishedAt(row.albums.reviews ?? []),
-            createdAt: row.created_at ?? '',
-          }))
+          members.flatMap((m) => {
+            const row = byId.get(m.album_id);
+            return row ? [{ ...toFavoriteListItem(row), createdAt: m.created_at ?? '' }] : [];
+          })
         );
         setLoading(false);
       } catch (e) {

@@ -183,6 +183,10 @@ describe('ContendersPage', () => {
     stubTier = 'none';
     render(<ContendersPage />, { wrapper });
     await waitFor(() => screen.getByText(/Score level: none/));
+    expect(screen.getByRole('link', { name: 'Go to calibration' })).toHaveAttribute(
+      'href',
+      '/calibration?from=contenders'
+    );
   });
 
   it('hides the low-confidence banner at a settled tier', async () => {

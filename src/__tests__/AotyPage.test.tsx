@@ -125,6 +125,10 @@ describe('AotyPage', () => {
     mockSummary = new Map([['a', sum(0.4)]]);
     render(<AotyPage />, { wrapper });
     expect(screen.getByText(/Score level/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to calibration' })).toHaveAttribute(
+      'href',
+      '/calibration?from=aoty'
+    );
     expect(screen.queryByLabelText(/^Rank \d/)).toBeNull();
   });
 

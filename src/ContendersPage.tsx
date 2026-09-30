@@ -5,12 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
-import { Alert } from './components/ui/alert';
+import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
 import { useAotyList } from './hooks/useAotyList';
-import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
+import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import {
   CalibrationGateDialog,
@@ -224,17 +224,7 @@ export function ContendersPage() {
               rationale. Body copy is the same "settle the score" sentence
               CalibrationGateDialog's soft mode and CriteriaCalibrationPage's resume banner
               already use for tier === 'none' — same event, same words, not a fourth variant. */}
-          {!gateLoading && calibrationTier === 'none' && (
-            <Alert
-              status="info"
-              variant="surface"
-              bg="status.info.bg"
-              color="status.info.text"
-              title={`Score level: ${confidenceLabel(calibrationTier)}`}
-            >
-              A few more comparisons usually settle the score closer to what matters most to you.
-            </Alert>
-          )}
+          {!gateLoading && calibrationTier === 'none' && <TierNoneBanner from="contenders" />}
 
           {/* Bulk action bar — desktop only, same raw-CSS `@media` toggle convention as
               FavoriteListItemRow (not a Chakra responsive prop — see that component's own

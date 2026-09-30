@@ -5,11 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
-import { Alert } from './components/ui/alert';
+import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useAotyList } from './hooks/useAotyList';
-import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
+import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import { buildAotyView, type AotyRow } from './lib/aoty/aotyView';
 import { getReleaseYear } from './App';
@@ -98,17 +98,7 @@ export function AotyPage() {
           {/* Same banner as ContendersPage (component, tier condition and copy): reuses the shared
               `Alert` and `status.info` tokens for tier === 'none'. No TierAccuracyBadge here; see
               aoty-list-implementation.md's reversal section. */}
-          {!gateLoading && tier === 'none' && (
-            <Alert
-              status="info"
-              variant="surface"
-              bg="status.info.bg"
-              color="status.info.text"
-              title={`Score level: ${confidenceLabel(tier)}`}
-            >
-              A few more comparisons usually settle the score closer to what matters most to you.
-            </Alert>
-          )}
+          {!gateLoading && tier === 'none' && <TierNoneBanner from="aoty" />}
 
           {view.years.length > 1 && (
             <Flex gap={2} wrap="wrap" role="group" aria-label="Year">

@@ -107,3 +107,19 @@ exists for it. `RatingSlab` `high` is not reusable.
   feeding a badge from persisted data if a later screen wants one.
 - Tests: badge and insufficient-alert tests removed, one "no banner above tier none" test added;
   954 total (baseline 923).
+
+## 2026-09-30 (later still): query fix and shared tier-none banner
+
+- **Bug:** `useAotyList` embedded `albums(...)` from `aoty`, which has a foreign key only to
+  `contenders`, so PostgREST returned 400 `PGRST200`. No FK from `aoty` to `albums` was added.
+- **Fix:** two steps. Read `aoty` (`album_id, created_at`), then fetch those albums via the
+  existing `contenders -> albums` embed (`CONTENDERS_SELECT`, now exported) filtered with `.in()`.
+  Chosen over a nested `aoty -> contenders -> albums` embed: that shape resolves (200) but the
+  table was empty, so its row shape could not be demonstrated; the two-step reuses a proven one.
+- **Test:** `useAotyList.test.ts` asserts the tables queried are only `aoty` then `contenders`,
+  that the `aoty` select has no embed, and that the contenders select equals `CONTENDERS_SELECT`.
+- **Banner:** one shared `TierNoneBanner` (`src/components/TierNoneBanner.tsx`) on both pages,
+  with a "Go to calibration" link to `/calibration?from=contenders|aoty` (copy and link styling
+  reused from `AlbumRatingPage`'s insufficient-data banner). `CalibrationBreadcrumb`'s `from` map
+  gained `contenders` and `aoty` entries so the breadcrumb returns to the right page (previously
+  `?from=contenders` fell back to Favorites).
