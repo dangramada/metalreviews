@@ -13,7 +13,7 @@ import { Box } from '@chakra-ui/react';
 // colour is — see EqualizerBars and LoadingIndicatorBars below for why that's correct
 // across every button variant, not just the ones this was checked against.
 //
-// The `@keyframes slant-take-eqbars` rule this references lives in theme.ts's globalCss,
+// The `@keyframes slant-take-eqbars` rule this references lives in theme.ts's theme.keyframes,
 // not inline here — nesting an `@keyframes` object in the same `css` prop object as a
 // `_motionReduce` condition crashes Chakra's prop merge. See theme.ts for the full note.
 // Bar thickness (width) is 16% — see theme.ts's keyframes comment; height values driving

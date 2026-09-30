@@ -28,25 +28,31 @@ const system = createSystem(defaultConfig, {
     'h1, h2, h3, h4, h5, h6': {
       color: 'inherit',
     },
-    // Equalizer-bar loading indicator (LoadingIndicator.tsx, pass 7). Defined globally
+  },
+  theme: {
+    // Equalizer-bar loading indicator (LoadingIndicator.tsx, pass 7). theme.keyframes is
+    // Chakra's dedicated, correctly-typed config for @keyframes rules (CssKeyframes:
+    // { [name]: { [time]: CssProperties } }) — globalCss's type is Record<string,
+    // SystemStyleObject> for every key uniformly, which doesn't model a keyframes block's
+    // percentage-keyed shape and is why '0%' etc. failed to typecheck there. Moved here
     // rather than inline in the component's `css` prop: nesting an `@keyframes` object
     // inside the same `css` object as a `_motionReduce` condition crashes Chakra's prop
     // merge (`Cannot create property '@keyframes ...' on string`) — found via live
-    // verification, not assumed. Keeping the keyframes here, referenced by name from the
-    // component, avoids the collision entirely.
+    // verification, not assumed. Referenced by bare name from the component either way, so
+    // moving it here doesn't change what CSS is generated or how it's referenced.
     // Bar thickness is 16% (was 20% at ship time) — width values only. The height values
     // in each step (50%/20%/100%) are unrelated to thickness; they drive the wave motion
     // and are untouched.
-    '@keyframes slant-take-eqbars': {
-      '0%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
-      '20%': { backgroundSize: '16% 20%, 16% 50%, 16% 50%' },
-      '40%': { backgroundSize: '16% 100%, 16% 20%, 16% 50%' },
-      '60%': { backgroundSize: '16% 50%, 16% 100%, 16% 20%' },
-      '80%': { backgroundSize: '16% 50%, 16% 50%, 16% 100%' },
-      '100%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+    keyframes: {
+      'slant-take-eqbars': {
+        '0%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+        '20%': { backgroundSize: '16% 20%, 16% 50%, 16% 50%' },
+        '40%': { backgroundSize: '16% 100%, 16% 20%, 16% 50%' },
+        '60%': { backgroundSize: '16% 50%, 16% 100%, 16% 20%' },
+        '80%': { backgroundSize: '16% 50%, 16% 50%, 16% 100%' },
+        '100%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+      },
     },
-  },
-  theme: {
     // Shared type style (2026-09-12 design review). The round counter, the question title and
     // each comparison card's level name are ONE size in the design, so they are one style here
     // rather than three independent font/size/weight decisions that drift apart. Inter (the
