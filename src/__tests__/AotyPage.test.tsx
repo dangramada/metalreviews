@@ -41,11 +41,9 @@ vi.mock('../hooks/useCalibrationGate', () => ({
     tier: stubTier,
     hasWeights: true,
     hasInsufficientData: stubInsufficient,
-    accuracyValue: 0.52,
     loading: false,
   }),
   confidenceLabel: (t: string) => t,
-  toAppTier: (t: string) => (t === 'very_high' ? 'veryHigh' : t),
 }));
 
 let mockSummary = new Map<
@@ -130,17 +128,9 @@ describe('AotyPage', () => {
     expect(screen.queryByLabelText(/^Rank \d/)).toBeNull();
   });
 
-  it('shows the banner-scale badge with its composed subject when tier is above none', () => {
+  it('shows no banner and no badge when tier is above none', () => {
     render(<AotyPage />, { wrapper });
-    expect(
-      screen.getByRole('img', { name: /52 percent of your weighting settled/ })
-    ).toBeInTheDocument();
-  });
-
-  it('shows the no-score alert instead of the badge on insufficient data', () => {
-    stubInsufficient = true;
-    render(<AotyPage />, { wrapper });
-    expect(screen.getByText('No score yet')).toBeInTheDocument();
+    expect(screen.queryByText(/Score level/)).toBeNull();
     expect(screen.queryByRole('img', { name: /percent of your weighting/ })).toBeNull();
   });
 

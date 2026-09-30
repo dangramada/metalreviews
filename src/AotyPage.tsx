@@ -8,9 +8,8 @@ import { LoadingIndicator } from './LoadingIndicator';
 import { Alert } from './components/ui/alert';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
-import { TierAccuracyBadge } from './components/criteria-calibration/TierAccuracyBadge';
 import { useAotyList } from './hooks/useAotyList';
-import { confidenceLabel, toAppTier, useCalibrationGate } from './hooks/useCalibrationGate';
+import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import { buildAotyView, type AotyRow } from './lib/aoty/aotyView';
 import { getReleaseYear } from './App';
@@ -28,13 +27,7 @@ export function AotyPage() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useFeedbackToast();
   const { summary, criterionOrder } = useAlbumRatingsSummary();
-  const {
-    tier,
-    hasInsufficientData,
-    accuracyValue,
-    hasWeights,
-    loading: gateLoading,
-  } = useCalibrationGate();
+  const { tier, hasInsufficientData, hasWeights, loading: gateLoading } = useCalibrationGate();
   const [pickedYear, setPickedYear] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
@@ -102,36 +95,20 @@ export function AotyPage() {
             </Button>
           </Flex>
 
-          {/* Same Alert as ContendersPage for tier 'none' (and for a stale persisted tier). The
-              badge is fed the persisted accuracy_value: aoty-list-implementation.md's Step 0
-              found it equal to the live solver value (diff < 1e-15) whenever the persisted row
-              isn't stale, and hasInsufficientData is exactly the stale case. The badge carries
-              its own subject ("N percent of your weighting settled") in its aria-label and
-              tooltip, so no extra sentence here. */}
-          {!gateLoading &&
-            (tier === 'none' || hasInsufficientData ? (
-              <Alert
-                status="info"
-                variant="surface"
-                bg="status.info.bg"
-                color="status.info.text"
-                title={
-                  hasInsufficientData ? 'No score yet' : `Score level: ${confidenceLabel(tier)}`
-                }
-              >
-                {hasInsufficientData
-                  ? 'Answer a round of comparisons in calibration to rank your AOTY list.'
-                  : 'A few more comparisons usually settle the score closer to what matters most to you.'}
-              </Alert>
-            ) : (
-              <Flex justify="flex-start">
-                <TierAccuracyBadge
-                  tier={toAppTier(tier)}
-                  percent={Math.round(accuracyValue * 100)}
-                  size="lg"
-                />
-              </Flex>
-            ))}
+          {/* Same banner as ContendersPage (component, tier condition and copy): reuses the shared
+              `Alert` and `status.info` tokens for tier === 'none'. No TierAccuracyBadge here; see
+              aoty-list-implementation.md's reversal section. */}
+          {!gateLoading && tier === 'none' && (
+            <Alert
+              status="info"
+              variant="surface"
+              bg="status.info.bg"
+              color="status.info.text"
+              title={`Score level: ${confidenceLabel(tier)}`}
+            >
+              A few more comparisons usually settle the score closer to what matters most to you.
+            </Alert>
+          )}
 
           {view.years.length > 1 && (
             <Flex gap={2} wrap="wrap" role="group" aria-label="Year">

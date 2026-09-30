@@ -85,3 +85,25 @@ exists for it. `RatingSlab` `high` is not reusable.
   `const x: number = 'x'` in `src/` made `npm run type-check` fail with TS2322; removed after.
 - 955 tests (baseline 923, +32), lint clean on every touched file (repo-wide lint has ~1266
   pre-existing prettier errors, see `deferred-work.md`).
+
+## 2026-09-30 (later): REVERSAL, no banner-scale `TierAccuracyBadge` on the hub
+
+**Reverses** the earlier "Banner" bullet and Step 0's use of it: the AOTY screen no longer renders
+`TierAccuracyBadge size="lg"`. Reason: consistency with `ContendersPage`.
+
+- AOTY now uses the same banner as Contenders: the shared `Alert` with the same `tier === 'none'`
+  condition and the same title/body text. Duplicated (about 10 lines) rather than extracted, since
+  extraction would have touched `ContendersPage` for no size saving.
+- The separate "No score yet" Alert for `hasInsufficientData` is dropped with the badge, to match
+  Contenders (which shows no banner in that state). Rank numbers are still withheld and rows still
+  show their own insufficient-data score badge, so the state is not silent, but there is no
+  page-level explanation.
+- `accuracyValue` (and the `toAppTier` helper) added to `useCalibrationGate` are reverted: grep of
+  `src/` for `accuracyValue|toAppTier` found no consumer other than `AotyPage` (the only other
+  hit, `CriteriaCalibrationCheckpoints.test.tsx`, is an unrelated local variable).
+- Empty state was already the same `EmptyState` pattern as Contenders (CTA text unchanged).
+- **Step 0 result stands as a finding:** persisted `accuracy_value` equals the live solver value
+  to within 4.5e-16 on both non-test accounts, outside the stale window. It remains the basis for
+  feeding a badge from persisted data if a later screen wants one.
+- Tests: badge and insufficient-alert tests removed, one "no banner above tier none" test added;
+  954 total (baseline 923).

@@ -17,10 +17,6 @@ const DB_TIER_TO_APP_TIER = {
   very_high: 'veryHigh',
 } as const;
 
-export function toAppTier(tier: CalibrationTier) {
-  return DB_TIER_TO_APP_TIER[tier];
-}
-
 export function confidenceLabel(tier: CalibrationTier): string {
   return ACCURACY_TIER_LABELS[DB_TIER_TO_APP_TIER[tier]];
 }
@@ -83,9 +79,6 @@ export function useCalibrationGate() {
   // reversing album-rating-soft-gate. This narrower signal fixes the contradiction the tier is
   // actually lying about and leaves the soft gate alone.
   const [hasInsufficientData, setHasInsufficientData] = useState(false);
-  // Persisted accuracy (0-1). Step 0 of aoty-list-implementation.md confirmed it equals the live
-  // solver value; it goes stale only in the hasInsufficientData window.
-  const [accuracyValue, setAccuracyValue] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -96,7 +89,6 @@ export function useCalibrationGate() {
         setTier('none');
         setHasWeights(false);
         setHasInsufficientData(false);
-        setAccuracyValue(0);
         setLoading(false);
         return;
       }
@@ -104,7 +96,7 @@ export function useCalibrationGate() {
       const [status, weights, answers] = await Promise.all([
         supabase
           .from('user_calibration_status')
-          .select('tier, answer_count, accuracy_value')
+          .select('tier, answer_count')
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase
@@ -126,7 +118,6 @@ export function useCalibrationGate() {
       const persistedAnswerCount = (status.data?.answer_count as number | undefined) ?? 0;
       setTier((status.data?.tier as CalibrationTier | undefined) ?? 'none');
       setHasWeights(weightsPresent);
-      setAccuracyValue((status.data?.accuracy_value as number | undefined) ?? 0);
       setHasInsufficientData(
         weightsPresent && (liveAnswerCount === 0 || liveAnswerCount < persistedAnswerCount)
       );
@@ -140,5 +131,5 @@ export function useCalibrationGate() {
     };
   }, [user]);
 
-  return { tier, hasWeights, hasInsufficientData, accuracyValue, loading };
+  return { tier, hasWeights, hasInsufficientData, loading };
 }
