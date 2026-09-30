@@ -596,7 +596,7 @@ describe('FavoriteListItemRow — insufficient data', () => {
     return render(
       <FavoriteListItemRow
         item={mockItem}
-        ratingSummary={{ score: 0.82, rank: 1 }}
+        ratingSummary={{ score: 0.82, rank: 1, contributions: new Map() }}
         confidenceTier="very_high"
         hasInsufficientData={hasInsufficientData}
       />,

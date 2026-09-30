@@ -39,9 +39,9 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
 
   const isReviewsActive = location.pathname === '/';
   const isFavoritesActive = location.pathname === '/favorites';
-  // startsWith, not exact match: Contenders is nested under /aoty/... (see main.tsx) so this
-  // stays lit for any future sub-path under that prefix too.
-  const isContendersActive = location.pathname.startsWith('/aoty');
+  // startsWith, not exact match: Contenders is nested under /aoty/... (see main.tsx), so the AOTY
+  // link stays lit there too.
+  const isAotyActive = location.pathname.startsWith('/aoty');
 
   return (
     <Box mb={breadcrumb ? 0 : 3}>
@@ -124,15 +124,15 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
               <Link
                 asChild
                 {...navPillBase}
-                bg={isContendersActive ? 'accent.border' : 'transparent'}
-                color={isContendersActive ? 'accent.ink' : 'text.dim'}
+                bg={isAotyActive ? 'accent.border' : 'transparent'}
+                color={isAotyActive ? 'accent.ink' : 'text.dim'}
                 _hover={{
                   textDecoration: 'none',
-                  bg: isContendersActive ? 'accent.border' : 'surface.raised',
-                  color: isContendersActive ? 'accent.ink' : 'accent.start',
+                  bg: isAotyActive ? 'accent.border' : 'surface.raised',
+                  color: isAotyActive ? 'accent.ink' : 'accent.start',
                 }}
               >
-                <RouterLink to="/aoty/contenders">Contenders</RouterLink>
+                <RouterLink to="/aoty">AOTY</RouterLink>
               </Link>
 
               {/* Vertical divider between nav links and account control */}
@@ -236,13 +236,13 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                         Favorites
                       </Menu.Item>
                       <Menu.Item
-                        value="contenders"
+                        value="aoty"
                         bg="surface.card"
                         color="text.primary"
                         _hover={{ bg: 'surface.raised' }}
-                        onSelect={() => navigate('/aoty/contenders')}
+                        onSelect={() => navigate('/aoty')}
                       >
-                        Contenders
+                        AOTY
                       </Menu.Item>
                       {user ? (
                         <Menu.Item

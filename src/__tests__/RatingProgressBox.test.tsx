@@ -19,7 +19,7 @@ function renderBox(confidenceTier: CalibrationTier, hasInsufficientData = false)
         <RatingProgressBox
           ratedCount={6}
           totalCount={6}
-          ratingSummary={{ score: 0.5, rank: 3 }}
+          ratingSummary={{ score: 0.5, rank: 3, contributions: new Map() }}
           confidenceTier={confidenceTier}
           hasInsufficientData={hasInsufficientData}
         />

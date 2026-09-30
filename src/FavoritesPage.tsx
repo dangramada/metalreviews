@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -112,6 +112,10 @@ export function FavoriteListItemRow({
   hasInsufficientData = false,
   previewMode = false,
   removeLabel = 'favorites',
+  rank,
+  note,
+  extraActions,
+  removeNote,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -139,6 +143,15 @@ export function FavoriteListItemRow({
   // dialog's title (e.g. "Remove from Contenders?" on ContendersPage). Body text still uses
   // item.band/item.album regardless, so this only ever needs the destination noun.
   removeLabel?: string;
+  // AOTY list additions (aoty-list-implementation.md). All optional and unused on /favorites.
+  // `rank`: plain "#N" text prefix, provisional (no visual design exists for it).
+  rank?: number;
+  // Short visible status text beside the rank ("In AOTY", "No release date yet.").
+  note?: string;
+  // Extra action node(s) rendered before Evaluate in both the desktop cluster and mobile footer.
+  extraActions?: ReactNode;
+  // Appended to the remove confirmation's body (e.g. the cascade warning on Contenders).
+  removeNote?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -167,6 +180,22 @@ export function FavoriteListItemRow({
     : confidenceTier === 'none'
       ? `Score level: ${confidenceLabel(confidenceTier)}`
       : null;
+
+  const rankNote =
+    rank !== undefined || note ? (
+      <Flex gap={2} align="baseline">
+        {rank !== undefined && (
+          <Text as="span" aria-label={`Rank ${rank}`} fontWeight="bold" color="accent.text">
+            #{rank}
+          </Text>
+        )}
+        {note && (
+          <Text as="span" fontSize="xs" color="text.muted">
+            {note}
+          </Text>
+        )}
+      </Flex>
+    ) : null;
 
   return (
     <>
@@ -281,6 +310,7 @@ export function FavoriteListItemRow({
               self-contained padded block) — titleLayout="inline" keeps the deliberate
               single-line "band – album" density from Pass 3, unchanged in shape. */}
             <Box flex={1} minW={0}>
+              {rankNote && <Box pt={3}>{rankNote}</Box>}
               <AlbumMetaBlock
                 band={item.band}
                 album={item.album}
@@ -293,7 +323,8 @@ export function FavoriteListItemRow({
               />
             </Box>
 
-            <Flex flexShrink={0} gap={1} pr={3}>
+            <Flex flexShrink={0} gap={1} pr={3} align="center">
+              {extraActions}
               {onRate && (
                 <Tooltip content="Evaluate this album">
                   <IconButton
@@ -445,6 +476,7 @@ export function FavoriteListItemRow({
             </Box>
 
             <Box flex={1} minW={0} display="flex" flexDirection="column" justifyContent="center">
+              {rankNote && <Box px={4}>{rankNote}</Box>}
               {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
                 truncateBand (band, single line, ellipsis) + clampAlbumLines (album, native
                 `lineClamp` prop) — see AlbumMetaBlock's own comment on why lineClamp, not a
@@ -507,7 +539,8 @@ export function FavoriteListItemRow({
                   review; buttons are centered (justify="center") across the full row width
                   instead. `border.rule` (darker ink.800) matches the genre section's own
                   separators above — darker than the card's own outer border / `border.ruleStrong`. */}
-              <Flex px={4} gap={2} justify="center">
+              <Flex px={4} gap={2} justify="center" wrap="wrap">
+                {extraActions}
                 {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
                       hover state. Content-width (no flex stretch) with a gap between them, not
                       edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
@@ -590,6 +623,7 @@ export function FavoriteListItemRow({
             </DialogHeader>
             <DialogBody>
               Remove &quot;{item.band} – {item.album}&quot; from your {removeLabel}?
+              {removeNote && ` ${removeNote}`}
             </DialogBody>
             <DialogFooter gap={3}>
               <Button
