@@ -12,17 +12,17 @@ structural/mobile/desktop concept: `aoty/aoty-hub-population.md`.
 
 ## Current status
 
-**In progress:** the Contenders stage only, on branch `feature/aoty-contenders`, not yet
-merged. New `/aoty/contenders` route + nav entry, `contenders` Supabase table (already run
-against the live project), bulk picker to add from Favorites, single and bulk remove,
-auto-add-to-Contenders on reaching a full (6/6) rating. Scoped deliberately to Contenders only
-— no AOTY final-list screen this pass, per `aoty-contenders-implementation.md`'s first dated
-section. 914/914 tests, `tsc` clean, lint clean as of the last commit on that branch.
+**Merged:** the Contenders stage (`feature/aoty-contenders`, merged to `master` `--no-ff` at
+`3ac157b` on 2026-09-29, 923/923 tests): `/aoty/contenders`, the `contenders` table, bulk picker,
+single/bulk remove, auto-add on a full (6/6) rating.
 
-**Not built yet:** the AOTY final-list screen itself (ranking display, "Select for AOTY"
-action, the desktop two-column Contenders|AOTY layout, the mobile AOTY-home/Contenders-subtask
-split), the public share page (`/aoty/:shareId`), and all visual design (no Figma exists for
-any of this yet — flagged as a real risk in `aoty-contenders-implementation.md`).
+**In progress:** the AOTY list screen, on branch `feature/aoty-list`, not yet merged: `/aoty`, the
+`aoty` membership table (`supabase/aoty.sql`, to be run by Dan), derived year/order/rank,
+"Select for AOTY" on Contenders. Detail: `aoty/aoty-list-implementation.md`.
+
+**Not built yet:** the desktop two-column Contenders|AOTY layout, the mobile AOTY-home split, the
+public share page (`/aoty/:shareId`), and all visual design (no Figma exists; the rank "#N"
+treatment is provisional).
 
 **Open follow-ups**, tracked in `docs/decisions/deferred-work.md` §B rather than only here:
 - Extract `ContendersPage`'s calibration-gate `handleRate` logic (duplicated from
@@ -39,3 +39,6 @@ any of this yet — flagged as a real risk in `aoty-contenders-implementation.md
    (2026-09-28, ongoing): the Favorites-Score dependency correction, code-review fixes
    (accessibility bug, non-idempotent insert), the `Alert`-component banner revision, the
    `EmptyState` adoption, and this docs restructure itself.
+3. `aoty/aoty-list-implementation.md` — AOTY list screen record (2026-09-30): membership-only
+   `aoty` table, derived year/order/rank, tie-break spec, Step 0 accuracy check, no-backfill and
+   display-rounding decisions.
