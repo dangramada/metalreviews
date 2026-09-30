@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc -b",
     "ingest": "tsx scripts/ingest-cli.ts",
     "server": "tsx server.ts"
   },
