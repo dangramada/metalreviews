@@ -4,6 +4,7 @@ import { Box, Button, Container, Flex, Heading, Input, Link, Text, VStack } from
 import { supabase } from './supabaseClient';
 import { LoadingIndicatorBars } from './LoadingIndicator';
 import { primaryButton } from './theme';
+import { InlineActionButton } from './components/InlineActionButton';
 
 type Mode = 'login' | 'signup' | 'forgot-password';
 
@@ -185,27 +186,25 @@ export function LoginPage() {
           {mode === 'login' && (
             <>
               <Flex justify="center" fontSize="sm">
-                <Button
-                  variant="link"
+                <InlineActionButton
                   size="sm"
                   color="text.dim"
                   fontWeight="normal"
                   onClick={() => switchMode('forgot-password')}
                 >
                   Forgot password?
-                </Button>
+                </InlineActionButton>
               </Flex>
               <Flex justify="center" align="center" gap={1} fontSize="sm">
                 <Text color="text.dim">Don't have an account?</Text>
-                <Button
-                  variant="link"
+                <InlineActionButton
                   size="sm"
                   color="accent.text"
                   fontWeight="normal"
                   onClick={() => switchMode('signup')}
                 >
                   Sign up
-                </Button>
+                </InlineActionButton>
               </Flex>
             </>
           )}
@@ -214,30 +213,28 @@ export function LoginPage() {
           {mode === 'signup' && (
             <Flex justify="center" align="center" gap={1} fontSize="sm">
               <Text color="text.dim">Already have an account?</Text>
-              <Button
-                variant="link"
+              <InlineActionButton
                 size="sm"
                 color="accent.text"
                 fontWeight="normal"
                 onClick={() => switchMode('login')}
               >
                 Log in
-              </Button>
+              </InlineActionButton>
             </Flex>
           )}
 
           {/* Forgot-password mode: back-to-login link */}
           {mode === 'forgot-password' && (
             <Flex justify="center" fontSize="sm">
-              <Button
-                variant="link"
+              <InlineActionButton
                 size="sm"
                 color="accent.text"
                 fontWeight="normal"
                 onClick={() => switchMode('login')}
               >
                 Back to log in
-              </Button>
+              </InlineActionButton>
             </Flex>
           )}
 
