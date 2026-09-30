@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -157,6 +157,17 @@ export function FavoriteListItemRow({
     '--end-color': 'colors.ink.700',
   } as const;
 
+  // The confidence-warning badge (Tooltip content on desktop, aria-label/title on mobile) shows
+  // for exactly two reasons: insufficient data, or a confirmed 'none' tier — confidenceTier is
+  // only ever undefined when neither applies. Deriving the full text once, narrowing
+  // confidenceTier through the same `=== 'none'` check it's read back from, lets TS confirm
+  // it's defined without a non-null assertion or a `?? 'none'` fallback masking the invariant.
+  const confidenceBadgeText: string | null = hasInsufficientData
+    ? INSUFFICIENT_DATA_BADGE_TEXT
+    : confidenceTier === 'none'
+      ? `Score level: ${confidenceLabel(confidenceTier)}`
+      : null;
+
   return (
     <>
       {/* Desktop (>= md): flush-left artwork + inline row. Hidden via raw CSS `@media`
@@ -254,14 +265,8 @@ export function FavoriteListItemRow({
                   >
                     {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
                   </Box>
-                  {(hasInsufficientData || confidenceTier === 'none') && (
-                    <Tooltip
-                      content={
-                        hasInsufficientData
-                          ? INSUFFICIENT_DATA_BADGE_TEXT
-                          : `Score level: ${confidenceLabel(confidenceTier)}`
-                      }
-                    >
+                  {confidenceBadgeText !== null && (
+                    <Tooltip content={confidenceBadgeText}>
                       <Box {...confidenceWarningBadge}>
                         <LuOctagonAlert size={16} />
                       </Box>
@@ -426,19 +431,11 @@ export function FavoriteListItemRow({
                   >
                     {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
                   </Box>
-                  {(hasInsufficientData || confidenceTier === 'none') && (
+                  {confidenceBadgeText !== null && (
                     <Box
                       {...confidenceWarningBadge}
-                      aria-label={
-                        hasInsufficientData
-                          ? INSUFFICIENT_DATA_BADGE_TEXT
-                          : `Score level: ${confidenceLabel(confidenceTier)}`
-                      }
-                      title={
-                        hasInsufficientData
-                          ? INSUFFICIENT_DATA_BADGE_TEXT
-                          : `Score level: ${confidenceLabel(confidenceTier)}`
-                      }
+                      aria-label={confidenceBadgeText}
+                      title={confidenceBadgeText}
                     >
                       <LuOctagonAlert size={16} />
                     </Box>

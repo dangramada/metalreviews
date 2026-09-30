@@ -65,9 +65,11 @@ export function PageBreadcrumb({ items }: { items: PageBreadcrumbItem[] }) {
           )
         }
         return (
-          <BreadcrumbLink key={item.label} as={RouterLink} to={item.to} _hover={{ color: "accent.text" }}>
-            {isFirst && <LuChevronLeft />}
-            {item.label}
+          <BreadcrumbLink key={item.label} asChild _hover={{ color: "accent.text" }}>
+            <RouterLink to={item.to}>
+              {isFirst && <LuChevronLeft />}
+              {item.label}
+            </RouterLink>
           </BreadcrumbLink>
         )
       })}

@@ -40,6 +40,7 @@ vi.mock('../hooks/useFeedbackToast', () => ({
 
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
+import { mockSupabaseFrom } from './supabaseMock';
 
 // Minimal AlbumWithReviewsRow shape matching the columns App reads via fromAlbumWithReviews
 // (post-album-identity-migration: albums joined to a nested reviews array).
@@ -132,7 +133,7 @@ describe('App favorites — logged out', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({ user: null, loading: false });
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl());
+    mockSupabaseFrom(supabase.from, makeFromImpl());
   });
 
   it('shows an action toast when a logged-out user clicks a heart', async () => {
@@ -162,15 +163,13 @@ describe('App favorites — logged in', () => {
   });
 
   it('shows a filled heart for a favorited review on load', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesData: [{ album_id: 'album1' }] })
-    );
+    mockSupabaseFrom(supabase.from, makeFromImpl({ favoritesData: [{ album_id: 'album1' }] }));
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
   });
 
   it('fills the heart and shows success toast after a successful favorite', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl());
+    mockSupabaseFrom(supabase.from, makeFromImpl());
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Add to favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
@@ -179,9 +178,7 @@ describe('App favorites — logged in', () => {
   });
 
   it('unfills the heart and shows success toast after a successful unfavorite', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ favoritesData: [{ album_id: 'album1' }] })
-    );
+    mockSupabaseFrom(supabase.from, makeFromImpl({ favoritesData: [{ album_id: 'album1' }] }));
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Remove from favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Remove from favorites' }));
@@ -190,9 +187,7 @@ describe('App favorites — logged in', () => {
   });
 
   it('shows an error toast and leaves heart unchanged when insert fails', async () => {
-    vi.mocked(supabase.from).mockImplementation(
-      makeFromImpl({ insertError: { message: 'DB error' } })
-    );
+    mockSupabaseFrom(supabase.from, makeFromImpl({ insertError: { message: 'DB error' } }));
     render(<App />, { wrapper });
     await waitFor(() => screen.getByRole('button', { name: 'Add to favorites' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add to favorites' }));
@@ -215,7 +210,7 @@ describe('App album cards — review-count branching', () => {
       album: 'Manual Album',
       reviews: [],
     };
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ albumsData: [zeroReviewAlbum] }));
+    mockSupabaseFrom(supabase.from, makeFromImpl({ albumsData: [zeroReviewAlbum] }));
     render(<App />, { wrapper });
     await waitFor(() => screen.getByText(/Manual Band/));
 
@@ -227,7 +222,7 @@ describe('App album cards — review-count branching', () => {
   });
 
   it('renders the original single-review layout for an album with exactly one attached review', async () => {
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl());
+    mockSupabaseFrom(supabase.from, makeFromImpl());
     render(<App />, { wrapper });
     await waitFor(() => screen.getByText(/Opeth/));
 
@@ -278,7 +273,7 @@ describe('App album cards — review-count branching', () => {
         },
       ],
     };
-    vi.mocked(supabase.from).mockImplementation(makeFromImpl({ albumsData: [multiReviewAlbum] }));
+    mockSupabaseFrom(supabase.from, makeFromImpl({ albumsData: [multiReviewAlbum] }));
     render(<App />, { wrapper });
     await waitFor(() => screen.getByText(/Multi Band/));
 
@@ -307,7 +302,7 @@ describe('App album cards — review-count branching', () => {
           Promise.resolve({ data: [mockAlbumRow], error: null }).then(cb),
       }),
     });
-    vi.mocked(supabase.from).mockImplementation((table: string) => {
+    mockSupabaseFrom(supabase.from, (table: string) => {
       if (table === 'albums') return { select: selectSpy };
       return makeFromImpl()(table);
     });

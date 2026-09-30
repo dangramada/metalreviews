@@ -18,6 +18,7 @@ const baseFresh: MusicBrainzData = {
   genres: ['doom metal'],
   releaseDate: null,
   releaseGroupId: null,
+  status: 'ok',
 };
 
 describe('applyAlbumEnrichment', () => {

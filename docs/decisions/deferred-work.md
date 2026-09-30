@@ -1111,7 +1111,7 @@ Reviews` (PS) category tags that non-review posts don't, and `scripts/ingest.ts`
   retire findings (1) and (2) at the source — as that item already notes, doing it first would
   make every derived number in this cluster more durable.
 
-- **`npm run type-check` does not type-check anything.** Found 2026-08-17. The root
+- **`npm run type-check` does not type-check anything.** Found 2026-08-17. **CLOSED 2026-09-30 (type-check part):** script is now `tsc -b`, `tsc -b --force` clean, CI in `.github/workflows/typecheck.yml`. Lint part not addressed.  The root
   `tsconfig.json` has `"files": []` with project references to `tsconfig.app.json` /
   `tsconfig.node.json`, but the script is a bare `tsc --noEmit` — which, with no files and no
   `--build`, checks nothing and exits 0. Every "tsc --noEmit clean" claim in past session docs
@@ -1205,7 +1205,7 @@ which fixes the display layer only.
   change (realtime subscription/shared cache) or, narrower, blocking navigation while
   `usePendingWritesGuard`'s `hasPendingWrites` is true — both explicitly deferred, not attempted,
   per Dan's instruction to log rather than fix during this retest.
-- **`npm run type-check` checks nothing, and `npm run lint` is dirty on `master`.** Root
+- **`npm run type-check` checks nothing, and `npm run lint` is dirty on `master`.** **CLOSED 2026-09-30 (type-check part):** script is now `tsc -b`, `tsc -b --force` clean, CI in `.github/workflows/typecheck.yml`. Lint part not addressed.  Root
   `tsconfig.json` has `"files": []` plus two `references`, so a plain `tsc --noEmit` (which is
   what the script runs) type-checks zero files. The real check is `tsc -b`, which is already
   failing on `master` (`scripts/ingest.ts` unused imports and an arity error;
@@ -1239,3 +1239,5 @@ which fixes the display layer only.
   stops short of an actual VoiceOver-on-iOS-Safari or TalkBack-on-Chrome-Android pass on a real
   device. Full detail: `docs/decisions/aoty/aoty-contenders-implementation.md`'s 2026-09-29
   "Mobile selection split" section.
+
+- **Pre-existing ref warning on the Listen `MenuTrigger` button (opened 2026-09-30).** Console ref warning on the Listen menu's trigger button; cause unconfirmed, present on `master`.

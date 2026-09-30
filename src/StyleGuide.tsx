@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Container,
-  Flex,
   Heading,
   HStack,
   Input,
@@ -63,9 +62,9 @@ function Label({ children }: { children: React.ReactNode }) {
 // Color swatch
 // ---------------------------------------------------------------------------
 
-type SwatchProps = { token: string; description: string; bg: string; textColor?: string };
+type SwatchProps = { token: string; description: string; bg: string };
 
-function Swatch({ token, description, bg, textColor = 'white' }: SwatchProps) {
+function Swatch({ token, description, bg }: SwatchProps) {
   return (
     <Box>
       <Box

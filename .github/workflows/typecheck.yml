@@ -1,0 +1,26 @@
+name: Type-check and test
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # Puppeteer's Chrome download isn't needed for type-check/tests.
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22 # no .nvmrc/engines in repo
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm test -- --run
+        env:
+          SUPABASE_URL: http://localhost:54321
+          SUPABASE_SECRET_KEY: dummy
+          VITE_SUPABASE_URL: http://localhost:54321
+          VITE_SUPABASE_PUBLISHABLE_KEY: dummy

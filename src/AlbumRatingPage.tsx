@@ -238,8 +238,8 @@ export function AlbumRatingPage() {
                 >
                   Your calibration was restarted, so the weighting behind this album&apos;s score is
                   no longer settled. Answer a round of comparisons and the score and rank come back.{' '}
-                  <Link as={RouterLink} to="/calibration" color="status.info.text" fontWeight="600">
-                    Go to calibration
+                  <Link asChild color="status.info.text" fontWeight="600">
+                    <RouterLink to="/calibration">Go to calibration</RouterLink>
                   </Link>
                 </Alert>
               )}

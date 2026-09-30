@@ -2,10 +2,8 @@ import { randomUUID } from 'node:crypto';
 import RSSParser from 'rss-parser';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import cron from 'node-cron';
 import puppeteer from 'puppeteer';
-import { MetalReview } from '../src/types';
-import { extractRating } from '../src/scraper/angrymetal.js';
+import { extractRating } from '../src/scraper/angrymetal';
 import { extractRating as extractPSRating } from '../src/scraper/progressivesubway';
 import { extractRating as extractMSRating } from '../src/scraper/metalstorm';
 import { supabase } from './supabaseClient';
@@ -347,7 +345,7 @@ async function fetchMetalStorm(scoreByNormKey: Map<string, string>): Promise<Raw
 
   // Pre-compute normKeys for all feed items so we can check the skip set before launching Puppeteer.
   const itemsWithMeta = feed.items.map((item) => {
-    const [bandRaw, albumRaw] = extractBandAlbum(item.title ?? '', '–');
+    const [bandRaw, albumRaw] = extractBandAlbum(item.title ?? '');
     const band = bandRaw.trim() || 'Unknown Band';
     const album = albumRaw.trim() || 'Unknown Album';
     const normKey = computeNormKey(band, album);
@@ -432,11 +430,6 @@ function extractBandAlbum(title: string): [string, string] {
     return [match[1].trim(), match[2].trim()];
   }
   return ['', ''];
-}
-
-function extractScore(content: string): string {
-  const match = content.match(/([0-9]+(?:\.[0-9]+)\s*(?:\/\s*[0-9]+)?%?)/);
-  return match ? match[1] : '';
 }
 
 type Browser = Awaited<ReturnType<typeof puppeteer.launch>>;

@@ -1,4 +1,19 @@
 import { createSystem, defaultConfig } from '@chakra-ui/react';
+import type { SlotRecipeDefinition, SlotRecipeVariantRecord } from '@chakra-ui/react';
+
+// Chakra's SlotRecipeDefinition requires `slots` even when only partially overriding an
+// EXISTING built-in slot recipe by name (drawer/dialog/progress/tabs below) — createSystem's
+// merge is keyed by recipe name and inherits `slots` from the recipe being extended (verified
+// live: system.getRecipe('drawer').slots comes back fully populated with Chakra's own 11 slot
+// names even though this config never states them, and the override itself lands correctly).
+// This narrows the required-vs-optional shape to match that reality — `slots` is the only
+// thing cast in, `base`/`variants`/`compoundVariants` stay fully typed against real slot names
+// and SystemStyleObject, so a typo'd slot or a bad CSS property still errors.
+function partialSlotRecipe<S extends string>(
+  config: Omit<SlotRecipeDefinition<S, SlotRecipeVariantRecord<S>>, 'slots'>
+): SlotRecipeDefinition<S, SlotRecipeVariantRecord<S>> {
+  return config as SlotRecipeDefinition<S, SlotRecipeVariantRecord<S>>;
+}
 
 const system = createSystem(defaultConfig, {
   // Global CSS: set dark base so components inherit color instead of using
@@ -13,25 +28,31 @@ const system = createSystem(defaultConfig, {
     'h1, h2, h3, h4, h5, h6': {
       color: 'inherit',
     },
-    // Equalizer-bar loading indicator (LoadingIndicator.tsx, pass 7). Defined globally
+  },
+  theme: {
+    // Equalizer-bar loading indicator (LoadingIndicator.tsx, pass 7). theme.keyframes is
+    // Chakra's dedicated, correctly-typed config for @keyframes rules (CssKeyframes:
+    // { [name]: { [time]: CssProperties } }) — globalCss's type is Record<string,
+    // SystemStyleObject> for every key uniformly, which doesn't model a keyframes block's
+    // percentage-keyed shape and is why '0%' etc. failed to typecheck there. Moved here
     // rather than inline in the component's `css` prop: nesting an `@keyframes` object
     // inside the same `css` object as a `_motionReduce` condition crashes Chakra's prop
     // merge (`Cannot create property '@keyframes ...' on string`) — found via live
-    // verification, not assumed. Keeping the keyframes here, referenced by name from the
-    // component, avoids the collision entirely.
+    // verification, not assumed. Referenced by bare name from the component either way, so
+    // moving it here doesn't change what CSS is generated or how it's referenced.
     // Bar thickness is 16% (was 20% at ship time) — width values only. The height values
     // in each step (50%/20%/100%) are unrelated to thickness; they drive the wave motion
     // and are untouched.
-    '@keyframes slant-take-eqbars': {
-      '0%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
-      '20%': { backgroundSize: '16% 20%, 16% 50%, 16% 50%' },
-      '40%': { backgroundSize: '16% 100%, 16% 20%, 16% 50%' },
-      '60%': { backgroundSize: '16% 50%, 16% 100%, 16% 20%' },
-      '80%': { backgroundSize: '16% 50%, 16% 50%, 16% 100%' },
-      '100%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+    keyframes: {
+      'slant-take-eqbars': {
+        '0%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+        '20%': { backgroundSize: '16% 20%, 16% 50%, 16% 50%' },
+        '40%': { backgroundSize: '16% 100%, 16% 20%, 16% 50%' },
+        '60%': { backgroundSize: '16% 50%, 16% 100%, 16% 20%' },
+        '80%': { backgroundSize: '16% 50%, 16% 50%, 16% 100%' },
+        '100%': { backgroundSize: '16% 50%, 16% 50%, 16% 50%' },
+      },
     },
-  },
-  theme: {
     // Shared type style (2026-09-12 design review). The round counter, the question title and
     // each comparison card's level name are ONE size in the design, so they are one style here
     // rather than three independent font/size/weight decisions that drift apart. Inter (the
@@ -320,22 +341,22 @@ const system = createSystem(defaultConfig, {
     // colours without needing per-instance bg/color props. These set only the parts
     // that default to white; all other recipe slots are left at their defaults.
     slotRecipes: {
-      drawer: {
+      drawer: partialSlotRecipe({
         base: {
           content: { bg: 'surface.card', color: 'text.primary' },
         },
-      },
-      dialog: {
+      }),
+      dialog: partialSlotRecipe({
         base: {
           content: { bg: 'surface.card', color: 'text.primary' },
         },
-      },
+      }),
       // Progress bar colours (2026-09-12). Like tabs, Progress is a slot recipe (track/range)
       // and had no theme layer at all, so it rendered Chakra's defaults: a `bg.muted` track that
       // was nearly invisible on this page's dark panel, with a `colorPalette.solid` (white)
       // range. Overrides the DEFAULT `outline` variant, since that is what the unstyled
       // <ProgressRoot> resolves to — putting these in `base` would be silently overridden by it.
-      progress: {
+      progress: partialSlotRecipe({
         variants: {
           variant: {
             outline: {
@@ -352,7 +373,7 @@ const system = createSystem(defaultConfig, {
             },
           },
         },
-      },
+      }),
       // Tabs are styled through Chakra's `tabs` SLOT recipe (slots: root/list/trigger/content/
       // indicator; variants: line/subtle/enclosed/outline/plain), not through props on each
       // Tabs.Trigger. This overrides the built-in `outline` variant — the "folder tab" one from
@@ -375,7 +396,7 @@ const system = createSystem(defaultConfig, {
       // intends, and paints its bottom edge in the panel's fill instead of `transparent`, so it
       // covers exactly the stretch of the panel's border beneath it — the join in the Figma.
       // Consequence: an `outline` Tabs must sit directly on a panel with that border.
-      tabs: {
+      tabs: partialSlotRecipe({
         variants: {
           variant: {
             outline: {
@@ -406,7 +427,7 @@ const system = createSystem(defaultConfig, {
             },
           },
         },
-      },
+      }),
     },
   },
 });

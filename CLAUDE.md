@@ -109,6 +109,8 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 ## Active branches
 
+2026-09-30: `npm run type-check` now runs `tsc -b`; plain `tsc --noEmit` checked zero files before (earlier "`tsc` clean" claims were vacuous unless via `tsc -b`).
+
 Most recent merge: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
 `/aoty/contenders` route + nav entry, `contenders` Supabase table, bulk picker/add/remove,
 auto-add on full rating. Scoped to Contenders only, no AOTY final-list screen this pass.
