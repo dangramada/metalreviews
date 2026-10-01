@@ -11,6 +11,9 @@ Branch `favorites-row-desktop-redesign`, merged to `master` 2026-08-07 (merge co
 > on the Album Rating page. References to `rankOverlayBadge` below and in the other decision docs
 > are historical. Branch `feature/favorites-score-badge`.
 >
+> **2026-10-01:** the name `rankOverlayBadge` was reused for a different token (AOTY list rank
+> badge, `theme.ts`) — not the Favorites one described here.
+>
 > **2026-09-27 update:** the Album Rating page's `RatingSlab` Score (`RatingProgressBox.tsx`,
 > previously `Math.round(score*100)%`) now uses the same `formatBadgeScore` output as this
 > badge, via a new `scoreSlabPersonal` theme key (`ink.950`/`sand.200`, matching

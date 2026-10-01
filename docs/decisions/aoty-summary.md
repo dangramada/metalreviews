@@ -21,8 +21,8 @@ single/bulk remove, auto-add on a full (6/6) rating.
 "Select for AOTY" on Contenders. Detail: `aoty/aoty-list-implementation.md`.
 
 **Not built yet:** the desktop two-column Contenders|AOTY layout, the mobile AOTY-home split, the
-public share page (`/aoty/:shareId`), and all visual design (no Figma exists; the rank "#N"
-treatment is provisional).
+public share page (`/aoty/:shareId`), and all further visual design (no Figma exists; rank
+is an overlay badge since 2026-10-01 — see `aoty-list-implementation.md`).
 
 **Open follow-ups**, tracked in `docs/decisions/deferred-work.md` §B rather than only here:
 - Extract `ContendersPage`'s calibration-gate `handleRate` logic (duplicated from

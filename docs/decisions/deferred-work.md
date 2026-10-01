@@ -1262,5 +1262,8 @@ Noticed while building it, deliberately not touched on that branch (one concern 
 - **Repo-wide `eslint src` reports ~1266 prettier errors on master** (files not matching
   `prettier --write`'s current output). Pre-existing; every file touched by this branch is
   clean.
-- **Real device VoiceOver/TalkBack check** for the new "#N" rank text (`aria-label="Rank N"` on a
-  plain span) is unperformed.
+- **Real device VoiceOver/TalkBack check** for the AOTY rank badge (visible "#N" `aria-hidden` +
+  `srOnly` "Rank N", since 2026-10-01) is unperformed, as is a real-page visual check of the badge
+  on `/aoty` (needs a logged-in account; fit was only measured on a StyleGuide sample).
+- **Name reuse:** `rankOverlayBadge` now names the AOTY badge; older docs' references to it
+  (Favorites, replaced 2026-09-26) are historical — see `favorites-row-desktop-redesign.md`.
