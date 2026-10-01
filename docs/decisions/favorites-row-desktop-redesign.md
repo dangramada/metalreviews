@@ -124,3 +124,6 @@ likely reuses the same `toThumbnailUrl(url, 250)` source size.
 source size (250px), `scoreSlabBase`/`scoreSlabHigh` themselves (only a new sibling export added),
 mobile layout/breakpoints, the year-dropdown, `AddAlbumDrawer`'s flow, `FavoritesPage`'s controls
 row, bulk-remove (still out of scope per `favorites-view.md`).
+
+> **2026-10-01 (appended):** the AOTY badge mentioned in the note above was renamed
+> `aotyRankBadge`, so `rankOverlayBadge` refers only to the Favorites token described in this doc.

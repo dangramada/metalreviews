@@ -133,3 +133,31 @@ and under 320px viewport emulation. Rank never co-occurs with the tier-`none` wa
   reused from `AlbumRatingPage`'s insufficient-data banner). `CalibrationBreadcrumb`'s `from` map
   gained `contenders` and `aoty` entries so the breadcrumb returns to the right page (previously
   `?from=contenders` fell back to Favorites).
+
+### 2026-10-01 follow-ups (appended; earlier sections above are left as written)
+- **Rename:** `rankOverlayBadge` -> `aotyRankBadge` in `theme.ts`, `FavoritesPage.tsx`,
+  `StyleGuide.tsx` (the only usages; no tests referenced it). The old name belonged to the
+  Favorites token replaced 2026-09-26. Mentions of `rankOverlayBadge` in the "Rank presentation"
+  section above mean the AOTY badge, now `aotyRankBadge`. `designTokensDoc.test.ts` passes.
+- **Measured widths** (StyleGuide sample, `getBoundingClientRect` on the rank+score strip inside
+  a 128px artwork square, real browser pane; not a real `/aoty` page). Desktop artwork is a fixed
+  128px, not ~117px, and mobile uses the same 128px, so strip widths match across viewports.
+  Under 320px emulation the pane's `innerWidth` read 415 (scaled), but the artwork and strip are
+  fixed px, so the numbers are unaffected.
+
+  | Case (score 10.0) | Desktop strip / artwork | 320px emulation strip / artwork | Fits |
+  |---|---|---|---|
+  | #1 | 91.3 / 128 | 91.3 / 128 | yes |
+  | #42 | 106.4 / 128 | 106.4 / 128 | yes |
+  | #100 (stress) | 114.6 / 128 | 114.6 / 128 | yes |
+
+  (117px would also fit all three.)
+- **Rank-before-score test:** `AotyPage.test.tsx`, "puts the rank badge before the score badge in
+  the same strip".
+- **"Your Score" tooltip** (naming table in `aoty-hub-population.md`): optional `scoreLabel` prop
+  on `FavoriteListItemRow`, passed only by `AotyPage` and `ContendersPage`; Favorites,
+  Album Rating and `AddToContendersPicker` unchanged. Desktop: existing `Tooltip` component on the
+  score badge. Mobile: no tooltip (touch has no hover; same reason the warning badge uses no
+  Tooltip on mobile), so the label is available there only to screen readers. Accessible name
+  "Your Score x.x" is srOnly text with the visible number `aria-hidden`. The insufficient-data
+  dash keeps its current behavior (no tooltip: there is no score for the label to describe).
