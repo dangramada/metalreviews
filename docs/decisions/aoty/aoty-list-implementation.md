@@ -66,10 +66,20 @@ the same score while ranked differently (the ordering compares 6 decimals). Acce
   says so; bulk remove asks for confirmation only when the selection includes AOTY members, and
   shows the count. Code paths deleting from `contenders`: `ContendersPage` single and bulk only.
 
-### Rank presentation (provisional)
-Plain "#N" text prefix with `aria-label="Rank N"`, existing tokens, on `FavoriteListItemRow`'s new
-optional `rank` prop (plus `note`, `extraActions`, `removeNote`, all additive). No visual design
-exists for it. `RatingSlab` `high` is not reusable.
+### Rank presentation (2026-10-01 — reverses the provisional "#N text" decision)
+The earlier plain orange "#N" text prefix is gone. Rank is now an overlay badge on the artwork,
+bottom-left, immediately left of the score badge (rank first, score after), inside the same grid
+strip as `scoreOverlayBadge`/`confidenceWarningBadge`. Token `rankOverlayBadge` (`theme.ts`) =
+`scoreOverlayBadge` spread (box metrics, borders, 14px heading face) with `scoreSlabHigh`'s
+ember bg / ink text and bold weight; `scoreOverlayBadge` and `RatingSlab` are untouched.
+Rendered only when the optional `rank` prop is passed, so Favorites is unchanged; unranked
+members (no score / no year) show no badge, as before. Accessible name: visible "#N" is
+`aria-hidden`, with Chakra's `srOnly` text "Rank N" beside it (not an `aria-label` on a plain
+Box); tests assert the real text. The `note` text ("In AOTY", ...) stays, as a plain line.
+Fit: artwork is a fixed 128px in both layouts. Measured on a StyleGuide sample (not a real
+page; no login available): rank+score strip is 87.5px ("#4"/8.2), 94.7px ("#42"/9.1) and
+114.6px ("#100"/10.0, stress case), all inside 128px with no overlap or clipping, at desktop
+and under 320px viewport emulation. Rank never co-occurs with the tier-`none` warning badge.
 
 ### Deviations from the discovery concept, logged
 - No persistent mobile badge header.
@@ -78,7 +88,7 @@ exists for it. `RatingSlab` `high` is not reusable.
 ### Not in this pass / not done
 - No backfill of Contenders for already-rated albums (1 of 15 at the time of writing).
 - Desktop two-column layout, public share page, manual reordering, multi-list, Favorites renaming.
-- Real-device screen-reader check of the new rank text.
+- Real-device screen-reader check of the new rank text (now `srOnly` "Rank N"). Real-page visual check of the rank badge on `/aoty` (needs a logged-in account).
 
 ### Verification
 - `npm run type-check` is `tsc -b` (package.json:16). Proven live: an injected
