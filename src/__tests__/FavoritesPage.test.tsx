@@ -615,6 +615,7 @@ describe('FavoriteListItemRow — insufficient data', () => {
     renderRow(false);
     expect(screen.getAllByText('8.2').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Score 8.2').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Your Score/)).toBeNull();
     expect(screen.queryByTitle(INSUFFICIENT_DATA_TEXT)).not.toBeInTheDocument();
   });
 

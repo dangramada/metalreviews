@@ -299,6 +299,7 @@ export function ContendersPage() {
                     onRemove={() => handleRemove(item.albumId, `${item.band} – ${item.album}`)}
                     removing={removingId === item.albumId}
                     removeLabel="Contenders"
+                    scoreLabel="Your Score"
                     note={
                       aotyIds.has(item.albumId)
                         ? 'In AOTY'

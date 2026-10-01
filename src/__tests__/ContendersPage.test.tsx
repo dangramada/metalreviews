@@ -235,6 +235,12 @@ describe('ContendersPage', () => {
       expect(upsert).not.toHaveBeenCalled();
     });
 
+    it('labels the score badge "Your Score x.x"', async () => {
+      mockSummary = rated();
+      render(<ContendersPage />, { wrapper });
+      expect(screen.getAllByText('Your Score 8.0').length).toBeGreaterThan(0);
+    });
+
     it('disables the action and shows visible status text without a release date', async () => {
       mockItems = [{ ...mockItem, releaseDate: null }];
       mockSummary = rated();

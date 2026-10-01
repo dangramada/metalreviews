@@ -125,14 +125,19 @@ describe('AotyPage', () => {
     mockItems = [member('a', 'Aaa', '2026-01-01')];
     mockSummary = new Map([['a', sum(0.4)]]);
     render(<AotyPage />, { wrapper });
-    const strips = screen
-      .getAllByText('4.0')
-      .map((score) => score.parentElement as HTMLElement)
-      .filter((strip) => strip.textContent?.includes('Rank 1'));
-    expect(strips.length).toBeGreaterThan(0);
-    const [rankBadge, scoreBadge] = Array.from(strips[0].children);
+    const strip = screen.getAllByText('Rank 1')[0].parentElement?.parentElement as HTMLElement;
+    const [rankBadge, scoreBadge] = Array.from(strip.children);
     expect(rankBadge.textContent).toContain('Rank 1');
-    expect(scoreBadge.textContent).toBe('4.0');
+    expect(scoreBadge.textContent).toContain('4.0');
+  });
+
+  it('names the score badge "Your Score x.x" once, with the visible number aria-hidden', () => {
+    mockItems = [member('a', 'Aaa', '2026-01-01')];
+    mockSummary = new Map([['a', sum(0.4)]]);
+    render(<AotyPage />, { wrapper });
+    expect(screen.getAllByText('Your Score 4.0').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('4.0')[0]).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByLabelText('Score 4.0')).toBeNull();
   });
 
   it('shows the Alert and no rank numbers at tier none', () => {

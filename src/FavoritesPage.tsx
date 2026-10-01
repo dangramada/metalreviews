@@ -114,6 +114,7 @@ export function FavoriteListItemRow({
   previewMode = false,
   removeLabel = 'favorites',
   rank,
+  scoreLabel,
   note,
   extraActions,
   removeNote,
@@ -147,6 +148,10 @@ export function FavoriteListItemRow({
   // AOTY list additions (aoty-list-implementation.md). All optional and unused on /favorites.
   // `rank`: overlay badge left of the score badge (aotyRankBadge); needs a score to render.
   rank?: number;
+  // Personal-score label ("Your Score", aoty-hub-population.md naming table): desktop shows it
+  // as a Tooltip on the score badge; mobile has none (touch has no hover, same as the warning
+  // badge). Not applied to the insufficient-data dash.
+  scoreLabel?: string;
   // Short visible status text beside the rank ("In AOTY", "No release date yet.").
   note?: string;
   // Extra action node(s) rendered before Evaluate in both the desktop cluster and mobile footer.
@@ -198,6 +203,28 @@ export function FavoriteListItemRow({
         </Box>
       </Box>
     ) : null;
+
+  // `scoreLabel` (AOTY/Contenders only): the visible number is aria-hidden and a srOnly
+  // "<label> x.x" is the accessible name, so the number is announced once. Without it, the
+  // original aria-label "Score x.x" on the Box is kept (Favorites unchanged).
+  const scoreText = ratingSummary ? formatBadgeScore(ratingSummary.score) : null;
+  const scoreBadge = ratingSummary ? (
+    scoreLabel && !hasInsufficientData ? (
+      <Box {...scoreOverlayBadge}>
+        <span aria-hidden="true">{scoreText}</span>
+        <Box as="span" srOnly>
+          {scoreLabel} {scoreText}
+        </Box>
+      </Box>
+    ) : (
+      <Box
+        {...scoreOverlayBadge}
+        aria-label={hasInsufficientData ? undefined : `Score ${scoreText}`}
+      >
+        {hasInsufficientData ? '—' : scoreText}
+      </Box>
+    )
+  ) : null;
 
   return (
     <>
@@ -287,16 +314,11 @@ export function FavoriteListItemRow({
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
                   {rankBadge}
-                  <Box
-                    {...scoreOverlayBadge}
-                    aria-label={
-                      hasInsufficientData
-                        ? undefined
-                        : `Score ${formatBadgeScore(ratingSummary.score)}`
-                    }
-                  >
-                    {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
-                  </Box>
+                  {scoreBadge && scoreLabel && !hasInsufficientData ? (
+                    <Tooltip content={scoreLabel}>{scoreBadge}</Tooltip>
+                  ) : (
+                    scoreBadge
+                  )}
                   {confidenceBadgeText !== null && (
                     <Tooltip content={confidenceBadgeText}>
                       <Box {...confidenceWarningBadge}>
@@ -456,16 +478,7 @@ export function FavoriteListItemRow({
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
                   {rankBadge}
-                  <Box
-                    {...scoreOverlayBadge}
-                    aria-label={
-                      hasInsufficientData
-                        ? undefined
-                        : `Score ${formatBadgeScore(ratingSummary.score)}`
-                    }
-                  >
-                    {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
-                  </Box>
+                  {scoreBadge}
                   {confidenceBadgeText !== null && (
                     <Box
                       {...confidenceWarningBadge}

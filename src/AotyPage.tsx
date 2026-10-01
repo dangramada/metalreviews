@@ -66,6 +66,7 @@ export function AotyPage() {
       key={item.albumId}
       item={item}
       rank={rank}
+      scoreLabel="Your Score"
       onRemove={() => handleRemove(item.albumId, `${item.band} – ${item.album}`)}
       removing={removingId === item.albumId}
       removeLabel="AOTY"
