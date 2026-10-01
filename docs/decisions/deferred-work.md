@@ -1267,3 +1267,13 @@ Noticed while building it, deliberately not touched on that branch (one concern 
   on `/aoty` (needs a logged-in account; fit was only measured on a StyleGuide sample).
 - **Name reuse:** `rankOverlayBadge` now names the AOTY badge; older docs' references to it
   (Favorites, replaced 2026-09-26) are historical — see `favorites-row-desktop-redesign.md`.
+
+## New items, 2026-10-02 (`feature/contenders-backfill`)
+
+- **`CRITERIA_COUNT` is hardcoded** (`src/hooks/useAlbumRatingsSummary.ts:12`, = 6) while the
+  Contenders backfill SQL derives "fully rated" from `count(*) from criteria`. They agree today;
+  adding a criterion would silently desync `isFirstFullRating`/the summary from the DB. Derive it
+  from `useCriteriaCatalog` if criteria ever become mutable.
+- **Auto-add is fire-and-forget** (`AlbumRatingPage.handlePick`): a network/RLS failure only
+  `console.warn`s and is never retried; recoverable only via the manual picker or a re-run of
+  `supabase/contenders-backfill.sql` (idempotent).
