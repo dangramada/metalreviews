@@ -85,7 +85,7 @@ import {
   genreBadge,
   primaryButton,
   scoreOverlayBadge,
-  rankOverlayBadge,
+  aotyRankBadge,
   secondaryButton,
 } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
@@ -145,7 +145,7 @@ export function FavoriteListItemRow({
   // item.band/item.album regardless, so this only ever needs the destination noun.
   removeLabel?: string;
   // AOTY list additions (aoty-list-implementation.md). All optional and unused on /favorites.
-  // `rank`: overlay badge left of the score badge (rankOverlayBadge); needs a score to render.
+  // `rank`: overlay badge left of the score badge (aotyRankBadge); needs a score to render.
   rank?: number;
   // Short visible status text beside the rank ("In AOTY", "No release date yet.").
   note?: string;
@@ -191,7 +191,7 @@ export function FavoriteListItemRow({
   // Visible "#N" is aria-hidden; the screen-reader text is the real accessible name.
   const rankBadge =
     rank !== undefined ? (
-      <Box {...rankOverlayBadge}>
+      <Box {...aotyRankBadge}>
         <span aria-hidden="true">#{rank}</span>
         <Box as="span" srOnly>
           Rank {rank}

@@ -121,6 +121,20 @@ describe('AotyPage', () => {
     expect(screen.getByRole('button', { name: '2025' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('puts the rank badge before the score badge in the same strip', () => {
+    mockItems = [member('a', 'Aaa', '2026-01-01')];
+    mockSummary = new Map([['a', sum(0.4)]]);
+    render(<AotyPage />, { wrapper });
+    const strips = screen
+      .getAllByText('4.0')
+      .map((score) => score.parentElement as HTMLElement)
+      .filter((strip) => strip.textContent?.includes('Rank 1'));
+    expect(strips.length).toBeGreaterThan(0);
+    const [rankBadge, scoreBadge] = Array.from(strips[0].children);
+    expect(rankBadge.textContent).toContain('Rank 1');
+    expect(scoreBadge.textContent).toBe('4.0');
+  });
+
   it('shows the Alert and no rank numbers at tier none', () => {
     stubTier = 'none';
     mockItems = [member('a', 'Aaa', '2026-01-01')];

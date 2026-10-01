@@ -571,7 +571,7 @@ export const scoreOverlayBadge = {
 // immediately left of scoreOverlayBadge in the same bottom-left strip. Box metrics, borders and
 // type scale from scoreOverlayBadge; ember fill + ink text from scoreSlabHigh (the "earned"
 // accent pairing); bold heading face like the slab's number. Favorites never renders it.
-export const rankOverlayBadge = {
+export const aotyRankBadge = {
   ...scoreOverlayBadge,
   bg: scoreSlabHigh.bg,
   color: scoreSlabHigh.color,
