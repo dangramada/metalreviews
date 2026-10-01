@@ -4,6 +4,7 @@ Flat index of every branch tracked in CLAUDE.md's former "Active branches" secti
 the 2026-08-09 extraction pass. Status only — full narrative detail lives in the linked
 decision doc, not here. Newest merge first.
 
+- `feature/aoty-list` — merged to master `15e2ff5` (`--no-ff`), 2026-10-01; rollback tag `pre-merge-feature-aoty-list`; 959/959 tests, `tsc -b` clean — full detail: `docs/decisions/aoty/aoty-list-implementation.md`
 - `score-level-indicator-redesign` — merged to master `698bb86` (`--no-ff`), 2026-09-20;
   rollback tag `pre-merge-score-level-indicator-redesign` — replaces the flat "Score level:
   {tier}" + text-link row with a 4-segment progress bar and an outline `IconButton` calibration

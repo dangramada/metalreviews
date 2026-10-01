@@ -111,6 +111,8 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 2026-09-30: `npm run type-check` now runs `tsc -b`; plain `tsc --noEmit` checked zero files before (earlier "`tsc` clean" claims were vacuous unless via `tsc -b`).
 
+Most recent merge: `feature/aoty-list` — AOTY final-list stage (`aoty.sql`, `useAotyList`, `aotyView`). Merged to `master` `--no-ff` at `15e2ff5` on 2026-10-01. 959/959 tests, `tsc -b` clean. Rollback tag: `pre-merge-feature-aoty-list`. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
+
 Most recent merge: `feature/aoty-contenders` — Contenders stage of the AOTY hub: new
 `/aoty/contenders` route + nav entry, `contenders` Supabase table, bulk picker/add/remove,
 auto-add on full rating. Scoped to Contenders only, no AOTY final-list screen this pass.
