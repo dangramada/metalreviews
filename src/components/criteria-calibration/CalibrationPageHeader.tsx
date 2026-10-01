@@ -13,8 +13,8 @@ import { TierAccuracyBadge } from './TierAccuracyBadge';
 const CALIBRATION_FALLBACK_SOURCE: FromSourceEntry = { href: '/favorites', label: 'Favorites' };
 const CALIBRATION_FROM_SOURCES: Record<string, FromSourceEntry> = {
   favorites: CALIBRATION_FALLBACK_SOURCE,
-  // TODO: point at the real Ranked Albums/AOTY hub route once it exists.
-  // aoty: { href: '/aoty', label: 'AOTY' },
+  contenders: { href: '/aoty/contenders', label: 'Contenders' },
+  aoty: { href: '/aoty', label: 'AOTY' },
 };
 
 // Rendered by the global Header (via CriteriaCalibrationPage's PageChrome), not inside the

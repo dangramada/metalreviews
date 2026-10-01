@@ -2,13 +2,20 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../AuthContext';
 import { getReleaseYear } from '../App';
-import { computeScore, rankAlbum } from '../lib/album-rating/scoreAndRank';
+import {
+  computeScore,
+  criterionContributions,
+  criterionImportanceOrder,
+  rankAlbum,
+} from '../lib/album-rating/scoreAndRank';
 
 export const CRITERIA_COUNT = 6;
 
 export interface AlbumRatingSummary {
   score: number;
   rank: number;
+  // Per-criterion weight value behind `score` — AOTY's tie-break compares these.
+  contributions: Map<number, number>;
 }
 
 type RatingRow = { album_id: string; criterion_id: number; level: number };
@@ -24,6 +31,7 @@ type AlbumRow = { id: string; release_date: string | null };
 export function useAlbumRatingsSummary() {
   const { user } = useAuth();
   const [summary, setSummary] = useState<Map<string, AlbumRatingSummary>>(new Map());
+  const [criterionOrder, setCriterionOrder] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -33,6 +41,7 @@ export function useAlbumRatingsSummary() {
     async function load() {
       if (!user) {
         setSummary(new Map());
+        setCriterionOrder([]);
         setLoading(false);
         return;
       }
@@ -83,6 +92,7 @@ export function useAlbumRatingsSummary() {
       // weight — defensive, not expected under Medium tier).
       const scoredByYear = new Map<number | null, { albumId: string; score: number }[]>();
       const scoreByAlbum = new Map<string, number>();
+      const contributionsByAlbum = new Map<string, Map<number, number>>();
       for (const albumId of fullyRatedAlbumIds) {
         const ratings = ratingsByAlbum.get(albumId)!.map((r) => ({
           criterionId: r.criterion_id,
@@ -91,6 +101,7 @@ export function useAlbumRatingsSummary() {
         const score = computeScore(ratings, weights);
         if (score === null) continue;
         scoreByAlbum.set(albumId, score);
+        contributionsByAlbum.set(albumId, criterionContributions(ratings, weights)!);
         const year = yearByAlbum.get(albumId) ?? null;
         const list = scoredByYear.get(year) ?? [];
         list.push({ albumId, score });
@@ -101,10 +112,15 @@ export function useAlbumRatingsSummary() {
       for (const [albumId, score] of scoreByAlbum) {
         const year = yearByAlbum.get(albumId) ?? null;
         const yearGroup = scoredByYear.get(year) ?? [];
-        next.set(albumId, { score, rank: rankAlbum(albumId, yearGroup) });
+        next.set(albumId, {
+          score,
+          rank: rankAlbum(albumId, yearGroup),
+          contributions: contributionsByAlbum.get(albumId)!,
+        });
       }
 
       setSummary(next);
+      setCriterionOrder(criterionImportanceOrder(weights));
       setLoading(false);
     }
 
@@ -117,5 +133,5 @@ export function useAlbumRatingsSummary() {
 
   const refetch = () => setRefreshKey((k) => k + 1);
 
-  return { summary, loading, refetch };
+  return { summary, criterionOrder, loading, refetch };
 }

@@ -20,6 +20,7 @@ const FavoritesPage = React.lazy(() =>
   import('./FavoritesPage').then((m) => ({ default: m.FavoritesPage }))
 );
 // Lazy-loaded for the same reason.
+const AotyPage = React.lazy(() => import('./AotyPage').then((m) => ({ default: m.AotyPage })));
 const ContendersPage = React.lazy(() =>
   import('./ContendersPage').then((m) => ({ default: m.ContendersPage }))
 );
@@ -41,6 +42,16 @@ const router = createBrowserRouter([
       <RequireAuth>
         <React.Suspense fallback={null}>
           <FavoritesPage />
+        </React.Suspense>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/aoty',
+    element: (
+      <RequireAuth>
+        <React.Suspense fallback={null}>
+          <AotyPage />
         </React.Suspense>
       </RequireAuth>
     ),

@@ -24,6 +24,7 @@ import {
   scoreSlabHigh,
   genreBadge,
   scoreOverlayBadge,
+  aotyRankBadge,
   cardTitleBand,
   cardTitleAlbum,
 } from './theme';
@@ -539,6 +540,29 @@ export function StyleGuide() {
                     <Badge {...scoreOverlayBadge}>9.1</Badge>
                   </HStack>
                 </Box>
+              </Box>
+              <Box>
+                <Label>aotyRankBadge — AOTY row, immediately left of the score badge</Label>
+                <HStack gap={4} align="flex-start" flexWrap="wrap">
+                  {[
+                    ['1', '10.0'],
+                    ['42', '10.0'],
+                    ['100', '10.0'],
+                  ].map(([rank, score]) => (
+                    <Box key={rank} position="relative" w="128px" h="128px" bg="sand.600">
+                      <Box
+                        position="absolute"
+                        bottom={0}
+                        left={0}
+                        display="grid"
+                        gridAutoFlow="column"
+                      >
+                        <Box {...aotyRankBadge}>#{rank}</Box>
+                        <Box {...scoreOverlayBadge}>{score}</Box>
+                      </Box>
+                    </Box>
+                  ))}
+                </HStack>
               </Box>
             </VStack>
           </Section>

@@ -5,16 +5,25 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
-import { Alert } from './components/ui/alert';
+import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
-import { confidenceLabel, useCalibrationGate } from './hooks/useCalibrationGate';
+import { useAotyList } from './hooks/useAotyList';
+import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import {
   CalibrationGateDialog,
   type CalibrationGateMode,
 } from './components/criteria-calibration/CalibrationGateDialog';
+import {
+  DialogRoot,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogFooter,
+  DialogTitle,
+} from './components/ui/dialog';
 import { AddToContendersPicker } from './components/AddToContendersPicker';
 import { SelectableRow } from './components/SelectableRow';
 import { supabase } from './supabaseClient';
@@ -29,6 +38,7 @@ import { secondaryButton } from './theme';
 // — see handleRate's comment below).
 export function ContendersPage() {
   const { items, loading, error, refetch } = useContendersList();
+  const { items: aotyItems, refetch: refetchAoty } = useAotyList();
   const { user } = useAuth();
   const { showSuccess, showError } = useFeedbackToast();
   const navigate = useNavigate();
@@ -36,6 +46,8 @@ export function ContendersPage() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [bulkAdding, setBulkAdding] = useState(false);
+  const [showBulkRemoveConfirm, setShowBulkRemoveConfirm] = useState(false);
 
   const {
     tier: calibrationTier,
@@ -43,6 +55,7 @@ export function ContendersPage() {
     hasInsufficientData,
     loading: gateLoading,
   } = useCalibrationGate();
+  const aotyIds = useMemo(() => new Set(aotyItems.map((i) => i.albumId)), [aotyItems]);
   const { summary: ratingSummary } = useAlbumRatingsSummary();
   const [gateMode, setGateMode] = useState<CalibrationGateMode | null>(null);
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
@@ -65,6 +78,54 @@ export function ContendersPage() {
     navigate(`/rate/${albumId}?from=contenders`);
   }
 
+  // "Select for AOTY" is enabled for every row that can still be selected; the click either adds
+  // the album or, when it isn't ready (not fully rated, tier 'none', stale data), hands off to
+  // the existing gate flow via handleRate — same path as Evaluate. Only a missing release date
+  // is a real dead end (no year to list it under), so that alone is disabled.
+  function isReadyForAoty(albumId: string) {
+    return ratingSummary.has(albumId) && calibrationTier !== 'none' && !hasInsufficientData;
+  }
+
+  async function addToAoty(albumIds: string[]) {
+    if (!user || albumIds.length === 0) return false;
+    // Upsert + ignoreDuplicates so a double click or a second tab is not a 23505 failure.
+    const { error: insertError } = await supabase.from('aoty').upsert(
+      albumIds.map((album_id) => ({ user_id: user.id, album_id })),
+      { onConflict: 'user_id,album_id', ignoreDuplicates: true }
+    );
+    if (insertError) {
+      showError('Could not add to AOTY — try again');
+      return false;
+    }
+    refetchAoty();
+    return true;
+  }
+
+  async function handleSelectForAoty(albumId: string, label: string) {
+    if (!isReadyForAoty(albumId)) {
+      handleRate(albumId);
+      return;
+    }
+    if (await addToAoty([albumId])) showSuccess(`${label} added to AOTY`);
+  }
+
+  async function handleBulkSelectForAoty() {
+    const chosen = items.filter((i) => selectedIds.has(i.albumId) && !aotyIds.has(i.albumId));
+    const ready = chosen.filter((i) => isReadyForAoty(i.albumId) && i.releaseDate);
+    setBulkAdding(true);
+    const ok = await addToAoty(ready.map((i) => i.albumId));
+    setBulkAdding(false);
+    if (!ok && ready.length > 0) return;
+    const skipped = chosen.length - ready.length;
+    showSuccess(
+      `${ready.length} added to AOTY.` +
+        (skipped > 0
+          ? ` ${skipped} skipped: not fully rated, no release date, or score level not settled.`
+          : '')
+    );
+    setSelectedIds(new Set());
+  }
+
   async function handleRemove(albumId: string, label: string) {
     if (removingId || !user) return;
     setRemovingId(albumId);
@@ -79,6 +140,7 @@ export function ContendersPage() {
       return;
     }
     showSuccess(`${label} removed from Contenders`);
+    refetchAoty();
     setSelectedIds((prev) => {
       if (!prev.has(albumId)) return prev;
       const next = new Set(prev);
@@ -104,6 +166,7 @@ export function ContendersPage() {
     showSuccess(`${selectedIds.size} removed from Contenders`);
     setSelectedIds(new Set());
     refetch();
+    refetchAoty();
   }
 
   function toggleSelect(albumId: string, checked: boolean) {
@@ -114,6 +177,8 @@ export function ContendersPage() {
       return next;
     });
   }
+
+  const bulkAotyAffected = Array.from(selectedIds).filter((id) => aotyIds.has(id)).length;
 
   const contenderAlbumIds = useMemo(() => new Set(items.map((i) => i.albumId)), [items]);
 
@@ -127,14 +192,24 @@ export function ContendersPage() {
             <Heading as="h2" size="xl">
               Contenders
             </Heading>
-            <Button
-              {...secondaryButton}
-              variant="outline"
-              size="sm"
-              onClick={() => setPickerOpen(true)}
-            >
-              + Add from Favorites
-            </Button>
+            <Flex gap={2}>
+              <Button
+                {...secondaryButton}
+                variant="outline"
+                size="sm"
+                onClick={() => setPickerOpen(true)}
+              >
+                + Add from Favorites
+              </Button>
+              <Button
+                {...secondaryButton}
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/aoty')}
+              >
+                AOTY →
+              </Button>
+            </Flex>
           </Flex>
 
           {/* "More prominent than Favorites' current use" (aoty/aoty-hub-population.md) — a
@@ -149,17 +224,7 @@ export function ContendersPage() {
               rationale. Body copy is the same "settle the score" sentence
               CalibrationGateDialog's soft mode and CriteriaCalibrationPage's resume banner
               already use for tier === 'none' — same event, same words, not a fourth variant. */}
-          {!gateLoading && calibrationTier === 'none' && (
-            <Alert
-              status="info"
-              variant="surface"
-              bg="status.info.bg"
-              color="status.info.text"
-              title={`Score level: ${confidenceLabel(calibrationTier)}`}
-            >
-              A few more comparisons usually settle the score closer to what matters most to you.
-            </Alert>
-          )}
+          {!gateLoading && calibrationTier === 'none' && <TierNoneBanner from="contenders" />}
 
           {/* Bulk action bar — desktop only, same raw-CSS `@media` toggle convention as
               FavoriteListItemRow (not a Chakra responsive prop — see that component's own
@@ -177,17 +242,30 @@ export function ContendersPage() {
                 <Text fontSize="sm" color="text.primary">
                   {selectedIds.size} selected
                 </Text>
-                <Button
-                  {...secondaryButton}
-                  variant="outline"
-                  size="sm"
-                  color="text.muted"
-                  _hover={{ color: 'red.400' }}
-                  loading={bulkRemoving}
-                  onClick={handleBulkRemove}
-                >
-                  Remove
-                </Button>
+                <Flex gap={2}>
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    loading={bulkAdding}
+                    onClick={handleBulkSelectForAoty}
+                  >
+                    Select for AOTY
+                  </Button>
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    color="text.muted"
+                    _hover={{ color: 'red.400' }}
+                    loading={bulkRemoving}
+                    onClick={() =>
+                      bulkAotyAffected > 0 ? setShowBulkRemoveConfirm(true) : handleBulkRemove()
+                    }
+                  >
+                    Remove
+                  </Button>
+                </Flex>
               </Flex>
             </Box>
           )}
@@ -221,6 +299,35 @@ export function ContendersPage() {
                     onRemove={() => handleRemove(item.albumId, `${item.band} – ${item.album}`)}
                     removing={removingId === item.albumId}
                     removeLabel="Contenders"
+                    scoreLabel="Your Score"
+                    note={
+                      aotyIds.has(item.albumId)
+                        ? 'In AOTY'
+                        : item.releaseDate
+                          ? undefined
+                          : 'No release date yet.'
+                    }
+                    removeNote={
+                      aotyIds.has(item.albumId)
+                        ? 'This also removes 1 album from your AOTY list.'
+                        : undefined
+                    }
+                    extraActions={
+                      aotyIds.has(item.albumId) ? null : (
+                        <Button
+                          {...secondaryButton}
+                          variant="outline"
+                          size="sm"
+                          disabled={!item.releaseDate}
+                          aria-label={`Select ${item.band} – ${item.album} for AOTY`}
+                          onClick={() =>
+                            handleSelectForAoty(item.albumId, `${item.band} – ${item.album}`)
+                          }
+                        >
+                          Select for AOTY
+                        </Button>
+                      )
+                    }
                     ratingSummary={ratingSummary.get(item.albumId)}
                     onRate={() => handleRate(item.albumId)}
                     confidenceTier={calibrationTier}
@@ -234,6 +341,40 @@ export function ContendersPage() {
           <Footer />
         </VStack>
       </Container>
+
+      <DialogRoot
+        open={showBulkRemoveConfirm}
+        onOpenChange={({ open }) => setShowBulkRemoveConfirm(open)}
+        role="alertdialog"
+      >
+        <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
+          <DialogHeader>
+            <DialogTitle fontWeight="semibold">Remove from Contenders?</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            Remove {selectedIds.size} from your Contenders? This also removes {bulkAotyAffected}{' '}
+            {bulkAotyAffected === 1 ? 'album' : 'albums'} from your AOTY list.
+          </DialogBody>
+          <DialogFooter gap={3}>
+            <Button
+              {...secondaryButton}
+              variant="solid"
+              onClick={() => setShowBulkRemoveConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorPalette="red"
+              onClick={() => {
+                setShowBulkRemoveConfirm(false);
+                handleBulkRemove();
+              }}
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
 
       <AddToContendersPicker
         isOpen={pickerOpen}

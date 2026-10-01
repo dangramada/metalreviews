@@ -45,9 +45,7 @@ type AlbumRow = {
 // shape.
 const RATING_FALLBACK_SOURCE: FromSourceEntry = { href: '/favorites', label: 'Favorites' };
 const RATING_FROM_SOURCES: Record<string, FromSourceEntry> = {
-  // TODO: point at the real AOTY final-list route once it exists (Contenders now has its own
-  // real route below — only the AOTY side of this stub is still unbuilt).
-  aoty: { href: '/favorites', label: 'AOTY' },
+  aoty: { href: '/aoty', label: 'AOTY' },
   favorites: RATING_FALLBACK_SOURCE,
   contenders: { href: '/aoty/contenders', label: 'Contenders' },
 };

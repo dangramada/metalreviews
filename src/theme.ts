@@ -567,6 +567,17 @@ export const scoreOverlayBadge = {
   py: '4px',
 } as const;
 
+// Rank overlay badge — AOTY list rows only (FavoriteListItemRow's optional `rank` prop), sits
+// immediately left of scoreOverlayBadge in the same bottom-left strip. Box metrics, borders and
+// type scale from scoreOverlayBadge; ember fill + ink text from scoreSlabHigh (the "earned"
+// accent pairing); bold heading face like the slab's number. Favorites never renders it.
+export const aotyRankBadge = {
+  ...scoreOverlayBadge,
+  bg: scoreSlabHigh.bg,
+  color: scoreSlabHigh.color,
+  fontWeight: 700,
+} as const;
+
 // Low-confidence warning badge — flush against scoreOverlayBadge (same corner, same row, no
 // gap between them: they read as one contiguous strip), not a separate corner. Only ever
 // appears for tier 'none'. Square with equal sides: no fixed px/py, instead `aspectRatio:

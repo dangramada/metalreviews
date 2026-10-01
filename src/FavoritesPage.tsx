@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -85,6 +85,7 @@ import {
   genreBadge,
   primaryButton,
   scoreOverlayBadge,
+  aotyRankBadge,
   secondaryButton,
 } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
@@ -112,6 +113,11 @@ export function FavoriteListItemRow({
   hasInsufficientData = false,
   previewMode = false,
   removeLabel = 'favorites',
+  rank,
+  scoreLabel,
+  note,
+  extraActions,
+  removeNote,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -139,6 +145,19 @@ export function FavoriteListItemRow({
   // dialog's title (e.g. "Remove from Contenders?" on ContendersPage). Body text still uses
   // item.band/item.album regardless, so this only ever needs the destination noun.
   removeLabel?: string;
+  // AOTY list additions (aoty-list-implementation.md). All optional and unused on /favorites.
+  // `rank`: overlay badge left of the score badge (aotyRankBadge); needs a score to render.
+  rank?: number;
+  // Personal-score label ("Your Score", aoty-hub-population.md naming table): desktop shows it
+  // as a Tooltip on the score badge; mobile has none (touch has no hover, same as the warning
+  // badge). Not applied to the insufficient-data dash.
+  scoreLabel?: string;
+  // Short visible status text beside the rank ("In AOTY", "No release date yet.").
+  note?: string;
+  // Extra action node(s) rendered before Evaluate in both the desktop cluster and mobile footer.
+  extraActions?: ReactNode;
+  // Appended to the remove confirmation's body (e.g. the cascade warning on Contenders).
+  removeNote?: string;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -167,6 +186,45 @@ export function FavoriteListItemRow({
     : confidenceTier === 'none'
       ? `Score level: ${confidenceLabel(confidenceTier)}`
       : null;
+
+  const rankNote = note ? (
+    <Text as="span" fontSize="xs" color="text.muted">
+      {note}
+    </Text>
+  ) : null;
+
+  // Visible "#N" is aria-hidden; the screen-reader text is the real accessible name.
+  const rankBadge =
+    rank !== undefined ? (
+      <Box {...aotyRankBadge}>
+        <span aria-hidden="true">#{rank}</span>
+        <Box as="span" srOnly>
+          Rank {rank}
+        </Box>
+      </Box>
+    ) : null;
+
+  // `scoreLabel` (AOTY/Contenders only): the visible number is aria-hidden and a srOnly
+  // "<label> x.x" is the accessible name, so the number is announced once. Without it, the
+  // original aria-label "Score x.x" on the Box is kept (Favorites unchanged).
+  const scoreText = ratingSummary ? formatBadgeScore(ratingSummary.score) : null;
+  const scoreBadge = ratingSummary ? (
+    scoreLabel && !hasInsufficientData ? (
+      <Box {...scoreOverlayBadge}>
+        <span aria-hidden="true">{scoreText}</span>
+        <Box as="span" srOnly>
+          {scoreLabel} {scoreText}
+        </Box>
+      </Box>
+    ) : (
+      <Box
+        {...scoreOverlayBadge}
+        aria-label={hasInsufficientData ? undefined : `Score ${scoreText}`}
+      >
+        {hasInsufficientData ? '—' : scoreText}
+      </Box>
+    )
+  ) : null;
 
   return (
     <>
@@ -255,16 +313,12 @@ export function FavoriteListItemRow({
                 algorithm honors aspect-ratio against the stretched cross size correctly. */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                  <Box
-                    {...scoreOverlayBadge}
-                    aria-label={
-                      hasInsufficientData
-                        ? undefined
-                        : `Score ${formatBadgeScore(ratingSummary.score)}`
-                    }
-                  >
-                    {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
-                  </Box>
+                  {rankBadge}
+                  {scoreBadge && scoreLabel && !hasInsufficientData ? (
+                    <Tooltip content={scoreLabel}>{scoreBadge}</Tooltip>
+                  ) : (
+                    scoreBadge
+                  )}
                   {confidenceBadgeText !== null && (
                     <Tooltip content={confidenceBadgeText}>
                       <Box {...confidenceWarningBadge}>
@@ -281,6 +335,7 @@ export function FavoriteListItemRow({
               self-contained padded block) — titleLayout="inline" keeps the deliberate
               single-line "band – album" density from Pass 3, unchanged in shape. */}
             <Box flex={1} minW={0}>
+              {rankNote && <Box pt={3}>{rankNote}</Box>}
               <AlbumMetaBlock
                 band={item.band}
                 album={item.album}
@@ -293,7 +348,8 @@ export function FavoriteListItemRow({
               />
             </Box>
 
-            <Flex flexShrink={0} gap={1} pr={3}>
+            <Flex flexShrink={0} gap={1} pr={3} align="center">
+              {extraActions}
               {onRate && (
                 <Tooltip content="Evaluate this album">
                   <IconButton
@@ -421,16 +477,8 @@ export function FavoriteListItemRow({
                 stretched item, but honored by CSS Grid's track sizing). */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
-                  <Box
-                    {...scoreOverlayBadge}
-                    aria-label={
-                      hasInsufficientData
-                        ? undefined
-                        : `Score ${formatBadgeScore(ratingSummary.score)}`
-                    }
-                  >
-                    {hasInsufficientData ? '—' : formatBadgeScore(ratingSummary.score)}
-                  </Box>
+                  {rankBadge}
+                  {scoreBadge}
                   {confidenceBadgeText !== null && (
                     <Box
                       {...confidenceWarningBadge}
@@ -445,6 +493,7 @@ export function FavoriteListItemRow({
             </Box>
 
             <Box flex={1} minW={0} display="flex" flexDirection="column" justifyContent="center">
+              {rankNote && <Box px={4}>{rankNote}</Box>}
               {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
                 truncateBand (band, single line, ellipsis) + clampAlbumLines (album, native
                 `lineClamp` prop) — see AlbumMetaBlock's own comment on why lineClamp, not a
@@ -507,7 +556,8 @@ export function FavoriteListItemRow({
                   review; buttons are centered (justify="center") across the full row width
                   instead. `border.rule` (darker ink.800) matches the genre section's own
                   separators above — darker than the card's own outer border / `border.ruleStrong`. */}
-              <Flex px={4} gap={2} justify="center">
+              <Flex px={4} gap={2} justify="center" wrap="wrap">
+                {extraActions}
                 {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
                       hover state. Content-width (no flex stretch) with a gap between them, not
                       edge-to-edge equal-width. Collapses to icon-only under a secondary raw-
@@ -590,6 +640,7 @@ export function FavoriteListItemRow({
             </DialogHeader>
             <DialogBody>
               Remove &quot;{item.band} – {item.album}&quot; from your {removeLabel}?
+              {removeNote && ` ${removeNote}`}
             </DialogBody>
             <DialogFooter gap={3}>
               <Button

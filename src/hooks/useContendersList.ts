@@ -20,7 +20,7 @@ type NestedAlbumRow = {
   reviews: NestedReviewRow[];
 };
 
-type ContenderRow = {
+export type ContenderRow = {
   album_id: string;
   albums: NestedAlbumRow;
 };
@@ -29,10 +29,10 @@ type ContenderRow = {
 // useFavoritesList's FAVORITES_SELECT. Ordered by the contenders row's own created_at (newest
 // added first) — "unordered pool" (docs/decisions/aoty/aoty-hub-population.md) means no
 // algorithmic ranking, not no display order at all.
-const CONTENDERS_SELECT =
+export const CONTENDERS_SELECT =
   'album_id, albums(id, band, album, artwork_url, release_date, genre, reviews(published_at))';
 
-function toFavoriteListItem(row: ContenderRow): FavoriteListItem {
+export function toFavoriteListItem(row: ContenderRow): FavoriteListItem {
   const a = row.albums;
   return {
     albumId: a.id,

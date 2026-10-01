@@ -1241,3 +1241,29 @@ which fixes the display layer only.
   "Mobile selection split" section.
 
 - **Pre-existing ref warning on the Listen `MenuTrigger` button (opened 2026-09-30).** Console ref warning on the Listen menu's trigger button; cause unconfirmed, present on `master`.
+
+## New items, 2026-09-30 (AOTY list screen, `feature/aoty-list`)
+
+Noticed while building it, deliberately not touched on that branch (one concern per branch):
+
+- **Release year 3036 in live data.** One `albums` row has `release_date = '3036-06-26'`
+  (verifier, 2026-09-30). On the AOTY list a member with that date would make 3036 the default
+  ("latest") year. Data-hygiene fix, separate branch.
+- **47 of 355 `albums` rows have a NULL `release_date`.** Such albums cannot be selected for AOTY
+  ("No release date yet." on the Contenders row). No user path fills a date for an existing
+  Favorite/Contender: `fill_missing_release_date` is only reachable from the add-to-Favorites
+  drawer's `existingMatch` branch. A date editor on Contenders rows is unbuilt.
+- **`handleRate` is now duplicated a second time** (`ContendersPage` reuses it for "Select for
+  AOTY" hand-off). Extraction into a shared hook remains deferred.
+- **Full-list fetch without pagination** in `useAlbumRatingsSummary` (ratings and weights are
+  read unpaged); unchanged, now also feeds AOTY tie-breaks.
+- **`useAlbumRatingsSummary` imports `getReleaseYear` from `App.tsx`, and `AotyPage` now does the
+  same** (hook/page -> App import cycle). Untouched.
+- **Repo-wide `eslint src` reports ~1266 prettier errors on master** (files not matching
+  `prettier --write`'s current output). Pre-existing; every file touched by this branch is
+  clean.
+- **Real device VoiceOver/TalkBack check** for the AOTY rank badge (visible "#N" `aria-hidden` +
+  `srOnly` "Rank N", since 2026-10-01) is unperformed, as is a real-page visual check of the badge
+  on `/aoty` (needs a logged-in account; fit was only measured on a StyleGuide sample).
+- **Name reuse:** `rankOverlayBadge` now names the AOTY badge; older docs' references to it
+  (Favorites, replaced 2026-09-26) are historical — see `favorites-row-desktop-redesign.md`.

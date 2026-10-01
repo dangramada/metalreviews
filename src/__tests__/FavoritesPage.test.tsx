@@ -596,7 +596,7 @@ describe('FavoriteListItemRow — insufficient data', () => {
     return render(
       <FavoriteListItemRow
         item={mockItem}
-        ratingSummary={{ score: 0.82, rank: 1 }}
+        ratingSummary={{ score: 0.82, rank: 1, contributions: new Map() }}
         confidenceTier="very_high"
         hasInsufficientData={hasInsufficientData}
       />,
@@ -615,6 +615,7 @@ describe('FavoriteListItemRow — insufficient data', () => {
     renderRow(false);
     expect(screen.getAllByText('8.2').length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Score 8.2').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Your Score/)).toBeNull();
     expect(screen.queryByTitle(INSUFFICIENT_DATA_TEXT)).not.toBeInTheDocument();
   });
 
