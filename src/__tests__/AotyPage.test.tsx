@@ -96,8 +96,10 @@ describe('AotyPage', () => {
       ['b', sum(0.9)],
     ]);
     render(<AotyPage />, { wrapper });
-    expect(screen.getAllByLabelText('Rank 1').length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText('Rank 2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Rank 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Rank 2').length).toBeGreaterThan(0);
+    // Visible "#N" is aria-hidden, not the accessible name.
+    expect(screen.getAllByText('#1')[0]).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('shows no year selector for a single year and a selector for several', () => {
@@ -129,7 +131,7 @@ describe('AotyPage', () => {
       'href',
       '/calibration?from=aoty'
     );
-    expect(screen.queryByLabelText(/^Rank \d/)).toBeNull();
+    expect(screen.queryByText(/^Rank \d/)).toBeNull();
   });
 
   it('shows no banner and no badge when tier is above none', () => {

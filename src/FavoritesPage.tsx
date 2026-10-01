@@ -85,6 +85,7 @@ import {
   genreBadge,
   primaryButton,
   scoreOverlayBadge,
+  rankOverlayBadge,
   secondaryButton,
 } from './theme';
 import { AlbumMetaBlock } from './components/album-rating/AlbumMetaBlock';
@@ -144,7 +145,7 @@ export function FavoriteListItemRow({
   // item.band/item.album regardless, so this only ever needs the destination noun.
   removeLabel?: string;
   // AOTY list additions (aoty-list-implementation.md). All optional and unused on /favorites.
-  // `rank`: plain "#N" text prefix, provisional (no visual design exists for it).
+  // `rank`: overlay badge left of the score badge (rankOverlayBadge); needs a score to render.
   rank?: number;
   // Short visible status text beside the rank ("In AOTY", "No release date yet.").
   note?: string;
@@ -181,20 +182,21 @@ export function FavoriteListItemRow({
       ? `Score level: ${confidenceLabel(confidenceTier)}`
       : null;
 
-  const rankNote =
-    rank !== undefined || note ? (
-      <Flex gap={2} align="baseline">
-        {rank !== undefined && (
-          <Text as="span" aria-label={`Rank ${rank}`} fontWeight="bold" color="accent.text">
-            #{rank}
-          </Text>
-        )}
-        {note && (
-          <Text as="span" fontSize="xs" color="text.muted">
-            {note}
-          </Text>
-        )}
-      </Flex>
+  const rankNote = note ? (
+    <Text as="span" fontSize="xs" color="text.muted">
+      {note}
+    </Text>
+  ) : null;
+
+  // Visible "#N" is aria-hidden; the screen-reader text is the real accessible name.
+  const rankBadge =
+    rank !== undefined ? (
+      <Box {...rankOverlayBadge}>
+        <span aria-hidden="true">#{rank}</span>
+        <Box as="span" srOnly>
+          Rank {rank}
+        </Box>
+      </Box>
     ) : null;
 
   return (
@@ -284,6 +286,7 @@ export function FavoriteListItemRow({
                 algorithm honors aspect-ratio against the stretched cross size correctly. */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                  {rankBadge}
                   <Box
                     {...scoreOverlayBadge}
                     aria-label={
@@ -452,6 +455,7 @@ export function FavoriteListItemRow({
                 stretched item, but honored by CSS Grid's track sizing). */}
               {ratingSummary && (
                 <Box position="absolute" bottom={0} left={0} display="grid" gridAutoFlow="column">
+                  {rankBadge}
                   <Box
                     {...scoreOverlayBadge}
                     aria-label={
