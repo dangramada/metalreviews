@@ -161,3 +161,25 @@ and under 320px viewport emulation. Rank never co-occurs with the tier-`none` wa
   Tooltip on mobile), so the label is available there only to screen readers. Accessible name
   "Your Score x.x" is srOnly text with the visible number `aria-hidden`. The insufficient-data
   dash keeps its current behavior (no tooltip: there is no score for the label to describe).
+
+### 2026-10-02: Contenders backfill (`feature/contenders-backfill`)
+
+- **Rule:** a scored album enters Contenders via app-level auto-add on the first full rating
+  (`isFirstFullRating`, `AlbumRatingPage.handlePick`). No mechanism was added; this pass only
+  backfills albums that were fully rated before it shipped or whose fire-and-forget add failed.
+  `handlePick` is the only rating writer, so no uncovered path exists.
+- **Script:** `supabase/contenders-backfill.sql`, run manually by Dan. Insert-only, idempotent,
+  all users; "fully rated" = rated on every `criteria` row (6 today). Wrapped in a transaction
+  that asserts contenders = 21 and missing = 0, else raises and rolls back.
+- **created_at:** `album_criteria_ratings.updated_at` exists, so backfilled `created_at` =
+  `max(updated_at)` per (user, album) (when it became fully rated), not the insert time.
+- **Counts (2026-10-01, pre-run):** 17 fully-rated albums across 2 users (Dan 15, other 1 user 2);
+  15 missing from Contenders (Dan 14, other 1). Contenders 6 -> expected 21. 4 existing
+  Contenders are not fully rated (manual adds) and are untouched.
+- **Curiosity-removal caveat:** the backfill can't distinguish albums deliberately removed from
+  Contenders, or scored out of curiosity, from ones never added; they all return. Remove by hand
+  if unwanted; the first-full-rating rule won't re-add them.
+- **Rollback:** delete the inserted (user_id, album_id) keys saved from the script's STEP 1;
+  safe w.r.t. `aoty` (new rows have no aoty child). PK and aoty cascade are unaffected by inserts.
+- **Run 2026-10-02 (Dan), verified live:** contenders 6 -> 21, fully-rated-but-missing 15 -> 0, 17 fully rated, aoty still 1 row.
+- **Tests/tsc:** no code files changed; pre-merge 121 files / 959/959 tests, `tsc -b` clean (unchanged).
