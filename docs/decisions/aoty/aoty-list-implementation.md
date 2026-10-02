@@ -181,4 +181,5 @@ and under 320px viewport emulation. Rank never co-occurs with the tier-`none` wa
   if unwanted; the first-full-rating rule won't re-add them.
 - **Rollback:** delete the inserted (user_id, album_id) keys saved from the script's STEP 1;
   safe w.r.t. `aoty` (new rows have no aoty child). PK and aoty cascade are unaffected by inserts.
-- **Tests/tsc:** no code files changed; suite (959) and `tsc -b` not re-run.
+- **Run 2026-10-02 (Dan), verified live:** contenders 6 -> 21, fully-rated-but-missing 15 -> 0, 17 fully rated, aoty still 1 row.
+- **Tests/tsc:** no code files changed; pre-merge 121 files / 959/959 tests, `tsc -b` clean (unchanged).
