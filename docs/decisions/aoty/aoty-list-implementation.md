@@ -59,10 +59,10 @@ the same score while ranked differently (the ordering compares 6 decimals). Acce
   release date. If the album is not ready (unrated, tier `none`, insufficient data) the click
   hands off to the existing gate flow (`handleRate`). Bulk adds only ready albums and reports the
   skipped count. Inserts are idempotent (`upsert`, `ignoreDuplicates`). After selection the row
-  stays in Contenders marked "In AOTY". Remove from AOTY deletes the `aoty` row only.
+  stays in Contenders marked "In AOTY" [SUPERSEDED 2026-10-03: promoted albums now leave Contenders, see "Reversal of decision 8" below]. Remove from AOTY deletes the `aoty` row only [now "Back to Contenders"].
 - NULL date: no user path exists from Contenders (see `deferred-work.md`), so the row shows the
   visible status text "No release date yet." and a disabled button.
-- Cascade: removing a Contender that is in AOTY also drops its AOTY row. The single-remove dialog
+- Cascade [SUPERSEDED 2026-10-03: AOTY members are no longer listed in Contenders, so this UI is gone; the DB cascade remains]: removing a Contender that is in AOTY also drops its AOTY row. The single-remove dialog
   says so; bulk remove asks for confirmation only when the selection includes AOTY members, and
   shows the count. Code paths deleting from `contenders`: `ContendersPage` single and bulk only.
 

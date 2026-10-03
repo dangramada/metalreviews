@@ -1277,3 +1277,23 @@ Noticed while building it, deliberately not touched on that branch (one concern 
 - **Auto-add is fire-and-forget** (`AlbumRatingPage.handlePick`): a network/RLS failure only
   `console.warn`s and is never retried; recoverable only via the manual picker or a re-run of
   `supabase/contenders-backfill.sql` (idempotent).
+
+## New items, 2026-10-03 (`feature/aoty-promoted-leaves-contenders`)
+
+- **Live verification not done.** (a) Network tab: `/aoty` and `/aoty/contenders` return 200 under
+  RLS (a service-key check does not prove this); (b) real write-to-row-visible timing, to replace
+  the synthetic ~411 ms before / ~1 ms after figure in `aoty/aoty-list-implementation.md`.
+  Needs Dan's logged-in session.
+- **Screen-reader check of the busy row buttons.** Select for AOTY / Back to Contenders use
+  `aria-busy` + `aria-disabled` (no `disabled`, to keep focus) with an unchanged accessible name,
+  so a busy state is not announced beyond that. Verify on real VoiceOver/TalkBack alongside the
+  open 2026-09-29 selection-row check; add a polite live-region announcement if it reads as silent.
+- **Contenders remove (single and bulk) is not local-first.** Only the AOTY actions update from the
+  write result; Remove still waits for `refetch()` (and `useContendersList` still flips its
+  spinner). Same pattern would apply (`removeLocal`-style) if it feels slow.
+- **Picker marker declined.** "Add from Favorites" hides albums already in Contenders/AOTY rather
+  than showing a marker (decision 6 of the brief, kept as hidden-set behavior).
+- **Bulk add moves focus to the list heading** (not specified in the brief; chosen because the
+  bulk bar disappears). Revisit if it disorients.
+- **Year as shared scope** (a later branch) will change the AOTY toast/"default year" question that
+  was deliberately not implemented here.

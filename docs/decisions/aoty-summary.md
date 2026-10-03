@@ -16,9 +16,12 @@ structural/mobile/desktop concept: `aoty/aoty-hub-population.md`.
 `3ac157b` on 2026-09-29, 923/923 tests): `/aoty/contenders`, the `contenders` table, bulk picker,
 single/bulk remove, auto-add on a full (6/6) rating.
 
-**In progress:** the AOTY list screen, on branch `feature/aoty-list`, not yet merged: `/aoty`, the
-`aoty` membership table (`supabase/aoty.sql`, to be run by Dan), derived year/order/rank,
-"Select for AOTY" on Contenders. Detail: `aoty/aoty-list-implementation.md`.
+**Merged:** the AOTY list screen (`feature/aoty-list`, `15e2ff5`, 2026-10-01): `/aoty`, the `aoty`
+membership table, derived year/order/rank, "Select for AOTY" on Contenders; then
+`feature/aoty-promoted-leaves-contenders` (`b090c0b`, 2026-10-03), which **reverses decision 8**:
+a promoted album now leaves the Contenders list (one place per album), AOTY rows get "Back to
+Contenders", and both actions have per-row pending state and local-first updates. Detail:
+`aoty/aoty-list-implementation.md`.
 
 **Not built yet:** the desktop two-column Contenders|AOTY layout, the mobile AOTY-home split, the
 public share page (`/aoty/:shareId`), and all further visual design (no Figma exists; rank
