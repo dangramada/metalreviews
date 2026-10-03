@@ -473,3 +473,34 @@ single-retry policy was kept as specified rather than adding multi-run consensus
 orphaned "Album data staleness / admin data-quality view" item in `deferred-work.md` — once
 that view exists, a per-row "recheck this album's artwork" admin action is the natural
 single-album version of this same logic, small enough to lift over without rework.
+
+## Image load retry (2026-10-03, `fix/artwork-load-retry`)
+
+**Problem:** `ArtworkBlock` set `failed=true` on the first `onError`, so one transient
+archive.org 5xx (CAA redirects there) showed "No artwork found" permanently. `onError` has no
+HTTP status, so a transient 5xx and a permanent 404 look identical.
+
+**Fix:** `src/hooks/useImageRetry.ts` — on error, retry up to 2 times (3s, then 8s), then
+`failed`. Retry = bump `attempt`; the card renders `<Image key={attempt}>` so the `<img>`
+remounts and re-requests. Resets (and cancels the pending timer) if `artworkUrl` changes; timer
+cleared on unmount. Skeleton stays mounted until `loaded`, so no layout shift; the `<img>` is
+`opacity: 0` until `loaded` (previously only covered by the skeleton overlay) so a failed
+attempt's broken-image icon never shows while waiting. No new motion.
+
+**Cache finding (measured, Chromium, local server returning 500):** with
+`Cache-Control: public, max-age=3600` on the 500, three loads of the same URL produced **1**
+server hit — Chromium reuses a cached 5xx across an `<img>` remount, so remount alone is not
+enough. With no cache headers: 3 hits. With `?r=<attempt>` appended: 3 hits. So retries (only
+`attempt >= 1`, never the first load) append `?r=<attempt>` after `toThumbnailUrl`; verified
+`curl -L` on a CAA `-500` URL with and without `?r=1` both 307 → 200 `image/jpeg`, same bytes.
+Not verified: whether archive.org's real 500s carry cache headers (couldn't reproduce one on
+demand) — the param is cheap insurance for the worst case.
+
+**Evaluated, not built:** on final failure of the `-500` thumbnail, try the full-res URL once.
+Not worth it — the observed failures are archive.org 5xx that hit full-res and thumbnail
+alike; it only helps a missing-thumbnail 404 (rare), full-res can exceed 8 MB, and `onError`
+can't distinguish the two cases anyway. Revisit only if `curl` shows albums that 404 at `-500`
+but load at full-res.
+
+**Scope:** `ArtworkBlock` only. Sibling call sites still have the old behavior — see
+`deferred-work.md` (2026-10-03, artwork retry).
