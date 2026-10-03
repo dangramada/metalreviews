@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { lookupMusicBrainz, lookupMusicBrainzByReleaseGroupId } from '../musicbrainz';
+import {
+  expandTitleAbbreviations,
+  lookupMusicBrainz,
+  lookupMusicBrainzByReleaseGroupId,
+} from '../musicbrainz';
 
 vi.mock('axios');
 
@@ -683,5 +687,83 @@ describe('lookupMusicBrainzByReleaseGroupId — manual-correction entry point (s
       releaseGroupId: 'rg-correct',
       status: 'error',
     });
+  });
+});
+
+describe('title abbreviation retry (Pt. -> Part, Vol. -> Volume)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const searchQueries = () =>
+    mockedAxios.get.mock.calls
+      .filter(([url]) => String(url).endsWith('/release/'))
+      .map(([, cfg]) => (cfg as any).params.query as string);
+
+  it('retries once with the expanded title when the first search is empty', async () => {
+    mockedAxios.get.mockResolvedValue({ data: { releases: [] } });
+
+    const result = await lookupMusicBrainz(
+      'Green Carnation',
+      'A Dark Poem, Pt. III: The Messiah Complex'
+    );
+
+    expect(result.status).toBe('not_found');
+    expect(searchQueries()).toEqual([
+      'artist:"Green Carnation" AND release:"A Dark Poem, Pt. III: The Messiah Complex"',
+      'artist:"Green Carnation" AND release:"A Dark Poem, Part III: The Messiah Complex"',
+    ]);
+  });
+
+  it('resolves when only the retry finds a release', async () => {
+    mockedAxios.get.mockImplementation(async (url: string, cfg?: any) => {
+      if (url.endsWith('/release/'))
+        return {
+          data: {
+            releases: cfg.params.query.includes('Part III')
+              ? [{ id: 'rel-1', 'release-group': { id: 'rg-1' } }]
+              : [],
+          },
+        };
+      throw new Error('stop after search');
+    });
+
+    const result = await lookupMusicBrainz('Green Carnation', 'A Dark Poem, Pt. III');
+
+    expect(result.status).toBe('ok');
+    expect(result.releaseGroupId).toBe('rg-1');
+  });
+
+  it('does not retry when the title has nothing to expand', async () => {
+    mockedAxios.get.mockResolvedValue({ data: { releases: [] } });
+    await lookupMusicBrainz('Some Band', 'Optimist');
+    expect(searchQueries()).toHaveLength(1);
+  });
+
+  it('does not retry on a request error', async () => {
+    mockedAxios.get.mockRejectedValue(new Error('network timeout'));
+    const result = await lookupMusicBrainz('Some Band', 'Album Pt. 2');
+    expect(result.status).toBe('error');
+    expect(searchQueries()).toHaveLength(1);
+  });
+
+  it('does not retry when the first search succeeds', async () => {
+    mockedAxios.get.mockImplementation(async (url: string) => {
+      if (url.endsWith('/release/'))
+        return { data: { releases: [{ id: 'r', 'release-group': { id: 'g' } }] } };
+      throw new Error('stop after search');
+    });
+    await lookupMusicBrainz('Some Band', 'Album Pt. 2');
+    expect(searchQueries()).toHaveLength(1);
+  });
+
+  it('expandTitleAbbreviations is word-bounded', () => {
+    expect(expandTitleAbbreviations('A Dark Poem, Pt. III')).toBe('A Dark Poem, Part III');
+    expect(expandTitleAbbreviations('Live Pt 2')).toBe('Live Part 2');
+    expect(expandTitleAbbreviations('Vol. 2')).toBe('Volume 2');
+    expect(expandTitleAbbreviations('Vol 2')).toBe('Volume 2');
+    expect(expandTitleAbbreviations('Optimist Raptor Prospect Volcano Volume')).toBe(
+      'Optimist Raptor Prospect Volcano Volume'
+    );
   });
 });
