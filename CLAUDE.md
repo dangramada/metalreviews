@@ -111,6 +111,8 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 2026-09-30: `npm run type-check` now runs `tsc -b`; plain `tsc --noEmit` checked zero files before (earlier "`tsc` clean" claims were vacuous unless via `tsc -b`).
 
+Most recent merge: `fix/artwork-load-retry` — `ArtworkBlock` retries a failed image load twice (3s, 8s) before the placeholder, via `useImageRetry`. 986/986 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `bcc3b17` on 2026-10-03. Rollback tag: `pre-merge-fix-artwork-load-retry`. Detail: `docs/decisions/artwork.md`.
+
 Most recent merge: `feature/aoty-promoted-leaves-contenders` — an album selected for AOTY leaves the
 Contenders list; AOTY rows get "Back to Contenders" instead of remove (reverses decision 8); per-row
 pending state and local-first updates with silent refetch. 981/981 tests, `tsc -b` clean. Not yet
