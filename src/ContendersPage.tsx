@@ -1,35 +1,30 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Container, Flex, Heading, Icon, Text, VStack } from '@chakra-ui/react';
 import { Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { LoadingIndicator } from './LoadingIndicator';
+import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
 import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
 import { useAotyList } from './hooks/useAotyList';
+import { usePendingIds } from './hooks/usePendingIds';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import {
   CalibrationGateDialog,
   type CalibrationGateMode,
 } from './components/criteria-calibration/CalibrationGateDialog';
-import {
-  DialogRoot,
-  DialogContent,
-  DialogHeader,
-  DialogBody,
-  DialogFooter,
-  DialogTitle,
-} from './components/ui/dialog';
 import { AddToContendersPicker } from './components/AddToContendersPicker';
 import { SelectableRow } from './components/SelectableRow';
+import type { FavoriteListItem } from './hooks/useFavoritesList';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { secondaryButton } from './theme';
+import { focusRowOrHeading } from './utils/focusRow';
 
 // The intermediate candidate pool between Favorites and AOTY (docs/decisions/
 // aoty/aoty-hub-population.md). Scoped to Contenders only this pass — no AOTY final-list screen
@@ -37,8 +32,14 @@ import { secondaryButton } from './theme';
 // FavoritesPage (same row component, same calibration-gate flow, duplicated rather than shared
 // — see handleRate's comment below).
 export function ContendersPage() {
-  const { items, loading, error, refetch } = useContendersList();
-  const { items: aotyItems, refetch: refetchAoty } = useAotyList();
+  const { items: allItems, loading: contendersLoading, error, refetch } = useContendersList();
+  const {
+    items: aotyItems,
+    loading: aotyLoading,
+    refetch: refetchAoty,
+    addLocal: addAotyLocal,
+  } = useAotyList();
+  const { pending, run } = usePendingIds();
   const { user } = useAuth();
   const { showSuccess, showError } = useFeedbackToast();
   const navigate = useNavigate();
@@ -47,7 +48,7 @@ export function ContendersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const [bulkAdding, setBulkAdding] = useState(false);
-  const [showBulkRemoveConfirm, setShowBulkRemoveConfirm] = useState(false);
+  const bulkBusy = bulkAdding || bulkRemoving;
 
   const {
     tier: calibrationTier,
@@ -56,6 +57,20 @@ export function ContendersPage() {
     loading: gateLoading,
   } = useCalibrationGate();
   const aotyIds = useMemo(() => new Set(aotyItems.map((i) => i.albumId)), [aotyItems]);
+  // An album lives in one place: once selected for AOTY it leaves this list (aoty is a subset of
+  // contenders, so the picker below still gets the unfiltered set). A failed AOTY fetch leaves
+  // aotyIds empty, i.e. every contender shows; re-selecting one is a harmless idempotent upsert.
+  const items = useMemo(() => allItems.filter((i) => !aotyIds.has(i.albumId)), [allItems, aotyIds]);
+  // Wait for AOTY too, or its members flash in this list until that fetch lands.
+  const loading = contendersLoading || aotyLoading;
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const pendingFocus = useRef<{ removedIds: string[]; nextId: string | null } | null>(null);
+  useEffect(() => {
+    const p = pendingFocus.current;
+    if (!p || p.removedIds.some((id) => items.some((i) => i.albumId === id))) return;
+    pendingFocus.current = null;
+    focusRowOrHeading(p.nextId, headingRef.current);
+  }, [items]);
   const { summary: ratingSummary } = useAlbumRatingsSummary();
   const [gateMode, setGateMode] = useState<CalibrationGateMode | null>(null);
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
@@ -86,36 +101,55 @@ export function ContendersPage() {
     return ratingSummary.has(albumId) && calibrationTier !== 'none' && !hasInsufficientData;
   }
 
-  async function addToAoty(albumIds: string[]) {
-    if (!user || albumIds.length === 0) return false;
+  async function addToAoty(albums: FavoriteListItem[]) {
+    if (!user || albums.length === 0) return false;
     // Upsert + ignoreDuplicates so a double click or a second tab is not a 23505 failure.
     const { error: insertError } = await supabase.from('aoty').upsert(
-      albumIds.map((album_id) => ({ user_id: user.id, album_id })),
+      albums.map((a) => ({ user_id: user.id, album_id: a.albumId })),
       { onConflict: 'user_id,album_id', ignoreDuplicates: true }
     );
     if (insertError) {
       showError('Could not add to AOTY — try again');
       return false;
     }
+    // Rows leave the list now, from the write result; the refetch only reconciles.
+    const createdAt = new Date().toISOString();
+    addAotyLocal(albums.map((a) => ({ ...a, createdAt })));
     refetchAoty();
     return true;
   }
 
-  async function handleSelectForAoty(albumId: string, label: string) {
-    if (!isReadyForAoty(albumId)) {
-      handleRate(albumId);
+  function handleSelectForAoty(item: FavoriteListItem) {
+    if (!isReadyForAoty(item.albumId)) {
+      handleRate(item.albumId);
       return;
     }
-    if (await addToAoty([albumId])) showSuccess(`${label} added to AOTY`);
+    return run([item.albumId], async () => {
+      // Focus goes to the next row (else the heading) once the row has actually left the list.
+      const at = items.findIndex((i) => i.albumId === item.albumId);
+      pendingFocus.current = { removedIds: [item.albumId], nextId: items[at + 1]?.albumId ?? null };
+      if (await addToAoty([item])) showSuccess('Added to AOTY');
+      else pendingFocus.current = null;
+    });
   }
 
   async function handleBulkSelectForAoty() {
-    const chosen = items.filter((i) => selectedIds.has(i.albumId) && !aotyIds.has(i.albumId));
+    if (bulkBusy) return;
+    const chosen = items.filter((i) => selectedIds.has(i.albumId));
     const ready = chosen.filter((i) => isReadyForAoty(i.albumId) && i.releaseDate);
     setBulkAdding(true);
-    const ok = await addToAoty(ready.map((i) => i.albumId));
+    const ok = await run(
+      ready.map((i) => i.albumId),
+      async () => {
+        pendingFocus.current = { removedIds: ready.map((i) => i.albumId), nextId: null };
+        const added = await addToAoty(ready);
+        if (!added) pendingFocus.current = null;
+        return added;
+      }
+    );
     setBulkAdding(false);
-    if (!ok && ready.length > 0) return;
+    // undefined: an album was already pending, nothing was written.
+    if (ok === false || (ok === undefined && ready.length > 0)) return;
     const skipped = chosen.length - ready.length;
     showSuccess(
       `${ready.length} added to AOTY.` +
@@ -126,47 +160,52 @@ export function ContendersPage() {
     setSelectedIds(new Set());
   }
 
-  async function handleRemove(albumId: string, label: string) {
-    if (removingId || !user) return;
-    setRemovingId(albumId);
-    const { error: deleteError } = await supabase
-      .from('contenders')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('album_id', albumId);
-    setRemovingId(null);
-    if (deleteError) {
-      showError('Could not remove — try again');
-      return;
-    }
-    showSuccess(`${label} removed from Contenders`);
-    refetchAoty();
-    setSelectedIds((prev) => {
-      if (!prev.has(albumId)) return prev;
-      const next = new Set(prev);
-      next.delete(albumId);
-      return next;
+  function handleRemove(albumId: string, label: string) {
+    if (!user) return;
+    return run([albumId], async () => {
+      setRemovingId(albumId);
+      const { error: deleteError } = await supabase
+        .from('contenders')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('album_id', albumId);
+      setRemovingId(null);
+      if (deleteError) {
+        showError('Could not remove — try again');
+        return;
+      }
+      showSuccess(`${label} removed from Contenders`);
+      setSelectedIds((prev) => {
+        if (!prev.has(albumId)) return prev;
+        const next = new Set(prev);
+        next.delete(albumId);
+        return next;
+      });
+      refetch();
     });
-    refetch();
   }
 
   async function handleBulkRemove() {
-    if (!user || selectedIds.size === 0) return;
+    if (!user || selectedIds.size === 0 || bulkBusy) return;
+    const ids = Array.from(selectedIds);
     setBulkRemoving(true);
-    const { error: deleteError } = await supabase
-      .from('contenders')
-      .delete()
-      .eq('user_id', user.id)
-      .in('album_id', Array.from(selectedIds));
+    const result = await run(ids, async () => {
+      const { error: deleteError } = await supabase
+        .from('contenders')
+        .delete()
+        .eq('user_id', user.id)
+        .in('album_id', ids);
+      if (deleteError) {
+        showError('Could not remove — try again');
+        return false;
+      }
+      return true;
+    });
     setBulkRemoving(false);
-    if (deleteError) {
-      showError('Could not remove — try again');
-      return;
-    }
-    showSuccess(`${selectedIds.size} removed from Contenders`);
+    if (!result) return;
+    showSuccess(`${ids.length} removed from Contenders`);
     setSelectedIds(new Set());
     refetch();
-    refetchAoty();
   }
 
   function toggleSelect(albumId: string, checked: boolean) {
@@ -178,9 +217,7 @@ export function ContendersPage() {
     });
   }
 
-  const bulkAotyAffected = Array.from(selectedIds).filter((id) => aotyIds.has(id)).length;
-
-  const contenderAlbumIds = useMemo(() => new Set(items.map((i) => i.albumId)), [items]);
+  const contenderAlbumIds = useMemo(() => new Set(allItems.map((i) => i.albumId)), [allItems]);
 
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
@@ -189,7 +226,7 @@ export function ContendersPage() {
           <Header />
 
           <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
-            <Heading as="h2" size="xl">
+            <Heading as="h2" size="xl" ref={headingRef} tabIndex={-1}>
               Contenders
             </Heading>
             <Flex gap={2}>
@@ -248,6 +285,7 @@ export function ContendersPage() {
                     variant="outline"
                     size="sm"
                     loading={bulkAdding}
+                    disabled={bulkBusy}
                     onClick={handleBulkSelectForAoty}
                   >
                     Select for AOTY
@@ -259,9 +297,8 @@ export function ContendersPage() {
                     color="text.muted"
                     _hover={{ color: 'red.400' }}
                     loading={bulkRemoving}
-                    onClick={() =>
-                      bulkAotyAffected > 0 ? setShowBulkRemoveConfirm(true) : handleBulkRemove()
-                    }
+                    disabled={bulkBusy}
+                    onClick={handleBulkRemove}
                   >
                     Remove
                   </Button>
@@ -281,7 +318,9 @@ export function ContendersPage() {
           ) : items.length === 0 ? (
             <EmptyState
               icon={<Icon as={Info} />}
-              title="No contenders yet."
+              title={
+                allItems.length > 0 ? 'All your contenders are in AOTY.' : 'No contenders yet.'
+              }
               description="Score an album, or add one from your favorites."
             />
           ) : (
@@ -290,6 +329,7 @@ export function ContendersPage() {
                 <SelectableRow
                   key={item.albumId}
                   desktopOnly
+                  disabled={bulkBusy && selectedIds.has(item.albumId)}
                   selected={selectedIds.has(item.albumId)}
                   onToggleSelect={(checked) => toggleSelect(item.albumId, checked)}
                   ariaLabel={`${selectedIds.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
@@ -300,33 +340,29 @@ export function ContendersPage() {
                     removing={removingId === item.albumId}
                     removeLabel="Contenders"
                     scoreLabel="Your Score"
-                    note={
-                      aotyIds.has(item.albumId)
-                        ? 'In AOTY'
-                        : item.releaseDate
-                          ? undefined
-                          : 'No release date yet.'
-                    }
-                    removeNote={
-                      aotyIds.has(item.albumId)
-                        ? 'This also removes 1 album from your AOTY list.'
-                        : undefined
-                    }
+                    note={item.releaseDate ? undefined : 'No release date yet.'}
                     extraActions={
-                      aotyIds.has(item.albumId) ? null : (
-                        <Button
-                          {...secondaryButton}
-                          variant="outline"
-                          size="sm"
-                          disabled={!item.releaseDate}
-                          aria-label={`Select ${item.band} – ${item.album} for AOTY`}
-                          onClick={() =>
-                            handleSelectForAoty(item.albumId, `${item.band} – ${item.album}`)
-                          }
-                        >
-                          Select for AOTY
-                        </Button>
-                      )
+                      <Button
+                        {...secondaryButton}
+                        variant="outline"
+                        size="sm"
+                        disabled={!item.releaseDate}
+                        data-primary-for={item.albumId}
+                        aria-label={`Select ${item.band} – ${item.album} for AOTY`}
+                        // Busy without `disabled` so keyboard focus stays on the button; run()
+                        // ignores clicks while this album's write is in flight.
+                        aria-busy={pending.has(item.albumId) || undefined}
+                        aria-disabled={pending.has(item.albumId) || undefined}
+                        css={
+                          pending.has(item.albumId)
+                            ? { opacity: 0.6, cursor: 'progress' }
+                            : undefined
+                        }
+                        onClick={() => handleSelectForAoty(item)}
+                      >
+                        {pending.has(item.albumId) && <LoadingIndicatorBars />}
+                        Select for AOTY
+                      </Button>
                     }
                     ratingSummary={ratingSummary.get(item.albumId)}
                     onRate={() => handleRate(item.albumId)}
@@ -341,40 +377,6 @@ export function ContendersPage() {
           <Footer />
         </VStack>
       </Container>
-
-      <DialogRoot
-        open={showBulkRemoveConfirm}
-        onOpenChange={({ open }) => setShowBulkRemoveConfirm(open)}
-        role="alertdialog"
-      >
-        <DialogContent bg="surface.card" color="text.primary" borderColor="border.default">
-          <DialogHeader>
-            <DialogTitle fontWeight="semibold">Remove from Contenders?</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            Remove {selectedIds.size} from your Contenders? This also removes {bulkAotyAffected}{' '}
-            {bulkAotyAffected === 1 ? 'album' : 'albums'} from your AOTY list.
-          </DialogBody>
-          <DialogFooter gap={3}>
-            <Button
-              {...secondaryButton}
-              variant="solid"
-              onClick={() => setShowBulkRemoveConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              colorPalette="red"
-              onClick={() => {
-                setShowBulkRemoveConfirm(false);
-                handleBulkRemove();
-              }}
-            >
-              Remove
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
 
       <AddToContendersPicker
         isOpen={pickerOpen}

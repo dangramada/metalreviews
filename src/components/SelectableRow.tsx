@@ -48,6 +48,9 @@ interface SelectableRowProps {
   // sole selection affordance (see AddToContendersPicker's own comment on why desktopOnly
   // itself doesn't fit there).
   hideCheckboxOnMobile?: boolean;
+  // A bulk write involving this row is in flight: neither the checkbox nor click-to-toggle may
+  // change the selection under it.
+  disabled?: boolean;
 }
 
 // Shared selection wrapper for FavoriteListItemRow-shaped rows (ContendersPage, AddToContenders
@@ -60,12 +63,13 @@ export function SelectableRow({
   children,
   desktopOnly = false,
   hideCheckboxOnMobile = false,
+  disabled = false,
 }: SelectableRowProps) {
   const [accentBorderColor] = useToken('colors', 'accent.border');
   const checkboxColumnRef = useRef<HTMLDivElement>(null);
 
   function handleClick(e: MouseEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest(IGNORE_SELECTOR)) return;
+    if (disabled || (e.target as HTMLElement).closest(IGNORE_SELECTOR)) return;
     // desktopOnly hides the checkbox column below md via CSS, not a conditional render — so a
     // stale ref isn't a risk, but there's genuinely no selection UI to react to at that width.
     // getComputedStyle re-reads the live cascade on every call (no cached/stale value, no
@@ -95,6 +99,7 @@ export function SelectableRow({
       >
         <Checkbox
           checked={selected}
+          disabled={disabled}
           onCheckedChange={(details) => onToggleSelect(!!details.checked)}
           inputProps={{ 'aria-label': ariaLabel }}
         />

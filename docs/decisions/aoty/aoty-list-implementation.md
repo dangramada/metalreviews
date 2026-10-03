@@ -183,3 +183,46 @@ and under 320px viewport emulation. Rank never co-occurs with the tier-`none` wa
   safe w.r.t. `aoty` (new rows have no aoty child). PK and aoty cascade are unaffected by inserts.
 - **Run 2026-10-02 (Dan), verified live:** contenders 6 -> 21, fully-rated-but-missing 15 -> 0, 17 fully rated, aoty still 1 row.
 - **Tests/tsc:** no code files changed; pre-merge 121 files / 959/959 tests, `tsc -b` clean (unchanged).
+
+### Reversal of decision 8: a promoted album leaves Contenders (2026-10-03, `feature/aoty-promoted-leaves-contenders`)
+Reverses "after selection the row stays in Contenders marked In AOTY" (and the cascade warnings
+built on it). **Reason:** one place per album, no duplication in the planned two-column layout.
+Discovery never stated coexistence explicitly. No schema change (`aoty` stays a subset of
+`contenders`, FK/cascade untouched).
+- **Contenders list** = contenders minus AOTY members (filtered client-side by the AOTY id set).
+  Loading waits for both fetches (no flash of AOTY members); if the AOTY fetch fails, all
+  contenders show and re-selecting is a harmless idempotent upsert. The picker still receives the
+  unfiltered contender set, so AOTY albums stay hidden from it (copy: "already in Contenders or
+  AOTY"). Empty state "All your contenders are in AOTY." is distinct from "No contenders yet.".
+- **AOTY row:** the trash/remove control is replaced by "Back to Contenders" (desktop: ghost
+  `IconButton` + tooltip; mobile: the existing icon+text button that collapses to icon-only under
+  400px). Deletes only the `aoty` row, no confirm (non-destructive).
+- **Removed as dead code:** "In AOTY" note, `removeNote` prop, single/bulk "also removes from
+  AOTY" copy, bulk-remove confirm dialog and tests.
+- **Toasts:** single "Added to AOTY"; bulk unchanged ("N added to AOTY." + skipped text). No
+  year suffix: a later branch makes year a shared scope.
+- **Focus:** after Select for AOTY / Back to Contenders succeeds and the row leaves, focus moves
+  to the next row's primary control, else the list heading. On failure the row stays and the
+  existing error toast shows.
+- **Auto-add on first full rating:** unchanged; its upsert (`ignoreDuplicates`) is a no-op for an
+  album already in AOTY (already a contender), and the filtered list keeps it hidden.
+- **Tests/tsc:** 121 files, 968/968 (baseline 959), `tsc -b` clean; touched files lint-clean.
+
+### In-flight feedback and local-first updates (2026-10-03, QA fix on the same branch)
+- **Why:** Select for AOTY / Back to Contenders looked inert: no pending state, repeatable, and the
+  row only moved after the write plus a full `useAotyList` reload (2 sequential reads, with a
+  spinner flash).
+- **Per-row pending:** `usePendingIds` (ref = synchronous guard, state = render). Same album never
+  has two writes in flight; different albums run in parallel. The two row buttons deliberately do
+  NOT use Chakra's `loading` (it sets `disabled`, which drops keyboard focus): `aria-busy` +
+  `aria-disabled` + spinner + reduced opacity, accessible name unchanged, click ignored by the
+  guard. Bulk buttons keep the standard `loading` pattern and lock each other; the selected rows'
+  checkboxes lock via `SelectableRow`'s new `disabled` prop.
+- **Local-first:** `useAotyList` gains `addLocal` / `removeLocal`, applied from the write result;
+  `refetch()` is now silent (no spinner, no error on failure, keeps local state). A generation
+  counter drops any refetch that began before the latest local mutation, so a slow earlier
+  response cannot undo it. Reconcile does not move focus (focus is moved once, by the ref-held
+  pending-focus intent, which is cleared when it fires).
+- **Measured (SYNTHETIC harness, 200 ms per query, not live):** row visible after write resolved
+  ~411 ms before (two sequential reads), ~1 ms after. Live timing needs Dan's session (Network tab).
+- **Tests/tsc:** 981/981 (baseline 968), `tsc -b` clean, touched files lint-clean.

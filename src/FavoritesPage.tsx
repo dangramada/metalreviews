@@ -66,7 +66,7 @@ import {
 } from 'react-icons/lu';
 // Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
 // app's one general icon source.
-import { Headphones } from 'lucide-react';
+import { ArrowRight, Headphones } from 'lucide-react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
@@ -117,7 +117,8 @@ export function FavoriteListItemRow({
   scoreLabel,
   note,
   extraActions,
-  removeNote,
+  onBackToContenders,
+  backPending = false,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -156,8 +157,12 @@ export function FavoriteListItemRow({
   note?: string;
   // Extra action node(s) rendered before Evaluate in both the desktop cluster and mobile footer.
   extraActions?: ReactNode;
-  // Appended to the remove confirmation's body (e.g. the cascade warning on Contenders).
-  removeNote?: string;
+  // AOTY rows only: takes the place of the remove control. Non-destructive (the album returns to
+  // Contenders), so no confirm dialog. `data-primary-for` lets the page restore focus here.
+  onBackToContenders?: () => void;
+  // Write in flight: busy state without `disabled`, so keyboard focus stays on the control (the
+  // page ignores clicks while pending). Accessible name deliberately unchanged.
+  backPending?: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -401,6 +406,25 @@ export function FavoriteListItemRow({
                 </MenuContent>
               </MenuRoot>
 
+              {onBackToContenders && (
+                <Tooltip content="Back to Contenders">
+                  <IconButton
+                    aria-label="Back to Contenders"
+                    data-primary-for={item.albumId}
+                    aria-busy={backPending || undefined}
+                    aria-disabled={backPending || undefined}
+                    css={backPending ? { opacity: 0.6, cursor: 'progress' } : undefined}
+                    size="sm"
+                    variant="ghost"
+                    color="text.muted"
+                    _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
+                    onClick={onBackToContenders}
+                  >
+                    {backPending ? <LoadingIndicatorBars /> : <Icon as={ArrowRight} />}
+                  </IconButton>
+                </Tooltip>
+              )}
+
               {onRemove && (
                 <Tooltip content={`Remove from ${removeLabel}`}>
                   <IconButton
@@ -603,6 +627,25 @@ export function FavoriteListItemRow({
                   </MenuContent>
                 </MenuRoot>
 
+                {onBackToContenders && (
+                  <Button
+                    {...secondaryButton}
+                    variant="outline"
+                    size="sm"
+                    aria-label="Back to Contenders"
+                    data-primary-for={item.albumId}
+                    aria-busy={backPending || undefined}
+                    aria-disabled={backPending || undefined}
+                    css={backPending ? { opacity: 0.6, cursor: 'progress' } : undefined}
+                    onClick={onBackToContenders}
+                  >
+                    {backPending ? <LoadingIndicatorBars /> : <Icon as={ArrowRight} />}
+                    <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
+                      Back to Contenders
+                    </Box>
+                  </Button>
+                )}
+
                 {onRemove && (
                   <Button
                     {...secondaryButton}
@@ -640,7 +683,6 @@ export function FavoriteListItemRow({
             </DialogHeader>
             <DialogBody>
               Remove &quot;{item.band} – {item.album}&quot; from your {removeLabel}?
-              {removeNote && ` ${removeNote}`}
             </DialogBody>
             <DialogFooter gap={3}>
               <Button

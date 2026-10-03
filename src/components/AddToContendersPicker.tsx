@@ -117,7 +117,7 @@ export function AddToContendersPicker({
             </Flex>
           ) : candidates.length === 0 ? (
             <Text color="text.muted">
-              All your favorites are already in Contenders — or you don&apos;t have any yet.
+              All your favorites are already in Contenders or AOTY, or you don&apos;t have any yet.
             </Text>
           ) : (
             <VStack gap={3} align="stretch">
