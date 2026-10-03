@@ -240,7 +240,9 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
   `YYYY-MM` and full dates all work and a NULL or unparsable date is the no-year bucket.
 - **Year source:** the unfiltered Contenders list plus the live `aotyIds` set (AOTY is a subset of
   Contenders, so Contenders' years cover AOTY's). `/aoty` now also calls `useContendersList`: one
-  extra request on `/aoty` (2 to 3, all parallel), none extra on `/contenders`. If that request
+  extra read on `/aoty`, none extra on `/contenders`. `/aoty` makes the AOTY ids read, then the
+  members read (serial, only when AOTY has members), plus the all-contenders read (in parallel
+  with that chain). If that request
   fails, the pool falls back to the AOTY items. `ContendersPage` keeps its ids-first gate.
 - **Default year rule:** most AOTY members; if none, most contenders; ties go to the latest year.
   The no-year bucket is a default only when it is the only scope value. **Why not "last
@@ -283,4 +285,9 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
   checked at 320 px and desktop with a throwaway harness (real selector and theme, copied header
   rows, no login), not the live pages.
 - **Not live-verified.** See the branch hand-off list for what needs a logged-in check.
-
+- **Correction (2026-10-03, after the architecture check):** `/aoty` after this branch makes 3
+  Supabase reads (ids, then members serially; all contenders in parallel), 2 when AOTY is empty;
+  before it made 2 (1 when empty). `perf-initial-load.md` line 50 ("`/aoty` 15 -> 9", a static
+  estimate) predates this branch and is not updated there (merged, append-only); by the same
+  method the figure is now one higher, 10, not remeasured. The page also waits for the slowest of
+  the two chains before showing the list.

@@ -80,7 +80,8 @@ built; until then the disabled state stands.
 - Confirm the per-displayed-list Contenders rule (section 2) when lists exist.
 - Container-query adoption (section 3) needs a browser-support and testability check (jsdom does not
   evaluate container queries).
-- Year selector placement and how the no-year bucket is offered as a scope.
+- ~~Year selector placement and how the no-year bucket is offered as a scope.~~ Resolved on
+  `feature/year-scope`: a native select in each page header; the no-year bucket is a scope value.
 - Exact promotion date flow (section 4): inline vs dialog.
 - Performance diagnostic of the two-column page (both lists mounted) before building it; see
   `deferred-work.md`.
@@ -93,4 +94,3 @@ implementation differs from the section 1 text: a pick does not override the def
 it still has content", it stays pinned even if it becomes empty; the selector is a native select
 in each page header, and the no-year bucket is a scope value rather than a trailing heading. See
 `aoty-list-implementation.md`, "Year as a shared scope".
-

@@ -1386,4 +1386,9 @@ first search is empty, plus a backfill guard for the unique `mb_release_group_id
 - **Header link only forwards a `?year` it finds in the URL**; it does not know the hook's pinned
   scope. In practice the hook writes the scope to the URL whenever there is a choice, so the two
   agree, but an inconsistent URL (hand-edited) is forwarded as-is.
-
+- **On `/aoty` the members read is redundant** now that the whole Contenders pool is loaded for
+  the year scope. In the two-column shared-data branch, derive the members from the pool filtered
+  by `aotyIds` and drop the `contenders ... in (members)` read in `useAotyList`.
+- **`/aoty` now waits for the slowest of (ids, then members) and the all-contenders read**, whose
+  embed (`albums(..., reviews(...))` for every contender) is heavier than the members read. Remeasure
+  live once the shared data source exists; `perf-initial-load.md`'s `/aoty` figure predates this.
