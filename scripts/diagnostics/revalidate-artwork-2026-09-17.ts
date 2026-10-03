@@ -16,27 +16,11 @@
 //   npx tsx scripts/diagnostics/revalidate-artwork-2026-09-17.ts --report
 //   npx tsx scripts/diagnostics/revalidate-artwork-2026-09-17.ts --apply
 
-import axios from 'axios';
 import { supabase } from '../supabaseClient';
 import type { AlbumRow } from '../ingest';
+import { checkUrlAlive } from './checkUrlAlive';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-// Same 8000ms CAA timeout as musicbrainz.ts's CAA calls — CAA responses redirect through
-// archive.org, which has been observed to hang indefinitely during a degraded state rather
-// than failing fast (docs/decisions/artwork.md, "CAA request timeout", 2026-08-01).
-async function checkUrlAlive(url: string): Promise<boolean> {
-  try {
-    const res = await axios.get(url, { timeout: 8000, validateStatus: () => true });
-    if (res.status < 200 || res.status >= 300) return false;
-    const contentType = res.headers['content-type'] ?? '';
-    return contentType.startsWith('image/');
-  } catch {
-    // Any network failure (timeout, DNS, connection refused) counts as dead on this attempt,
-    // same as a bad status or wrong content-type — all three feed the same retry-once path.
-    return false;
-  }
-}
 
 async function checkArtworkWithRetry(url: string): Promise<boolean> {
   if (await checkUrlAlive(url)) return true;
