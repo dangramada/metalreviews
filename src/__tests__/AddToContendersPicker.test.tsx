@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AddToContendersPicker } from '../components/AddToContendersPicker';
@@ -9,8 +9,12 @@ import system from '../theme';
 import type { FavoriteListItem } from '../hooks/useFavoritesList';
 
 let mockFavorites: FavoriteListItem[] = [];
+const favoritesHookCalls = vi.fn();
 vi.mock('../hooks/useFavoritesList', () => ({
-  useFavoritesList: () => ({ items: mockFavorites, loading: false, error: null, refetch: vi.fn() }),
+  useFavoritesList: () => {
+    favoritesHookCalls();
+    return { items: mockFavorites, loading: false, error: null, refetch: vi.fn() };
+  },
 }));
 
 vi.mock('../AuthContext', () => ({
@@ -129,5 +133,51 @@ describe('AddToContendersPicker', () => {
     const input = document.querySelector('input[type="checkbox"]');
     expect(input).not.toBeNull();
     expect(input).toHaveAttribute('aria-label', 'Select Opeth – Blackwater Park');
+  });
+
+  describe('mounting', () => {
+    const props = { onClose, contenderAlbumIds: new Set<string>(), onAdded };
+
+    it('does not mount the panel or fetch favorites while closed', () => {
+      render(<AddToContendersPicker isOpen={false} {...props} />, { wrapper });
+      expect(favoritesHookCalls).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Add from Favorites/)).not.toBeInTheDocument();
+    });
+
+    it('fetches favorites when the drawer opens', async () => {
+      const { rerender } = render(<AddToContendersPicker isOpen={false} {...props} />, {
+        wrapper,
+      });
+      expect(favoritesHookCalls).not.toHaveBeenCalled();
+      rerender(<AddToContendersPicker isOpen {...props} />);
+      await waitFor(() => screen.getByText(/Opeth/));
+      expect(favoritesHookCalls).toHaveBeenCalled();
+    });
+
+    it('keeps the content during the exit animation and unmounts it afterwards', async () => {
+      const realGetComputedStyle = window.getComputedStyle.bind(window);
+      let animating = false;
+      vi.spyOn(window, 'getComputedStyle').mockImplementation(((el: Element, pseudo?: string) => {
+        const style = realGetComputedStyle(el, pseudo);
+        return new Proxy(style, {
+          get: (target, key) =>
+            key === 'animationName' && animating ? 'slide-out' : Reflect.get(target, key),
+        });
+      }) as typeof window.getComputedStyle);
+
+      const { rerender } = render(<AddToContendersPicker isOpen {...props} />, { wrapper });
+      await waitFor(() => screen.getByText(/Opeth/));
+
+      animating = true;
+      rerender(<AddToContendersPicker isOpen={false} {...props} />);
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      expect(screen.getByText(/Opeth/)).toBeInTheDocument();
+
+      fireEvent.animationEnd(screen.getByRole('dialog'));
+      await waitFor(() => expect(screen.queryByText(/Opeth/)).not.toBeInTheDocument());
+      vi.restoreAllMocks();
+    });
   });
 });
