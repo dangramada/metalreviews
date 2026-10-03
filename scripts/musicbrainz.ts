@@ -10,7 +10,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 // missing real artwork for confirmed-approved images (e.g. MBID
 // d13afb14-38d0-452b-b986-e3003c385856). Prefer front, fall back to the first approved image.
 // See docs/decisions/artwork.md, Concern B.
-function pickArtwork(images: any[]): string | null {
+export function pickArtwork(images: any[]): string | null {
   const front = images.find((img: any) => img.front === true);
   if (front) return front.image;
   const approved = images.find((img: any) => img.approved === true);
