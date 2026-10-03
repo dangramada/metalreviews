@@ -24,11 +24,12 @@ vi.mock('../hooks/useContendersList', () => ({
 }));
 
 let mockAotyItems: (FavoriteListItem & { createdAt: string })[] = [];
+let mockAotyLoading = false;
 const mockRefetchAoty = vi.fn();
 vi.mock('../hooks/useAotyList', () => ({
   useAotyList: () => ({
     items: mockAotyItems,
-    loading: false,
+    loading: mockAotyLoading,
     error: null,
     refetch: mockRefetchAoty,
   }),
@@ -55,8 +56,12 @@ vi.mock('../hooks/useAlbumRatingsSummary', () => ({
   useAlbumRatingsSummary: () => ({ summary: mockSummary, loading: false, refetch: vi.fn() }),
 }));
 
+let pickerContenderIds = new Set<string>();
 vi.mock('../components/AddToContendersPicker', () => ({
-  AddToContendersPicker: () => null,
+  AddToContendersPicker: (p: { contenderAlbumIds: Set<string> }) => {
+    pickerContenderIds = p.contenderAlbumIds;
+    return null;
+  },
 }));
 
 vi.mock('../AuthContext', () => ({
@@ -113,6 +118,8 @@ describe('ContendersPage', () => {
     vi.clearAllMocks();
     mockItems = [mockItem];
     mockAotyItems = [];
+    mockAotyLoading = false;
+    mockRefetchAoty.mockReset();
     mockSummary = new Map();
     stubInsufficient = false;
     stubTier = 'high';
@@ -249,21 +256,90 @@ describe('ContendersPage', () => {
       expect(screen.getAllByText('No release date yet.').length).toBeGreaterThan(0);
     });
 
-    it('marks an album already in AOTY and offers no second select', async () => {
+    it('hides an album already in AOTY from the list, but keeps it in the picker set', async () => {
+      mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla' }];
       mockAotyItems = [{ ...mockItem, createdAt: '2026-09-30' }];
-      mockSummary = rated();
       render(<ContendersPage />, { wrapper });
-      expect(screen.getAllByText('In AOTY').length).toBeGreaterThan(0);
-      expect(screen.queryByRole('button', { name: /Select Opeth.*for AOTY/ })).toBeNull();
+      expect(screen.getAllByText(/Mgla/).length).toBeGreaterThan(0);
+      expect(screen.queryByText(/Opeth/)).toBeNull();
+      expect(screen.queryByText('In AOTY')).toBeNull();
+      expect(pickerContenderIds.has('album1')).toBe(true);
     });
 
-    it('shows the AOTY cascade count in the single remove confirmation', async () => {
+    it('shows the all-in-AOTY empty state, distinct from the true empty state', async () => {
       mockAotyItems = [{ ...mockItem, createdAt: '2026-09-30' }];
       render(<ContendersPage />, { wrapper });
-      fireEvent.click(screen.getAllByRole('button', { name: 'Remove from Contenders' })[0]);
-      expect(
-        await screen.findByText(/also removes 1 album from your AOTY list/)
-      ).toBeInTheDocument();
+      expect(screen.getByText('All your contenders are in AOTY.')).toBeInTheDocument();
+      expect(screen.queryByText('No contenders yet.')).toBeNull();
+    });
+
+    it('does not flash AOTY members while the AOTY list is still loading', async () => {
+      mockAotyLoading = true;
+      render(<ContendersPage />, { wrapper });
+      expect(screen.queryByText(/Opeth/)).toBeNull();
+    });
+
+    it('shows every contender when the AOTY fetch failed, and re-selecting is a harmless upsert', async () => {
+      // A failed fetch surfaces as an empty AOTY list; the album was already selected earlier.
+      mockSummary = rated();
+      render(<ContendersPage />, { wrapper });
+      fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
+      await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Added to AOTY'));
+      expect(upsert.mock.calls[0][1]).toMatchObject({ ignoreDuplicates: true });
+    });
+
+    it('toasts exactly "Added to AOTY" on a single select', async () => {
+      mockSummary = rated();
+      render(<ContendersPage />, { wrapper });
+      fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
+      await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Added to AOTY'));
+    });
+
+    it('keeps the row and shows the error toast when the insert fails', async () => {
+      upsert.mockResolvedValueOnce({ error: { message: 'boom' } });
+      mockSummary = rated();
+      render(<ContendersPage />, { wrapper });
+      fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
+      await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+      expect(mockShowSuccess).not.toHaveBeenCalled();
+      expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0);
+    });
+
+    describe('focus after the row leaves', () => {
+      const two = () => {
+        mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla' }];
+        mockSummary = new Map([
+          ['album1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
+          ['album2', { score: 0.7, rank: 2, contributions: new Map<number, number>() }],
+        ]);
+      };
+      // Mimics the real refetch: membership lands, the page re-renders without the row.
+      const wireRefetch = (rerender: () => void, moved: FavoriteListItem) => {
+        mockRefetchAoty.mockImplementation(() => {
+          mockAotyItems = [{ ...moved, createdAt: '2026-10-01' }];
+          rerender();
+        });
+      };
+
+      it('moves to the next row primary control', async () => {
+        two();
+        const { rerender } = render(<ContendersPage />, { wrapper });
+        wireRefetch(() => rerender(<ContendersPage />), mockItem);
+        fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
+        await waitFor(() =>
+          expect(screen.getAllByRole('button', { name: /Select Mgla.*for AOTY/ })[0]).toHaveFocus()
+        );
+      });
+
+      it('moves to the heading when it was the last row', async () => {
+        two();
+        const { rerender } = render(<ContendersPage />, { wrapper });
+        wireRefetch(() => rerender(<ContendersPage />), mockItems[1]);
+        fireEvent.click(screen.getAllByRole('button', { name: /Select Mgla.*for AOTY/ })[0]);
+        await waitFor(() =>
+          expect(screen.getByRole('heading', { name: 'Contenders' })).toHaveFocus()
+        );
+      });
     });
 
     it('bulk-adds only ready albums and reports the skipped count', async () => {
@@ -284,14 +360,17 @@ describe('ContendersPage', () => {
       );
     });
 
-    it('asks before a bulk remove that would also drop AOTY members', async () => {
-      mockAotyItems = [{ ...mockItem, createdAt: '2026-09-30' }];
+    it('bulk remove goes straight through with no AOTY confirmation', async () => {
+      vi.mocked(supabase.from).mockImplementation(
+        () => makeContendersDeleteChain() as unknown as ReturnType<typeof supabase.from>
+      );
       render(<ContendersPage />, { wrapper });
       fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
       fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
-      expect(
-        await screen.findByText(/also removes 1 album from your AOTY list/)
-      ).toBeInTheDocument();
+      await waitFor(() =>
+        expect(mockShowSuccess).toHaveBeenCalledWith('1 removed from Contenders')
+      );
+      expect(screen.queryByText(/AOTY list/)).toBeNull();
     });
   });
 });

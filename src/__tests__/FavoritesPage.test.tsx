@@ -241,6 +241,15 @@ describe('FavoritesPage', () => {
     expect(screen.getAllByText(String(currentYear)).length).toBeGreaterThanOrEqual(1);
   });
 
+  it('keeps the plain remove control and no AOTY-only action on Favorites rows', () => {
+    vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
+    render(<FavoritesPage />, { wrapper });
+    expect(screen.getAllByRole('button', { name: 'Remove from favorites' }).length).toBeGreaterThan(
+      0
+    );
+    expect(screen.queryByRole('button', { name: 'Back to Contenders' })).toBeNull();
+  });
+
   it('renders a Listen button that opens a menu with all four platform links', async () => {
     vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [mockItem] }));
     render(<FavoritesPage />, { wrapper });

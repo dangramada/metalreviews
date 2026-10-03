@@ -58,8 +58,14 @@ vi.mock('../AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-abc' }, loading: false }),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
+const mockShowSuccess = vi.fn();
+const mockShowError = vi.fn();
 vi.mock('../hooks/useFeedbackToast', () => ({
-  useFeedbackToast: () => ({ showSuccess: vi.fn(), showError: vi.fn(), showAction: vi.fn() }),
+  useFeedbackToast: () => ({
+    showSuccess: mockShowSuccess,
+    showError: mockShowError,
+    showAction: vi.fn(),
+  }),
 }));
 vi.mock('../supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 import { supabase } from '../supabaseClient';
@@ -166,7 +172,7 @@ describe('AotyPage', () => {
     expect(screen.getAllByText(/Xxx/).length).toBeGreaterThan(0);
   });
 
-  it('removes only the aoty row', async () => {
+  it('Back to Contenders deletes only the aoty row, with no confirm, and offers no remove', async () => {
     const secondEq = vi.fn().mockResolvedValue({ error: null });
     const del = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: secondEq }) });
     vi.mocked(supabase.from).mockReturnValue({ delete: del } as unknown as ReturnType<
@@ -175,10 +181,52 @@ describe('AotyPage', () => {
     mockItems = [member('a', 'Aaa', '2026-01-01')];
     mockSummary = new Map([['a', sum(0.4)]]);
     render(<AotyPage />, { wrapper });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Remove from AOTY' })[0]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+    expect(screen.queryByRole('button', { name: /Remove from/ })).toBeNull();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back to Contenders' })[0]);
     await waitFor(() => expect(supabase.from).toHaveBeenCalledWith('aoty'));
     expect(supabase.from).not.toHaveBeenCalledWith('contenders');
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Moved back to Contenders'));
     expect(mockRefetch).toHaveBeenCalled();
+  });
+
+  it('keeps the row and shows the error toast when the delete fails', async () => {
+    const secondEq = vi.fn().mockResolvedValue({ error: { message: 'boom' } });
+    const del = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: secondEq }) });
+    vi.mocked(supabase.from).mockReturnValue({ delete: del } as unknown as ReturnType<
+      typeof supabase.from
+    >);
+    mockItems = [member('a', 'Aaa', '2026-01-01')];
+    render(<AotyPage />, { wrapper });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back to Contenders' })[0]);
+    await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(mockRefetch).not.toHaveBeenCalled();
+    expect(screen.getAllByText(/Aaa/).length).toBeGreaterThan(0);
+  });
+
+  it('moves focus to the next row, else the heading, after Back to Contenders', async () => {
+    const secondEq = vi.fn().mockResolvedValue({ error: null });
+    const del = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: secondEq }) });
+    vi.mocked(supabase.from).mockReturnValue({ delete: del } as unknown as ReturnType<
+      typeof supabase.from
+    >);
+    mockItems = [member('a', 'Aaa', '2026-01-01'), member('b', 'Bbb', '2026-01-01')];
+    mockSummary = new Map([
+      ['a', sum(0.9)],
+      ['b', sum(0.4)],
+    ]);
+    const { rerender } = render(<AotyPage />, { wrapper });
+    mockRefetch.mockImplementation(() => {
+      mockItems = mockItems.filter((i) => i.albumId !== 'a');
+      rerender(<AotyPage />);
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back to Contenders' })[0]);
+    await waitFor(() => expect(document.activeElement?.getAttribute('data-primary-for')).toBe('b'));
+    mockRefetch.mockImplementation(() => {
+      mockItems = [];
+      rerender(<AotyPage />);
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back to Contenders' })[0]);
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'AOTY' })).toHaveFocus());
   });
 });
