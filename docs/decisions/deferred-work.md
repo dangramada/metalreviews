@@ -1331,3 +1331,18 @@ Noticed while building it, deliberately not touched on that branch (one concern 
   wiring as `ArtworkBlock`. Detail: `artwork.md` ("Image load retry").
 - Open: confirm on a real archive.org 5xx whether the response carries cache headers (the `?r=`
   param covers the worst case regardless).
+
+## New items, 2026-10-03 (`perf/initial-load`, out of scope by decision)
+
+Detail: `docs/decisions/perf-initial-load.md`.
+
+- **Artwork loading** (4 requests and ~2.1 s per cover via CAA redirects, no lazy-loading,
+  no cover mirroring, no `ArtworkBlock` changes): deferred.
+- **Virtualization**: `@tanstack/react-virtual` stays only where it is used today.
+- **Bundle and route splitting**: moves to the two-column shared-data-source branch. Measured:
+  index chunk 1,085 kB (310 kB gzip), calibration code plus `StyleGuide` only ~60 kB of it.
+- **Albums-by-id embed** (`useAlbumRatingsSummary` second request for `release_date`) and
+  **weights de-duplication** (gate and summary both read `user_criterion_weights`): both move to
+  the two-column shared-data-source branch.
+- **Dev-only slowness**: StrictMode double mount (left on) and unbundled module loading in dev.
+- **Before/after browser measurements** for `perf/initial-load` are still to be recorded.

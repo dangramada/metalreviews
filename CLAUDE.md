@@ -113,6 +113,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 Most recent merge: `fix/artwork-load-retry` — `ArtworkBlock` retries a failed image load twice (3s, 8s) before the placeholder, via `useImageRetry`. 986/986 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `bcc3b17` on 2026-10-03. Rollback tag: `pre-merge-fix-artwork-load-retry`. Detail: `docs/decisions/artwork.md`.
 
+In progress: `perf/initial-load` — AOTY/Contenders initial-load efficiency: stable `AuthContext`
+user reference (stops the `INITIAL_SESSION` refetch round), Contenders gates on AOTY ids only,
+Picker mounts and fetches favorites only while open. 998/998 tests, `tsc -b` clean. Not merged;
+browser before/after numbers not yet recorded. Detail: `docs/decisions/perf-initial-load.md`.
+
 Most recent merge: `feature/aoty-promoted-leaves-contenders` — an album selected for AOTY leaves the
 Contenders list; AOTY rows get "Back to Contenders" instead of remove (reverses decision 8); per-row
 pending state and local-first updates with silent refetch. 981/981 tests, `tsc -b` clean. Not yet
@@ -454,6 +459,7 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `design-system-spec-slant-take.md` — reference spec for the Slant Take visual redesign, split across passes
 - `slant-take-design-system.md` — consolidated decision doc for all nine passes plus two follow-up tweaks; Chakra v3 gotchas, badge positioning, `averageScore` vs raw `score`
 - `naming-decisions.md` — product name (Slant Take), display face, logo mark, accent-colour change
+- `perf-initial-load.md` — 2026-10-03: AOTY/Contenders initial-load fixes (stable auth user reference, ids-first Contenders gate, lazily mounted picker); in progress on `perf/initial-load`, measurements pending
 - `deferred-work.md` — consolidated tracker of deferred/postponed work — check here first for what's outstanding
 - `home-grid-virtualization.md` — 2026-09-21: windows the Home page review grid with
   `@tanstack/react-virtual` (`src/components/HomeReviewGrid.tsx`, extracted from `App.tsx`) so
