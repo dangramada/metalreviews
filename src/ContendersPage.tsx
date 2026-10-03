@@ -34,8 +34,8 @@ import { focusRowOrHeading } from './utils/focusRow';
 export function ContendersPage() {
   const { items: allItems, loading: contendersLoading, error, refetch } = useContendersList();
   const {
-    items: aotyItems,
-    loading: aotyLoading,
+    aotyIds,
+    idsLoading: aotyIdsLoading,
     refetch: refetchAoty,
     addLocal: addAotyLocal,
   } = useAotyList();
@@ -56,13 +56,12 @@ export function ContendersPage() {
     hasInsufficientData,
     loading: gateLoading,
   } = useCalibrationGate();
-  const aotyIds = useMemo(() => new Set(aotyItems.map((i) => i.albumId)), [aotyItems]);
   // An album lives in one place: once selected for AOTY it leaves this list (aoty is a subset of
   // contenders, so the picker below still gets the unfiltered set). A failed AOTY fetch leaves
   // aotyIds empty, i.e. every contender shows; re-selecting one is a harmless idempotent upsert.
   const items = useMemo(() => allItems.filter((i) => !aotyIds.has(i.albumId)), [allItems, aotyIds]);
-  // Wait for AOTY too, or its members flash in this list until that fetch lands.
-  const loading = contendersLoading || aotyLoading;
+  // Wait for the AOTY ids too (not the full AOTY list), or its members flash in this list.
+  const loading = contendersLoading || aotyIdsLoading;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingFocus = useRef<{ removedIds: string[]; nextId: string | null } | null>(null);
   useEffect(() => {

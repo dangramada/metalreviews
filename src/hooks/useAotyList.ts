@@ -16,6 +16,11 @@ export function useAotyList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Membership ids land after the first request, before the album fetch. ContendersPage only
+  // needs these to filter, so it can render without waiting for `loading`. Kept in step with
+  // addLocal/removeLocal. A failed ids fetch leaves the set empty and idsLoading false.
+  const [aotyIds, setAotyIds] = useState<Set<string>>(() => new Set());
+  const [idsLoading, setIdsLoading] = useState(true);
   // Bumped by every local mutation. A refetch that started before the latest mutation carries
   // pre-mutation data, so its response is dropped rather than undoing the local change; the
   // refetch each write triggers after its own mutation is the one that lands.
@@ -33,6 +38,7 @@ export function useAotyList() {
   const addLocal = useCallback((added: AotyMember[]) => {
     if (!mounted.current) return;
     mutationGen.current += 1;
+    setAotyIds((prev) => new Set([...prev, ...added.map((a) => a.albumId)]));
     setItems((prev) => {
       const ids = new Set(added.map((a) => a.albumId));
       return [...added, ...prev.filter((i) => !ids.has(i.albumId))];
@@ -41,6 +47,7 @@ export function useAotyList() {
   const removeLocal = useCallback((albumIds: string[]) => {
     if (!mounted.current) return;
     mutationGen.current += 1;
+    setAotyIds((prev) => new Set([...prev].filter((id) => !albumIds.includes(id))));
     setItems((prev) => prev.filter((i) => !albumIds.includes(i.albumId)));
   }, []);
 
@@ -60,6 +67,7 @@ export function useAotyList() {
           .order('created_at', { ascending: false });
         if (stale()) return;
         if (fetchError) {
+          setIdsLoading(false);
           if (!silent) {
             setError('Failed to load AOTY');
             setLoading(false);
@@ -67,6 +75,8 @@ export function useAotyList() {
           return;
         }
         const members = (aotyRows ?? []) as { album_id: string; created_at: string | null }[];
+        setAotyIds(new Set(members.map((m) => m.album_id)));
+        setIdsLoading(false);
         if (members.length === 0) {
           setItems([]);
           setLoading(false);
@@ -100,6 +110,7 @@ export function useAotyList() {
       } catch (e) {
         if (cancelled) return;
         console.warn('Failed to load AOTY', e);
+        setIdsLoading(false);
         if (!silent) {
           setError('Failed to load AOTY');
           setLoading(false);
@@ -115,6 +126,8 @@ export function useAotyList() {
 
   return {
     items,
+    aotyIds,
+    idsLoading,
     loading,
     error,
     addLocal,

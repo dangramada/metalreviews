@@ -84,6 +84,78 @@ describe('useAotyList', () => {
     expect(calls.map((c) => c.table)).toEqual(['aoty']);
   });
 
+  describe('ids ready before the album fetch', () => {
+    it('exposes the AOTY ids while the contenders fetch is still pending, then the full list', async () => {
+      let releaseContenders!: () => void;
+      vi.mocked(supabase.from).mockImplementation(((table: string) => {
+        const chain: Record<string, unknown> = {
+          select: () => chain,
+          order: () =>
+            Promise.resolve({ data: [{ album_id: 'a1', created_at: '2026-02-01' }], error: null }),
+          in: () =>
+            table === 'contenders'
+              ? new Promise((resolve) => {
+                  releaseContenders = () => resolve({ data: [contenderRow('a1')], error: null });
+                })
+              : Promise.resolve({ data: [], error: null }),
+        };
+        return chain;
+      }) as unknown as typeof supabase.from);
+
+      const { result } = renderHook(() => useAotyList());
+      await waitFor(() => expect(result.current.idsLoading).toBe(false));
+      expect([...result.current.aotyIds]).toEqual(['a1']);
+      expect(result.current.loading).toBe(true);
+      expect(result.current.items).toEqual([]);
+
+      await act(async () => releaseContenders());
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.items.map((i) => i.albumId)).toEqual(['a1']);
+      expect([...result.current.aotyIds]).toEqual(['a1']);
+    });
+
+    it('ids are ready and empty when there are no members', async () => {
+      mockTables([], []);
+      const { result } = renderHook(() => useAotyList());
+      await waitFor(() => expect(result.current.idsLoading).toBe(false));
+      expect(result.current.aotyIds.size).toBe(0);
+    });
+
+    it('a failed ids fetch leaves idsLoading false and the set empty', async () => {
+      vi.mocked(supabase.from).mockImplementation((() => {
+        const chain: Record<string, unknown> = {
+          select: () => chain,
+          order: () => Promise.resolve({ data: null, error: { message: 'boom' } }),
+        };
+        return chain;
+      }) as unknown as typeof supabase.from);
+      const { result } = renderHook(() => useAotyList());
+      await waitFor(() => expect(result.current.idsLoading).toBe(false));
+      expect(result.current.aotyIds.size).toBe(0);
+      expect(result.current.error).toBe('Failed to load AOTY');
+    });
+
+    it('addLocal and removeLocal keep the id set in step', async () => {
+      mockTables([], []);
+      const { result } = renderHook(() => useAotyList());
+      await waitFor(() => expect(result.current.idsLoading).toBe(false));
+      const item = {
+        albumId: 'x',
+        band: 'x',
+        album: 'x',
+        artworkUrl: null,
+        releaseDate: null,
+        genre: [] as string[],
+        publishedAt: null,
+        createdAt: 'n',
+      };
+      act(() => result.current.addLocal([item]));
+      expect(result.current.aotyIds.has('x')).toBe(true);
+      act(() => result.current.removeLocal(['x']));
+      expect(result.current.aotyIds.has('x')).toBe(false);
+    });
+  });
+
   describe('local mutations and silent refetch', () => {
     type Deferred = { resolve: (rows: unknown[]) => void; reject: () => void };
     // Each aoty read after the first is held open so a test decides when its response lands.
