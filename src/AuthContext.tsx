@@ -7,6 +7,13 @@ interface AuthState {
   loading: boolean;
 }
 
+// Consumers only read user.id and user.email, and several use `user` as an effect dependency.
+// supabase-js hands over a freshly parsed User object on INITIAL_SESSION and TOKEN_REFRESHED, so
+// keep the previous reference unless the identity actually changed.
+function keepIfSameUser(prev: User | null, next: User | null): User | null {
+  return prev && next && prev.id === next.id && prev.email === next.email ? prev : next;
+}
+
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -15,13 +22,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Resolve the current session once on mount, then flip loading off.
-    // onAuthStateChange fires on sign-in / sign-out events but does NOT fire
-    // on the initial load, so we need getSession() for the first render.
+    // getSession() resolves the first render. onAuthStateChange also emits INITIAL_SESSION
+    // (and TOKEN_REFRESHED later) with a new User object; keepIfSameUser absorbs those.
     supabase.auth
       .getSession()
       .then(({ data, error }) => {
         if (error) console.warn('Failed to get session:', error.message);
-        setUser(data?.session?.user ?? null);
+        setUser((prev) => keepIfSameUser(prev, data?.session?.user ?? null));
         setLoading(false);
       })
       .catch((e: unknown) => {
@@ -32,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      setUser((prev) => keepIfSameUser(prev, session?.user ?? null));
     });
 
     return () => subscription.unsubscribe();

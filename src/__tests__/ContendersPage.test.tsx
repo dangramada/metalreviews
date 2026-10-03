@@ -30,6 +30,8 @@ const mockAddLocal = vi.fn();
 vi.mock('../hooks/useAotyList', () => ({
   useAotyList: () => ({
     items: mockAotyItems,
+    aotyIds: new Set(mockAotyItems.map((i) => i.albumId)),
+    idsLoading: mockAotyLoading,
     loading: mockAotyLoading,
     error: null,
     refetch: mockRefetchAoty,
@@ -269,6 +271,15 @@ describe('ContendersPage', () => {
       expect(screen.queryByText(/Opeth/)).toBeNull();
       expect(screen.queryByText('In AOTY')).toBeNull();
       expect(pickerContenderIds.has('album1')).toBe(true);
+    });
+
+    it('shows every candidate and does not hang in loading when the AOTY ids fetch failed', async () => {
+      // A failed ids fetch resolves to idsLoading false with an empty set (see useAotyList).
+      mockItems = [mockItem];
+      mockAotyItems = [];
+      mockAotyLoading = false;
+      render(<ContendersPage />, { wrapper });
+      expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0);
     });
 
     it('shows the all-in-AOTY empty state, distinct from the true empty state', async () => {

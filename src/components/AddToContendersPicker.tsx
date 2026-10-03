@@ -39,12 +39,38 @@ interface AddToContendersPickerProps {
   onAdded: () => void;
 }
 
+// The Drawer's own lazyMount/unmountOnExit mount the panel when it opens and unmount it once the
+// exit animation finishes. The favorites fetch lives in the panel, so it runs on each open (not on
+// page load) and the selection resets on close.
 export function AddToContendersPicker({
   isOpen,
   onClose,
   contenderAlbumIds,
   onAdded,
 }: AddToContendersPickerProps) {
+  return (
+    <DrawerRoot
+      open={isOpen}
+      onOpenChange={({ open }) => {
+        if (!open) onClose();
+      }}
+      placement="end"
+      size="md"
+      lazyMount
+      unmountOnExit
+    >
+      <DrawerContent>
+        <PickerPanel onClose={onClose} contenderAlbumIds={contenderAlbumIds} onAdded={onAdded} />
+      </DrawerContent>
+    </DrawerRoot>
+  );
+}
+
+function PickerPanel({
+  onClose,
+  contenderAlbumIds,
+  onAdded,
+}: Omit<AddToContendersPickerProps, 'isOpen'>) {
   const { user } = useAuth();
   const { showSuccess, showError } = useFeedbackToast();
   const { items: favoriteItems, loading } = useFavoritesList();
@@ -56,14 +82,9 @@ export function AddToContendersPicker({
     [favoriteItems, contenderAlbumIds]
   );
 
-  // Reset selection on close (Cancel, backdrop dismiss, or a successful Add all route through
-  // this) rather than in an effect keyed on isOpen — setState directly in an effect body is a
-  // react-hooks/set-state-in-effect lint error, and there's no need for one: clearing on the
-  // way out leaves the same empty state for the next time the drawer opens.
-  function handleClose() {
-    setSelected(new Set());
-    onClose();
-  }
+  // Selection needs no explicit reset: the panel unmounts after the exit animation, so the next
+  // open starts empty (and content stays as-is while the drawer slides out).
+  const handleClose = onClose;
 
   function toggle(albumId: string, checked: boolean) {
     setSelected((prev) => {
@@ -90,68 +111,59 @@ export function AddToContendersPicker({
   }
 
   return (
-    <DrawerRoot
-      open={isOpen}
-      onOpenChange={({ open }) => {
-        if (!open) handleClose();
-      }}
-      placement="end"
-      size="md"
-    >
-      <DrawerContent>
-        <CloseButton
-          position="absolute"
-          right={2}
-          top={2}
-          color="text.primary"
-          onClick={handleClose}
-        />
-        <DrawerHeader>
-          <DrawerTitle>Add from Favorites</DrawerTitle>
-        </DrawerHeader>
+    <>
+      <CloseButton
+        position="absolute"
+        right={2}
+        top={2}
+        color="text.primary"
+        onClick={handleClose}
+      />
+      <DrawerHeader>
+        <DrawerTitle>Add from Favorites</DrawerTitle>
+      </DrawerHeader>
 
-        <DrawerBody>
-          {loading ? (
-            <Flex justify="center" py={8}>
-              <LoadingIndicator />
-            </Flex>
-          ) : candidates.length === 0 ? (
-            <Text color="text.muted">
-              All your favorites are already in Contenders or AOTY, or you don&apos;t have any yet.
-            </Text>
-          ) : (
-            <VStack gap={3} align="stretch">
-              {candidates.map((item) => (
-                <SelectableRow
-                  key={item.albumId}
-                  selected={selected.has(item.albumId)}
-                  onToggleSelect={(checked) => toggle(item.albumId, checked)}
-                  ariaLabel={`${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
-                  hideCheckboxOnMobile
-                >
-                  <FavoriteListItemRow item={item} previewMode />
-                </SelectableRow>
-              ))}
-            </VStack>
-          )}
-        </DrawerBody>
+      <DrawerBody>
+        {loading ? (
+          <Flex justify="center" py={8}>
+            <LoadingIndicator />
+          </Flex>
+        ) : candidates.length === 0 ? (
+          <Text color="text.muted">
+            All your favorites are already in Contenders or AOTY, or you don&apos;t have any yet.
+          </Text>
+        ) : (
+          <VStack gap={3} align="stretch">
+            {candidates.map((item) => (
+              <SelectableRow
+                key={item.albumId}
+                selected={selected.has(item.albumId)}
+                onToggleSelect={(checked) => toggle(item.albumId, checked)}
+                ariaLabel={`${selected.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                hideCheckboxOnMobile
+              >
+                <FavoriteListItemRow item={item} previewMode />
+              </SelectableRow>
+            ))}
+          </VStack>
+        )}
+      </DrawerBody>
 
-        <DrawerFooter borderTopWidth="1px" borderColor="border.default" gap={3}>
-          <Button {...secondaryButton} variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            {...primaryButton}
-            loading={saving}
-            spinner={<LoadingIndicatorBars />}
-            aria-label={saving ? 'Loading' : undefined}
-            disabled={selected.size === 0}
-            onClick={handleAdd}
-          >
-            Add{selected.size > 0 ? ` ${selected.size}` : ''} to Contenders
-          </Button>
-        </DrawerFooter>
-      </DrawerContent>
-    </DrawerRoot>
+      <DrawerFooter borderTopWidth="1px" borderColor="border.default" gap={3}>
+        <Button {...secondaryButton} variant="outline" onClick={handleClose}>
+          Cancel
+        </Button>
+        <Button
+          {...primaryButton}
+          loading={saving}
+          spinner={<LoadingIndicatorBars />}
+          aria-label={saving ? 'Loading' : undefined}
+          disabled={selected.size === 0}
+          onClick={handleAdd}
+        >
+          Add{selected.size > 0 ? ` ${selected.size}` : ''} to Contenders
+        </Button>
+      </DrawerFooter>
+    </>
   );
 }
