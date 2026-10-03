@@ -48,6 +48,7 @@ import { Footer } from './Footer';
 import { LoadingIndicator } from './LoadingIndicator';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
+import { useImageRetry } from './hooks/useImageRetry';
 import { sourceBadge, scoreSlabBase, scoreSlabHigh } from './theme';
 import { MenuRoot, MenuTrigger, MenuContent } from './components/ui/menu';
 import { ListenMenuItems } from './components/ListenMenuItems';
@@ -232,11 +233,9 @@ export function ArtworkBlock({
   isFavorited?: boolean;
   onToggle?: () => void;
 }) {
-  // `loaded` flips to true once the browser has fully received the image data.
-  const [loaded, setLoaded] = useState(false);
-  // `failed` flips to true on any image load error (e.g. archive.org 500s on CAA redirects).
-  // Treated identically to artworkUrl === null — shows the same placeholder.
-  const [failed, setFailed] = useState(false);
+  // `loaded`: browser has fully received the image. `failed`: all retries exhausted (e.g.
+  // archive.org 500s on CAA redirects) — treated identically to artworkUrl === null.
+  const { attempt, loaded, failed, onError, onLoad } = useImageRetry(rev.artworkUrl);
   // See the Listen chip's MenuRoot onOpenChange below for what this is for.
   const listenTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -252,7 +251,10 @@ export function ArtworkBlock({
       {rev.artworkUrl && !failed ? (
         <>
           <Image
-            src={toThumbnailUrl(rev.artworkUrl)}
+            key={attempt} // remount per retry; the ?r= below is what defeats a cached 5xx
+            // Retries only (never the first load): Chromium reuses a cached 5xx that carries
+            // max-age even across an <img> remount. CAA's redirect to archive.org ignores the param.
+            src={toThumbnailUrl(rev.artworkUrl) + (attempt ? `?r=${attempt}` : '')}
             alt={`${rev.band} – ${rev.album}`}
             objectFit="cover" // Fills the box without distortion, cropping if needed
             w="100%"
@@ -260,9 +262,12 @@ export function ArtworkBlock({
             position="absolute"
             top={0}
             left={0}
-            transition="transform 0.3s"
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
+            // Hidden until loaded so a failed attempt's broken-image icon never shows
+            // while we wait to retry; the Skeleton below covers the gap.
+            opacity={loaded ? 1 : 0}
+            transition="transform 0.3s, opacity 0.3s"
+            onLoad={onLoad}
+            onError={onError}
           />
           {/* The skeleton shimmer sits on top of the image and fades out once loaded.
               We deliberately do NOT use Chakra's `isLoaded` prop — that would instantly

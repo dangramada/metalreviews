@@ -1321,3 +1321,13 @@ Noticed while building it, deliberately not touched on that branch (one concern 
   `refresh-dead-artwork-2026-10-03.ts --report` later; only rows that classify DEAD (404/410)
   should be applied, one `--only` key at a time.
 
+
+## New items, 2026-10-03 (artwork load retry)
+
+- Apply `useImageRetry` (`src/hooks/useImageRetry.ts`) to the other `onError → failed` image
+  sites, which still show the placeholder permanently after one transient failure:
+  `FavoritesPage.tsx` (two sites, ~274 and ~467, 250px thumbnails) and
+  `album-rating/AlbumArtwork.tsx`. Each needs the same `key={attempt}` + `?r=` + hidden-until-loaded
+  wiring as `ArtworkBlock`. Detail: `artwork.md` ("Image load retry").
+- Open: confirm on a real archive.org 5xx whether the response carries cache headers (the `?r=`
+  param covers the worst case regardless).
