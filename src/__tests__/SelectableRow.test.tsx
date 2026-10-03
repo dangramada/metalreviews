@@ -17,6 +17,18 @@ describe('SelectableRow', () => {
     vi.clearAllMocks();
   });
 
+  it('does not toggle, and disables the checkbox, while disabled', () => {
+    render(
+      <SelectableRow selected disabled onToggleSelect={onToggleSelect} ariaLabel="Select X">
+        <div data-testid="card-body">Card content</div>
+      </SelectableRow>,
+      { wrapper }
+    );
+    fireEvent.click(screen.getByTestId('card-body'));
+    expect(onToggleSelect).not.toHaveBeenCalled();
+    expect(screen.getByRole('checkbox', { name: 'Select X' })).toBeDisabled();
+  });
+
   it('toggles when the card body is clicked', () => {
     render(
       <SelectableRow selected={false} onToggleSelect={onToggleSelect} ariaLabel="Select X">

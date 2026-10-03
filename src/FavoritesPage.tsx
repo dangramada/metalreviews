@@ -118,6 +118,7 @@ export function FavoriteListItemRow({
   note,
   extraActions,
   onBackToContenders,
+  backPending = false,
 }: {
   item: FavoriteListItem;
   onRemove?: () => void;
@@ -159,6 +160,9 @@ export function FavoriteListItemRow({
   // AOTY rows only: takes the place of the remove control. Non-destructive (the album returns to
   // Contenders), so no confirm dialog. `data-primary-for` lets the page restore focus here.
   onBackToContenders?: () => void;
+  // Write in flight: busy state without `disabled`, so keyboard focus stays on the control (the
+  // page ignores clicks while pending). Accessible name deliberately unchanged.
+  backPending?: boolean;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -407,13 +411,16 @@ export function FavoriteListItemRow({
                   <IconButton
                     aria-label="Back to Contenders"
                     data-primary-for={item.albumId}
+                    aria-busy={backPending || undefined}
+                    aria-disabled={backPending || undefined}
+                    css={backPending ? { opacity: 0.6, cursor: 'progress' } : undefined}
                     size="sm"
                     variant="ghost"
                     color="text.muted"
                     _hover={{ color: 'accent.text', bg: 'whiteAlpha.100' }}
                     onClick={onBackToContenders}
                   >
-                    <Icon as={ArrowRight} />
+                    {backPending ? <LoadingIndicatorBars /> : <Icon as={ArrowRight} />}
                   </IconButton>
                 </Tooltip>
               )}
@@ -627,9 +634,12 @@ export function FavoriteListItemRow({
                     size="sm"
                     aria-label="Back to Contenders"
                     data-primary-for={item.albumId}
+                    aria-busy={backPending || undefined}
+                    aria-disabled={backPending || undefined}
+                    css={backPending ? { opacity: 0.6, cursor: 'progress' } : undefined}
                     onClick={onBackToContenders}
                   >
-                    <Icon as={ArrowRight} />
+                    {backPending ? <LoadingIndicatorBars /> : <Icon as={ArrowRight} />}
                     <Box as="span" css={{ '@media (max-width: 24.9375em)': { display: 'none' } }}>
                       Back to Contenders
                     </Box>

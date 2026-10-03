@@ -207,3 +207,22 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
 - **Auto-add on first full rating:** unchanged; its upsert (`ignoreDuplicates`) is a no-op for an
   album already in AOTY (already a contender), and the filtered list keeps it hidden.
 - **Tests/tsc:** 121 files, 968/968 (baseline 959), `tsc -b` clean; touched files lint-clean.
+
+### In-flight feedback and local-first updates (2026-10-03, QA fix on the same branch)
+- **Why:** Select for AOTY / Back to Contenders looked inert: no pending state, repeatable, and the
+  row only moved after the write plus a full `useAotyList` reload (2 sequential reads, with a
+  spinner flash).
+- **Per-row pending:** `usePendingIds` (ref = synchronous guard, state = render). Same album never
+  has two writes in flight; different albums run in parallel. The two row buttons deliberately do
+  NOT use Chakra's `loading` (it sets `disabled`, which drops keyboard focus): `aria-busy` +
+  `aria-disabled` + spinner + reduced opacity, accessible name unchanged, click ignored by the
+  guard. Bulk buttons keep the standard `loading` pattern and lock each other; the selected rows'
+  checkboxes lock via `SelectableRow`'s new `disabled` prop.
+- **Local-first:** `useAotyList` gains `addLocal` / `removeLocal`, applied from the write result;
+  `refetch()` is now silent (no spinner, no error on failure, keeps local state). A generation
+  counter drops any refetch that began before the latest local mutation, so a slow earlier
+  response cannot undo it. Reconcile does not move focus (focus is moved once, by the ref-held
+  pending-focus intent, which is cleared when it fires).
+- **Measured (SYNTHETIC harness, 200 ms per query, not live):** row visible after write resolved
+  ~411 ms before (two sequential reads), ~1 ms after. Live timing needs Dan's session (Network tab).
+- **Tests/tsc:** 981/981 (baseline 968), `tsc -b` clean, touched files lint-clean.

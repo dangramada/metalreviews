@@ -9,6 +9,7 @@ import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useAotyList } from './hooks/useAotyList';
+import { usePendingIds } from './hooks/usePendingIds';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import { buildAotyView, type AotyRow } from './lib/aoty/aotyView';
@@ -23,14 +24,14 @@ import { focusRowOrHeading } from './utils/focusRow';
 // from albums.release_date, order/rank from the user's current weights (compareAotyOrder).
 // See docs/decisions/aoty/aoty-list-implementation.md.
 export function AotyPage() {
-  const { items, loading, error, refetch } = useAotyList();
+  const { items, loading, error, refetch, removeLocal } = useAotyList();
+  const { pending, run } = usePendingIds();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError } = useFeedbackToast();
   const { summary, criterionOrder } = useAlbumRatingsSummary();
   const { tier, hasInsufficientData, hasWeights, loading: gateLoading } = useCalibrationGate();
   const [pickedYear, setPickedYear] = useState<number | null>(null);
-  const [movingId, setMovingId] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingFocus = useRef<{ removedId: string; nextId: string | null } | null>(null);
 
@@ -54,25 +55,27 @@ export function AotyPage() {
     focusRowOrHeading(p.nextId, headingRef.current);
   }, [items]);
 
-  async function handleBackToContenders(albumId: string) {
-    if (movingId || !user) return;
-    setMovingId(albumId);
-    // Membership row only; the album is still a contender and reappears there.
-    const { error: deleteError } = await supabase
-      .from('aoty')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('album_id', albumId);
-    setMovingId(null);
-    if (deleteError) {
-      showError('Could not move back to Contenders. Try again.');
-      return;
-    }
-    const shown = [...rows, ...view.noYear];
-    const at = shown.findIndex((r) => r.item.albumId === albumId);
-    pendingFocus.current = { removedId: albumId, nextId: shown[at + 1]?.item.albumId ?? null };
-    showSuccess('Moved back to Contenders');
-    refetch();
+  function handleBackToContenders(albumId: string) {
+    if (!user) return;
+    return run([albumId], async () => {
+      // Membership row only; the album is still a contender and reappears there.
+      const { error: deleteError } = await supabase
+        .from('aoty')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('album_id', albumId);
+      if (deleteError) {
+        showError('Could not move back to Contenders. Try again.');
+        return;
+      }
+      const shown = [...rows, ...view.noYear];
+      const at = shown.findIndex((r) => r.item.albumId === albumId);
+      pendingFocus.current = { removedId: albumId, nextId: shown[at + 1]?.item.albumId ?? null };
+      showSuccess('Moved back to Contenders');
+      // Row leaves now, from the write result; the refetch only reconciles.
+      removeLocal([albumId]);
+      refetch();
+    });
   }
 
   const renderRow = ({ item, rank }: AotyRow) => (
@@ -82,6 +85,7 @@ export function AotyPage() {
       rank={rank}
       scoreLabel="Your Score"
       onBackToContenders={() => handleBackToContenders(item.albumId)}
+      backPending={pending.has(item.albumId)}
       ratingSummary={summary.get(item.albumId)}
       confidenceTier={tier}
       hasInsufficientData={hasInsufficientData}
