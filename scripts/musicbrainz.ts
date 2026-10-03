@@ -31,6 +31,12 @@ export interface MusicBrainzData {
   status: 'ok' | 'not_found' | 'error';
 }
 
+// Word-bounded so "Optimist"/"Volcano" are untouched; swallows the trailing period of "Pt."/"Vol.".
+// One direction only (abbreviated -> spelled out); the reverse is not handled.
+export function expandTitleAbbreviations(title: string): string {
+  return title.replace(/\bpt\b\.?/gi, 'Part').replace(/\bvol\b\.?/gi, 'Volume');
+}
+
 const MAX_TIER3_RELEASES_CHECKED = 10;
 
 /**
@@ -49,15 +55,26 @@ export async function lookupMusicBrainz(band: string, album: string): Promise<Mu
     const bandForSearch = band.replace(/^Review:\s*/i, '').trim() || band;
     const albumForSearch = album.replace(/\s+(EP\s+)?Review$/i, '').trim() || album;
 
-    // Step A: search for the release to get its MBID, release-group id, and release date
-    const mbSearch = await axios.get('https://musicbrainz.org/ws/2/release/', {
-      params: {
-        query: `artist:"${bandForSearch}" AND release:"${albumForSearch}"`,
-        fmt: 'json',
-      },
-      headers: { 'User-Agent': MB_USER_AGENT },
-    });
-    const releases: any[] = mbSearch.data?.releases ?? [];
+    // Step A: search for the release to get its MBID, release-group id, and release date.
+    // The title goes in as a literal phrase, so a review-site abbreviation ("Pt. III") misses
+    // MB's spelled-out title ("Part III"). On an empty result only, retry once with the
+    // abbreviations expanded — see docs/decisions/musicbrainz-enrichment.md.
+    const searchReleases = async (title: string): Promise<any[]> => {
+      const res = await axios.get('https://musicbrainz.org/ws/2/release/', {
+        params: {
+          query: `artist:"${bandForSearch}" AND release:"${title}"`,
+          fmt: 'json',
+        },
+        headers: { 'User-Agent': MB_USER_AGENT },
+      });
+      return res.data?.releases ?? [];
+    };
+    let releases = await searchReleases(albumForSearch);
+    const expandedTitle = expandTitleAbbreviations(albumForSearch);
+    if (releases.length === 0 && expandedTitle !== albumForSearch) {
+      await sleep(1000); // MB rate limit: 1 req/sec between requests
+      releases = await searchReleases(expandedTitle);
+    }
     if (releases.length === 0)
       return {
         artworkUrl: null,
@@ -261,7 +278,13 @@ export async function lookupMusicBrainzByReleaseGroupId(
     const firstReleaseDate: string | null = groupRes.data?.['first-release-date'] || null;
     const artistMbid: string | null = groupRes.data?.['artist-credit']?.[0]?.artist?.id ?? null;
     if (releaseIds.length === 0) {
-      return { artworkUrl: null, genres: [], releaseDate: firstReleaseDate, releaseGroupId, status: 'not_found' };
+      return {
+        artworkUrl: null,
+        genres: [],
+        releaseDate: firstReleaseDate,
+        releaseGroupId,
+        status: 'not_found',
+      };
     }
 
     await sleep(1000);

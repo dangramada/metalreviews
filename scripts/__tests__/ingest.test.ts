@@ -5,6 +5,7 @@ import {
   isDenylistedFranchise,
   shouldSkipPost,
   filterAlreadySkipped,
+  claimBackfilledReleaseGroupId,
 } from '../ingest';
 
 describe('shouldSkipPost — non-review post filtering', () => {
@@ -84,7 +85,13 @@ describe('shouldSkipPost — non-review post filtering', () => {
 
   it('skips an AMG "Stuck in the Filter" post even when mistagged with Review/Reviews', () => {
     const item = {
-      categories: ['Reviews', 'Stuck in the Filter', 'Death Metal', 'Review', 'Stuck in the Filter 2026'],
+      categories: [
+        'Reviews',
+        'Stuck in the Filter',
+        'Death Metal',
+        'Review',
+        'Stuck in the Filter 2026',
+      ],
     };
     expect(isGenuineReview(item, 'Angry Metal Guy')).toBe(true);
     expect(isDenylistedFranchise(item, 'Angry Metal Guy')).toBe(true);
@@ -108,14 +115,19 @@ describe('filterAlreadySkipped — skipped_posts safety net', () => {
   });
 
   it('passes everything through when the skip set is empty', () => {
-    const raw = [makeRaw('https://www.angrymetalguy.com/a/'), makeRaw('https://www.angrymetalguy.com/b/')];
+    const raw = [
+      makeRaw('https://www.angrymetalguy.com/a/'),
+      makeRaw('https://www.angrymetalguy.com/b/'),
+    ];
     expect(filterAlreadySkipped(raw, new Set())).toEqual(raw);
   });
 
   it('filters out a raw review whose URL is already in skipped_posts, even though it reached allRaw', () => {
     // Simulates exactly the confirmed regression: shouldSkipPost (stale process) let it
     // through, but skipped_posts (logged by a correct process) already has this URL.
-    const bad = makeRaw('https://www.angrymetalguy.com/stuck-in-the-filter-may-2026s-angry-misses/');
+    const bad = makeRaw(
+      'https://www.angrymetalguy.com/stuck-in-the-filter-may-2026s-angry-misses/'
+    );
     const good = makeRaw('https://www.angrymetalguy.com/a-genuine-review/');
     const result = filterAlreadySkipped([bad, good], new Set([bad.url]));
     expect(result).toEqual([good]);
@@ -135,5 +147,45 @@ describe('filterAlreadySkipped — skipped_posts safety net', () => {
     filterAlreadySkipped([makeRaw('https://www.angrymetalguy.com/fine/')], new Set());
     expect(logSpy).not.toHaveBeenCalled();
     logSpy.mockRestore();
+  });
+});
+
+describe('claimBackfilledReleaseGroupId — unique mb_release_group_id guard', () => {
+  const row = (id: string, mb: string | null = null) => ({
+    id,
+    band: 'B',
+    album: 'A',
+    norm_key: id,
+    mb_release_group_id: mb,
+    artwork_url: null,
+    genre: [],
+    release_date: null,
+  });
+
+  it('sets the id and registers the owner when unclaimed', () => {
+    const a = row('a');
+    const owners = new Map();
+    claimBackfilledReleaseGroupId(a, 'rg', owners);
+    expect(a.mb_release_group_id).toBe('rg');
+    expect(owners.get('rg')).toBe(a);
+  });
+
+  it('leaves the id unset, logs, and does not throw when another row owns it', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const a = row('a');
+    const owners = new Map([['rg', row('other', 'rg')]]);
+    claimBackfilledReleaseGroupId(a, 'rg', owners);
+    expect(a.mb_release_group_id).toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('other'));
+    warn.mockRestore();
+  });
+
+  it('is a no-op with no resolved id or an already-set id', () => {
+    const a = row('a', 'keep');
+    claimBackfilledReleaseGroupId(a, 'rg', new Map());
+    expect(a.mb_release_group_id).toBe('keep');
+    const b = row('b');
+    claimBackfilledReleaseGroupId(b, null, new Map());
+    expect(b.mb_release_group_id).toBeNull();
   });
 });
