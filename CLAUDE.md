@@ -111,9 +111,11 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 2026-09-30: `npm run type-check` now runs `tsc -b`; plain `tsc --noEmit` checked zero files before (earlier "`tsc` clean" claims were vacuous unless via `tsc -b`).
 
-In progress: `feature/aoty-promoted-leaves-contenders` — an album selected for AOTY leaves the
-Contenders list; AOTY rows get "Back to Contenders" instead of remove. Reverses decision 8. Not yet
-merged. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
+Most recent merge: `feature/aoty-promoted-leaves-contenders` — an album selected for AOTY leaves the
+Contenders list; AOTY rows get "Back to Contenders" instead of remove (reverses decision 8); per-row
+pending state and local-first updates with silent refetch. 981/981 tests, `tsc -b` clean. Not yet
+live-verified by Dan. Merged to `master` `--no-ff` at `b090c0b` on 2026-10-03. Rollback tag:
+`pre-merge-feature-aoty-promoted-leaves-contenders`. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
 
 Most recent merge: `feature/contenders-backfill` — one-off `supabase/contenders-backfill.sql` (insert-only) backfilled fully-rated albums into Contenders; run live 2026-10-02, contenders 6 -> 21, missing 15 -> 0. No code changes; 959/959 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `aae17d6` on 2026-10-02. Rollback tag: `pre-merge-feature-contenders-backfill`. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
 
