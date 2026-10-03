@@ -117,6 +117,8 @@ pending state and local-first updates with silent refetch. 981/981 tests, `tsc -
 live-verified by Dan. Merged to `master` `--no-ff` at `b090c0b` on 2026-10-03. Rollback tag:
 `pre-merge-feature-aoty-promoted-leaves-contenders`. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
 
+Most recent merge: `fix/dead-artwork-refresh-2026-10-03` — one-off script repairing dead CAA artwork URLs for flagged albums (`--apply` requires `--only`); applied to Green Lung only, 4 others not confirmed dead. 981/981 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `ff609a2` on 2026-10-03. Rollback tag: `pre-merge-fix-dead-artwork-refresh-2026-10-03`. Detail: `docs/decisions/musicbrainz-enrichment.md`.
+
 Most recent merge: `feature/contenders-backfill` — one-off `supabase/contenders-backfill.sql` (insert-only) backfilled fully-rated albums into Contenders; run live 2026-10-02, contenders 6 -> 21, missing 15 -> 0. No code changes; 959/959 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `aae17d6` on 2026-10-02. Rollback tag: `pre-merge-feature-contenders-backfill`. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
 
 Most recent merge: `feature/aoty-list` — AOTY final-list stage (`aoty.sql`, `useAotyList`, `aotyView`). Merged to `master` `--no-ff` at `15e2ff5` on 2026-10-01. 959/959 tests, `tsc -b` clean. Rollback tag: `pre-merge-feature-aoty-list`. Detail: `docs/decisions/aoty/aoty-list-implementation.md`.
