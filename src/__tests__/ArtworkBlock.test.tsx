@@ -1,8 +1,8 @@
 // src/__tests__/ArtworkBlock.test.tsx
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import system from '../theme';
 import { ArtworkBlock } from '../App';
@@ -97,5 +97,26 @@ describe('ArtworkBlock', () => {
     expect(screen.getByRole('menuitem', { name: /Spotify/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /YouTube Music/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Deezer/i })).toBeInTheDocument();
+  });
+
+  describe('artwork load retry', () => {
+    afterEach(() => vi.useRealTimers());
+    const rev = { ...mockReview, artworkUrl: 'https://coverartarchive.org/release/x/1.jpg' };
+
+    it('retries with ?r= (retries only), then shows the placeholder after 2 retries', () => {
+      vi.useFakeTimers();
+      render(<ArtworkBlock rev={rev} />, { wrapper });
+      const src = () => screen.queryByRole('img')?.getAttribute('src');
+      expect(src()).toBe('https://coverartarchive.org/release/x/1-500.jpg');
+      fireEvent.error(screen.getByRole('img'));
+      expect(screen.queryByText('No artwork found')).not.toBeInTheDocument();
+      act(() => void vi.advanceTimersByTime(3000));
+      expect(src()).toBe('https://coverartarchive.org/release/x/1-500.jpg?r=1');
+      fireEvent.error(screen.getByRole('img'));
+      act(() => void vi.advanceTimersByTime(8000));
+      expect(src()).toBe('https://coverartarchive.org/release/x/1-500.jpg?r=2');
+      fireEvent.error(screen.getByRole('img'));
+      expect(screen.getByText('No artwork found')).toBeInTheDocument();
+    });
   });
 });
