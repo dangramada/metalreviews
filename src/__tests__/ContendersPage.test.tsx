@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ContendersPage } from '../ContendersPage';
 import system from '../theme';
 import type { FavoriteListItem } from '../hooks/useFavoritesList';
@@ -13,6 +13,7 @@ import type { FavoriteListItem } from '../hooks/useFavoritesList';
 // calibration tables: these hooks' own internals are already covered by their own test files,
 // so a ContendersPage test only needs to exercise ContendersPage's own logic.
 const mockRefetch = vi.fn();
+const mockAddContendersLocal = vi.fn();
 let mockItems: FavoriteListItem[] = [];
 vi.mock('../hooks/useContendersList', () => ({
   useContendersList: () => ({
@@ -20,6 +21,7 @@ vi.mock('../hooks/useContendersList', () => ({
     loading: false,
     error: null,
     refetch: mockRefetch,
+    addLocal: mockAddContendersLocal,
   }),
 }));
 
@@ -62,9 +64,14 @@ vi.mock('../hooks/useAlbumRatingsSummary', () => ({
 }));
 
 let pickerContenderIds = new Set<string>();
+let pickerOnAdded: (added: FavoriteListItem[]) => unknown = () => undefined;
 vi.mock('../components/AddToContendersPicker', () => ({
-  AddToContendersPicker: (p: { contenderAlbumIds: Set<string> }) => {
+  AddToContendersPicker: (p: {
+    contenderAlbumIds: Set<string>;
+    onAdded: (added: FavoriteListItem[]) => unknown;
+  }) => {
     pickerContenderIds = p.contenderAlbumIds;
+    pickerOnAdded = p.onAdded;
     return null;
   },
 }));
@@ -285,7 +292,7 @@ describe('ContendersPage', () => {
     it('shows the all-in-AOTY empty state, distinct from the true empty state', async () => {
       mockAotyItems = [{ ...mockItem, createdAt: '2026-09-30' }];
       render(<ContendersPage />, { wrapper });
-      expect(screen.getByText('All your contenders are in AOTY.')).toBeInTheDocument();
+      expect(screen.getByText('All your 2024 contenders are in AOTY.')).toBeInTheDocument();
       expect(screen.queryByText('No contenders yet.')).toBeNull();
     });
 
@@ -460,7 +467,7 @@ describe('ContendersPage', () => {
     });
 
     it('bulk-adds only ready albums and reports the skipped count', async () => {
-      mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla', releaseDate: null }];
+      mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla' }];
       mockSummary = rated();
       render(<ContendersPage />, { wrapper });
       fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
@@ -488,6 +495,197 @@ describe('ContendersPage', () => {
         expect(mockShowSuccess).toHaveBeenCalledWith('1 removed from Contenders')
       );
       expect(screen.queryByText(/AOTY list/)).toBeNull();
+    });
+  });
+});
+
+function Loc() {
+  const l = useLocation();
+  return <div data-testid="loc">{l.pathname + l.search}</div>;
+}
+const at = (entry: string) =>
+  function RouterWrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <ChakraProvider value={system}>
+        <MemoryRouter initialEntries={[entry]}>
+          <Loc />
+          {children}
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+  };
+const album = (albumId: string, band: string, releaseDate: string | null): FavoriteListItem => ({
+  ...mockItem,
+  albumId,
+  band,
+  releaseDate,
+});
+const loc = () => screen.getByTestId('loc').textContent;
+const year = () => screen.getByRole('combobox', { name: 'Year' }) as HTMLSelectElement;
+
+describe('ContendersPage year scope', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAotyItems = [];
+    mockAotyLoading = false;
+    mockSummary = new Map();
+    stubInsufficient = false;
+    stubTier = 'high';
+    stubHasWeights = true;
+    mockItems = [
+      album('a1', 'Alpha', '2025-03-01'),
+      album('a2', 'Bravo', '2025-05'),
+      album('b1', 'Charlie', '2024'),
+      album('n1', 'Delta', null),
+    ];
+  });
+
+  it('defaults to the year with most contenders when AOTY is empty, and filters rows', () => {
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    expect(year().value).toBe('2025');
+    expect(screen.getAllByText(/Alpha/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Charlie/)).toBeNull();
+    expect(screen.queryByText(/Delta/)).toBeNull();
+    expect(Array.from(year().options).map((o) => o.textContent)).toEqual([
+      '2025',
+      '2024',
+      'No release year',
+    ]);
+  });
+
+  it('prefers the year with most AOTY members over the one with most contenders', () => {
+    mockAotyItems = [{ ...mockItems[2], createdAt: 'x' }];
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    expect(year().value).toBe('2024');
+  });
+
+  it('breaks ties toward the latest year', () => {
+    mockItems = [album('a1', 'Alpha', '2025-03-01'), album('b1', 'Charlie', '2024-01-01')];
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    expect(year().value).toBe('2025');
+  });
+
+  it('writes the scope to the URL by replace and switches rows on change', () => {
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    expect(loc()).toBe('/aoty/contenders?year=2025');
+    fireEvent.change(year(), { target: { value: '2024' } });
+    expect(loc()).toBe('/aoty/contenders?year=2024');
+    expect(screen.getAllByText(/Charlie/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Alpha/)).toBeNull();
+  });
+
+  it('honors a valid ?year and falls back to the default for invalid or unavailable ones', () => {
+    const { unmount } = render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=2024') });
+    expect(year().value).toBe('2024');
+    unmount();
+    for (const bad of ['abc', '20245', '1999']) {
+      const r = render(<ContendersPage />, { wrapper: at(`/aoty/contenders?year=${bad}`) });
+      expect(year().value).toBe('2025');
+      r.unmount();
+    }
+  });
+
+  it('hides the selector when only one scope value exists', () => {
+    mockItems = [album('a1', 'Alpha', '2025-03-01')];
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    expect(screen.queryByRole('combobox', { name: 'Year' })).toBeNull();
+    expect(loc()).toBe('/aoty/contenders');
+  });
+
+  it('carries the scope in the AOTY link', () => {
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=2024') });
+    fireEvent.click(screen.getByRole('button', { name: 'AOTY →' }));
+    expect(loc()).toBe('/aoty?year=2024');
+  });
+
+  it('keeps the displayed scope when promotions change the counts (no ?year)', () => {
+    const { rerender } = render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    expect(year().value).toBe('2025');
+    // A 2024 album joins AOTY: a recomputed default would now flip to 2024.
+    mockAotyItems = [{ ...mockItems[2], createdAt: 'x' }];
+    rerender(<ContendersPage />);
+    expect(year().value).toBe('2025');
+  });
+
+  it('stays on a scope that became empty and shows its empty state', () => {
+    mockItems = [album('b1', 'Charlie', '2024'), album('a1', 'Alpha', '2025-03-01')];
+    const { rerender } = render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=2024') });
+    mockItems = [album('a1', 'Alpha', '2025-03-01'), album('a2', 'Bravo', '2025-05')];
+    rerender(<ContendersPage />);
+    expect(year().value).toBe('2024');
+    expect(screen.getByText('No contenders in 2024.')).toBeInTheDocument();
+  });
+
+  it('shows the all-promoted state for the scope when others still have contenders', () => {
+    mockAotyItems = [{ ...mockItems[2], createdAt: 'x' }];
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=2024') });
+    expect(screen.getByText('All your 2024 contenders are in AOTY.')).toBeInTheDocument();
+  });
+
+  it('shows a visible reason and no promotion for an undated contender in the no-year scope', () => {
+    mockSummary = new Map([
+      ['n1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
+    ]);
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=none') });
+    expect(year().value).toBe('none');
+    expect(screen.getAllByText(/Delta/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No release date yet.').length).toBeGreaterThan(0);
+    const btns = screen.getAllByRole('button', { name: /Select Delta .* for AOTY/ });
+    btns.forEach((b) => {
+      expect(b).toBeDisabled();
+      fireEvent.click(b);
+    });
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it('says no contenders without a release year when that scope is empty', () => {
+    mockItems = [album('a1', 'Alpha', '2025-03-01'), album('b1', 'Charlie', '2024')];
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=none') });
+    // 'none' is unavailable at resolution, so the default applies.
+    expect(year().value).toBe('2025');
+  });
+
+  it('clears the selection when the scope changes', async () => {
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Select Alpha/ }));
+    await waitFor(() => screen.getByText('1 selected'));
+    fireEvent.change(year(), { target: { value: '2024' } });
+    expect(screen.queryByText(/selected/)).toBeNull();
+  });
+
+  describe('Add from Favorites', () => {
+    it('adds the albums to the pool first, and offers View <year> when all outside share one year', () => {
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      const added = [album('c1', 'Echo', '2023-01-01'), album('c2', 'Foxtrot', '2023-06-01')];
+      let result: { suffix?: string; action?: { label: string; onClick: () => void } } | undefined;
+      act(() => {
+        result = pickerOnAdded(added) as typeof result;
+      });
+      expect(mockAddContendersLocal).toHaveBeenCalledWith(added);
+      expect(result?.suffix).toBe(' 2 are outside 2025.');
+      expect(result?.action?.label).toBe('View 2023');
+      // Clicking View right away lands on that year, before any refetch has landed.
+      act(() => result?.action?.onClick());
+      expect(loc()).toBe('/aoty/contenders?year=2023');
+      expect(year().value).toBe('2023');
+    });
+
+    it('offers no View action when the outside albums span years, and nothing when all are in scope', () => {
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      let result: { suffix?: string; action?: unknown } | undefined;
+      act(() => {
+        result = pickerOnAdded([
+          album('c1', 'Echo', '2023-01-01'),
+          album('c2', 'Foxtrot', '2022-06-01'),
+          album('c3', 'Golf', '2025-01-01'),
+        ]) as typeof result;
+      });
+      expect(result?.suffix).toBe(' 2 are outside 2025.');
+      expect(result?.action).toBeUndefined();
+      act(() => {
+        result = pickerOnAdded([album('c4', 'Hotel', '2025-02-01')]) as typeof result;
+      });
+      expect(result).toBeUndefined();
     });
   });
 });

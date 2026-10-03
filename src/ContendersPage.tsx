@@ -9,6 +9,10 @@ import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
+import { useYearScope, scopeOf } from './hooks/useYearScope';
+import { YearScopeSelect } from './components/YearScopeSelect';
+import { scopeLabel } from './lib/aoty/yearScope';
+import type { AddedToast } from './components/AddToContendersPicker';
 import { useAotyList } from './hooks/useAotyList';
 import { usePendingIds } from './hooks/usePendingIds';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
@@ -32,7 +36,13 @@ import { focusRowOrHeading } from './utils/focusRow';
 // FavoritesPage (same row component, same calibration-gate flow, duplicated rather than shared
 // — see handleRate's comment below).
 export function ContendersPage() {
-  const { items: allItems, loading: contendersLoading, error, refetch } = useContendersList();
+  const {
+    items: allItems,
+    loading: contendersLoading,
+    error,
+    refetch,
+    addLocal: addContendersLocal,
+  } = useContendersList();
   const {
     aotyIds,
     idsLoading: aotyIdsLoading,
@@ -60,6 +70,20 @@ export function ContendersPage() {
   // contenders, so the picker below still gets the unfiltered set). A failed AOTY fetch leaves
   // aotyIds empty, i.e. every contender shows; re-selecting one is a harmless idempotent upsert.
   const items = useMemo(() => allItems.filter((i) => !aotyIds.has(i.albumId)), [allItems, aotyIds]);
+  // The pinned year scope (shared with /aoty) narrows what is shown; `items` stays unscoped so
+  // the focus handoff below only fires once a row has really left the list, not on a scope switch.
+  const { scope, setYear, options, inScope, scopeSearch } = useYearScope({
+    pool: allItems,
+    aotyIds,
+    ready: !contendersLoading && !aotyIdsLoading,
+  });
+  const scopedItems = useMemo(() => items.filter(inScope), [items, inScope]);
+  // Rows in another scope are hidden, so a selection made there must not stay live.
+  const [selectionScope, setSelectionScope] = useState(scope);
+  if (selectionScope !== scope) {
+    setSelectionScope(scope);
+    setSelectedIds(new Set());
+  }
   // Wait for the AOTY ids too (not the full AOTY list), or its members flash in this list.
   const loading = contendersLoading || aotyIdsLoading;
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -125,8 +149,11 @@ export function ContendersPage() {
     }
     return run([item.albumId], async () => {
       // Focus goes to the next row (else the heading) once the row has actually left the list.
-      const at = items.findIndex((i) => i.albumId === item.albumId);
-      pendingFocus.current = { removedIds: [item.albumId], nextId: items[at + 1]?.albumId ?? null };
+      const at = scopedItems.findIndex((i) => i.albumId === item.albumId);
+      pendingFocus.current = {
+        removedIds: [item.albumId],
+        nextId: scopedItems[at + 1]?.albumId ?? null,
+      };
       if (await addToAoty([item])) showSuccess('Added to AOTY');
       else pendingFocus.current = null;
     });
@@ -134,7 +161,7 @@ export function ContendersPage() {
 
   async function handleBulkSelectForAoty() {
     if (bulkBusy) return;
-    const chosen = items.filter((i) => selectedIds.has(i.albumId));
+    const chosen = scopedItems.filter((i) => selectedIds.has(i.albumId));
     const ready = chosen.filter((i) => isReadyForAoty(i.albumId) && i.releaseDate);
     setBulkAdding(true);
     const ok = await run(
@@ -216,7 +243,40 @@ export function ContendersPage() {
     });
   }
 
+  // Runs before the picker's success toast: the albums join the pool first, so a "View <year>"
+  // click lands on a scope that already contains them.
+  function handleAdded(added: FavoriteListItem[]): AddedToast | undefined {
+    addContendersLocal(added);
+    refetch();
+    if (scope === null) return undefined;
+    const outside = added.filter((a) => !inScope(a));
+    if (outside.length === 0) return undefined;
+    const scopes = new Set(outside.map((a) => scopeOf(a.releaseDate)));
+    const only = scopes.size === 1 ? [...scopes][0] : null;
+    return {
+      suffix: ` ${outside.length} ${outside.length === 1 ? 'is' : 'are'} outside ${scope === 'none' ? 'the no-year view' : scope}.`,
+      action:
+        typeof only === 'number'
+          ? { label: `View ${only}`, onClick: () => setYear(only) }
+          : undefined,
+    };
+  }
+
   const contenderAlbumIds = useMemo(() => new Set(allItems.map((i) => i.albumId)), [allItems]);
+
+  const inScopeCount = allItems.filter(inScope).length;
+  const emptyTitle =
+    allItems.length === 0
+      ? 'No contenders yet.'
+      : scope === null
+        ? 'All your contenders are in AOTY.'
+        : inScopeCount === 0
+          ? scope === 'none'
+            ? 'No contenders without a release year.'
+            : `No contenders in ${scope}.`
+          : scope === 'none'
+            ? 'All your contenders without a release year are in AOTY.'
+            : `All your ${scopeLabel(scope)} contenders are in AOTY.`;
 
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
@@ -225,9 +285,12 @@ export function ContendersPage() {
           <Header />
 
           <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
-            <Heading as="h2" size="xl" ref={headingRef} tabIndex={-1}>
-              Contenders
-            </Heading>
+            <Flex align="center" gap={3} flexWrap="wrap">
+              <Heading as="h2" size="xl" ref={headingRef} tabIndex={-1}>
+                Contenders
+              </Heading>
+              <YearScopeSelect options={options} value={scope} onChange={setYear} />
+            </Flex>
             <Flex gap={2}>
               <Button
                 {...secondaryButton}
@@ -241,7 +304,7 @@ export function ContendersPage() {
                 {...secondaryButton}
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/aoty')}
+                onClick={() => navigate(`/aoty${scopeSearch}`)}
               >
                 AOTY →
               </Button>
@@ -314,17 +377,15 @@ export function ContendersPage() {
             <Text textAlign="center" color="red.400">
               Failed to load Contenders. Please try again later.
             </Text>
-          ) : items.length === 0 ? (
+          ) : scopedItems.length === 0 ? (
             <EmptyState
               icon={<Icon as={Info} />}
-              title={
-                allItems.length > 0 ? 'All your contenders are in AOTY.' : 'No contenders yet.'
-              }
+              title={emptyTitle}
               description="Score an album, or add one from your favorites."
             />
           ) : (
             <VStack gap={3} align="stretch">
-              {items.map((item) => (
+              {scopedItems.map((item) => (
                 <SelectableRow
                   key={item.albumId}
                   desktopOnly
@@ -381,7 +442,7 @@ export function ContendersPage() {
         isOpen={pickerOpen}
         onClose={() => setPickerOpen(false)}
         contenderAlbumIds={contenderAlbumIds}
-        onAdded={refetch}
+        onAdded={handleAdded}
       />
 
       <CalibrationGateDialog

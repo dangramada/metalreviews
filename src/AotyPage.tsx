@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Box, Button, Container, Flex, Heading, Icon, Text, VStack } from '@chakra-ui/react';
 import { Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,10 @@ import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useAotyList } from './hooks/useAotyList';
+import { useContendersList } from './hooks/useContendersList';
+import { useYearScope } from './hooks/useYearScope';
+import { YearScopeSelect } from './components/YearScopeSelect';
+import { scopeLabel } from './lib/aoty/yearScope';
 import { usePendingIds } from './hooks/usePendingIds';
 import { useCalibrationGate } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
@@ -17,21 +21,27 @@ import { getReleaseYear } from './App';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
-import { primaryButton, secondaryButton } from './theme';
+import { secondaryButton } from './theme';
 import { focusRowOrHeading } from './utils/focusRow';
 
 // The AOTY list: membership is stored (`aoty` table), everything shown is derived. Year comes
 // from albums.release_date, order/rank from the user's current weights (compareAotyOrder).
 // See docs/decisions/aoty/aoty-list-implementation.md.
 export function AotyPage() {
-  const { items, loading, error, refetch, removeLocal } = useAotyList();
+  const { items, aotyIds, idsLoading, loading, error, refetch, removeLocal } = useAotyList();
+  // The year list spans Contenders too (AOTY is a subset), so the selector matches
+  // /aoty/contenders. If that fetch fails the scope is built from the AOTY items alone.
+  const {
+    items: contenders,
+    loading: contendersLoading,
+    error: contendersError,
+  } = useContendersList();
   const { pending, run } = usePendingIds();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showSuccess, showError } = useFeedbackToast();
   const { summary, criterionOrder } = useAlbumRatingsSummary();
   const { tier, hasInsufficientData, hasWeights, loading: gateLoading } = useCalibrationGate();
-  const [pickedYear, setPickedYear] = useState<number | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingFocus = useRef<{ removedId: string; nextId: string | null } | null>(null);
 
@@ -43,9 +53,13 @@ export function AotyPage() {
     [items, summary, criterionOrder, scoresAvailable]
   );
 
-  // Latest year with selections unless the user picked one that still exists.
-  const year = pickedYear !== null && view.byYear.has(pickedYear) ? pickedYear : view.years[0];
-  const rows: AotyRow[] = year === undefined ? [] : (view.byYear.get(year) ?? []);
+  const { scope, setYear, options, scopeSearch } = useYearScope({
+    pool: contendersError ? items : contenders,
+    aotyIds,
+    ready: !loading && !idsLoading && !contendersLoading,
+  });
+  const rows: AotyRow[] =
+    scope === null ? [] : scope === 'none' ? view.noYear : (view.byYear.get(scope) ?? []);
 
   // Focus goes to the next row (else the heading) once the moved row has left the list.
   useEffect(() => {
@@ -68,9 +82,8 @@ export function AotyPage() {
         showError('Could not move back to Contenders. Try again.');
         return;
       }
-      const shown = [...rows, ...view.noYear];
-      const at = shown.findIndex((r) => r.item.albumId === albumId);
-      pendingFocus.current = { removedId: albumId, nextId: shown[at + 1]?.item.albumId ?? null };
+      const at = rows.findIndex((r) => r.item.albumId === albumId);
+      pendingFocus.current = { removedId: albumId, nextId: rows[at + 1]?.item.albumId ?? null };
       showSuccess('Moved back to Contenders');
       // Row leaves now, from the write result; the refetch only reconciles.
       removeLocal([albumId]);
@@ -99,14 +112,17 @@ export function AotyPage() {
           <Header />
 
           <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
-            <Heading as="h2" size="xl" ref={headingRef} tabIndex={-1}>
-              AOTY
-            </Heading>
+            <Flex align="center" gap={3} flexWrap="wrap">
+              <Heading as="h2" size="xl" ref={headingRef} tabIndex={-1}>
+                AOTY
+              </Heading>
+              <YearScopeSelect options={options} value={scope} onChange={setYear} />
+            </Flex>
             <Button
               {...secondaryButton}
               variant="outline"
               size="sm"
-              onClick={() => navigate('/aoty/contenders')}
+              onClick={() => navigate(`/aoty/contenders${scopeSearch}`)}
             >
               Contenders →
             </Button>
@@ -117,24 +133,7 @@ export function AotyPage() {
               aoty-list-implementation.md's reversal section. */}
           {!gateLoading && tier === 'none' && <TierNoneBanner from="aoty" />}
 
-          {view.years.length > 1 && (
-            <Flex gap={2} wrap="wrap" role="group" aria-label="Year">
-              {view.years.map((y) => (
-                <Button
-                  key={y}
-                  {...(y === year ? primaryButton : secondaryButton)}
-                  variant={y === year ? 'solid' : 'outline'}
-                  size="sm"
-                  aria-pressed={y === year}
-                  onClick={() => setPickedYear(y)}
-                >
-                  {y}
-                </Button>
-              ))}
-            </Flex>
-          )}
-
-          {loading ? (
+          {loading || contendersLoading ? (
             <Flex justify="center" align="center" minH="200px">
               <LoadingIndicator />
             </Flex>
@@ -148,17 +147,19 @@ export function AotyPage() {
               title="No AOTY picks yet."
               description="Pick from your Contenders."
             />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={<Icon as={Info} />}
+              title={
+                scope === 'none'
+                  ? 'No AOTY picks without a release year.'
+                  : `No AOTY picks in ${scope === null ? 'this year' : scopeLabel(scope)}.`
+              }
+              description="Pick from your Contenders."
+            />
           ) : (
             <VStack gap={3} align="stretch">
               {rows.map(renderRow)}
-              {view.noYear.length > 0 && (
-                <>
-                  <Heading as="h3" size="md" pt={4}>
-                    No release year
-                  </Heading>
-                  {view.noYear.map(renderRow)}
-                </>
-              )}
             </VStack>
           )}
 
