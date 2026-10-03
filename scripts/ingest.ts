@@ -882,6 +882,26 @@ export function selectAlbumBackfillCandidates(
   });
 }
 
+// albums.mb_release_group_id is unique. If another row already owns the resolved id, setting it
+// would make the batch albums upsert fail and abort the whole run (and every later one) — so
+// leave the id unset, log the pair, and let the run continue. Mutates `enriched` and `owners`.
+export function claimBackfilledReleaseGroupId(
+  enriched: AlbumRow,
+  releaseGroupId: string | null,
+  owners: Map<string, AlbumRow>
+): void {
+  if (!releaseGroupId || enriched.mb_release_group_id) return;
+  const owner = owners.get(releaseGroupId);
+  if (owner && owner.id !== enriched.id) {
+    console.warn(
+      `Backfill: ${enriched.band} — ${enriched.album} (${enriched.id}) resolved to release group ${releaseGroupId} already owned by ${owner.id}; leaving mb_release_group_id unset`
+    );
+    return;
+  }
+  enriched.mb_release_group_id = releaseGroupId;
+  owners.set(releaseGroupId, enriched);
+}
+
 export async function runIngestion() {
   // Load current state once, up front: reviews (real post-migration columns) and albums.
   // A read failure is non-fatal — we start fresh rather than aborting the entire run.
@@ -1039,9 +1059,7 @@ export async function runIngestion() {
   for (const a of candidates) {
     const mbData = await lookupMusicBrainz(a.band, a.album);
     const enriched = applyAlbumEnrichment(a, mbData);
-    if (mbData.releaseGroupId && !enriched.mb_release_group_id) {
-      enriched.mb_release_group_id = mbData.releaseGroupId;
-    }
+    claimBackfilledReleaseGroupId(enriched, mbData.releaseGroupId, liveAlbumByMbId);
     albumsToUpsert.set(a.id, enriched);
     // Bump the retry counter on every review attached to this album — see
     // selectAlbumBackfillCandidates for why attempts live on reviews, not albums.
