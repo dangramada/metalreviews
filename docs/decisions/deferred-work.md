@@ -1346,3 +1346,24 @@ Detail: `docs/decisions/perf-initial-load.md`.
   the two-column shared-data-source branch.
 - **Dev-only slowness**: StrictMode double mount (left on) and unbundled module loading in dev.
 - **Before/after browser measurements** for `perf/initial-load` are still to be recorded.
+
+## New items, 2026-10-03 (`fix/mb-title-abbreviation-retry`)
+
+Context: Green Carnation "A Dark Poem, Pt. III" missed MB ("Part III" is indexed), creating a
+duplicate album row. Fix shipped on the branch: one retry with `Pt.`/`Vol.` expanded when the
+first search is empty, plus a backfill guard for the unique `mb_release_group_id`.
+
+- **`computeNormKey` abbreviation normalization** (pt/part, vol/volume, &/and): deferred. It
+  would change stored `norm_key`s, so it needs a key migration, and
+  `FLAGGED_SAME_TITLE_COLLISION_NORM_KEYS` is keyed on `norm_key` and would have to be
+  recomputed in lockstep.
+- **Reverse direction not handled**: the retry only expands abbreviations. A stored "Part" whose
+  MB title is indexed as "Pt." still misses.
+- **Saidan / Fangdriller apostrophe duplicate**: `83c5b3d4` ("Memories Wrist") vs `85297822`
+  ("Memory’s Wrist", has MB id). Different cause (punctuation), not fixed by the retry; needs a
+  manual merge like the Green Carnation SQL.
+- **Null-MB rows with no reviews retried forever**: `selectAlbumBackfillCandidates` returns any
+  such album on every run. Currently the test row "Zzyzx Nonexistent Bandxyz123" and Leprous
+  "Pula".
+- **Main-loop lookups never count toward `mb_lookup_attempts`**: an album still in an RSS window
+  is looked up every run without consuming budget (it is also excluded from backfill as touched).
