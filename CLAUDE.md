@@ -111,6 +111,8 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 2026-09-30: `npm run type-check` now runs `tsc -b`; plain `tsc --noEmit` checked zero files before (earlier "`tsc` clean" claims were vacuous unless via `tsc -b`).
 
+In progress: `feature/year-scope` — the release year as a shared URL scope (`?year=`) for `/aoty` and `/aoty/contenders` via `useYearScope` and one `YearScopeSelect`; AOTY's own year chips removed. 1040/1040 tests, `tsc -b` clean. Not merged, not live-verified. Detail: `docs/decisions/aoty/aoty-list-implementation.md` ("Year as a shared scope").
+
 Most recent merge: `fix/mb-title-abbreviation-retry` — `lookupMusicBrainz` retries once with `Pt.`/`Vol.` expanded on an empty search; backfill skips an `mb_release_group_id` another album already owns (was a whole-batch abort). 1007/1007 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `252fa7f` on 2026-10-03. Rollback tag: `pre-merge-fix-mb-title-abbreviation-retry`. Green Carnation dedupe SQL run live by Dan 2026-10-03 (duplicate album merged, both reviews on the surviving row). Detail: `docs/decisions/deferred-work.md`.
 
 Most recent merge: `fix/artwork-load-retry` — `ArtworkBlock` retries a failed image load twice (3s, 8s) before the placeholder, via `useImageRetry`. 986/986 tests, `tsc -b` clean. Merged to `master` `--no-ff` at `bcc3b17` on 2026-10-03. Rollback tag: `pre-merge-fix-artwork-load-retry`. Detail: `docs/decisions/artwork.md`.

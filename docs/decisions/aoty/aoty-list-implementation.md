@@ -226,3 +226,61 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
 - **Measured (SYNTHETIC harness, 200 ms per query, not live):** row visible after write resolved
   ~411 ms before (two sequential reads), ~1 ms after. Live timing needs Dan's session (Network tab).
 - **Tests/tsc:** 981/981 (baseline 968), `tsc -b` clean, touched files lint-clean.
+
+### Year as a shared scope (2026-10-03, `feature/year-scope`)
+- **What:** the release year is one scope for `/aoty` and `/aoty/contenders`, held in the URL
+  (`?year=YYYY`, or `?year=none` for albums without a usable release year) and read through one
+  hook, `useYearScope` (`src/hooks/useYearScope.ts`; pure parse/serialize in
+  `src/lib/aoty/yearScope.ts`). One selector component (`YearScopeSelect`, accessible name
+  "Year", shown only when the pool spans more than one scope value) sits in both page headers.
+  AOTY's own year chips and its "No release year" sub-heading are removed: the no-year bucket is
+  now just another scope value. Rank stays per year (`buildAotyView` unchanged).
+- **Derived, never stored.** Year still comes from `albums.release_date` via `getReleaseYear`.
+  `aoty` is unchanged, no `list_id`. `getReleaseYear` reads the first four characters, so `YYYY`,
+  `YYYY-MM` and full dates all work and a NULL or unparsable date is the no-year bucket.
+- **Year source:** the unfiltered Contenders list plus the live `aotyIds` set (AOTY is a subset of
+  Contenders, so Contenders' years cover AOTY's). `/aoty` now also calls `useContendersList`: one
+  extra request on `/aoty` (2 to 3, all parallel), none extra on `/contenders`. If that request
+  fails, the pool falls back to the AOTY items. `ContendersPage` keeps its ids-first gate.
+- **Default year rule:** most AOTY members; if none, most contenders; ties go to the latest year.
+  The no-year bucket is a default only when it is the only scope value. **Why not "last
+  promoted":** it needs stored state (a timestamp read per user, or a persisted pick) and flips on
+  a single action; counts are derivable from data already loaded.
+- **Pinned after first resolution.** The scope resolves once and is then held in state: it is
+  re-resolved only on mount, an account change, or when the URL value itself changes. Promoting or
+  removing albums changes counts but never the displayed scope. A scope that becomes empty stays
+  on screen with its empty state. An invalid or unavailable `?year` falls back to the default only
+  at resolution. The hook writes the resolved scope to the URL with history `replace`, so the
+  header link and a reload carry it; it writes nothing when there is only one scope value.
+- **January 2027:** the rule never reads today's date. On 2027-01-01 the default stays at
+  whichever year has the most members; a 2027 release appears as a selectable year and becomes the
+  default only by out-counting it (contrast the 2026-09-21 Metal Storm calendar-year bug).
+- **Implausible years** (e.g. a catalog row dated 3036) are listed as-is, not hidden: hiding a
+  year would make its albums unreachable in both views, and a visible odd year is how bad catalog
+  data gets noticed. Consequence: a tie with such a year goes to it (ties favor the latest). Catalog
+  data not touched here.
+- **Contenders list** = contenders minus AOTY members, filtered to the scope. Undated contenders
+  appear only in the no-year scope, keep the "No release date yet." reason and a disabled
+  "Select for AOTY". The selection is cleared when the scope changes (otherwise a bulk action
+  could hit rows no longer on screen). Pending ids are per album and survive a scope switch; the
+  focus handoff watches the unscoped list so a switch cannot steal focus.
+- **Empty states** (same `EmptyState`): "No contenders in 2025." / "No contenders without a
+  release year."; "All your 2026 contenders are in AOTY." (this replaces the unscoped text);
+  AOTY: "No AOTY picks in 2025." with the existing "Pick from your Contenders." text. True-empty
+  states unchanged.
+- **Add from Favorites:** the picker's list and hidden set are unchanged. `onAdded` now receives
+  the added albums, the page puts them in the pool (`useContendersList.addLocal`) before the toast,
+  and may return a toast suffix and an action. If any added album is outside the current scope the
+  toast appends how many are; if all of those share one year it uses `showAction` ("View 2024",
+  `info` toast, 6 s) which switches the scope. Mixed years or undated: count only.
+- **List-as-entity: consciously deferred** (discovery wanted multi-list possible). Reversible by
+  a deterministic migration: a lists table with one default list per user and year, `aoty` gaining
+  a list reference backfilled from the derived year. Nothing here forecloses it.
+- **Auto-add on first full rating:** unchanged; an album from another year just widens the
+  options.
+- **Tests/tsc:** 123 files, 1040/1040 (baseline 1007 at `72d2f69`), `tsc -b` clean, touched files
+  lint-clean apart from 3 `no-explicit-any` errors already in `Header.test.tsx`. Header layout
+  checked at 320 px and desktop with a throwaway harness (real selector and theme, copied header
+  rows, no login), not the live pages.
+- **Not live-verified.** See the branch hand-off list for what needs a logged-in check.
+

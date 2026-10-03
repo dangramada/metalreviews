@@ -1367,3 +1367,23 @@ first search is empty, plus a backfill guard for the unique `mb_release_group_id
   "Pula".
 - **Main-loop lookups never count toward `mb_lookup_attempts`**: an album still in an RSS window
   is looked up every run without consuming budget (it is also excluded from backfill as touched).
+
+## New items, 2026-10-03 (`feature/year-scope`)
+
+- **Favorites has its own year filter ("All years", `FavoritesPage.tsx`) that now differs from the
+  AOTY/Contenders scope.** Different component, different state (page state, not the URL), and an
+  "All years" option the shared scope does not have. Decide whether Favorites should adopt the
+  shared scope or stay a separate filter before more year UI is added.
+- **`ContendersPage` triggers `useAotyList`'s second fetch for nothing.** It only needs the ids,
+  but the hook always goes on to fetch the members' albums. Split the ids read from the albums
+  read (or make the second step opt-in) so `/aoty/contenders` stops paying for it.
+- **Return trips drop `?year`.** `/rate/:id?from=contenders` and `/calibration?from=contenders`
+  send the user back to the bare Contenders URL, so the scope falls back to the default. Carry the
+  year through those `?from=` flows if it matters in practice.
+- **A tie with a bogus catalog year goes to it** (ties favor the latest). Implausible years such
+  as 3036 are listed as-is by decision; fixing the catalog rows is the real remedy and was not
+  done here.
+- **Header link only forwards a `?year` it finds in the URL**; it does not know the hook's pinned
+  scope. In practice the hook writes the scope to the URL whenever there is a choice, so the two
+  agree, but an inconsistent URL (hand-edited) is forwarded as-is.
+
