@@ -1309,3 +1309,15 @@ Noticed while building it, deliberately not touched on that branch (one concern 
   no label. Needs a touch-friendly treatment.
 - **Performance diagnostic pending** for the planned two-column page (both lists mounted at once,
   rating summary computed for each). Run before building `aoty/aoty-year-scope-and-two-column-decisions.md`'s layout.
+
+## New items, 2026-10-03 (dead artwork refresh)
+
+- **Exploring Birdsong — Every House We Built is never fully enriched.** `genre: []` and 7
+  `mb_lookup_attempts` on its only review (published 2026-07-02), so the attempts cap
+  (`>=5` and older than 14 days) keeps `selectAlbumBackfillCandidates` from retrying it. Separate
+  enrichment concern from its artwork URL (which returned intermittent 5xx on 2026-10-03, not
+  confirmed dead). See `musicbrainz-enrichment.md`'s 2026-10-03 section.
+- **Flame, Black Sites, Exploring Birdsong, Fen artwork URLs** — re-run
+  `refresh-dead-artwork-2026-10-03.ts --report` later; only rows that classify DEAD (404/410)
+  should be applied, one `--only` key at a time.
+

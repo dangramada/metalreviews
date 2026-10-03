@@ -169,6 +169,25 @@ friction, but not a blocker.
   sequential `await`s in one linear function, never concurrent, so a plain cached variable is
   sufficient and was chosen over a Promise-caching closure after code review (2026-09-18).
 
+## Dead artwork on flagged albums (2026-10-03)
+
+`scripts/diagnostics/revalidate-artwork-2026-09-17.ts --report` found 5 of 288 `artwork_url`s
+failing (its "dead" count includes 5xx and no-response, not only 404/410). Verified facts:
+
+- **Green Lung — Necropolitan: confirmed 404** (full-res and `-500`, 4 of 4 probes). The CAA
+  release-group front image had moved to a different release id.
+- **Flame, Black Sites, Exploring Birdsong, Fen: intermittent 5xx from archive.org on
+  2026-10-03, not confirmed dead.** (Flame returned a 200 on one `-500` probe.) Left untouched.
+
+Why a dedicated script: Green Lung is in `FLAGGED_SAME_TITLE_COLLISION_PAIRS`, so `needsMbLookup`
+and `selectAlbumBackfillCandidates` both skip it — nulling its URL would strand it. Flagged
+albums with dead (404/410) artwork are repaired **only** via
+`scripts/diagnostics/refresh-dead-artwork-2026-10-03.ts --apply --only=<norm_key>`: it re-reads
+the album's own stored `mb_release_group_id`, takes the current front image from CAA's
+release-group listing (`pickArtwork`), and writes `albums.artwork_url` only. No MB search, so no
+Step A ambiguity. DEAD means 404/410 on full-res and `-500` across two spaced probes; 5xx or
+timeouts are INDETERMINATE and never written. Applied to Green Lung only, 2026-10-03.
+
 ## History (condensed)
 
 - June 2026 — Genre lookup (two-level) and release-date field shipped. Source badge relocated
