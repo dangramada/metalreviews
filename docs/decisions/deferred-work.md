@@ -1297,3 +1297,15 @@ Noticed while building it, deliberately not touched on that branch (one concern 
   bulk bar disappears). Revisit if it disorients.
 - **Year as shared scope** (a later branch) will change the AOTY toast/"default year" question that
   was deliberately not implemented here.
+
+## New items, 2026-10-03 (planning pass: year scope and two-column layout)
+
+- **A failing silent refetch is invisible.** `useAotyList`'s background `refetch()` keeps local state
+  and shows no error (by design, `feature/aoty-promoted-leaves-contenders`). If it keeps failing,
+  the list can drift from the server until the next load with nothing telling the user. Decide
+  whether to log, retry, or surface a quiet notice.
+- **"Your Score" tooltip is unavailable on mobile.** The label is a hover `Tooltip` on the score
+  badge; touch has no hover (see `FavoriteListItemRow`'s `scoreLabel`). Mobile shows the number with
+  no label. Needs a touch-friendly treatment.
+- **Performance diagnostic pending** for the planned two-column page (both lists mounted at once,
+  rating summary computed for each). Run before building `aoty/aoty-year-scope-and-two-column-decisions.md`'s layout.

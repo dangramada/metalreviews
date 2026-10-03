@@ -23,6 +23,9 @@ a promoted album now leaves the Contenders list (one place per album), AOTY rows
 Contenders", and both actions have per-row pending state and local-first updates. Detail:
 `aoty/aoty-list-implementation.md`.
 
+**Planned, not built:** year as a shared scope, the list-as-entity deferral and the two-column
+layout: `aoty/aoty-year-scope-and-two-column-decisions.md` (2026-10-03).
+
 **Not built yet:** the desktop two-column Contenders|AOTY layout, the mobile AOTY-home split, the
 public share page (`/aoty/:shareId`), and all further visual design (no Figma exists; rank
 is an overlay badge since 2026-10-01 — see `aoty-list-implementation.md`).
