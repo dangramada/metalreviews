@@ -176,3 +176,24 @@ describe('Header — mobile hamburger menu', () => {
     });
   });
 });
+
+describe('Header — AOTY year scope link', () => {
+  beforeEach(() => {
+    vi.mocked(useAuth).mockReturnValue({ user: null, loading: false } as ReturnType<
+      typeof useAuth
+    >);
+  });
+
+  it('carries a well-formed ?year on AOTY pages only', () => {
+    const { unmount } = render(<Header />, { wrapper: makeWrapper('/aoty/contenders?year=2025') });
+    expect(screen.getByRole('link', { name: 'AOTY' })).toHaveAttribute('href', '/aoty?year=2025');
+    unmount();
+    render(<Header />, { wrapper: makeWrapper('/favorites?year=2025') });
+    expect(screen.getByRole('link', { name: 'AOTY' })).toHaveAttribute('href', '/aoty');
+  });
+
+  it('drops a malformed ?year', () => {
+    render(<Header />, { wrapper: makeWrapper('/aoty?year=%3Cscript%3E') });
+    expect(screen.getByRole('link', { name: 'AOTY' })).toHaveAttribute('href', '/aoty');
+  });
+});

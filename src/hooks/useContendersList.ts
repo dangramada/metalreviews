@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { latestPublishedAt } from './useFavoritesList';
 import type { FavoriteListItem } from './useFavoritesList';
@@ -90,5 +90,13 @@ export function useContendersList() {
 
   const refetch = () => setRefreshKey((k) => k + 1);
 
-  return { items, loading, error, refetch };
+  // Lets a successful add show up before the reconciling refetch lands.
+  const addLocal = useCallback((added: FavoriteListItem[]) => {
+    setItems((prev) => {
+      const ids = new Set(added.map((a) => a.albumId));
+      return [...added, ...prev.filter((i) => !ids.has(i.albumId))];
+    });
+  }, []);
+
+  return { items, loading, error, refetch, addLocal };
 }

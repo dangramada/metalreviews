@@ -12,7 +12,7 @@ import {
 import { LoadingIndicator, LoadingIndicatorBars } from '../LoadingIndicator';
 import { FavoriteListItemRow } from '../FavoritesPage';
 import { SelectableRow } from './SelectableRow';
-import { useFavoritesList } from '../hooks/useFavoritesList';
+import { useFavoritesList, type FavoriteListItem } from '../hooks/useFavoritesList';
 import { useAuth } from '../AuthContext';
 import { useFeedbackToast } from '../hooks/useFeedbackToast';
 import { supabase } from '../supabaseClient';
@@ -36,7 +36,15 @@ interface AddToContendersPickerProps {
   isOpen: boolean;
   onClose: () => void;
   contenderAlbumIds: Set<string>;
-  onAdded: () => void;
+  // Called before the success toast so the page can put the albums in its pool first. May return
+  // text to append to the toast and an action (e.g. "View 2025") for albums outside the page's
+  // current year scope.
+  onAdded: (added: FavoriteListItem[]) => AddedToast | void;
+}
+
+export interface AddedToast {
+  suffix?: string;
+  action?: { label: string; onClick: () => void };
 }
 
 // The Drawer's own lazyMount/unmountOnExit mount the panel when it opens and unmount it once the
@@ -72,7 +80,7 @@ function PickerPanel({
   onAdded,
 }: Omit<AddToContendersPickerProps, 'isOpen'>) {
   const { user } = useAuth();
-  const { showSuccess, showError } = useFeedbackToast();
+  const { showSuccess, showError, showAction } = useFeedbackToast();
   const { items: favoriteItems, loading } = useFavoritesList();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -105,8 +113,10 @@ function PickerPanel({
       showError('Could not add to Contenders — try again');
       return;
     }
-    showSuccess(`Added ${selected.size} ${selected.size === 1 ? 'album' : 'albums'} to Contenders`);
-    onAdded();
+    const extra = onAdded(candidates.filter((c) => selected.has(c.albumId)));
+    const message = `Added ${selected.size} ${selected.size === 1 ? 'album' : 'albums'} to Contenders${extra?.suffix ?? ''}`;
+    if (extra?.action) showAction(message, extra.action);
+    else showSuccess(message);
     handleClose();
   }
 

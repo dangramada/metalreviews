@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { AotyPage } from '../AotyPage';
 import system from '../theme';
 
@@ -29,15 +29,28 @@ const member = (albumId: string, band: string, releaseDate: string | null): Memb
 });
 
 let mockItems: Member[] = [];
+// Contenders pool for the year list; defaults to the AOTY members themselves (AOTY is a subset).
+let mockPool: Member[] | null = null;
 const mockRefetch = vi.fn();
 const mockRemoveLocal = vi.fn();
 vi.mock('../hooks/useAotyList', () => ({
   useAotyList: () => ({
     items: mockItems,
+    aotyIds: new Set(mockItems.map((i) => i.albumId)),
+    idsLoading: false,
     loading: false,
     error: null,
     refetch: mockRefetch,
     removeLocal: mockRemoveLocal,
+  }),
+}));
+vi.mock('../hooks/useContendersList', () => ({
+  useContendersList: () => ({
+    items: mockPool ?? mockItems,
+    loading: false,
+    error: null,
+    refetch: vi.fn(),
+    addLocal: vi.fn(),
   }),
 }));
 
@@ -79,18 +92,30 @@ import { supabase } from '../supabaseClient';
 
 const sum = (score: number) => ({ score, rank: 1, contributions: new Map<number, number>() });
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <ChakraProvider value={system}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </ChakraProvider>
-  );
+function Loc() {
+  const l = useLocation();
+  return <div data-testid="loc">{l.pathname + l.search}</div>;
 }
+const at = (entry: string) =>
+  function RouterWrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <ChakraProvider value={system}>
+        <MemoryRouter initialEntries={[entry]}>
+          <Loc />
+          {children}
+        </MemoryRouter>
+      </ChakraProvider>
+    );
+  };
+const wrapper = at('/aoty');
+const loc = () => screen.getByTestId('loc').textContent;
+const year = () => screen.getByRole('combobox', { name: 'Year' }) as HTMLSelectElement;
 
 describe('AotyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockItems = [];
+    mockPool = null;
     mockRemoveLocal.mockReset();
     mockSummary = new Map();
     stubTier = 'high';
@@ -120,7 +145,7 @@ describe('AotyPage', () => {
     mockItems = [member('a', 'Aaa', '2026-01-01')];
     mockSummary = new Map([['a', sum(0.4)]]);
     const { unmount } = render(<AotyPage />, { wrapper });
-    expect(screen.queryByRole('group', { name: 'Year' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Year' })).toBeNull();
     unmount();
 
     mockItems = [member('a', 'Aaa', '2026-01-01'), member('b', 'Bbb', '2025-01-01')];
@@ -129,10 +154,64 @@ describe('AotyPage', () => {
       ['b', sum(0.9)],
     ]);
     render(<AotyPage />, { wrapper });
-    expect(screen.getByRole('group', { name: 'Year' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '2026' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: '2025' }));
-    expect(screen.getByRole('button', { name: '2025' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('group', { name: 'Year' })).toBeNull();
+    expect(year().value).toBe('2026');
+    fireEvent.change(year(), { target: { value: '2025' } });
+    expect(year().value).toBe('2025');
+    expect(loc()).toBe('/aoty?year=2025');
+    expect(screen.getAllByText(/Bbb/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Aaa/)).toBeNull();
+  });
+
+  it('lists years from the whole Contenders pool, not just AOTY', () => {
+    mockItems = [member('a', 'Aaa', '2026-01-01')];
+    mockPool = [...mockItems, member('c', 'Ccc', '2024-01-01'), member('n', 'Nnn', null)];
+    render(<AotyPage />, { wrapper });
+    expect(Array.from(year().options).map((o) => o.textContent)).toEqual([
+      '2026',
+      '2024',
+      'No release year',
+    ]);
+    // Default follows the AOTY members, so the empty 2024 scope is reachable but not chosen.
+    expect(year().value).toBe('2026');
+    fireEvent.change(year(), { target: { value: '2024' } });
+    expect(screen.getByText('No AOTY picks in 2024.')).toBeInTheDocument();
+    expect(screen.getByText('Pick from your Contenders.')).toBeInTheDocument();
+  });
+
+  it('ranks per year and carries the scope to Contenders', () => {
+    mockItems = [
+      member('a', 'Aaa', '2026-01-01'),
+      member('b', 'Bbb', '2025-01-01'),
+      member('c', 'Ccc', '2025-02-01'),
+    ];
+    mockSummary = new Map([
+      ['a', sum(0.9)],
+      ['b', sum(0.4)],
+      ['c', sum(0.8)],
+    ]);
+    render(<AotyPage />, { wrapper: at('/aoty?year=2025') });
+    expect(year().value).toBe('2025');
+    // 2025 has its own #1 even though 2026's Aaa scores higher.
+    const ranks = screen.getAllByText(/^Rank \d/).map((e) => e.textContent);
+    expect(ranks).toEqual(expect.arrayContaining(['Rank 1', 'Rank 2']));
+    fireEvent.click(screen.getByRole('button', { name: 'Contenders →' }));
+    expect(loc()).toBe('/aoty/contenders?year=2025');
+  });
+
+  it('does not move the scope when members are removed (no ?year)', () => {
+    mockItems = [
+      member('a', 'Aaa', '2026-01-01'),
+      member('b', 'Bbb', '2026-02-01'),
+      member('c', 'Ccc', '2025-01-01'),
+    ];
+    const { rerender } = render(<AotyPage />, { wrapper });
+    expect(year().value).toBe('2026');
+    mockItems = [member('c', 'Ccc', '2025-01-01')];
+    mockPool = [member('a', 'Aaa', '2026-01-01'), member('c', 'Ccc', '2025-01-01')];
+    rerender(<AotyPage />);
+    expect(year().value).toBe('2026');
+    expect(screen.getByText('No AOTY picks in 2026.')).toBeInTheDocument();
   });
 
   it('puts the rank badge before the score badge in the same strip', () => {
@@ -173,11 +252,15 @@ describe('AotyPage', () => {
     expect(screen.queryByRole('img', { name: /percent of your weighting/ })).toBeNull();
   });
 
-  it('keeps a member with no release year under its own heading', () => {
-    mockItems = [member('x', 'Xxx', null)];
-    render(<AotyPage />, { wrapper });
-    expect(screen.getByText('No release year')).toBeInTheDocument();
+  it('shows a member with no release year in the no-year scope only', () => {
+    mockItems = [member('x', 'Xxx', null), member('a', 'Aaa', '2026-01-01')];
+    const { unmount } = render(<AotyPage />, { wrapper });
+    expect(screen.queryByText(/Xxx/)).toBeNull();
+    unmount();
+    render(<AotyPage />, { wrapper: at('/aoty?year=none') });
+    expect(year().value).toBe('none');
     expect(screen.getAllByText(/Xxx/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Aaa/)).toBeNull();
   });
 
   it('Back to Contenders deletes only the aoty row, with no confirm, and offers no remove', async () => {

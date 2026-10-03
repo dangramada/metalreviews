@@ -24,11 +24,12 @@ vi.mock('../AuthContext', () => ({
 
 const mockShowSuccess = vi.fn();
 const mockShowError = vi.fn();
+const mockShowAction = vi.fn();
 vi.mock('../hooks/useFeedbackToast', () => ({
   useFeedbackToast: () => ({
     showSuccess: mockShowSuccess,
     showError: mockShowError,
-    showAction: vi.fn(),
+    showAction: mockShowAction,
   }),
 }));
 
@@ -111,8 +112,35 @@ describe('AddToContendersPicker', () => {
       expect(mockInsert).toHaveBeenCalledWith([{ user_id: 'user-abc', album_id: 'album1' }])
     );
     expect(mockShowSuccess).toHaveBeenCalledWith('Added 1 album to Contenders');
-    expect(onAdded).toHaveBeenCalled();
+    expect(onAdded).toHaveBeenCalledWith([mockItem]);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('uses the page-provided suffix and action for the toast, after onAdded ran', async () => {
+    const action = { label: 'View 2024', onClick: vi.fn() };
+    const onAddedWithExtra = vi.fn().mockReturnValue({ suffix: ' 1 is outside 2026.', action });
+    render(
+      <AddToContendersPicker
+        isOpen
+        onClose={vi.fn()}
+        contenderAlbumIds={new Set()}
+        onAdded={onAddedWithExtra}
+      />,
+      { wrapper }
+    );
+    await waitFor(() => screen.getByText(/Opeth/));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
+    await waitFor(() => screen.getByRole('button', { name: /Add 1 to Contenders/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add 1 to Contenders/ }));
+    await waitFor(() => expect(mockShowAction).toHaveBeenCalled());
+    expect(mockShowAction).toHaveBeenCalledWith(
+      'Added 1 album to Contenders 1 is outside 2026.',
+      action
+    );
+    expect(mockShowSuccess).not.toHaveBeenCalled();
+    expect(onAddedWithExtra.mock.invocationCallOrder[0]).toBeLessThan(
+      mockShowAction.mock.invocationCallOrder[0]
+    );
   });
 
   // Regression test — see FavoritesPage.test.tsx's identical describe block for why this checks

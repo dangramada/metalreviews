@@ -5,6 +5,7 @@ import { LuMenu } from 'react-icons/lu';
 import { FaUserCircle } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
+import { parseYearParam } from './lib/aoty/yearScope';
 
 // Shared pill styling applied to every nav item (active + inactive) so layout
 // never shifts when the active route changes.
@@ -42,6 +43,11 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
   // startsWith, not exact match: Contenders is nested under /aoty/... (see main.tsx), so the AOTY
   // link stays lit there too.
   const isAotyActive = location.pathname.startsWith('/aoty');
+  // Carry the year scope between AOTY and Contenders (and only there; a stray ?year= elsewhere
+  // is not ours to forward).
+  const yearParam = new URLSearchParams(location.search).get('year');
+  const aotyHref =
+    isAotyActive && parseYearParam(yearParam) !== null ? `/aoty?year=${yearParam}` : '/aoty';
 
   return (
     <Box mb={breadcrumb ? 0 : 3}>
@@ -132,7 +138,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                   color: isAotyActive ? 'accent.ink' : 'accent.start',
                 }}
               >
-                <RouterLink to="/aoty">AOTY</RouterLink>
+                <RouterLink to={aotyHref}>AOTY</RouterLink>
               </Link>
 
               {/* Vertical divider between nav links and account control */}
@@ -240,7 +246,7 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
                         bg="surface.card"
                         color="text.primary"
                         _hover={{ bg: 'surface.raised' }}
-                        onSelect={() => navigate('/aoty')}
+                        onSelect={() => navigate(aotyHref)}
                       >
                         AOTY
                       </Menu.Item>
