@@ -412,3 +412,32 @@ continue). The click was "Select for AOTY", so the dialog now finishes it when i
 - Tests: 5 new cases in `ContendersPage.test.tsx` (label with both writes in order, someone
   else's date, selection failure, date-write failure, not ready). Not live-verified.
 
+### Revision 3 (2026-10-04): one shared date picker, `ReleaseDateField`
+
+The dialog needed the calendar the Favorites add-album drawer already had. Instead of copying it,
+the field was moved into one component, `src/components/ReleaseDateField.tsx`, now used by both
+`AddAlbumDrawer` (Favorites) and `ReleaseDateDialog` (Contenders). Grep before: the Favorites
+drawer was the only `DatePicker` use in `src/`, with no shared wrapper.
+
+- **What it is:** the label, the free-text input (`2024`, `2024-03`, `2024-03-15`), the calendar
+  button and the inline calendar (day, month, year views), moved over with the markup unchanged
+  (inline, no positioner, to avoid Floating UI portal problems in a Drawer or Dialog). Props:
+  `value`, `onChange`, `helperText`, `required`, `inputRef`. It owns the open state of the
+  calendar and the "left the field" state, so the validation message (from `parseReleaseDate`)
+  appears the same way in both places. What a valid value allows (Confirm enabled, Save enabled,
+  the preview line) stays with the parent, which calls `parseReleaseDate` itself.
+- **Behaviour changes in Favorites:** the calendar is now bounded to 1900-01-01 through 31 Dec of
+  next year (derived from the clock, the same range the validation and the database function
+  accept), so it can no longer reach a date the field would reject. Picking a day, typing, the
+  placeholder, label, helper text and `required` are as before; the 54 existing Favorites tests
+  passed unchanged after the move. `FavoritesPage.tsx` lost its `pickerOpen` and
+  `manualDateTouched` state and the picker imports. The field unmounts when the lookup result is
+  cleared, so its internal state resets where the page used to reset it by hand.
+- **Dialog:** picking a day writes the ISO date into the field; the preview line and Save follow
+  from it. Year and year-month can still only be typed.
+- **Tests:** `ReleaseDateField.test.tsx` (6: label/helper/calendar button, typed text, validation
+  only after leaving the field, no crash on `2024-02-30`, picking a day, calendar bounds at both
+  ends) plus one dialog-level case. 127 files, 1132/1132, `tsc -b` clean. Not live-verified.
+- **Not checkable in jsdom:** whether Escape with the calendar open closes only the calendar or the
+  whole dialog, and how the inline calendar looks inside the dialog at phone width.
+
