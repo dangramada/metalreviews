@@ -184,6 +184,8 @@ export function ContendersPage() {
       : ((data as { release_date: string | null } | null)?.release_date ?? null);
   }
 
+  // An undated album has no year to list it under, so "Select for AOTY" asks for the date first
+  // (same hand-off shape as the not-yet-rated case, which goes to the rating gate).
   function openDateDialog(item: FavoriteListItem) {
     setDateTarget(item);
     setDateOpen(true);
@@ -479,7 +481,7 @@ export function ContendersPage() {
                         variant="outline"
                         size="sm"
                         data-primary-for={item.albumId}
-                        aria-label={`${item.releaseDate ? 'Select' : 'Add release date for'} ${item.band} – ${item.album}${item.releaseDate ? ' for AOTY' : ''}`}
+                        aria-label={`Select ${item.band} – ${item.album} for AOTY`}
                         // Busy without `disabled` so keyboard focus stays on the button; run()
                         // ignores clicks while this album's write is in flight.
                         aria-busy={pending.has(item.albumId) || undefined}
@@ -494,7 +496,7 @@ export function ContendersPage() {
                         }
                       >
                         {pending.has(item.albumId) && <LoadingIndicatorBars />}
-                        {item.releaseDate ? 'Select for AOTY' : 'Add release date'}
+                        Select for AOTY
                       </Button>
                     }
                     ratingSummary={ratingSummary.get(item.albumId)}

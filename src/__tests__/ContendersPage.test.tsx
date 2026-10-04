@@ -272,14 +272,14 @@ describe('ContendersPage', () => {
       expect(screen.getAllByText('Your Score 8.0').length).toBeGreaterThan(0);
     });
 
-    it('offers "Add release date" instead of Select for AOTY, with the status text kept', async () => {
+    it('keeps Select for AOTY enabled without a release date, with the status text kept', async () => {
       mockItems = [{ ...mockItem, releaseDate: null }];
       mockSummary = rated();
       render(<ContendersPage />, { wrapper });
-      expect(screen.queryByRole('button', { name: /Select Opeth.*for AOTY/ })).toBeNull();
-      const add = screen.getAllByRole('button', { name: /Add release date for Opeth/ })[0];
-      expect(add).toBeEnabled();
-      expect(add).toHaveTextContent('Add release date');
+      const btn = screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0];
+      expect(btn).toBeEnabled();
+      expect(btn).toHaveTextContent('Select for AOTY');
+      expect(screen.queryByRole('button', { name: /Add release date/ })).toBeNull();
       expect(screen.getAllByText('No release date yet.').length).toBeGreaterThan(0);
     });
 
@@ -635,7 +635,7 @@ describe('ContendersPage year scope', () => {
     expect(screen.getByText('All your 2024 contenders are in AOTY.')).toBeInTheDocument();
   });
 
-  it('shows a visible reason and no promotion for an undated contender in the no-year scope', () => {
+  it('shows a visible reason and no promotion for an undated contender in the no-year scope', async () => {
     mockSummary = new Map([
       ['n1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
     ]);
@@ -643,12 +643,12 @@ describe('ContendersPage year scope', () => {
     expect(year().value).toBe('none');
     expect(screen.getAllByText(/Delta/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('No release date yet.').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: /Select Delta .* for AOTY/ })).toBeNull();
-    // Opening the date dialog is not a write.
-    screen.getAllByRole('button', { name: /Add release date for Delta/ }).forEach((b) => {
+    // Enabled: the click asks for the date, it is not a write.
+    screen.getAllByRole('button', { name: /Select Delta .* for AOTY/ }).forEach((b) => {
       expect(b).toBeEnabled();
     });
-    fireEvent.click(screen.getAllByRole('button', { name: /Add release date for Delta/ })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Select Delta .* for AOTY/ })[0]);
+    expect(await screen.findByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
     expect(supabase.from).not.toHaveBeenCalled();
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
@@ -730,7 +730,7 @@ describe('ContendersPage release date at promotion', () => {
   });
 
   const addButton = (band = 'Delta') =>
-    screen.getAllByRole('button', { name: new RegExp(`Add release date for ${band}`) })[0];
+    screen.getAllByRole('button', { name: new RegExp(`Select ${band} .* for AOTY`) })[0];
   const openDialog = async (band = 'Delta') => {
     fireEvent.click(addButton(band));
     return screen.findByRole('dialog', { name: 'Add release date' });
