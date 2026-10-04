@@ -20,6 +20,8 @@ interface ReleaseDateDialogProps {
   // "Band – Album", for the title.
   albumLabel: string;
   saving: boolean;
+  // "Save and select for AOTY" when the album is ready to be selected after the save.
+  submitLabel: string;
   onSave: (value: string) => void;
   // Where focus goes when the dialog closes without the row having left the view. Explicit
   // because not every browser focuses a button on click (Safari does not), so the dialog's own
@@ -36,6 +38,7 @@ export function ReleaseDateDialog({
   onOpenChange,
   albumLabel,
   saving,
+  submitLabel,
   onSave,
   finalFocusEl,
   onExitComplete,
@@ -117,7 +120,7 @@ export function ReleaseDateDialog({
               css={saving ? { opacity: 0.6, cursor: 'progress' } : undefined}
             >
               {saving && <LoadingIndicatorBars />}
-              Save date
+              {submitLabel}
             </Button>
           </DialogFooter>
         </form>

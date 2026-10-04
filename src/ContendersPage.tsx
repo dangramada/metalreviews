@@ -222,10 +222,22 @@ export function ContendersPage() {
       refetchRatings();
 
       const label = `${item.band} – ${item.album}`;
-      const message =
-        stored === value
-          ? `Saved ${formatReleaseDate(stored)} for ${label}.`
-          : `${label} already has the release date ${formatReleaseDate(stored)}. Nothing was changed.`;
+      const already = stored !== value;
+      // The click was "Select for AOTY", so finish it when the album is ready to be selected.
+      // Not ready (not fully rated, score level not settled): only the date is saved, and the
+      // row's next "Select for AOTY" click goes to the rating gate as for any dated album. A
+      // failed selection shows its own error; the date stays saved either way.
+      if (isReadyForAoty(item.albumId) && (await addToAoty([{ ...item, releaseDate: stored }]))) {
+        showSuccess(
+          already
+            ? `${label} already has the release date ${formatReleaseDate(stored)}. Added to AOTY with that date.`
+            : `Saved ${formatReleaseDate(stored)} and added ${label} to AOTY.`
+        );
+        return;
+      }
+      const message = !already
+        ? `Saved ${formatReleaseDate(stored)} for ${label}.`
+        : `${label} already has the release date ${formatReleaseDate(stored)}. Nothing was changed.`;
       const year = getReleaseYear(stored);
       if (leaves && year !== null)
         showAction(message, { label: `View ${year}`, onClick: () => setYear(year) });
@@ -520,6 +532,9 @@ export function ContendersPage() {
           onOpenChange={setDateOpen}
           albumLabel={`${dateTarget.band} – ${dateTarget.album}`}
           saving={pending.has(dateTarget.albumId)}
+          submitLabel={
+            isReadyForAoty(dateTarget.albumId) ? 'Save and select for AOTY' : 'Save date'
+          }
           finalFocusEl={() => findRowControl(dateTarget.albumId)}
           onExitComplete={() => {
             const exit = dateExitFocus.current;

@@ -855,6 +855,103 @@ describe('ContendersPage release date at promotion', () => {
     expect(screen.getAllByText(/Delta/).length).toBeGreaterThan(0);
   });
 
+  describe('when the album is ready to be selected, saving continues into Select for AOTY', () => {
+    const upsert = vi.fn();
+    const ready = () => {
+      mockSummary = new Map([
+        ['n1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
+      ]);
+    };
+    beforeEach(() => {
+      upsert.mockReset();
+      upsert.mockResolvedValue({ error: null });
+      vi.mocked(supabase.from).mockImplementation(
+        () => ({ upsert }) as unknown as ReturnType<typeof supabase.from>
+      );
+    });
+
+    it('labels the save accordingly and writes the date, then the AOTY membership', async () => {
+      ready();
+      renderNone();
+      await openDialog();
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+      expect(supabase.rpc).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledWith([{ user_id: 'user-abc', album_id: 'n1' }], {
+        onConflict: 'user_id,album_id',
+        ignoreDuplicates: true,
+      });
+      await waitFor(() =>
+        expect(mockShowSuccess).toHaveBeenCalledWith(
+          'Saved Mar 2024 and added Delta – Blackwater Park to AOTY.'
+        )
+      );
+      expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024-03');
+      expect(mockAddLocal.mock.calls[0][0][0]).toMatchObject({
+        albumId: 'n1',
+        releaseDate: '2024-03',
+      });
+      expect(mockShowAction).not.toHaveBeenCalled();
+    });
+
+    it('selects with the date already stored when someone else dated it first', async () => {
+      ready();
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: '2019-05-10', error: null } as never);
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowSuccess).toHaveBeenCalledWith(
+          'Delta – Blackwater Park already has the release date 10 May 2019. Added to AOTY with that date.'
+        )
+      );
+      expect(mockAddLocal.mock.calls[0][0][0]).toMatchObject({ releaseDate: '2019-05-10' });
+    });
+
+    it('keeps the date when the selection fails, and says so', async () => {
+      ready();
+      upsert.mockResolvedValue({ error: { message: 'boom' } });
+      renderNone();
+      await openDialog();
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not add to AOTY — try again')
+      );
+      expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024-03');
+      expect(mockAddLocal).not.toHaveBeenCalled();
+      expect(mockShowAction.mock.calls[0][0]).toBe('Saved Mar 2024 for Delta – Blackwater Park.');
+    });
+
+    it('does not select when the date write fails', async () => {
+      ready();
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: null,
+        error: { message: 'boom' },
+      } as never);
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('saves the date only when the album is not ready (not fully rated)', async () => {
+      mockSummary = new Map();
+      renderNone();
+      await openDialog();
+      expect(screen.queryByRole('button', { name: 'Save and select for AOTY' })).toBeNull();
+      typeDate('2024-03');
+      fireEvent.click(save());
+      await waitFor(() => expect(mockShowAction).toHaveBeenCalled());
+      expect(upsert).not.toHaveBeenCalled();
+      expect(mockAddLocal).not.toHaveBeenCalled();
+    });
+  });
+
   it('keeps the emptied no-year scope on screen with its empty state', async () => {
     mockItems = [album('n1', 'Delta', null)];
     renderNone();
