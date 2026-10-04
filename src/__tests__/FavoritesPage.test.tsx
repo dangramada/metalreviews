@@ -587,7 +587,7 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() =>
-        expect(mockShowError).toHaveBeenCalledWith('Could not save release date — try again')
+        expect(mockShowError).toHaveBeenCalledWith('Could not save release date. Try again.')
       );
       expect(favoritesInsert).not.toHaveBeenCalled();
     });

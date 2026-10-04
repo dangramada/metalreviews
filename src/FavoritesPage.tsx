@@ -994,7 +994,7 @@ function AddAlbumDrawer({
         );
         if (fillError) {
           setSaving(false);
-          showError('Could not save release date — try again');
+          showError('Could not save release date. Try again.');
           return;
         }
         // The function returns the stored date; if someone dated this album first, that one wins.
