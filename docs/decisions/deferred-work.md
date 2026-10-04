@@ -1418,3 +1418,18 @@ first search is empty, plus a backfill guard for the unique `mb_release_group_id
   browser clock, the function from the database clock (UTC). Near midnight on 31 December the
   database is the authority and may reject a year the client accepted.
 
+### 2026-10-04 (later): release date at promotion, consolidated open items
+
+Items a to d repeat the entries in the section above in one line each; e is new.
+
+- **(a)** No app path corrects a wrong release date in the shared catalog (fill NULL only).
+- **(b)** No `CHECK` constraint on `albums.release_date`; add one (shape and range) after the 3036
+  row is fixed.
+- **(c)** The 3036-06-26 row (Vmbra, "Polylith") is still in the catalog.
+- **(d)** The new-album insert in `AddAlbumDrawer` still writes `release_date` without server-side
+  validation (RLS checks only `created_by`).
+- **(e)** Any authenticated user can fill any undated album, not only one in their own Contenders:
+  `fill_missing_release_date` checks `auth.uid()` but not ownership or any relationship to the
+  album, and a filled date is shared by everyone. Fine for the current user base; a moderation
+  question (who may date a shared row, and how it is reviewed) if the app ever opens to more users.
+

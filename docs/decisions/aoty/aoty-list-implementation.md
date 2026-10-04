@@ -351,3 +351,31 @@ Implements `aoty-year-scope-and-two-column-decisions.md` section 4. In progress,
   that were already in `FavoritesPage.tsx`. jsdom cannot show that the input is focused when the
   dialog opens (the focus trap settles on the dialog); that is a manual check.
 - **Not live-verified.** Needs the SQL applied and a logged-in check.
+
+### Follow-up (2026-10-04, after the SQL was applied)
+
+- **SQL applied:** Dan applied `supabase/albums-fill-missing-release-date-v2.sql` in the Supabase SQL
+  editor (reported 2026-10-04; verified below). Application date is not independently recorded.
+- **Verification 1, anonymous call:** the same no-op call as before (public key only, random uuid,
+  from Node) now returns HTTP 401, error code 42501. Before the SQL it returned 204.
+- **Verification 2, live catalog (architecture-verifier, read-only, the function was not called):**
+  exactly one `public.fill_missing_release_date(p_album_id uuid, p_release_date text)` overload, so
+  the old void version is gone; return type `text`; `SECURITY DEFINER`; `search_path=""`; live
+  `prosrc` byte-identical to the repo file's body, regex literal included; ACL
+  `{postgres, authenticated, service_role}`, no PUBLIC entry, `has_function_privilege` false for
+  `anon`, true for `authenticated` and `service_role`. Not checked: roles that could inherit
+  EXECUTE through membership (`authenticator`, `supabase_auth_admin`), and the function's runtime
+  behavior (validation, `auth.uid()` check, return values), since calls were out of scope.
+- **Change beyond the original brief 1:** `useContendersList` refetches silently after the first
+  load (no spinner, keeps the list on failure). This also applies to the existing remove and
+  add-from-Favorites refetches.
+- **Change beyond the original brief 2:** the release date dialog cannot be dismissed while a save
+  is in flight.
+- **Change beyond the original brief 3:** the Favorites date picker crashed on an impossible date
+  (typing 2024-02-30 made `parseDate` throw during render). It now seeds the picker only from a
+  valid full date.
+- **Copy:** the Favorites save error now reads "Could not save release date. Try again." (the
+  dash-free form), superseding the "(unchanged)" note above. Other pre-existing error toasts with
+  an em-dash in `ContendersPage.tsx` and `FavoritesPage.tsx` were not on lines this branch
+  touched and were left as they are.
+
