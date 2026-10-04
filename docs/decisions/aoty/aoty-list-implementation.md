@@ -390,3 +390,25 @@ handling are unchanged. Saving the date does not continue into selecting the alb
 Contender in its new year, with a "View <year>" toast); see `deferred-work.md`. This supersedes
 the entry-point bullet and the "Add release date" wording above.
 
+### Revision 2 (2026-10-04): saving the date continues into Select for AOTY
+
+Supersedes the "save only" decision (and the revision above, which noted that saving did not
+continue). The click was "Select for AOTY", so the dialog now finishes it when it can:
+
+- **Ready to select** (fully rated, score level settled, not stale: the existing
+  `isReadyForAoty`): the dialog's button reads "Save and select for AOTY". After the date is
+  stored, the album is added to AOTY through the same `addToAoty` upsert as a dated row, in the
+  same per-album pending guard. Toast: "Saved Mar 2024 and added <band> – <album> to AOTY." If
+  someone else had dated the album first, it is selected with that date and the toast says so.
+  The row leaves Contenders; focus handoff is as before.
+- **Not ready:** the button reads "Save date" and only the date is saved (toast with "View <year>"
+  as before). The next "Select for AOTY" click goes to the rating gate like for any dated album.
+  Deliberately not chained into the gate or the rating page right after a date save.
+- **Selection fails after the date was stored:** the date stays saved (local state, refetch),
+  `addToAoty`'s own error toast shows, and the "Saved ... for ..." toast with "View <year>"
+  follows. The row stays in Contenders under its new year, so a second click retries only the
+  selection.
+- **Date write fails:** nothing is selected.
+- Tests: 5 new cases in `ContendersPage.test.tsx` (label with both writes in order, someone
+  else's date, selection failure, date-write failure, not ready). Not live-verified.
+

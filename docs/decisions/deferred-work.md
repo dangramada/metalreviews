@@ -1438,3 +1438,8 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   selected; today it ends with the date saved and the album in its new year. Chaining the select
   after the save (still subject to the rating gate) is the open option.
 
+- **Resolved 2026-10-04 (same branch):** the item above ("Saving a release date does not also
+  select the album for AOTY") was built: saving now continues into Select for AOTY when the album
+  is ready. Still open: when it is not ready, the date is saved and nothing else happens (no
+  automatic hand-off to the rating gate); see `aoty-list-implementation.md`, "Revision 2".
+
