@@ -4,32 +4,18 @@ import {
   Box,
   Button,
   Container,
-  DatePickerContent,
-  DatePickerDayTable,
-  DatePickerHeader,
-  DatePickerMonthTable,
-  DatePickerNextTrigger,
-  DatePickerPrevTrigger,
-  DatePickerRangeText,
-  DatePickerRoot,
-  DatePickerTrigger,
-  DatePickerView,
-  DatePickerViewTrigger,
-  DatePickerYearTable,
   Flex,
   Heading,
   Icon,
   IconButton,
   Image,
   Input,
-  InputGroup,
   NativeSelect,
   Skeleton,
   Text,
   VStack,
   Wrap,
   WrapItem,
-  parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
 import { Tooltip } from './components/ui/tooltip';
@@ -57,13 +43,7 @@ import {
   type CalibrationGateMode,
 } from './components/criteria-calibration/CalibrationGateDialog';
 import { FaTrash } from 'react-icons/fa';
-import {
-  LuCalendar,
-  LuChevronLeft,
-  LuChevronRight,
-  LuClipboardCheck,
-  LuOctagonAlert,
-} from 'react-icons/lu';
+import { LuClipboardCheck, LuOctagonAlert } from 'react-icons/lu';
 // Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
 // app's one general icon source.
 import { ArrowRight, Headphones } from 'lucide-react';
@@ -77,6 +57,8 @@ import type { CalibrationTier } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
 import { getReleaseYear, toThumbnailUrl } from './App';
+import { parseReleaseDate } from './lib/aoty/releaseDate';
+import { ReleaseDateField } from './components/ReleaseDateField';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
@@ -854,7 +836,10 @@ function AddAlbumDrawer({
   const [existingMatch, setExistingMatch] = useState<AlbumMatch | null>(null);
   // Shown only when MB returns no release date; lets the user supply one manually
   const [manualReleaseDate, setManualReleaseDate] = useState('');
-  const [pickerOpen, setPickerOpen] = useState(false);
+  // Only a valid date counts as supplied; the same rules as the database function, so an invalid
+  // one is stopped here instead of coming back as a generic save error.
+  const manualParsed = parseReleaseDate(manualReleaseDate);
+  const manualDate = manualParsed.ok ? manualParsed.value : null;
   const [lookupLoading, setLookupLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -879,7 +864,6 @@ function AddAlbumDrawer({
     setLookupResult(null);
     setExistingMatch(null);
     setManualReleaseDate('');
-    setPickerOpen(false);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [isOpen, user]);
 
@@ -914,7 +898,6 @@ function AddAlbumDrawer({
     setLookupResult(null);
     setExistingMatch(null);
     setManualReleaseDate('');
-    setPickerOpen(false);
     try {
       const {
         data: { session },
@@ -967,7 +950,7 @@ function AddAlbumDrawer({
       // Album exists but this user hasn't favorited it yet — favorite the existing album,
       // don't create a duplicate `albums` row.
       albumId = existingMatch.albumId;
-      finalReleaseDate = existingMatch.releaseDate ?? (manualReleaseDate.trim() || null);
+      finalReleaseDate = existingMatch.releaseDate ?? manualDate;
 
       // The gate above (Confirm's disabled condition) already requires a manual date here
       // when existingMatch.releaseDate is null — so this only runs when there's a real value
@@ -977,19 +960,24 @@ function AddAlbumDrawer({
       // from also smuggling in changes to band/album/genre/artwork_url. See
       // supabase/albums-add-fill-missing-release-date-rpc.sql.
       if (existingMatch.releaseDate === null) {
-        const { error: fillError } = await supabase.rpc('fill_missing_release_date', {
-          p_album_id: albumId,
-          p_release_date: finalReleaseDate,
-        });
+        const { data: storedDate, error: fillError } = await supabase.rpc(
+          'fill_missing_release_date',
+          {
+            p_album_id: albumId,
+            p_release_date: finalReleaseDate,
+          }
+        );
         if (fillError) {
           setSaving(false);
-          showError('Could not save release date — try again');
+          showError('Could not save release date. Try again.');
           return;
         }
+        // The function returns the stored date; if someone dated this album first, that one wins.
+        if (typeof storedDate === 'string' && storedDate !== '') finalReleaseDate = storedDate;
       }
     } else {
       // User-supplied date is used only if MB returned nothing
-      finalReleaseDate = lookupResult.releaseDate ?? (manualReleaseDate.trim() || null);
+      finalReleaseDate = lookupResult.releaseDate ?? manualDate;
       const { data: inserted, error: albumError } = await supabase
         .from('albums')
         .insert({
@@ -1057,7 +1045,7 @@ function AddAlbumDrawer({
           artworkUrl: existingMatch.artworkUrl,
           // Falls back to the manual input the same way the new-album branch below does —
           // needed now that existingMatch can also require (and show) a manually-typed date.
-          releaseDate: existingMatch.releaseDate ?? (manualReleaseDate.trim() || null),
+          releaseDate: existingMatch.releaseDate ?? manualDate,
           genre: existingMatch.genre,
           publishedAt: null,
         }
@@ -1066,7 +1054,7 @@ function AddAlbumDrawer({
           band: lookedUpBand,
           album: lookedUpAlbum,
           artworkUrl: lookupResult.artworkUrl,
-          releaseDate: lookupResult.releaseDate ?? (manualReleaseDate.trim() || null),
+          releaseDate: lookupResult.releaseDate ?? manualDate,
           genre: lookupResult.genre,
           publishedAt: null,
         }
@@ -1183,123 +1171,14 @@ function AddAlbumDrawer({
                   <FavoriteListItemRow item={previewItem} previewMode />
 
                   {resolvedReleaseDate === null && (
-                    <DatePickerRoot
-                      size="xl"
-                      mt={4}
-                      open={pickerOpen}
-                      onOpenChange={({ open }) => setPickerOpen(open)}
-                      // Only seed the picker when the text field holds a valid full date
-                      value={
-                        /^\d{4}-\d{2}-\d{2}$/.test(manualReleaseDate)
-                          ? [parseDate(manualReleaseDate)]
-                          : []
-                      }
-                      onValueChange={(details) => {
-                        const iso = details.value[0]?.toString();
-                        if (iso) {
-                          setManualReleaseDate(iso);
-                          setPickerOpen(false);
-                        }
-                      }}
-                    >
-                      <Field
+                    <Box mt={4}>
+                      <ReleaseDateField
                         required
-                        label="Release date"
+                        value={manualReleaseDate}
+                        onChange={setManualReleaseDate}
                         helperText="We don't have a release date for this album — please enter it yourself."
-                      >
-                        <InputGroup
-                          width="full"
-                          endElement={
-                            <DatePickerTrigger
-                              aria-label="Pick a date"
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                color: 'inherit',
-                                display: 'flex',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <LuCalendar />
-                            </DatePickerTrigger>
-                          }
-                        >
-                          <Input
-                            value={manualReleaseDate}
-                            onChange={(e) => setManualReleaseDate(e.target.value)}
-                            placeholder="e.g. 2024, 2024-03, or 2024-03-15"
-                            bg="surface.page"
-                            border="2px solid"
-                            borderColor="border.ruleStrong"
-                          />
-                        </InputGroup>
-                      </Field>
-                      {/* Inline calendar — no positioner; avoids Floating UI portal/coordinate issues inside a Drawer */}
-                      <DatePickerContent mt={2}>
-                        <DatePickerView view="day">
-                          <DatePickerHeader>
-                            <DatePickerPrevTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Previous month">
-                                <LuChevronLeft />
-                              </IconButton>
-                            </DatePickerPrevTrigger>
-                            <DatePickerViewTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <DatePickerRangeText />
-                              </Button>
-                            </DatePickerViewTrigger>
-                            <DatePickerNextTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Next month">
-                                <LuChevronRight />
-                              </IconButton>
-                            </DatePickerNextTrigger>
-                          </DatePickerHeader>
-                          <DatePickerDayTable />
-                        </DatePickerView>
-                        <DatePickerView view="month">
-                          <DatePickerHeader>
-                            <DatePickerPrevTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Previous year">
-                                <LuChevronLeft />
-                              </IconButton>
-                            </DatePickerPrevTrigger>
-                            <DatePickerViewTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <DatePickerRangeText />
-                              </Button>
-                            </DatePickerViewTrigger>
-                            <DatePickerNextTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Next year">
-                                <LuChevronRight />
-                              </IconButton>
-                            </DatePickerNextTrigger>
-                          </DatePickerHeader>
-                          <DatePickerMonthTable />
-                        </DatePickerView>
-                        <DatePickerView view="year">
-                          <DatePickerHeader>
-                            <DatePickerPrevTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Previous decade">
-                                <LuChevronLeft />
-                              </IconButton>
-                            </DatePickerPrevTrigger>
-                            <DatePickerViewTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <DatePickerRangeText />
-                              </Button>
-                            </DatePickerViewTrigger>
-                            <DatePickerNextTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Next decade">
-                                <LuChevronRight />
-                              </IconButton>
-                            </DatePickerNextTrigger>
-                          </DatePickerHeader>
-                          <DatePickerYearTable />
-                        </DatePickerView>
-                      </DatePickerContent>
-                    </DatePickerRoot>
+                      />
+                    </Box>
                   )}
                 </Box>
               </Box>
@@ -1316,7 +1195,7 @@ function AddAlbumDrawer({
                 loading={saving}
                 spinner={<LoadingIndicatorBars />}
                 aria-label={saving ? 'Loading' : undefined}
-                disabled={resolvedReleaseDate === null && !manualReleaseDate.trim()}
+                disabled={resolvedReleaseDate === null && manualDate === null}
                 onClick={handleConfirm}
               >
                 Confirm

@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ContendersPage } from '../ContendersPage';
+import { maxReleaseYear } from '../lib/aoty/releaseDate';
 import system from '../theme';
 import type { FavoriteListItem } from '../hooks/useFavoritesList';
 
@@ -14,6 +15,7 @@ import type { FavoriteListItem } from '../hooks/useFavoritesList';
 // so a ContendersPage test only needs to exercise ContendersPage's own logic.
 const mockRefetch = vi.fn();
 const mockAddContendersLocal = vi.fn();
+const mockSetReleaseDateLocal = vi.fn();
 let mockItems: FavoriteListItem[] = [];
 vi.mock('../hooks/useContendersList', () => ({
   useContendersList: () => ({
@@ -22,6 +24,7 @@ vi.mock('../hooks/useContendersList', () => ({
     error: null,
     refetch: mockRefetch,
     addLocal: mockAddContendersLocal,
+    setReleaseDateLocal: mockSetReleaseDateLocal,
   }),
 }));
 
@@ -55,12 +58,17 @@ vi.mock('../hooks/useCalibrationGate', () => ({
   confidenceLabel: (tier: string) => tier,
 }));
 
+const mockRefetchRatings = vi.fn();
 let mockSummary = new Map<
   string,
   { score: number; rank: number; contributions: Map<number, number> }
 >();
 vi.mock('../hooks/useAlbumRatingsSummary', () => ({
-  useAlbumRatingsSummary: () => ({ summary: mockSummary, loading: false, refetch: vi.fn() }),
+  useAlbumRatingsSummary: () => ({
+    summary: mockSummary,
+    loading: false,
+    refetch: mockRefetchRatings,
+  }),
 }));
 
 let pickerContenderIds = new Set<string>();
@@ -83,16 +91,17 @@ vi.mock('../AuthContext', () => ({
 
 const mockShowSuccess = vi.fn();
 const mockShowError = vi.fn();
+const mockShowAction = vi.fn();
 vi.mock('../hooks/useFeedbackToast', () => ({
   useFeedbackToast: () => ({
     showSuccess: mockShowSuccess,
     showError: mockShowError,
-    showAction: vi.fn(),
+    showAction: mockShowAction,
   }),
 }));
 
 vi.mock('../supabaseClient', () => ({
-  supabase: { from: vi.fn() },
+  supabase: { from: vi.fn(), rpc: vi.fn() },
 }));
 
 import { supabase } from '../supabaseClient';
@@ -132,6 +141,7 @@ describe('ContendersPage', () => {
     mockAotyItems = [];
     mockAotyLoading = false;
     mockRefetchAoty.mockReset();
+    mockSetReleaseDateLocal.mockReset();
     mockAddLocal.mockReset();
     mockSummary = new Map();
     stubInsufficient = false;
@@ -262,11 +272,14 @@ describe('ContendersPage', () => {
       expect(screen.getAllByText('Your Score 8.0').length).toBeGreaterThan(0);
     });
 
-    it('disables the action and shows visible status text without a release date', async () => {
+    it('keeps Select for AOTY enabled without a release date, with the status text kept', async () => {
       mockItems = [{ ...mockItem, releaseDate: null }];
       mockSummary = rated();
       render(<ContendersPage />, { wrapper });
-      expect(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]).toBeDisabled();
+      const btn = screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0];
+      expect(btn).toBeEnabled();
+      expect(btn).toHaveTextContent('Select for AOTY');
+      expect(screen.queryByRole('button', { name: /Add release date/ })).toBeNull();
       expect(screen.getAllByText('No release date yet.').length).toBeGreaterThan(0);
     });
 
@@ -622,7 +635,7 @@ describe('ContendersPage year scope', () => {
     expect(screen.getByText('All your 2024 contenders are in AOTY.')).toBeInTheDocument();
   });
 
-  it('shows a visible reason and no promotion for an undated contender in the no-year scope', () => {
+  it('shows a visible reason and no promotion for an undated contender in the no-year scope', async () => {
     mockSummary = new Map([
       ['n1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
     ]);
@@ -630,12 +643,14 @@ describe('ContendersPage year scope', () => {
     expect(year().value).toBe('none');
     expect(screen.getAllByText(/Delta/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('No release date yet.').length).toBeGreaterThan(0);
-    const btns = screen.getAllByRole('button', { name: /Select Delta .* for AOTY/ });
-    btns.forEach((b) => {
-      expect(b).toBeDisabled();
-      fireEvent.click(b);
+    // Enabled: the click asks for the date, it is not a write.
+    screen.getAllByRole('button', { name: /Select Delta .* for AOTY/ }).forEach((b) => {
+      expect(b).toBeEnabled();
     });
+    fireEvent.click(screen.getAllByRole('button', { name: /Select Delta .* for AOTY/ })[0]);
+    expect(await screen.findByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
     expect(supabase.from).not.toHaveBeenCalled();
+    expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
   it('says no contenders without a release year when that scope is empty', () => {
@@ -686,6 +701,370 @@ describe('ContendersPage year scope', () => {
         result = pickerOnAdded([album('c4', 'Hotel', '2025-02-01')]) as typeof result;
       });
       expect(result).toBeUndefined();
+    });
+  });
+});
+
+// Release date at promotion: an undated contender gets its date from a dialog that calls
+// fill_missing_release_date (v2 returns the stored date). The hook is mocked, so the mock
+// stands in for setReleaseDateLocal by swapping `mockItems`; the page re-renders from its own
+// state changes right after.
+describe('ContendersPage release date at promotion', () => {
+  let resolveRpc: (v: { data: unknown; error: unknown }) => void;
+  const dated = (id: string, date: string) => {
+    mockItems = mockItems.map((i) => (i.albumId === id ? { ...i, releaseDate: date } : i));
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAotyItems = [];
+    mockAotyLoading = false;
+    mockSummary = new Map();
+    stubInsufficient = false;
+    stubTier = 'high';
+    stubHasWeights = true;
+    mockItems = [album('n1', 'Delta', null), album('n2', 'Echo', null)];
+    mockSetReleaseDateLocal.mockReset();
+    mockSetReleaseDateLocal.mockImplementation((id: string, d: string) => dated(id, d));
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: '2024-03', error: null } as never);
+  });
+
+  const addButton = (band = 'Delta') =>
+    screen.getAllByRole('button', { name: new RegExp(`Select ${band} .* for AOTY`) })[0];
+  const openDialog = async (band = 'Delta') => {
+    fireEvent.click(addButton(band));
+    return screen.findByRole('dialog', { name: 'Add release date' });
+  };
+  const typeDate = (value: string) => {
+    const input = screen.getByLabelText('Release date');
+    fireEvent.change(input, { target: { value } });
+    fireEvent.blur(input);
+  };
+  const save = () => screen.getByRole('button', { name: 'Save date' });
+  const renderNone = () =>
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=none') });
+
+  it('opens a named dialog with a labelled input focused and the shared-catalog warning', async () => {
+    renderNone();
+    const dialog = await openDialog();
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByLabelText('Release date')).toBeInTheDocument();
+    // jsdom has no layout, so the dialog's focus trap settles on the dialog itself instead of
+    // the input (initialFocusEl); that the input gets focus in a real browser is a manual check.
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    expect(screen.getByText(/Shared with everyone who has this album/)).toBeInTheDocument();
+    expect(save()).toBeDisabled();
+  });
+
+  it('closes on Cancel and on Escape without writing, and focus returns to the row button', async () => {
+    renderNone();
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 4000 });
+    await waitFor(() => expect(document.activeElement).toBe(addButton()), { timeout: 4000 });
+
+    await openDialog();
+    // The dialog attaches its Escape listener a beat after opening, so retry the key press.
+    await waitFor(
+      () => {
+        fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+      },
+      { timeout: 4000 }
+    );
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  describe('validation', () => {
+    it.each([
+      ['3036-06-26', `Enter a year between 1900 and ${maxReleaseYear()}.`],
+      ['3036', `Enter a year between 1900 and ${maxReleaseYear()}.`],
+      ['1899', `Enter a year between 1900 and ${maxReleaseYear()}.`],
+      ['2024-02-30', 'That date does not exist.'],
+      ['2024-13', /Use a year, a year and month, or a full date/],
+      ['abc', /Use a year, a year and month, or a full date/],
+      ['2024abc', /Use a year, a year and month, or a full date/],
+    ])('rejects %s inline and never calls the function', async (value, message) => {
+      renderNone();
+      await openDialog();
+      typeDate(value);
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(save()).toBeDisabled();
+      expect(screen.queryByText(/Will be saved as/)).toBeNull();
+      fireEvent.submit(screen.getByLabelText('Release date').closest('form')!);
+      expect(supabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['2024', '2024'],
+      ['2024-03', 'Mar 2024'],
+      ['2024-03-15', '15 Mar 2024'],
+    ])('previews %s as "%s" only once valid', async (value, shown) => {
+      renderNone();
+      await openDialog();
+      expect(screen.queryByText(/Will be saved as/)).toBeNull();
+      typeDate(value);
+      expect(await screen.findByText(`Will be saved as: ${shown}`)).toBeInTheDocument();
+      expect(save()).toBeEnabled();
+    });
+  });
+
+  it('uses the shared calendar: picking a day fills the field, the preview and Save follow', async () => {
+    renderNone();
+    await openDialog();
+    typeDate('2019-05-10');
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Choose Friday, May 17, 2019/ }));
+    await waitFor(() =>
+      expect((screen.getByLabelText('Release date') as HTMLInputElement).value).toBe('2019-05-17')
+    );
+    expect(screen.getByText('Will be saved as: 17 May 2019')).toBeInTheDocument();
+    expect(save()).toBeEnabled();
+  });
+
+  it('writes once on a double submit', async () => {
+    vi.mocked(supabase.rpc).mockReturnValue(
+      new Promise((r) => {
+        resolveRpc = r;
+      }) as never
+    );
+    renderNone();
+    await openDialog();
+    typeDate('2024-03');
+    fireEvent.click(save());
+    fireEvent.click(save());
+    fireEvent.submit(screen.getByLabelText('Release date').closest('form')!);
+    await waitFor(() => expect(save()).toHaveAttribute('aria-busy', 'true'));
+    expect(supabase.rpc).toHaveBeenCalledTimes(1);
+    expect(supabase.rpc).toHaveBeenCalledWith('fill_missing_release_date', {
+      p_album_id: 'n1',
+      p_release_date: '2024-03',
+    });
+    await act(async () => resolveRpc({ data: '2024-03', error: null }));
+  });
+
+  it('on success updates local state, reconciles, and the toast action switches scope', async () => {
+    renderNone();
+    await openDialog();
+    typeDate(' 2024-03 ');
+    fireEvent.click(save());
+
+    await waitFor(() => expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024-03'));
+    expect(mockRefetch).toHaveBeenCalled();
+    expect(mockRefetchRatings).toHaveBeenCalled();
+    expect(mockShowAction).toHaveBeenCalledWith('Saved Mar 2024 for Delta – Blackwater Park.', {
+      label: 'View 2024',
+      onClick: expect.any(Function),
+    });
+    // The row left "No release year"; the pinned scope stays and the other undated row remains.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 4000 });
+    expect(year().value).toBe('none');
+    expect(screen.queryByText(/Delta/)).toBeNull();
+    expect(screen.getAllByText(/Echo/).length).toBeGreaterThan(0);
+
+    act(() => mockShowAction.mock.calls[0][1].onClick());
+    expect(loc()).toBe('/aoty/contenders?year=2024');
+    expect(year().value).toBe('2024');
+    expect(screen.getAllByText(/Delta/).length).toBeGreaterThan(0);
+  });
+
+  describe('when the album is ready to be selected, saving continues into Select for AOTY', () => {
+    const upsert = vi.fn();
+    const ready = () => {
+      mockSummary = new Map([
+        ['n1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
+      ]);
+    };
+    beforeEach(() => {
+      upsert.mockReset();
+      upsert.mockResolvedValue({ error: null });
+      vi.mocked(supabase.from).mockImplementation(
+        () => ({ upsert }) as unknown as ReturnType<typeof supabase.from>
+      );
+    });
+
+    it('labels the save accordingly and writes the date, then the AOTY membership', async () => {
+      ready();
+      renderNone();
+      await openDialog();
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+      expect(supabase.rpc).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledWith([{ user_id: 'user-abc', album_id: 'n1' }], {
+        onConflict: 'user_id,album_id',
+        ignoreDuplicates: true,
+      });
+      await waitFor(() =>
+        expect(mockShowSuccess).toHaveBeenCalledWith(
+          'Saved Mar 2024 and added Delta – Blackwater Park to AOTY.'
+        )
+      );
+      expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024-03');
+      expect(mockAddLocal.mock.calls[0][0][0]).toMatchObject({
+        albumId: 'n1',
+        releaseDate: '2024-03',
+      });
+      expect(mockShowAction).not.toHaveBeenCalled();
+    });
+
+    it('selects with the date already stored when someone else dated it first', async () => {
+      ready();
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: '2019-05-10', error: null } as never);
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowSuccess).toHaveBeenCalledWith(
+          'Delta – Blackwater Park already has the release date 10 May 2019. Added to AOTY with that date.'
+        )
+      );
+      expect(mockAddLocal.mock.calls[0][0][0]).toMatchObject({ releaseDate: '2019-05-10' });
+    });
+
+    it('keeps the date when the selection fails, and says so', async () => {
+      ready();
+      upsert.mockResolvedValue({ error: { message: 'boom' } });
+      renderNone();
+      await openDialog();
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not add to AOTY — try again')
+      );
+      expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024-03');
+      expect(mockAddLocal).not.toHaveBeenCalled();
+      expect(mockShowAction.mock.calls[0][0]).toBe('Saved Mar 2024 for Delta – Blackwater Park.');
+    });
+
+    it('does not select when the date write fails', async () => {
+      ready();
+      vi.mocked(supabase.rpc).mockResolvedValue({
+        data: null,
+        error: { message: 'boom' },
+      } as never);
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('saves the date only when the album is not ready (not fully rated)', async () => {
+      mockSummary = new Map();
+      renderNone();
+      await openDialog();
+      expect(screen.queryByRole('button', { name: 'Save and select for AOTY' })).toBeNull();
+      typeDate('2024-03');
+      fireEvent.click(save());
+      await waitFor(() => expect(mockShowAction).toHaveBeenCalled());
+      expect(upsert).not.toHaveBeenCalled();
+      expect(mockAddLocal).not.toHaveBeenCalled();
+    });
+  });
+
+  it('keeps the emptied no-year scope on screen with its empty state', async () => {
+    mockItems = [album('n1', 'Delta', null)];
+    renderNone();
+    await openDialog();
+    typeDate('2024');
+    fireEvent.click(save());
+    expect(await screen.findByText('No contenders without a release year.')).toBeInTheDocument();
+    expect(year().value).toBe('none');
+  });
+
+  it('moves focus to the next row when the dated row leaves the scope', async () => {
+    renderNone();
+    await openDialog();
+    typeDate('2024');
+    fireEvent.click(save());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 4000 });
+    await waitFor(() => {
+      const el = document.activeElement as HTMLElement | null;
+      expect(el?.getAttribute('data-primary-for')).toBe('n2');
+    });
+  });
+
+  it('shows the existing date when someone else filled it first, without claiming a save', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: '2019-05-10', error: null } as never);
+    renderNone();
+    await openDialog();
+    typeDate('2024');
+    fireEvent.click(save());
+    await waitFor(() => expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2019-05-10'));
+    const [message] = mockShowAction.mock.calls[0];
+    expect(message).toBe(
+      'Delta – Blackwater Park already has the release date 10 May 2019. Nothing was changed.'
+    );
+    expect(mockShowAction.mock.calls[0][1].label).toBe('View 2019');
+  });
+
+  it('keeps the row and the dialog, and re-enables the control, when the write fails', async () => {
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: { message: 'boom' } } as never);
+    renderNone();
+    await openDialog();
+    typeDate('2024');
+    fireEvent.click(save());
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith('Could not save release date. Try again.')
+    );
+    expect(mockSetReleaseDateLocal).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
+    expect(save()).not.toHaveAttribute('aria-busy');
+    expect(save()).toBeEnabled();
+  });
+
+  describe('a void or null return from the function (pre-v2 RPC, or album not found)', () => {
+    const stubAlbumRead = (releaseDate: string | null | undefined) => {
+      const maybeSingle = vi.fn().mockResolvedValue({
+        data: releaseDate === undefined ? null : { release_date: releaseDate },
+        error: null,
+      });
+      vi.mocked(supabase.from).mockImplementation(
+        () =>
+          ({
+            select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ maybeSingle }) }),
+          }) as never
+      );
+    };
+
+    it('reads the stored date back and uses it instead of trusting the write', async () => {
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
+      stubAlbumRead('2019-05-10');
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(save());
+      await waitFor(() => expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2019-05-10'));
+      expect(mockShowAction.mock.calls[0][0]).toMatch(/already has the release date/);
+    });
+
+    it('treats a matching read-back as saved', async () => {
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
+      stubAlbumRead('2024');
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(save());
+      await waitFor(() => expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024'));
+      expect(mockShowAction.mock.calls[0][0]).toBe('Saved 2024 for Delta – Blackwater Park.');
+    });
+
+    it('does not report success when nothing is stored (album not found)', async () => {
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as never);
+      stubAlbumRead(undefined);
+      renderNone();
+      await openDialog();
+      typeDate('2024');
+      fireEvent.click(save());
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not confirm the release date. Try again.')
+      );
+      expect(mockSetReleaseDateLocal).not.toHaveBeenCalled();
+      expect(mockShowAction).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
     });
   });
 });

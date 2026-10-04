@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { latestPublishedAt } from './useFavoritesList';
 import type { FavoriteListItem } from './useFavoritesList';
@@ -50,23 +50,36 @@ export function useContendersList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Bumped by every local mutation (same scheme as useAotyList). A refetch that started before
+  // the latest mutation carries pre-mutation data, so its response is dropped rather than undoing
+  // the local change; the refetch each write triggers after its own mutation is the one that lands.
+  const mutationGen = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    // Only the first load shows the spinner/error; a background refetch is silent so rows (and
+    // the focus on them) are not torn down, and if it fails it keeps what the page shows.
+    const silent = refreshKey > 0;
+    const startedAtGen = mutationGen.current;
+    const stale = () => cancelled || mutationGen.current !== startedAtGen;
 
     async function load() {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       try {
         const { data, error: contendersError } = await supabase
           .from('contenders')
           .select(CONTENDERS_SELECT)
           .order('created_at', { ascending: false });
 
-        if (cancelled) return;
+        if (stale()) return;
         if (contendersError) {
-          setError('Failed to load Contenders');
-          setLoading(false);
+          if (!silent) {
+            setError('Failed to load Contenders');
+            setLoading(false);
+          }
           return;
         }
 
@@ -76,8 +89,10 @@ export function useContendersList() {
       } catch (e) {
         if (cancelled) return;
         console.warn('Failed to load Contenders', e);
-        setError('Failed to load Contenders');
-        setLoading(false);
+        if (!silent) {
+          setError('Failed to load Contenders');
+          setLoading(false);
+        }
       }
     }
 
@@ -92,11 +107,19 @@ export function useContendersList() {
 
   // Lets a successful add show up before the reconciling refetch lands.
   const addLocal = useCallback((added: FavoriteListItem[]) => {
+    mutationGen.current += 1;
     setItems((prev) => {
       const ids = new Set(added.map((a) => a.albumId));
       return [...added, ...prev.filter((i) => !ids.has(i.albumId))];
     });
   }, []);
 
-  return { items, loading, error, refetch, addLocal };
+  // Applies a release date a write just stored, so the row changes year scope before the
+  // reconciling refetch lands.
+  const setReleaseDateLocal = useCallback((albumId: string, releaseDate: string) => {
+    mutationGen.current += 1;
+    setItems((prev) => prev.map((i) => (i.albumId === albumId ? { ...i, releaseDate } : i)));
+  }, []);
+
+  return { items, loading, error, refetch, addLocal, setReleaseDateLocal };
 }

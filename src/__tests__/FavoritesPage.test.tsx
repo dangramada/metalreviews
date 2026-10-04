@@ -587,8 +587,31 @@ describe('AddAlbumDrawer — existing-album match scoping (Item 1)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() =>
-        expect(mockShowError).toHaveBeenCalledWith('Could not save release date — try again')
+        expect(mockShowError).toHaveBeenCalledWith('Could not save release date. Try again.')
       );
+      expect(favoritesInsert).not.toHaveBeenCalled();
+    });
+
+    it('keeps Confirm disabled and explains why for a date the database would reject', async () => {
+      const favoritesInsert = vi.fn().mockResolvedValue({ data: null, error: null });
+      mockSupabaseFrom(supabase.from, makeSupabaseFromNoDate(favoritesInsert));
+      mockSupabaseRpc(supabase.rpc, { data: null, error: null });
+      vi.mocked(useFavoritesList).mockReturnValue(mockHookReturn({ items: [] }));
+      render(<FavoritesPage />, { wrapper });
+      await openDrawerAndLookUp();
+
+      const input = screen.getByPlaceholderText('e.g. 2024, 2024-03, or 2024-03-15');
+      for (const bad of ['3036-06-26', '2024-02-30', 'abc']) {
+        fireEvent.change(input, { target: { value: bad } });
+        fireEvent.blur(input);
+        expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
+      }
+      expect(
+        await screen.findByText(/Use a year, a year and month, or a full date/)
+      ).toBeInTheDocument();
+      fireEvent.change(input, { target: { value: '3036' } });
+      expect(await screen.findByText(/Enter a year between 1900 and \d{4}\./)).toBeInTheDocument();
+      expect(supabase.rpc).not.toHaveBeenCalled();
       expect(favoritesInsert).not.toHaveBeenCalled();
     });
   });

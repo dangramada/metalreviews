@@ -291,3 +291,153 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
   estimate) predates this branch and is not updated there (merged, append-only); by the same
   method the figure is now one higher, 10, not remeasured. The page also waits for the slowest of
   the two chains before showing the list.
+
+## 2026-10-04: Release date at promotion (`feature/release-date-at-promotion`)
+
+Implements `aoty-year-scope-and-two-column-decisions.md` section 4. In progress, not merged.
+
+- **Entry point:** on a Contenders row with no release date, the per-row button reads "Add release
+  date" (enabled) instead of a disabled "Select for AOTY"; "No release date yet." stays. Same
+  `Button`, pending/`aria-busy` pattern, `data-primary-for` kept. The bulk bar is unchanged and
+  still skips undated rows. Opens `ReleaseDateDialog` (shared `Dialog` parts): one text field,
+  `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, helper text "shared with everyone who has this album and cannot
+  be changed afterwards from the app", and a preview line ("Will be saved as: Mar 2024", via
+  `formatReleaseDate`) shown only for valid input. Save only: no "Save and select", because
+  selecting can still branch to the rating gate.
+- **Validation:** `parseReleaseDate` (`src/lib/aoty/releaseDate.ts`): strict shape, month 1 to 12,
+  real day of month (UTC component arithmetic, no `Date` parsing of the string, so no timezone
+  shift), year 1900 to current year + 1 (from the clock). The string is stored as typed, trimmed.
+  The 3036 case cannot be entered. `getReleaseYear` is `parseInt` of the first four characters,
+  so `2024abc` reads as 2024; validation therefore has to come first.
+- **Write:** `fill_missing_release_date` v2 returns the stored date. A different stored date
+  (someone else filled it first) is shown ("already has the release date ..., nothing was
+  changed") and applied locally; never overwritten, never reported as saved. A `void`/`null`
+  return (pre-v2 function, or album not found) is "unknown": the date is read back from `albums`;
+  if nothing is stored the user sees an error and the row stays. This makes deploy order safe.
+- **After saving:** `useContendersList.setReleaseDateLocal` (with a new `mutationGen`, same scheme
+  as `useAotyList`: a refetch that started before a local mutation is dropped), then a silent
+  refetch and `useAlbumRatingsSummary.refetch()` (rank is computed within the release year, so
+  dating an album changes its rank group). The pinned scope does not move: the emptied "No release
+  year" scope stays with its empty state. Toast: "Saved Mar 2024 for ..." with "View 2024"
+  (`showAction`). Failure: error toast, dialog and row stay, control re-enabled. The dialog cannot
+  be dismissed while the write is in flight.
+- **Focus:** cancel/Escape return to the row's button (explicit `finalFocusEl`, because Safari does
+  not focus buttons on click). If the row left the view, focus goes to the next row (else the
+  heading) from `onExitComplete`, after the dialog has finished closing; doing it earlier is
+  overridden by the dialog's own focus restore. The AOTY-add focus effect now watches
+  `scopedItems` instead of `items`.
+- **`useContendersList` refetch is now silent** after the first load (no spinner, keeps the list on
+  failure), like `useAotyList`. This also applies to the existing remove / add-from-Favorites
+  refetches, which no longer flash the loading state.
+- **Security finding: the RPC was callable without logging in.** `fill_missing_release_date` v1 is
+  `SECURITY DEFINER`, validated nothing, and Supabase's default privileges had granted EXECUTE to
+  `anon` explicitly, which `revoke ... from public` does not remove. Confirmed 2026-10-04 with a
+  no-op call (random uuid, public key only): HTTP 204. So anyone with the public key could fill any
+  NULL-dated album with arbitrary text. Fix: `supabase/albums-fill-missing-release-date-v2.sql`
+  (run manually, before deploying this code): `auth.uid()` required, `revoke execute ... from
+  public, anon`, shape/day/range validation, `returns text`. The SQL header carries a shared sample
+  list; `releaseDateSql.test.ts` reads it and the function's regex literal and fails if
+  `parseReleaseDate` disagrees (checked by mutating the regex).
+- **Favorites:** before this branch its manual date input accepted any non-empty text, and an RPC
+  error showed "Could not save release date — try again" (unchanged). It now uses
+  `parseReleaseDate`: Confirm stays disabled for an invalid date and the inline error shows after
+  blur. This also fixes a crash: typing an impossible date such as 2024-02-30 made the date
+  picker's `parseDate` throw during render. The new-album path still inserts `release_date`
+  directly (RLS has no column check); see `deferred-work.md`.
+- **Not done:** a way to correct a wrong date; a DB CHECK on `release_date`; cleanup of the 3036
+  row and the 47 NULLs; dating from the bulk bar or from `/aoty`.
+- **Tests/tsc:** baseline 123 files, 1040/1040 on `master`; now 126 files, 1120/1120, `tsc -b`
+  clean, touched files lint-clean apart from 2 `react-refresh/only-export-components` warnings
+  that were already in `FavoritesPage.tsx`. jsdom cannot show that the input is focused when the
+  dialog opens (the focus trap settles on the dialog); that is a manual check.
+- **Not live-verified.** Needs the SQL applied and a logged-in check.
+
+### Follow-up (2026-10-04, after the SQL was applied)
+
+- **SQL applied:** Dan applied `supabase/albums-fill-missing-release-date-v2.sql` in the Supabase SQL
+  editor (reported 2026-10-04; verified below). Application date is not independently recorded.
+- **Verification 1, anonymous call:** the same no-op call as before (public key only, random uuid,
+  from Node) now returns HTTP 401, error code 42501. Before the SQL it returned 204.
+- **Verification 2, live catalog (architecture-verifier, read-only, the function was not called):**
+  exactly one `public.fill_missing_release_date(p_album_id uuid, p_release_date text)` overload, so
+  the old void version is gone; return type `text`; `SECURITY DEFINER`; `search_path=""`; live
+  `prosrc` byte-identical to the repo file's body, regex literal included; ACL
+  `{postgres, authenticated, service_role}`, no PUBLIC entry, `has_function_privilege` false for
+  `anon`, true for `authenticated` and `service_role`. Not checked: roles that could inherit
+  EXECUTE through membership (`authenticator`, `supabase_auth_admin`), and the function's runtime
+  behavior (validation, `auth.uid()` check, return values), since calls were out of scope.
+- **Change beyond the original brief 1:** `useContendersList` refetches silently after the first
+  load (no spinner, keeps the list on failure). This also applies to the existing remove and
+  add-from-Favorites refetches.
+- **Change beyond the original brief 2:** the release date dialog cannot be dismissed while a save
+  is in flight.
+- **Change beyond the original brief 3:** the Favorites date picker crashed on an impossible date
+  (typing 2024-02-30 made `parseDate` throw during render). It now seeds the picker only from a
+  valid full date.
+- **Copy:** the Favorites save error now reads "Could not save release date. Try again." (the
+  dash-free form), superseding the "(unchanged)" note above. Other pre-existing error toasts with
+  an em-dash in `ContendersPage.tsx` and `FavoritesPage.tsx` were not on lines this branch
+  touched and were left as they are.
+
+### Revision (2026-10-04): the button keeps its "Select for AOTY" label
+
+The first pass relabelled an undated row's button "Add release date". Reversed on review: it is
+not the right experience. Every Contenders row keeps "Select for AOTY" (and its accessible name,
+"Select <band> – <album> for AOTY"); for an undated album the click opens the release date dialog
+instead of writing, the same hand-off shape as the not-yet-rated case going to the rating gate.
+"No release date yet." stays as the visible reason. The dialog, validation, write and focus
+handling are unchanged. Saving the date does not continue into selecting the album (it stays a
+Contender in its new year, with a "View <year>" toast); see `deferred-work.md`. This supersedes
+the entry-point bullet and the "Add release date" wording above.
+
+### Revision 2 (2026-10-04): saving the date continues into Select for AOTY
+
+Supersedes the "save only" decision (and the revision above, which noted that saving did not
+continue). The click was "Select for AOTY", so the dialog now finishes it when it can:
+
+- **Ready to select** (fully rated, score level settled, not stale: the existing
+  `isReadyForAoty`): the dialog's button reads "Save and select for AOTY". After the date is
+  stored, the album is added to AOTY through the same `addToAoty` upsert as a dated row, in the
+  same per-album pending guard. Toast: "Saved Mar 2024 and added <band> – <album> to AOTY." If
+  someone else had dated the album first, it is selected with that date and the toast says so.
+  The row leaves Contenders; focus handoff is as before.
+- **Not ready:** the button reads "Save date" and only the date is saved (toast with "View <year>"
+  as before). The next "Select for AOTY" click goes to the rating gate like for any dated album.
+  Deliberately not chained into the gate or the rating page right after a date save.
+- **Selection fails after the date was stored:** the date stays saved (local state, refetch),
+  `addToAoty`'s own error toast shows, and the "Saved ... for ..." toast with "View <year>"
+  follows. The row stays in Contenders under its new year, so a second click retries only the
+  selection.
+- **Date write fails:** nothing is selected.
+- Tests: 5 new cases in `ContendersPage.test.tsx` (label with both writes in order, someone
+  else's date, selection failure, date-write failure, not ready). Not live-verified.
+
+### Revision 3 (2026-10-04): one shared date picker, `ReleaseDateField`
+
+The dialog needed the calendar the Favorites add-album drawer already had. Instead of copying it,
+the field was moved into one component, `src/components/ReleaseDateField.tsx`, now used by both
+`AddAlbumDrawer` (Favorites) and `ReleaseDateDialog` (Contenders). Grep before: the Favorites
+drawer was the only `DatePicker` use in `src/`, with no shared wrapper.
+
+- **What it is:** the label, the free-text input (`2024`, `2024-03`, `2024-03-15`), the calendar
+  button and the inline calendar (day, month, year views), moved over with the markup unchanged
+  (inline, no positioner, to avoid Floating UI portal problems in a Drawer or Dialog). Props:
+  `value`, `onChange`, `helperText`, `required`, `inputRef`. It owns the open state of the
+  calendar and the "left the field" state, so the validation message (from `parseReleaseDate`)
+  appears the same way in both places. What a valid value allows (Confirm enabled, Save enabled,
+  the preview line) stays with the parent, which calls `parseReleaseDate` itself.
+- **Behaviour changes in Favorites:** the calendar is now bounded to 1900-01-01 through 31 Dec of
+  next year (derived from the clock, the same range the validation and the database function
+  accept), so it can no longer reach a date the field would reject. Picking a day, typing, the
+  placeholder, label, helper text and `required` are as before; the 54 existing Favorites tests
+  passed unchanged after the move. `FavoritesPage.tsx` lost its `pickerOpen` and
+  `manualDateTouched` state and the picker imports. The field unmounts when the lookup result is
+  cleared, so its internal state resets where the page used to reset it by hand.
+- **Dialog:** picking a day writes the ISO date into the field; the preview line and Save follow
+  from it. Year and year-month can still only be typed.
+- **Tests:** `ReleaseDateField.test.tsx` (6: label/helper/calendar button, typed text, validation
+  only after leaving the field, no crash on `2024-02-30`, picking a day, calendar bounds at both
+  ends) plus one dialog-level case. 127 files, 1132/1132, `tsc -b` clean. Not live-verified.
+- **Not checkable in jsdom:** whether Escape with the calendar open closes only the calendar or the
+  whole dialog, and how the inline calendar looks inside the dialog at phone width.
+
