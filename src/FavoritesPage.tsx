@@ -4,32 +4,18 @@ import {
   Box,
   Button,
   Container,
-  DatePickerContent,
-  DatePickerDayTable,
-  DatePickerHeader,
-  DatePickerMonthTable,
-  DatePickerNextTrigger,
-  DatePickerPrevTrigger,
-  DatePickerRangeText,
-  DatePickerRoot,
-  DatePickerTrigger,
-  DatePickerView,
-  DatePickerViewTrigger,
-  DatePickerYearTable,
   Flex,
   Heading,
   Icon,
   IconButton,
   Image,
   Input,
-  InputGroup,
   NativeSelect,
   Skeleton,
   Text,
   VStack,
   Wrap,
   WrapItem,
-  parseDate,
 } from '@chakra-ui/react';
 import { CloseButton } from './components/ui/close-button';
 import { Tooltip } from './components/ui/tooltip';
@@ -57,13 +43,7 @@ import {
   type CalibrationGateMode,
 } from './components/criteria-calibration/CalibrationGateDialog';
 import { FaTrash } from 'react-icons/fa';
-import {
-  LuCalendar,
-  LuChevronLeft,
-  LuChevronRight,
-  LuClipboardCheck,
-  LuOctagonAlert,
-} from 'react-icons/lu';
+import { LuClipboardCheck, LuOctagonAlert } from 'react-icons/lu';
 // Same headphones mark as the review-grid card's Listen chip (src/App.tsx) — Lucide is the
 // app's one general icon source.
 import { ArrowRight, Headphones } from 'lucide-react';
@@ -77,7 +57,8 @@ import type { CalibrationTier } from './hooks/useCalibrationGate';
 import { useAlbumRatingsSummary } from './hooks/useAlbumRatingsSummary';
 import type { AlbumRatingSummary } from './hooks/useAlbumRatingsSummary';
 import { getReleaseYear, toThumbnailUrl } from './App';
-import { parseReleaseDate, releaseDateError } from './lib/aoty/releaseDate';
+import { parseReleaseDate } from './lib/aoty/releaseDate';
+import { ReleaseDateField } from './components/ReleaseDateField';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
@@ -855,12 +836,10 @@ function AddAlbumDrawer({
   const [existingMatch, setExistingMatch] = useState<AlbumMatch | null>(null);
   // Shown only when MB returns no release date; lets the user supply one manually
   const [manualReleaseDate, setManualReleaseDate] = useState('');
-  const [manualDateTouched, setManualDateTouched] = useState(false);
   // Only a valid date counts as supplied; the same rules as the database function, so an invalid
   // one is stopped here instead of coming back as a generic save error.
   const manualParsed = parseReleaseDate(manualReleaseDate);
   const manualDate = manualParsed.ok ? manualParsed.value : null;
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -885,8 +864,6 @@ function AddAlbumDrawer({
     setLookupResult(null);
     setExistingMatch(null);
     setManualReleaseDate('');
-    setManualDateTouched(false);
-    setPickerOpen(false);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [isOpen, user]);
 
@@ -921,8 +898,6 @@ function AddAlbumDrawer({
     setLookupResult(null);
     setExistingMatch(null);
     setManualReleaseDate('');
-    setManualDateTouched(false);
-    setPickerOpen(false);
     try {
       const {
         data: { session },
@@ -1196,131 +1171,14 @@ function AddAlbumDrawer({
                   <FavoriteListItemRow item={previewItem} previewMode />
 
                   {resolvedReleaseDate === null && (
-                    <DatePickerRoot
-                      size="xl"
-                      mt={4}
-                      open={pickerOpen}
-                      onOpenChange={({ open }) => setPickerOpen(open)}
-                      // Only seed the picker when the text field holds a valid full date (parseDate throws on an
-                      // impossible one like 2024-02-30)
-                      value={
-                        manualDate !== null && manualDate.length === 10
-                          ? [parseDate(manualDate)]
-                          : []
-                      }
-                      onValueChange={(details) => {
-                        const iso = details.value[0]?.toString();
-                        if (iso) {
-                          setManualReleaseDate(iso);
-                          setPickerOpen(false);
-                        }
-                      }}
-                    >
-                      <Field
+                    <Box mt={4}>
+                      <ReleaseDateField
                         required
-                        label="Release date"
-                        invalid={
-                          manualDateTouched && manualReleaseDate.trim() !== '' && !manualParsed.ok
-                        }
-                        errorText={
-                          manualParsed.ok ? undefined : releaseDateError(manualParsed.reason)
-                        }
+                        value={manualReleaseDate}
+                        onChange={setManualReleaseDate}
                         helperText="We don't have a release date for this album — please enter it yourself."
-                      >
-                        <InputGroup
-                          width="full"
-                          endElement={
-                            <DatePickerTrigger
-                              aria-label="Pick a date"
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                color: 'inherit',
-                                display: 'flex',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <LuCalendar />
-                            </DatePickerTrigger>
-                          }
-                        >
-                          <Input
-                            value={manualReleaseDate}
-                            onChange={(e) => setManualReleaseDate(e.target.value)}
-                            onBlur={() => setManualDateTouched(true)}
-                            placeholder="e.g. 2024, 2024-03, or 2024-03-15"
-                            bg="surface.page"
-                            border="2px solid"
-                            borderColor="border.ruleStrong"
-                          />
-                        </InputGroup>
-                      </Field>
-                      {/* Inline calendar — no positioner; avoids Floating UI portal/coordinate issues inside a Drawer */}
-                      <DatePickerContent mt={2}>
-                        <DatePickerView view="day">
-                          <DatePickerHeader>
-                            <DatePickerPrevTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Previous month">
-                                <LuChevronLeft />
-                              </IconButton>
-                            </DatePickerPrevTrigger>
-                            <DatePickerViewTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <DatePickerRangeText />
-                              </Button>
-                            </DatePickerViewTrigger>
-                            <DatePickerNextTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Next month">
-                                <LuChevronRight />
-                              </IconButton>
-                            </DatePickerNextTrigger>
-                          </DatePickerHeader>
-                          <DatePickerDayTable />
-                        </DatePickerView>
-                        <DatePickerView view="month">
-                          <DatePickerHeader>
-                            <DatePickerPrevTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Previous year">
-                                <LuChevronLeft />
-                              </IconButton>
-                            </DatePickerPrevTrigger>
-                            <DatePickerViewTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <DatePickerRangeText />
-                              </Button>
-                            </DatePickerViewTrigger>
-                            <DatePickerNextTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Next year">
-                                <LuChevronRight />
-                              </IconButton>
-                            </DatePickerNextTrigger>
-                          </DatePickerHeader>
-                          <DatePickerMonthTable />
-                        </DatePickerView>
-                        <DatePickerView view="year">
-                          <DatePickerHeader>
-                            <DatePickerPrevTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Previous decade">
-                                <LuChevronLeft />
-                              </IconButton>
-                            </DatePickerPrevTrigger>
-                            <DatePickerViewTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <DatePickerRangeText />
-                              </Button>
-                            </DatePickerViewTrigger>
-                            <DatePickerNextTrigger asChild>
-                              <IconButton variant="ghost" size="sm" aria-label="Next decade">
-                                <LuChevronRight />
-                              </IconButton>
-                            </DatePickerNextTrigger>
-                          </DatePickerHeader>
-                          <DatePickerYearTable />
-                        </DatePickerView>
-                      </DatePickerContent>
-                    </DatePickerRoot>
+                      />
+                    </Box>
                   )}
                 </Box>
               </Box>

@@ -809,6 +809,19 @@ describe('ContendersPage release date at promotion', () => {
     });
   });
 
+  it('uses the shared calendar: picking a day fills the field, the preview and Save follow', async () => {
+    renderNone();
+    await openDialog();
+    typeDate('2019-05-10');
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Choose Friday, May 17, 2019/ }));
+    await waitFor(() =>
+      expect((screen.getByLabelText('Release date') as HTMLInputElement).value).toBe('2019-05-17')
+    );
+    expect(screen.getByText('Will be saved as: 17 May 2019')).toBeInTheDocument();
+    expect(save()).toBeEnabled();
+  });
+
   it('writes once on a double submit', async () => {
     vi.mocked(supabase.rpc).mockReturnValue(
       new Promise((r) => {

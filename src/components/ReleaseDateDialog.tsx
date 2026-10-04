@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
-import { Button, Input, Text } from '@chakra-ui/react';
+import { Button, Text } from '@chakra-ui/react';
 import {
   DialogRoot,
   DialogContent,
@@ -8,10 +8,10 @@ import {
   DialogFooter,
   DialogTitle,
 } from './ui/dialog';
-import { Field } from './ui/field';
+import { ReleaseDateField } from './ReleaseDateField';
 import { LoadingIndicatorBars } from '../LoadingIndicator';
 import { formatReleaseDate } from '../App';
-import { parseReleaseDate, releaseDateError } from '../lib/aoty/releaseDate';
+import { parseReleaseDate } from '../lib/aoty/releaseDate';
 import { primaryButton, secondaryButton } from '../theme';
 
 interface ReleaseDateDialogProps {
@@ -45,13 +45,10 @@ export function ReleaseDateDialog({
 }: ReleaseDateDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
-  const [touched, setTouched] = useState(false);
   const parsed = parseReleaseDate(text);
-  const showError = touched && text.trim() !== '' && !parsed.ok;
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setTouched(true);
     if (saving || !parsed.ok) return;
     onSave(parsed.value);
   }
@@ -77,24 +74,12 @@ export function ReleaseDateDialog({
             <Text mb={3} color="text.muted" fontSize="sm">
               {albumLabel}
             </Text>
-            <Field
-              label="Release date"
-              invalid={showError}
-              errorText={parsed.ok ? undefined : releaseDateError(parsed.reason)}
+            <ReleaseDateField
+              value={text}
+              onChange={setText}
+              inputRef={inputRef}
               helperText="Shared with everyone who has this album and cannot be changed afterwards from the app."
-            >
-              <Input
-                ref={inputRef}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onBlur={() => setTouched(true)}
-                placeholder="e.g. 2024, 2024-03, or 2024-03-15"
-                autoComplete="off"
-                bg="surface.page"
-                border="2px solid"
-                borderColor="border.ruleStrong"
-              />
-            </Field>
+            />
             {parsed.ok && (
               <Text mt={3} fontSize="sm" color="text.muted" aria-live="polite">
                 Will be saved as: {formatReleaseDate(parsed.value)}
