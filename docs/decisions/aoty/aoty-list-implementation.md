@@ -379,3 +379,14 @@ Implements `aoty-year-scope-and-two-column-decisions.md` section 4. In progress,
   an em-dash in `ContendersPage.tsx` and `FavoritesPage.tsx` were not on lines this branch
   touched and were left as they are.
 
+### Revision (2026-10-04): the button keeps its "Select for AOTY" label
+
+The first pass relabelled an undated row's button "Add release date". Reversed on review: it is
+not the right experience. Every Contenders row keeps "Select for AOTY" (and its accessible name,
+"Select <band> – <album> for AOTY"); for an undated album the click opens the release date dialog
+instead of writing, the same hand-off shape as the not-yet-rated case going to the rating gate.
+"No release date yet." stays as the visible reason. The dialog, validation, write and focus
+handling are unchanged. Saving the date does not continue into selecting the album (it stays a
+Contender in its new year, with a "View <year>" toast); see `deferred-work.md`. This supersedes
+the entry-point bullet and the "Add release date" wording above.
+

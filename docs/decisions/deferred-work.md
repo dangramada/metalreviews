@@ -1433,3 +1433,8 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   album, and a filled date is shared by everyone. Fine for the current user base; a moderation
   question (who may date a shared row, and how it is reviewed) if the app ever opens to more users.
 
+- **Saving a release date does not also select the album for AOTY** (2026-10-04). Because the
+  undated row's button is "Select for AOTY", a user may expect the click to end with the album
+  selected; today it ends with the date saved and the album in its new year. Chaining the select
+  after the save (still subject to the rating gate) is the open option.
+
