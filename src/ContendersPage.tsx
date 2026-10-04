@@ -10,6 +10,8 @@ import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
 import { useYearScope, scopeOf } from './hooks/useYearScope';
+import { ReleaseDateDialog } from './components/ReleaseDateDialog';
+import { formatReleaseDate, getReleaseYear } from './App';
 import { YearScopeSelect } from './components/YearScopeSelect';
 import { scopeLabel } from './lib/aoty/yearScope';
 import type { AddedToast } from './components/AddToContendersPicker';
@@ -28,7 +30,7 @@ import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
 import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { secondaryButton } from './theme';
-import { focusRowOrHeading } from './utils/focusRow';
+import { findRowControl, focusRowOrHeading } from './utils/focusRow';
 
 // The intermediate candidate pool between Favorites and AOTY (docs/decisions/
 // aoty/aoty-hub-population.md). Scoped to Contenders only this pass — no AOTY final-list screen
@@ -42,6 +44,7 @@ export function ContendersPage() {
     error,
     refetch,
     addLocal: addContendersLocal,
+    setReleaseDateLocal,
   } = useContendersList();
   const {
     aotyIds,
@@ -51,13 +54,20 @@ export function ContendersPage() {
   } = useAotyList();
   const { pending, run } = usePendingIds();
   const { user } = useAuth();
-  const { showSuccess, showError } = useFeedbackToast();
+  const { showSuccess, showError, showAction } = useFeedbackToast();
   const navigate = useNavigate();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const [bulkAdding, setBulkAdding] = useState(false);
+  // The undated contender whose release-date dialog is open.
+  // Kept after closing so the dialog can finish its exit and hand focus back to the row's button.
+  const [dateTarget, setDateTarget] = useState<FavoriteListItem | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
+  // Set when a save moves the row out of view: focus goes to the next row only after the dialog
+  // has finished closing, or the dialog's own focus restore would override it.
+  const dateExitFocus = useRef<{ nextId: string | null } | null>(null);
   const bulkBusy = bulkAdding || bulkRemoving;
 
   const {
@@ -88,13 +98,15 @@ export function ContendersPage() {
   const loading = contendersLoading || aotyIdsLoading;
   const headingRef = useRef<HTMLHeadingElement>(null);
   const pendingFocus = useRef<{ removedIds: string[]; nextId: string | null } | null>(null);
+  // Watches what is on screen, not the whole list: a row can leave the view without leaving the
+  // list (dating an album moves it to another year scope).
   useEffect(() => {
     const p = pendingFocus.current;
-    if (!p || p.removedIds.some((id) => items.some((i) => i.albumId === id))) return;
+    if (!p || p.removedIds.some((id) => scopedItems.some((i) => i.albumId === id))) return;
     pendingFocus.current = null;
     focusRowOrHeading(p.nextId, headingRef.current);
-  }, [items]);
-  const { summary: ratingSummary } = useAlbumRatingsSummary();
+  }, [scopedItems]);
+  const { summary: ratingSummary, refetch: refetchRatings } = useAlbumRatingsSummary();
   const [gateMode, setGateMode] = useState<CalibrationGateMode | null>(null);
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
@@ -156,6 +168,66 @@ export function ContendersPage() {
       };
       if (await addToAoty([item])) showSuccess('Added to AOTY');
       else pendingFocus.current = null;
+    });
+  }
+
+  // Reads the stored date back. Used when the RPC returned nothing usable (the pre-v2 function
+  // returns void), so a missing return is never taken as success.
+  async function fetchStoredReleaseDate(albumId: string): Promise<string | null> {
+    const { data, error: readError } = await supabase
+      .from('albums')
+      .select('release_date')
+      .eq('id', albumId)
+      .maybeSingle();
+    return readError
+      ? null
+      : ((data as { release_date: string | null } | null)?.release_date ?? null);
+  }
+
+  function openDateDialog(item: FavoriteListItem) {
+    setDateTarget(item);
+    setDateOpen(true);
+  }
+
+  // The RPC fills a NULL date only and returns whatever is stored afterwards, so the result can
+  // be someone else's earlier date; that is shown, never overwritten.
+  function handleSaveReleaseDate(item: FavoriteListItem, value: string) {
+    return run([item.albumId], async () => {
+      const { data, error: rpcError } = await supabase.rpc('fill_missing_release_date', {
+        p_album_id: item.albumId,
+        p_release_date: value,
+      });
+      if (rpcError) {
+        showError('Could not save release date. Try again.');
+        return;
+      }
+      const stored =
+        typeof data === 'string' && data !== '' ? data : await fetchStoredReleaseDate(item.albumId);
+      if (stored === null) {
+        showError('Could not confirm the release date. Try again.');
+        return;
+      }
+
+      const leaves = scopeOf(stored) !== scope;
+      if (leaves) {
+        const at = scopedItems.findIndex((i) => i.albumId === item.albumId);
+        dateExitFocus.current = { nextId: scopedItems[at + 1]?.albumId ?? null };
+      }
+      setDateOpen(false);
+      setReleaseDateLocal(item.albumId, stored);
+      refetch();
+      // Its rank is computed within its release year, so the summary has to be recomputed.
+      refetchRatings();
+
+      const label = `${item.band} – ${item.album}`;
+      const message =
+        stored === value
+          ? `Saved ${formatReleaseDate(stored)} for ${label}.`
+          : `${label} already has the release date ${formatReleaseDate(stored)}. Nothing was changed.`;
+      const year = getReleaseYear(stored);
+      if (leaves && year !== null)
+        showAction(message, { label: `View ${year}`, onClick: () => setYear(year) });
+      else showSuccess(message);
     });
   }
 
@@ -406,9 +478,8 @@ export function ContendersPage() {
                         {...secondaryButton}
                         variant="outline"
                         size="sm"
-                        disabled={!item.releaseDate}
                         data-primary-for={item.albumId}
-                        aria-label={`Select ${item.band} – ${item.album} for AOTY`}
+                        aria-label={`${item.releaseDate ? 'Select' : 'Add release date for'} ${item.band} – ${item.album}${item.releaseDate ? ' for AOTY' : ''}`}
                         // Busy without `disabled` so keyboard focus stays on the button; run()
                         // ignores clicks while this album's write is in flight.
                         aria-busy={pending.has(item.albumId) || undefined}
@@ -418,10 +489,12 @@ export function ContendersPage() {
                             ? { opacity: 0.6, cursor: 'progress' }
                             : undefined
                         }
-                        onClick={() => handleSelectForAoty(item)}
+                        onClick={() =>
+                          item.releaseDate ? handleSelectForAoty(item) : openDateDialog(item)
+                        }
                       >
                         {pending.has(item.albumId) && <LoadingIndicatorBars />}
-                        Select for AOTY
+                        {item.releaseDate ? 'Select for AOTY' : 'Add release date'}
                       </Button>
                     }
                     ratingSummary={ratingSummary.get(item.albumId)}
@@ -437,6 +510,23 @@ export function ContendersPage() {
           <Footer />
         </VStack>
       </Container>
+
+      {dateTarget && (
+        <ReleaseDateDialog
+          key={dateTarget.albumId}
+          open={dateOpen}
+          onOpenChange={setDateOpen}
+          albumLabel={`${dateTarget.band} – ${dateTarget.album}`}
+          saving={pending.has(dateTarget.albumId)}
+          finalFocusEl={() => findRowControl(dateTarget.albumId)}
+          onExitComplete={() => {
+            const exit = dateExitFocus.current;
+            dateExitFocus.current = null;
+            if (exit) focusRowOrHeading(exit.nextId, headingRef.current);
+          }}
+          onSave={(value) => handleSaveReleaseDate(dateTarget, value)}
+        />
+      )}
 
       <AddToContendersPicker
         isOpen={pickerOpen}
