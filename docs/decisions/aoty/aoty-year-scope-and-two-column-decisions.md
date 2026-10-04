@@ -55,6 +55,11 @@ at promotion time, reusing the manual release-date input and the `fill_missing_r
 already used when favoriting an existing album, so the album then lands in a year bucket. Not
 built; until then the disabled state stands.
 
+status: implemented on `feature/release-date-at-promotion` (2026-10-04, not merged). A dialog on
+the Contenders row replaces the disabled state; it does not reuse the Favorites input as written
+(that was unvalidated) but a shared `parseReleaseDate`, and the RPC was rewritten (v2). See
+`aoty-list-implementation.md`, "Release date at promotion".
+
 ## 5. Motion plan
 
 - Promote / Back to Contenders animate the row between columns (leave, then enter), short and

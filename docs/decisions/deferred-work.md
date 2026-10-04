@@ -1392,3 +1392,29 @@ first search is empty, plus a backfill guard for the unique `mb_release_group_id
 - **`/aoty` now waits for the slowest of (ids, then members) and the all-contenders read**, whose
   embed (`albums(..., reviews(...))` for every contender) is heavier than the members read. Remeasure
   live once the shared data source exists; `perf-initial-load.md`'s `/aoty` figure predates this.
+
+## 2026-10-04: release date at promotion (`feature/release-date-at-promotion`)
+
+- **The "47 of 355 `albums` rows have a NULL `release_date`" item above is partly outdated:** once
+  this branch merges, a user can date an undated Contender from its row. Still open: the 47 rows
+  themselves (all ingest-created) and dating from `/aoty` or the bulk bar.
+- **No way to correct a wrong release date.** The function fills NULL only and the date is shared
+  by every user who has the album, so a mistyped year stays until someone edits the row with the
+  service role. Decide whether to offer a report/correct path.
+- **No `CHECK` constraint on `albums.release_date`.** The v2 function validates, but the
+  new-album insert in `AddAlbumDrawer` writes `release_date` directly (RLS only checks
+  `created_by`), so the database itself still accepts any text. Add a `CHECK` (shape and range)
+  after the 3036 row is fixed, since that row would violate it.
+- **The 3036-06-26 row (Vmbra, "Polylith") is still in the catalog** (0 favorites, contenders,
+  aoty rows as of 2026-10-04). Fix it and the 47 NULLs in one data pass.
+- **Heart-icon favoriting (`src/App.tsx`) can still produce a null-date Favorite**, as before
+  (accepted); those now become Contenders that can be dated.
+- **"Save and select for AOTY"** was not built (selecting can branch to the rating gate); revisit if
+  the two-step flow proves annoying.
+- **`fill_missing_release_date` v2 raises on bad input (`22023`) and unauthenticated calls
+  (`42501`);** the client shows a generic error for both. Map them to specific copy only if it
+  turns out to matter.
+- **Server and client disagree by up to a year boundary:** the client derives "next year" from the
+  browser clock, the function from the database clock (UTC). Near midnight on 31 December the
+  database is the authority and may reject a year the client accepted.
+

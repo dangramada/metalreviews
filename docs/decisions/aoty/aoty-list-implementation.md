@@ -291,3 +291,63 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
   estimate) predates this branch and is not updated there (merged, append-only); by the same
   method the figure is now one higher, 10, not remeasured. The page also waits for the slowest of
   the two chains before showing the list.
+
+## 2026-10-04: Release date at promotion (`feature/release-date-at-promotion`)
+
+Implements `aoty-year-scope-and-two-column-decisions.md` section 4. In progress, not merged.
+
+- **Entry point:** on a Contenders row with no release date, the per-row button reads "Add release
+  date" (enabled) instead of a disabled "Select for AOTY"; "No release date yet." stays. Same
+  `Button`, pending/`aria-busy` pattern, `data-primary-for` kept. The bulk bar is unchanged and
+  still skips undated rows. Opens `ReleaseDateDialog` (shared `Dialog` parts): one text field,
+  `YYYY`, `YYYY-MM` or `YYYY-MM-DD`, helper text "shared with everyone who has this album and cannot
+  be changed afterwards from the app", and a preview line ("Will be saved as: Mar 2024", via
+  `formatReleaseDate`) shown only for valid input. Save only: no "Save and select", because
+  selecting can still branch to the rating gate.
+- **Validation:** `parseReleaseDate` (`src/lib/aoty/releaseDate.ts`): strict shape, month 1 to 12,
+  real day of month (UTC component arithmetic, no `Date` parsing of the string, so no timezone
+  shift), year 1900 to current year + 1 (from the clock). The string is stored as typed, trimmed.
+  The 3036 case cannot be entered. `getReleaseYear` is `parseInt` of the first four characters,
+  so `2024abc` reads as 2024; validation therefore has to come first.
+- **Write:** `fill_missing_release_date` v2 returns the stored date. A different stored date
+  (someone else filled it first) is shown ("already has the release date ..., nothing was
+  changed") and applied locally; never overwritten, never reported as saved. A `void`/`null`
+  return (pre-v2 function, or album not found) is "unknown": the date is read back from `albums`;
+  if nothing is stored the user sees an error and the row stays. This makes deploy order safe.
+- **After saving:** `useContendersList.setReleaseDateLocal` (with a new `mutationGen`, same scheme
+  as `useAotyList`: a refetch that started before a local mutation is dropped), then a silent
+  refetch and `useAlbumRatingsSummary.refetch()` (rank is computed within the release year, so
+  dating an album changes its rank group). The pinned scope does not move: the emptied "No release
+  year" scope stays with its empty state. Toast: "Saved Mar 2024 for ..." with "View 2024"
+  (`showAction`). Failure: error toast, dialog and row stay, control re-enabled. The dialog cannot
+  be dismissed while the write is in flight.
+- **Focus:** cancel/Escape return to the row's button (explicit `finalFocusEl`, because Safari does
+  not focus buttons on click). If the row left the view, focus goes to the next row (else the
+  heading) from `onExitComplete`, after the dialog has finished closing; doing it earlier is
+  overridden by the dialog's own focus restore. The AOTY-add focus effect now watches
+  `scopedItems` instead of `items`.
+- **`useContendersList` refetch is now silent** after the first load (no spinner, keeps the list on
+  failure), like `useAotyList`. This also applies to the existing remove / add-from-Favorites
+  refetches, which no longer flash the loading state.
+- **Security finding: the RPC was callable without logging in.** `fill_missing_release_date` v1 is
+  `SECURITY DEFINER`, validated nothing, and Supabase's default privileges had granted EXECUTE to
+  `anon` explicitly, which `revoke ... from public` does not remove. Confirmed 2026-10-04 with a
+  no-op call (random uuid, public key only): HTTP 204. So anyone with the public key could fill any
+  NULL-dated album with arbitrary text. Fix: `supabase/albums-fill-missing-release-date-v2.sql`
+  (run manually, before deploying this code): `auth.uid()` required, `revoke execute ... from
+  public, anon`, shape/day/range validation, `returns text`. The SQL header carries a shared sample
+  list; `releaseDateSql.test.ts` reads it and the function's regex literal and fails if
+  `parseReleaseDate` disagrees (checked by mutating the regex).
+- **Favorites:** before this branch its manual date input accepted any non-empty text, and an RPC
+  error showed "Could not save release date — try again" (unchanged). It now uses
+  `parseReleaseDate`: Confirm stays disabled for an invalid date and the inline error shows after
+  blur. This also fixes a crash: typing an impossible date such as 2024-02-30 made the date
+  picker's `parseDate` throw during render. The new-album path still inserts `release_date`
+  directly (RLS has no column check); see `deferred-work.md`.
+- **Not done:** a way to correct a wrong date; a DB CHECK on `release_date`; cleanup of the 3036
+  row and the 47 NULLs; dating from the bulk bar or from `/aoty`.
+- **Tests/tsc:** baseline 123 files, 1040/1040 on `master`; now 126 files, 1120/1120, `tsc -b`
+  clean, touched files lint-clean apart from 2 `react-refresh/only-export-components` warnings
+  that were already in `FavoritesPage.tsx`. jsdom cannot show that the input is focused when the
+  dialog opens (the focus trap settles on the dialog); that is a manual check.
+- **Not live-verified.** Needs the SQL applied and a logged-in check.
