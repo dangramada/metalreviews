@@ -442,3 +442,55 @@ drawer was the only `DatePicker` use in `src/`, with no shared wrapper.
 - **Not checkable in jsdom:** whether Escape with the calendar open closes only the calendar or the
   whole dialog, and how the inline calendar looks inside the dialog at phone width.
 
+## 2026-10-05: Select for AOTY readiness and failure handling (`fix/release-date-flow-polish`)
+
+Follows the release date revisions above. Append-only: the older "Entry point" bullet in the
+2026-10-04 section ("Add release date" button, disabled "Select for AOTY") is superseded by the
+Revision entries (the button keeps its "Select for AOTY" name, the click opens the dialog), and
+"Save only" is superseded by Revision 2.
+
+- **Pre-existing bug, fixed here (merged code, not this branch's regression):** readiness
+  (`isReadyForAoty`) read an empty ratings summary and the default tier `'none'` as "not ready"
+  while those were still loading. An early click on a dated, ready row either did nothing (gate
+  still loading: `handleRate` returns on `gateLoading`) or, once the gate had loaded but the
+  summary had not, sent a ready album to `/rate/:id`. Bulk showed "0 added" and cleared the
+  selection. The release date dialog could label a ready album "Save date".
+- **Rule:** readiness is unknown, not "not ready", until both the ratings summary and the
+  calibration gate have settled once (`useReadinessKnown`). Settled means `loading` ended, whether
+  the fetch succeeded, returned an error, or threw (both hooks now end `loading` on a throw too).
+  The flag is sticky, so a later refresh (for example after a date save) never makes it unknown
+  again, and it resets on a user id change (known again only after the new data has loaded).
+- **While unknown:** a press on a row's "Select for AOTY" (dated) or on the bulk button is ignored
+  (no gate, no navigation, no write, selection kept) and the control shows `aria-busy` with reduced
+  opacity, no spinner, no `disabled`, so there is no layout shift and focus stays. The busy state
+  appears after 150 ms of waiting, or at once when the user pressed during the wait, so a quick
+  load never flashes it. Feedback for an early press is that busy state; there is no toast.
+- **Dialog:** unknown shows a neutral "Save" with the spinner (`aria-busy`, presses ignored). When
+  readiness is known the page decides once ("Save and select for AOTY" or "Save date") and keeps
+  it for that dialog instance, even if the data refreshes underneath. The save uses the same
+  decision as the label. Only in the not-ready case, and only after settle, one line appears:
+  "This album also needs a rating and a settled score level before it can be selected." No change
+  to the ready case or to any toast.
+- **Bulk with nothing to add:** the toast is only the skipped explanation ("N skipped: not fully
+  rated, no release date, or score level not settled."), shown as an error toast, and the
+  selection is kept. When something is added the toast and the cleared selection are as before.
+  Undated and dated rows cannot be selected together (undated rows exist only in the no-year
+  scope), so "all undated" and "mixed ready and not ready, same year" are the two bulk cases.
+- **Accessibility:** the row button is `aria-describedby` the visible "No release date yet." text;
+  its accessible name is unchanged. The row mounts a desktop and a mobile tree, so each tree has
+  its own note id (`extraActions` on `FavoriteListItemRow` may now be a function receiving
+  `{ noteId }`).
+- **Thrown rejections:** `console.warn` plus the existing error toast, busy flags always reset
+  (try/catch/finally; no state set after unmount), in the release date save (rpc, read-back and
+  the chained select), `addToAoty` (single, bulk and chained), single remove, bulk remove and bulk
+  select. Same gap remains in `AddToContendersPicker`'s insert (other file), see `deferred-work.md`.
+- **Tests:** 129 files, 1164/1164 (baseline 127 files, 1132). New: tier none and insufficient data
+  with an undated row (including the follow-up click), loading cells, label stable while open,
+  hint only after settle, early click on a dated ready row for each hook, bulk (all undated, mixed),
+  both row trees, every throw above, `useReadinessKnown` (sticky, account switch, delay),
+  `loadingSettles` (error result, rejection and sync throw in each hook; rejection and throw fail
+  without the fix). `tsc -b` clean; touched files lint-clean apart from 2 old
+  `react-refresh/only-export-components` warnings in `FavoritesPage.tsx`.
+- **Not live-verified.** Early-click behavior needs a throttled network to see; jsdom cannot show
+  focus or the 150 ms delay in a real browser.
+

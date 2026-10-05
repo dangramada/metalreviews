@@ -1443,3 +1443,16 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   is ready. Still open: when it is not ready, the date is saved and nothing else happens (no
   automatic hand-off to the rating gate); see `aoty-list-implementation.md`, "Revision 2".
 
+## New items, 2026-10-05 (`fix/release-date-flow-polish`)
+
+- **Calibration exit drops Contenders.** `CriteriaCalibrationPage.tsx` `EXIT_DESTINATIONS` has
+  only `favorites`, so finishing or stopping calibration after `?from=contenders` (the soft gate on
+  Contenders) lands on `/favorites`. The breadcrumb (`CalibrationPageHeader.tsx`) does know
+  `contenders`. Deliberately out of scope for the readiness fix. Related: "Return trips drop
+  `?year`" above (the year is lost on every `?from=` return).
+- **`AddToContendersPicker` insert has no catch.** A thrown rejection leaves the picker's `saving`
+  state set and shows nothing. Same fix as the Contenders handlers (`aoty-list-implementation.md`,
+  2026-10-05).
+- **`FavoritesPage.handleRate` returns silently while the gate loads** (`if (gateLoading) return`),
+  like Contenders did before this fix. Not changed here.
+
