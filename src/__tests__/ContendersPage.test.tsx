@@ -635,7 +635,7 @@ describe('ContendersPage year scope', () => {
     expect(screen.getByText('All your 2024 contenders are in AOTY.')).toBeInTheDocument();
   });
 
-  it('shows a visible reason and no promotion for an undated contender in the no-year scope', async () => {
+  it('shows the reason and asks for the date, without writing, for an undated contender in the no-year scope', async () => {
     mockSummary = new Map([
       ['n1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
     ]);
@@ -653,7 +653,7 @@ describe('ContendersPage year scope', () => {
     expect(supabase.rpc).not.toHaveBeenCalled();
   });
 
-  it('says no contenders without a release year when that scope is empty', () => {
+  it('falls back to the default when ?year=none has no undated contenders', () => {
     mockItems = [album('a1', 'Alpha', '2025-03-01'), album('b1', 'Charlie', '2024')];
     render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=none') });
     // 'none' is unavailable at resolution, so the default applies.

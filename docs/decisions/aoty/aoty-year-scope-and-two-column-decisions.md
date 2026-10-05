@@ -17,7 +17,7 @@ One year scope applies to the whole AOTY hub (both columns), replacing today's A
   as a selectable year and becomes the default only by out-counting 2026. (Contrast the 2026-09-21
   Metal Storm bug, where a calendar-year comparison silently flipped on a date boundary.)
 - **No-year bucket:** albums with a null release date keep their own "No release year" bucket in
-  both columns, as AOTY has today. They cannot be promoted until dated (see section 4).
+  both columns, as AOTY has today. They cannot be promoted until dated; the click asks for the date (see section 4).
 
 ## 2. List-as-entity: deferred
 
@@ -55,7 +55,7 @@ at promotion time, reusing the manual release-date input and the `fill_missing_r
 already used when favoriting an existing album, so the album then lands in a year bucket. Not
 built; until then the disabled state stands.
 
-status: implemented on `feature/release-date-at-promotion` (2026-10-04, not merged). A dialog on
+status: implemented on `feature/release-date-at-promotion` (2026-10-04, merged to master `f8f13ea`). A dialog on
 the Contenders row replaces the disabled state; it does not reuse the Favorites input as written
 (that was unvalidated) but a shared `parseReleaseDate`, and the RPC was rewritten (v2). See
 `aoty-list-implementation.md`, "Release date at promotion".

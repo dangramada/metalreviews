@@ -262,8 +262,9 @@ Discovery never stated coexistence explicitly. No schema change (`aoty` stays a 
   data gets noticed. Consequence: a tie with such a year goes to it (ties favor the latest). Catalog
   data not touched here.
 - **Contenders list** = contenders minus AOTY members, filtered to the scope. Undated contenders
-  appear only in the no-year scope, keep the "No release date yet." reason and a disabled
-  "Select for AOTY". The selection is cleared when the scope changes (otherwise a bulk action
+  appear only in the no-year scope, keep the "No release date yet." reason; their
+  "Select for AOTY" opens the release date dialog instead of writing (see the 2026-10-04
+  revisions). The selection is cleared when the scope changes (otherwise a bulk action
   could hit rows no longer on screen). Pending ids are per album and survive a scope switch; the
   focus handoff watches the unscoped list so a switch cannot steal focus.
 - **Empty states** (same `EmptyState`): "No contenders in 2025." / "No contenders without a

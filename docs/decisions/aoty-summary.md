@@ -23,7 +23,7 @@ a promoted album now leaves the Contenders list (one place per album), AOTY rows
 Contenders", and both actions have per-row pending state and local-first updates. Detail:
 `aoty/aoty-list-implementation.md`.
 
-**Built on `feature/year-scope` (not merged):** year as a shared scope.
+**Built, merged to `master` `bed896d` (2026-10-04):** year as a shared scope (`feature/year-scope`).
 
 **Planned, not built:** the list-as-entity deferral and the two-column
 layout: `aoty/aoty-year-scope-and-two-column-decisions.md` (2026-10-03).

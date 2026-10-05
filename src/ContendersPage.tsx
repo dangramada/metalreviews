@@ -128,10 +128,10 @@ export function ContendersPage() {
     navigate(`/rate/${albumId}?from=contenders`);
   }
 
-  // "Select for AOTY" is enabled for every row that can still be selected; the click either adds
-  // the album or, when it isn't ready (not fully rated, tier 'none', stale data), hands off to
-  // the existing gate flow via handleRate — same path as Evaluate. Only a missing release date
-  // is a real dead end (no year to list it under), so that alone is disabled.
+  // "Select for AOTY" is enabled for every row; the click either adds the album or, when it isn't
+  // ready (not fully rated, tier 'none', stale data), hands off to the existing gate flow via
+  // handleRate — same path as Evaluate. An undated album opens the release date dialog instead
+  // (see the button's onClick).
   function isReadyForAoty(albumId: string) {
     return ratingSummary.has(albumId) && calibrationTier !== 'none' && !hasInsufficientData;
   }
