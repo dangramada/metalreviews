@@ -46,82 +46,88 @@ export function useAlbumRatingsSummary() {
         return;
       }
       setLoading(true);
+      // A throw settles as "nothing rated" instead of leaving `loading` true: callers wait on it.
+      try {
+        const [{ data: ratingRows }, { data: weightRows }] = await Promise.all([
+          supabase.from('album_criteria_ratings').select('album_id, criterion_id, level'),
+          supabase.from('user_criterion_weights').select('criterion_id, level, value'),
+        ]);
+        if (cancelled) return;
 
-      const [{ data: ratingRows }, { data: weightRows }] = await Promise.all([
-        supabase.from('album_criteria_ratings').select('album_id, criterion_id, level'),
-        supabase.from('user_criterion_weights').select('criterion_id, level, value'),
-      ]);
-      if (cancelled) return;
+        const ratingsByAlbum = new Map<string, RatingRow[]>();
+        for (const row of (ratingRows ?? []) as RatingRow[]) {
+          const list = ratingsByAlbum.get(row.album_id) ?? [];
+          list.push(row);
+          ratingsByAlbum.set(row.album_id, list);
+        }
 
-      const ratingsByAlbum = new Map<string, RatingRow[]>();
-      for (const row of (ratingRows ?? []) as RatingRow[]) {
-        const list = ratingsByAlbum.get(row.album_id) ?? [];
-        list.push(row);
-        ratingsByAlbum.set(row.album_id, list);
-      }
+        // Only fully-rated albums (all 6 criteria set) count as evaluated.
+        const fullyRatedAlbumIds = Array.from(ratingsByAlbum.entries())
+          .filter(([, rows]) => rows.length === CRITERIA_COUNT)
+          .map(([albumId]) => albumId);
 
-      // Only fully-rated albums (all 6 criteria set) count as evaluated.
-      const fullyRatedAlbumIds = Array.from(ratingsByAlbum.entries())
-        .filter(([, rows]) => rows.length === CRITERIA_COUNT)
-        .map(([albumId]) => albumId);
+        if (fullyRatedAlbumIds.length === 0) {
+          setSummary(new Map());
+          setLoading(false);
+          return;
+        }
 
-      if (fullyRatedAlbumIds.length === 0) {
-        setSummary(new Map());
-        setLoading(false);
-        return;
-      }
+        const { data: albumRows } = await supabase
+          .from('albums')
+          .select('id, release_date')
+          .in('id', fullyRatedAlbumIds);
+        if (cancelled) return;
 
-      const { data: albumRows } = await supabase
-        .from('albums')
-        .select('id, release_date')
-        .in('id', fullyRatedAlbumIds);
-      if (cancelled) return;
-
-      const weights = ((weightRows ?? []) as WeightRow[]).map((w) => ({
-        criterionId: w.criterion_id,
-        level: w.level,
-        value: w.value,
-      }));
-
-      const yearByAlbum = new Map<string, number | null>();
-      for (const a of (albumRows ?? []) as AlbumRow[]) {
-        yearByAlbum.set(a.id, getReleaseYear(a.release_date));
-      }
-
-      // Score every fully-rated album; skip any whose score can't be computed (missing
-      // weight — defensive, not expected under Medium tier).
-      const scoredByYear = new Map<number | null, { albumId: string; score: number }[]>();
-      const scoreByAlbum = new Map<string, number>();
-      const contributionsByAlbum = new Map<string, Map<number, number>>();
-      for (const albumId of fullyRatedAlbumIds) {
-        const ratings = ratingsByAlbum.get(albumId)!.map((r) => ({
-          criterionId: r.criterion_id,
-          level: r.level,
+        const weights = ((weightRows ?? []) as WeightRow[]).map((w) => ({
+          criterionId: w.criterion_id,
+          level: w.level,
+          value: w.value,
         }));
-        const score = computeScore(ratings, weights);
-        if (score === null) continue;
-        scoreByAlbum.set(albumId, score);
-        contributionsByAlbum.set(albumId, criterionContributions(ratings, weights)!);
-        const year = yearByAlbum.get(albumId) ?? null;
-        const list = scoredByYear.get(year) ?? [];
-        list.push({ albumId, score });
-        scoredByYear.set(year, list);
-      }
 
-      const next = new Map<string, AlbumRatingSummary>();
-      for (const [albumId, score] of scoreByAlbum) {
-        const year = yearByAlbum.get(albumId) ?? null;
-        const yearGroup = scoredByYear.get(year) ?? [];
-        next.set(albumId, {
-          score,
-          rank: rankAlbum(albumId, yearGroup),
-          contributions: contributionsByAlbum.get(albumId)!,
-        });
-      }
+        const yearByAlbum = new Map<string, number | null>();
+        for (const a of (albumRows ?? []) as AlbumRow[]) {
+          yearByAlbum.set(a.id, getReleaseYear(a.release_date));
+        }
 
-      setSummary(next);
-      setCriterionOrder(criterionImportanceOrder(weights));
-      setLoading(false);
+        // Score every fully-rated album; skip any whose score can't be computed (missing
+        // weight — defensive, not expected under Medium tier).
+        const scoredByYear = new Map<number | null, { albumId: string; score: number }[]>();
+        const scoreByAlbum = new Map<string, number>();
+        const contributionsByAlbum = new Map<string, Map<number, number>>();
+        for (const albumId of fullyRatedAlbumIds) {
+          const ratings = ratingsByAlbum.get(albumId)!.map((r) => ({
+            criterionId: r.criterion_id,
+            level: r.level,
+          }));
+          const score = computeScore(ratings, weights);
+          if (score === null) continue;
+          scoreByAlbum.set(albumId, score);
+          contributionsByAlbum.set(albumId, criterionContributions(ratings, weights)!);
+          const year = yearByAlbum.get(albumId) ?? null;
+          const list = scoredByYear.get(year) ?? [];
+          list.push({ albumId, score });
+          scoredByYear.set(year, list);
+        }
+
+        const next = new Map<string, AlbumRatingSummary>();
+        for (const [albumId, score] of scoreByAlbum) {
+          const year = yearByAlbum.get(albumId) ?? null;
+          const yearGroup = scoredByYear.get(year) ?? [];
+          next.set(albumId, {
+            score,
+            rank: rankAlbum(albumId, yearGroup),
+            contributions: contributionsByAlbum.get(albumId)!,
+          });
+        }
+
+        setSummary(next);
+        setCriterionOrder(criterionImportanceOrder(weights));
+        setLoading(false);
+      } catch (e) {
+        if (cancelled) return;
+        console.warn('Failed to load ratings summary', e);
+        setLoading(false);
+      }
     }
 
     load();

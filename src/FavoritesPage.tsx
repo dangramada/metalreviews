@@ -138,7 +138,9 @@ export function FavoriteListItemRow({
   // Short visible status text beside the rank ("In AOTY", "No release date yet.").
   note?: string;
   // Extra action node(s) rendered before Evaluate in both the desktop cluster and mobile footer.
-  extraActions?: ReactNode;
+  // A function form receives the id of the visible `note` text for the tree being rendered (the
+  // row mounts a desktop and a mobile tree, so the ids differ), for `aria-describedby`.
+  extraActions?: ReactNode | ((ctx: { noteId?: string }) => ReactNode);
   // AOTY rows only: takes the place of the remove control. Non-destructive (the album returns to
   // Contenders), so no confirm dialog. `data-primary-for` lets the page restore focus here.
   onBackToContenders?: () => void;
@@ -174,11 +176,16 @@ export function FavoriteListItemRow({
       ? `Score level: ${confidenceLabel(confidenceTier)}`
       : null;
 
-  const rankNote = note ? (
-    <Text as="span" fontSize="xs" color="text.muted">
-      {note}
-    </Text>
-  ) : null;
+  const noteIdFor = (tree: 'desktop' | 'mobile') =>
+    note ? `row-note-${item.albumId}-${tree}` : undefined;
+  const rankNoteFor = (tree: 'desktop' | 'mobile') =>
+    note ? (
+      <Text as="span" fontSize="xs" color="text.muted" id={noteIdFor(tree)}>
+        {note}
+      </Text>
+    ) : null;
+  const actionsFor = (tree: 'desktop' | 'mobile') =>
+    typeof extraActions === 'function' ? extraActions({ noteId: noteIdFor(tree) }) : extraActions;
 
   // Visible "#N" is aria-hidden; the screen-reader text is the real accessible name.
   const rankBadge =
@@ -322,7 +329,7 @@ export function FavoriteListItemRow({
               self-contained padded block) — titleLayout="inline" keeps the deliberate
               single-line "band – album" density from Pass 3, unchanged in shape. */}
             <Box flex={1} minW={0}>
-              {rankNote && <Box pt={3}>{rankNote}</Box>}
+              {note && <Box pt={3}>{rankNoteFor('desktop')}</Box>}
               <AlbumMetaBlock
                 band={item.band}
                 album={item.album}
@@ -336,7 +343,7 @@ export function FavoriteListItemRow({
             </Box>
 
             <Flex flexShrink={0} gap={1} pr={3} align="center">
-              {extraActions}
+              {actionsFor('desktop')}
               {onRate && (
                 <Tooltip content="Evaluate this album">
                   <IconButton
@@ -499,7 +506,7 @@ export function FavoriteListItemRow({
             </Box>
 
             <Box flex={1} minW={0} display="flex" flexDirection="column" justifyContent="center">
-              {rankNote && <Box px={4}>{rankNote}</Box>}
+              {note && <Box px={4}>{rankNoteFor('mobile')}</Box>}
               {/* Bounded-height truncation, same technique as AlbumRatingPage's mobile layout:
                 truncateBand (band, single line, ellipsis) + clampAlbumLines (album, native
                 `lineClamp` prop) — see AlbumMetaBlock's own comment on why lineClamp, not a
@@ -563,7 +570,7 @@ export function FavoriteListItemRow({
                   instead. `border.rule` (darker ink.800) matches the genre section's own
                   separators above — darker than the card's own outer border / `border.ruleStrong`. */}
               <Flex px={4} gap={2} justify="center" wrap="wrap">
-                {extraActions}
+                {actionsFor('mobile')}
                 {/* Icon+label Buttons (not bare IconButtons) with no Tooltip — touch has no
                       hover state. Content-width (no flex stretch) with a gap between them, not
                       edge-to-edge equal-width. Collapses to icon-only under a secondary raw-

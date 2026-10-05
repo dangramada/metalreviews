@@ -9,6 +9,7 @@ import { TierNoneBanner } from './components/TierNoneBanner';
 import { EmptyState } from './components/ui/empty-state';
 import { FavoriteListItemRow } from './FavoritesPage';
 import { useContendersList } from './hooks/useContendersList';
+import { useReadinessKnown } from './hooks/useReadinessKnown';
 import { useYearScope, scopeOf } from './hooks/useYearScope';
 import { ReleaseDateDialog } from './components/ReleaseDateDialog';
 import { formatReleaseDate, getReleaseYear } from './App';
@@ -106,7 +107,30 @@ export function ContendersPage() {
     pendingFocus.current = null;
     focusRowOrHeading(p.nextId, headingRef.current);
   }, [scopedItems]);
-  const { summary: ratingSummary, refetch: refetchRatings } = useAlbumRatingsSummary();
+  const {
+    summary: ratingSummary,
+    refetch: refetchRatings,
+    loading: ratingsLoading,
+  } = useAlbumRatingsSummary();
+  // Whether "is this album ready to select?" can be answered yet. Until both the ratings summary
+  // and the calibration gate have settled, an empty summary and the default tier 'none' would
+  // read as "not ready" and send a ready album to the gate or the rating page. A failed fetch
+  // settles too (the hooks end `loading` either way).
+  const { known, busyVisible, notePress } = useReadinessKnown(
+    gateLoading || ratingsLoading,
+    user?.id ?? null
+  );
+  const unknownBusy = !known && busyVisible;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  // The release date dialog's button label, decided once when readiness becomes known and then
+  // fixed for that dialog instance (a refresh underneath must not change what Save does).
+  const [latched, setLatched] = useState<{ albumId: string; ready: boolean } | null>(null);
   const [gateMode, setGateMode] = useState<CalibrationGateMode | null>(null);
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
@@ -136,13 +160,23 @@ export function ContendersPage() {
     return ratingSummary.has(albumId) && calibrationTier !== 'none' && !hasInsufficientData;
   }
 
+  if (dateOpen && dateTarget && known && latched?.albumId !== dateTarget.albumId) {
+    setLatched({ albumId: dateTarget.albumId, ready: isReadyForAoty(dateTarget.albumId) });
+  }
+
   async function addToAoty(albums: FavoriteListItem[]) {
     if (!user || albums.length === 0) return false;
     // Upsert + ignoreDuplicates so a double click or a second tab is not a 23505 failure.
-    const { error: insertError } = await supabase.from('aoty').upsert(
-      albums.map((a) => ({ user_id: user.id, album_id: a.albumId })),
-      { onConflict: 'user_id,album_id', ignoreDuplicates: true }
-    );
+    let insertError: unknown;
+    try {
+      ({ error: insertError } = await supabase.from('aoty').upsert(
+        albums.map((a) => ({ user_id: user.id, album_id: a.albumId })),
+        { onConflict: 'user_id,album_id', ignoreDuplicates: true }
+      ));
+    } catch (e) {
+      console.warn('Failed to add to AOTY', e);
+      insertError = e;
+    }
     if (insertError) {
       showError('Could not add to AOTY — try again');
       return false;
@@ -155,6 +189,11 @@ export function ContendersPage() {
   }
 
   function handleSelectForAoty(item: FavoriteListItem) {
+    // Readiness not known yet: do nothing (no gate, no navigation); the row shows it is busy.
+    if (!known) {
+      notePress();
+      return;
+    }
     if (!isReadyForAoty(item.albumId)) {
       handleRate(item.albumId);
       return;
@@ -166,6 +205,7 @@ export function ContendersPage() {
         removedIds: [item.albumId],
         nextId: scopedItems[at + 1]?.albumId ?? null,
       };
+      // addToAoty reports its own failures (including a throw) and returns false.
       if (await addToAoty([item])) showSuccess('Added to AOTY');
       else pendingFocus.current = null;
     });
@@ -187,88 +227,113 @@ export function ContendersPage() {
   // An undated album has no year to list it under, so "Select for AOTY" asks for the date first
   // (same hand-off shape as the not-yet-rated case, which goes to the rating gate).
   function openDateDialog(item: FavoriteListItem) {
+    setLatched(null);
     setDateTarget(item);
     setDateOpen(true);
   }
 
   // The RPC fills a NULL date only and returns whatever is stored afterwards, so the result can
   // be someone else's earlier date; that is shown, never overwritten.
-  function handleSaveReleaseDate(item: FavoriteListItem, value: string) {
+  function handleSaveReleaseDate(item: FavoriteListItem, value: string, selectAfter: boolean) {
     return run([item.albumId], async () => {
-      const { data, error: rpcError } = await supabase.rpc('fill_missing_release_date', {
-        p_album_id: item.albumId,
-        p_release_date: value,
-      });
-      if (rpcError) {
+      try {
+        const { data, error: rpcError } = await supabase.rpc('fill_missing_release_date', {
+          p_album_id: item.albumId,
+          p_release_date: value,
+        });
+        if (rpcError) {
+          showError('Could not save release date. Try again.');
+          return;
+        }
+        const stored =
+          typeof data === 'string' && data !== ''
+            ? data
+            : await fetchStoredReleaseDate(item.albumId);
+        if (stored === null) {
+          showError('Could not confirm the release date. Try again.');
+          return;
+        }
+
+        const leaves = scopeOf(stored) !== scope;
+        if (leaves) {
+          const at = scopedItems.findIndex((i) => i.albumId === item.albumId);
+          dateExitFocus.current = { nextId: scopedItems[at + 1]?.albumId ?? null };
+        }
+        setDateOpen(false);
+        setReleaseDateLocal(item.albumId, stored);
+        refetch();
+        // Its rank is computed within its release year, so the summary has to be recomputed.
+        refetchRatings();
+
+        const label = `${item.band} – ${item.album}`;
+        const already = stored !== value;
+        // The click was "Select for AOTY", so finish it when the album is ready to be selected.
+        // Not ready (not fully rated, score level not settled): only the date is saved, and the
+        // row's next "Select for AOTY" click goes to the rating gate as for any dated album. A
+        // failed selection shows its own error; the date stays saved either way.
+        if (selectAfter && (await addToAoty([{ ...item, releaseDate: stored }]))) {
+          showSuccess(
+            already
+              ? `${label} already has the release date ${formatReleaseDate(stored)}. Added to AOTY with that date.`
+              : `Saved ${formatReleaseDate(stored)} and added ${label} to AOTY.`
+          );
+          return;
+        }
+        const message = !already
+          ? `Saved ${formatReleaseDate(stored)} for ${label}.`
+          : `${label} already has the release date ${formatReleaseDate(stored)}. Nothing was changed.`;
+        const year = getReleaseYear(stored);
+        if (leaves && year !== null)
+          showAction(message, { label: `View ${year}`, onClick: () => setYear(year) });
+        else showSuccess(message);
+      } catch (e) {
+        // A throw (as opposed to an error result) must not leave the dialog waiting or the
+        // control busy; run() clears the pending flag.
+        console.warn('Failed to save release date', e);
         showError('Could not save release date. Try again.');
-        return;
       }
-      const stored =
-        typeof data === 'string' && data !== '' ? data : await fetchStoredReleaseDate(item.albumId);
-      if (stored === null) {
-        showError('Could not confirm the release date. Try again.');
-        return;
-      }
-
-      const leaves = scopeOf(stored) !== scope;
-      if (leaves) {
-        const at = scopedItems.findIndex((i) => i.albumId === item.albumId);
-        dateExitFocus.current = { nextId: scopedItems[at + 1]?.albumId ?? null };
-      }
-      setDateOpen(false);
-      setReleaseDateLocal(item.albumId, stored);
-      refetch();
-      // Its rank is computed within its release year, so the summary has to be recomputed.
-      refetchRatings();
-
-      const label = `${item.band} – ${item.album}`;
-      const already = stored !== value;
-      // The click was "Select for AOTY", so finish it when the album is ready to be selected.
-      // Not ready (not fully rated, score level not settled): only the date is saved, and the
-      // row's next "Select for AOTY" click goes to the rating gate as for any dated album. A
-      // failed selection shows its own error; the date stays saved either way.
-      if (isReadyForAoty(item.albumId) && (await addToAoty([{ ...item, releaseDate: stored }]))) {
-        showSuccess(
-          already
-            ? `${label} already has the release date ${formatReleaseDate(stored)}. Added to AOTY with that date.`
-            : `Saved ${formatReleaseDate(stored)} and added ${label} to AOTY.`
-        );
-        return;
-      }
-      const message = !already
-        ? `Saved ${formatReleaseDate(stored)} for ${label}.`
-        : `${label} already has the release date ${formatReleaseDate(stored)}. Nothing was changed.`;
-      const year = getReleaseYear(stored);
-      if (leaves && year !== null)
-        showAction(message, { label: `View ${year}`, onClick: () => setYear(year) });
-      else showSuccess(message);
     });
   }
 
   async function handleBulkSelectForAoty() {
     if (bulkBusy) return;
+    // Readiness not known yet: ignore the press, keep the selection, show the bar as busy.
+    if (!known) {
+      notePress();
+      return;
+    }
     const chosen = scopedItems.filter((i) => selectedIds.has(i.albumId));
     const ready = chosen.filter((i) => isReadyForAoty(i.albumId) && i.releaseDate);
-    setBulkAdding(true);
-    const ok = await run(
-      ready.map((i) => i.albumId),
-      async () => {
-        pendingFocus.current = { removedIds: ready.map((i) => i.albumId), nextId: null };
-        const added = await addToAoty(ready);
-        if (!added) pendingFocus.current = null;
-        return added;
-      }
-    );
-    setBulkAdding(false);
-    // undefined: an album was already pending, nothing was written.
-    if (ok === false || (ok === undefined && ready.length > 0)) return;
     const skipped = chosen.length - ready.length;
-    showSuccess(
-      `${ready.length} added to AOTY.` +
-        (skipped > 0
-          ? ` ${skipped} skipped: not fully rated, no release date, or score level not settled.`
-          : '')
-    );
+    const skippedText = `${skipped} skipped: not fully rated, no release date, or score level not settled.`;
+    // Nothing to add: say why and keep the selection so it can be corrected.
+    if (ready.length === 0) {
+      showError(skippedText);
+      return;
+    }
+    setBulkAdding(true);
+    let ok: boolean | undefined;
+    try {
+      ok = await run(
+        ready.map((i) => i.albumId),
+        async () => {
+          pendingFocus.current = { removedIds: ready.map((i) => i.albumId), nextId: null };
+          const added = await addToAoty(ready);
+          if (!added) pendingFocus.current = null;
+          return added;
+        }
+      );
+    } catch (e) {
+      console.warn('Failed to add to AOTY', e);
+      pendingFocus.current = null;
+      showError('Could not add to AOTY — try again');
+      ok = false;
+    } finally {
+      if (mounted.current) setBulkAdding(false);
+    }
+    // undefined: an album was already pending, nothing was written.
+    if (ok === false || ok === undefined) return;
+    showSuccess(`${ready.length} added to AOTY.` + (skipped > 0 ? ` ${skippedText}` : ''));
     setSelectedIds(new Set());
   }
 
@@ -276,24 +341,30 @@ export function ContendersPage() {
     if (!user) return;
     return run([albumId], async () => {
       setRemovingId(albumId);
-      const { error: deleteError } = await supabase
-        .from('contenders')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('album_id', albumId);
-      setRemovingId(null);
-      if (deleteError) {
+      try {
+        const { error: deleteError } = await supabase
+          .from('contenders')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('album_id', albumId);
+        if (deleteError) {
+          showError('Could not remove — try again');
+          return;
+        }
+        showSuccess(`${label} removed from Contenders`);
+        setSelectedIds((prev) => {
+          if (!prev.has(albumId)) return prev;
+          const next = new Set(prev);
+          next.delete(albumId);
+          return next;
+        });
+        refetch();
+      } catch (e) {
+        console.warn('Failed to remove from Contenders', e);
         showError('Could not remove — try again');
-        return;
+      } finally {
+        if (mounted.current) setRemovingId(null);
       }
-      showSuccess(`${label} removed from Contenders`);
-      setSelectedIds((prev) => {
-        if (!prev.has(albumId)) return prev;
-        const next = new Set(prev);
-        next.delete(albumId);
-        return next;
-      });
-      refetch();
     });
   }
 
@@ -301,19 +372,29 @@ export function ContendersPage() {
     if (!user || selectedIds.size === 0 || bulkBusy) return;
     const ids = Array.from(selectedIds);
     setBulkRemoving(true);
-    const result = await run(ids, async () => {
-      const { error: deleteError } = await supabase
-        .from('contenders')
-        .delete()
-        .eq('user_id', user.id)
-        .in('album_id', ids);
-      if (deleteError) {
-        showError('Could not remove — try again');
-        return false;
-      }
-      return true;
-    });
-    setBulkRemoving(false);
+    let result: boolean | undefined;
+    try {
+      result = await run(ids, async () => {
+        try {
+          const { error: deleteError } = await supabase
+            .from('contenders')
+            .delete()
+            .eq('user_id', user.id)
+            .in('album_id', ids);
+          if (deleteError) {
+            showError('Could not remove — try again');
+            return false;
+          }
+          return true;
+        } catch (e) {
+          console.warn('Failed to remove from Contenders', e);
+          showError('Could not remove — try again');
+          return false;
+        }
+      });
+    } finally {
+      if (mounted.current) setBulkRemoving(false);
+    }
     if (!result) return;
     showSuccess(`${ids.length} removed from Contenders`);
     setSelectedIds(new Set());
@@ -434,6 +515,10 @@ export function ContendersPage() {
                     size="sm"
                     loading={bulkAdding}
                     disabled={bulkBusy}
+                    // Busy without `disabled`: the press is ignored (and noted) until readiness is known.
+                    aria-busy={unknownBusy || undefined}
+                    aria-disabled={unknownBusy || undefined}
+                    css={unknownBusy ? { opacity: 0.6, cursor: 'progress' } : undefined}
                     onClick={handleBulkSelectForAoty}
                   >
                     Select for AOTY
@@ -487,30 +572,31 @@ export function ContendersPage() {
                     removeLabel="Contenders"
                     scoreLabel="Your Score"
                     note={item.releaseDate ? undefined : 'No release date yet.'}
-                    extraActions={
-                      <Button
-                        {...secondaryButton}
-                        variant="outline"
-                        size="sm"
-                        data-primary-for={item.albumId}
-                        aria-label={`Select ${item.band} – ${item.album} for AOTY`}
-                        // Busy without `disabled` so keyboard focus stays on the button; run()
-                        // ignores clicks while this album's write is in flight.
-                        aria-busy={pending.has(item.albumId) || undefined}
-                        aria-disabled={pending.has(item.albumId) || undefined}
-                        css={
-                          pending.has(item.albumId)
-                            ? { opacity: 0.6, cursor: 'progress' }
-                            : undefined
-                        }
-                        onClick={() =>
-                          item.releaseDate ? handleSelectForAoty(item) : openDateDialog(item)
-                        }
-                      >
-                        {pending.has(item.albumId) && <LoadingIndicatorBars />}
-                        Select for AOTY
-                      </Button>
-                    }
+                    extraActions={({ noteId }) => {
+                      // Pending write or readiness still unknown: busy without `disabled`, so
+                      // keyboard focus stays on the button; the click handlers ignore presses.
+                      const busy = pending.has(item.albumId) || unknownBusy;
+                      return (
+                        <Button
+                          {...secondaryButton}
+                          variant="outline"
+                          size="sm"
+                          data-primary-for={item.albumId}
+                          aria-label={`Select ${item.band} – ${item.album} for AOTY`}
+                          aria-describedby={noteId}
+                          aria-busy={busy || undefined}
+                          aria-disabled={busy || undefined}
+                          css={busy ? { opacity: 0.6, cursor: 'progress' } : undefined}
+                          onClick={() => {
+                            if (item.releaseDate) handleSelectForAoty(item);
+                            else openDateDialog(item);
+                          }}
+                        >
+                          {pending.has(item.albumId) && <LoadingIndicatorBars />}
+                          Select for AOTY
+                        </Button>
+                      );
+                    }}
                     ratingSummary={ratingSummary.get(item.albumId)}
                     onRate={() => handleRate(item.albumId)}
                     confidenceTier={calibrationTier}
@@ -532,8 +618,12 @@ export function ContendersPage() {
           onOpenChange={setDateOpen}
           albumLabel={`${dateTarget.band} – ${dateTarget.album}`}
           saving={pending.has(dateTarget.albumId)}
-          submitLabel={
-            isReadyForAoty(dateTarget.albumId) ? 'Save and select for AOTY' : 'Save date'
+          readiness={
+            !known || latched?.albumId !== dateTarget.albumId
+              ? 'unknown'
+              : latched.ready
+                ? 'ready'
+                : 'not-ready'
           }
           finalFocusEl={() => findRowControl(dateTarget.albumId)}
           onExitComplete={() => {
@@ -541,7 +631,10 @@ export function ContendersPage() {
             dateExitFocus.current = null;
             if (exit) focusRowOrHeading(exit.nextId, headingRef.current);
           }}
-          onSave={(value) => handleSaveReleaseDate(dateTarget, value)}
+          onSave={(value) => {
+            if (!known || latched?.albumId !== dateTarget.albumId) return;
+            handleSaveReleaseDate(dateTarget, value, latched.ready);
+          }}
         />
       )}
 

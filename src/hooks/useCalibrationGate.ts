@@ -93,35 +93,43 @@ export function useCalibrationGate() {
         return;
       }
       setLoading(true);
-      const [status, weights, answers] = await Promise.all([
-        supabase
-          .from('user_calibration_status')
-          .select('tier, answer_count')
-          .eq('user_id', user.id)
-          .maybeSingle(),
-        supabase
-          .from('user_criterion_weights')
-          .select('criterion_id')
-          .eq('user_id', user.id)
-          .limit(1),
-        // The live length of the answer log. Restart (deleteAllAnswers) empties this table and
-        // touches nothing else, so this is the one number that always reflects reality — the
-        // raw log is never guarded or delayed.
-        supabase
-          .from('user_calibration_answers')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id),
-      ]);
-      if (cancelled) return;
-      const weightsPresent = (weights.data ?? []).length > 0;
-      const liveAnswerCount = answers.count ?? 0;
-      const persistedAnswerCount = (status.data?.answer_count as number | undefined) ?? 0;
-      setTier((status.data?.tier as CalibrationTier | undefined) ?? 'none');
-      setHasWeights(weightsPresent);
-      setHasInsufficientData(
-        weightsPresent && (liveAnswerCount === 0 || liveAnswerCount < persistedAnswerCount)
-      );
-      setLoading(false);
+      // Settle on a throw too (the fetch helpers normally return errors in-band), or every
+      // control waiting on `loading` would stay busy forever.
+      try {
+        const [status, weights, answers] = await Promise.all([
+          supabase
+            .from('user_calibration_status')
+            .select('tier, answer_count')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('user_criterion_weights')
+            .select('criterion_id')
+            .eq('user_id', user.id)
+            .limit(1),
+          // The live length of the answer log. Restart (deleteAllAnswers) empties this table and
+          // touches nothing else, so this is the one number that always reflects reality — the
+          // raw log is never guarded or delayed.
+          supabase
+            .from('user_calibration_answers')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+        ]);
+        if (cancelled) return;
+        const weightsPresent = (weights.data ?? []).length > 0;
+        const liveAnswerCount = answers.count ?? 0;
+        const persistedAnswerCount = (status.data?.answer_count as number | undefined) ?? 0;
+        setTier((status.data?.tier as CalibrationTier | undefined) ?? 'none');
+        setHasWeights(weightsPresent);
+        setHasInsufficientData(
+          weightsPresent && (liveAnswerCount === 0 || liveAnswerCount < persistedAnswerCount)
+        );
+        setLoading(false);
+      } catch (e) {
+        if (cancelled) return;
+        console.warn('Failed to load calibration gate state', e);
+        setLoading(false);
+      }
     }
 
     load();

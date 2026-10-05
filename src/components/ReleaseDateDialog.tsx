@@ -20,8 +20,11 @@ interface ReleaseDateDialogProps {
   // "Band – Album", for the title.
   albumLabel: string;
   saving: boolean;
-  // "Save and select for AOTY" when the album is ready to be selected after the save.
-  submitLabel: string;
+  // What the save button does once the date is stored. 'unknown' while the ratings and
+  // calibration data are still loading: the button is a neutral busy "Save" and presses are
+  // ignored. The parent decides 'ready' / 'not-ready' once and keeps it fixed while the dialog is
+  // open, so the button never changes underneath the user.
+  readiness: 'unknown' | 'ready' | 'not-ready';
   onSave: (value: string) => void;
   // Where focus goes when the dialog closes without the row having left the view. Explicit
   // because not every browser focuses a button on click (Safari does not), so the dialog's own
@@ -38,7 +41,7 @@ export function ReleaseDateDialog({
   onOpenChange,
   albumLabel,
   saving,
-  submitLabel,
+  readiness,
   onSave,
   finalFocusEl,
   onExitComplete,
@@ -46,10 +49,11 @@ export function ReleaseDateDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const parsed = parseReleaseDate(text);
+  const busy = saving || readiness === 'unknown';
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (saving || !parsed.ok) return;
+    if (saving || readiness === 'unknown' || !parsed.ok) return;
     onSave(parsed.value);
   }
 
@@ -80,6 +84,11 @@ export function ReleaseDateDialog({
               inputRef={inputRef}
               helperText="Shared with everyone who has this album and cannot be changed afterwards from the app."
             />
+            {readiness === 'not-ready' && (
+              <Text mt={3} fontSize="sm" color="text.muted">
+                This album also needs a rating and a settled score level before it can be selected.
+              </Text>
+            )}
             {parsed.ok && (
               <Text mt={3} fontSize="sm" color="text.muted" aria-live="polite">
                 Will be saved as: {formatReleaseDate(parsed.value)}
@@ -100,12 +109,16 @@ export function ReleaseDateDialog({
               type="submit"
               disabled={!parsed.ok}
               // Busy without `disabled` so a second Enter or click lands on the guard, not nowhere.
-              aria-busy={saving || undefined}
-              aria-disabled={saving || undefined}
-              css={saving ? { opacity: 0.6, cursor: 'progress' } : undefined}
+              aria-busy={busy || undefined}
+              aria-disabled={busy || undefined}
+              css={busy ? { opacity: 0.6, cursor: 'progress' } : undefined}
             >
-              {saving && <LoadingIndicatorBars />}
-              {submitLabel}
+              {busy && <LoadingIndicatorBars />}
+              {readiness === 'ready'
+                ? 'Save and select for AOTY'
+                : readiness === 'unknown'
+                  ? 'Save'
+                  : 'Save date'}
             </Button>
           </DialogFooter>
         </form>
