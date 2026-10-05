@@ -1455,4 +1455,10 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   2026-10-05).
 - **`FavoritesPage.handleRate` returns silently while the gate loads** (`if (gateLoading) return`),
   like Contenders did before this fix. Not changed here.
+- **`aria-busy` gives no announcement on an ignored press.** While readiness is unknown, a press on
+  Select for AOTY is ignored and the control only shows `aria-busy` and dimming; a screen reader
+  user hears nothing. Consider a polite live-region message ("Still loading your ratings").
+- **A failed readiness fetch leaves every album "not ready" with no message.** The hooks settle on
+  an error, so the page treats an empty summary and default tier as real, and Select for AOTY
+  sends rated albums to the gate or rating page. Show a load-failed notice instead.
 
