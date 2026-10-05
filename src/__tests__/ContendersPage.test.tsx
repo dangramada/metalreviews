@@ -48,12 +48,14 @@ vi.mock('../hooks/useAotyList', () => ({
 let stubInsufficient = false;
 let stubTier: 'none' | 'medium' | 'high' | 'very_high' = 'high';
 let stubHasWeights = true;
+let stubGateLoading = false;
+let mockRatingsLoading = false;
 vi.mock('../hooks/useCalibrationGate', () => ({
   useCalibrationGate: () => ({
     tier: stubTier,
     hasWeights: stubHasWeights,
     hasInsufficientData: stubInsufficient,
-    loading: false,
+    loading: stubGateLoading,
   }),
   confidenceLabel: (tier: string) => tier,
 }));
@@ -66,7 +68,7 @@ let mockSummary = new Map<
 vi.mock('../hooks/useAlbumRatingsSummary', () => ({
   useAlbumRatingsSummary: () => ({
     summary: mockSummary,
-    loading: false,
+    loading: mockRatingsLoading,
     refetch: mockRefetchRatings,
   }),
 }));
@@ -1065,6 +1067,387 @@ describe('ContendersPage release date at promotion', () => {
       expect(mockSetReleaseDateLocal).not.toHaveBeenCalled();
       expect(mockShowAction).not.toHaveBeenCalled();
       expect(screen.getByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
+    });
+  });
+});
+
+// Select for AOTY on undated and not-ready rows: readiness while loading, the not-ready dialog
+// hint, bulk with nothing to add, and throws. Release-date writes are stubbed like above.
+describe('ContendersPage readiness and failure handling', () => {
+  const upsert = vi.fn();
+  const rated = (id: string) =>
+    new Map([[id, { score: 0.8, rank: 1, contributions: new Map<number, number>() }]]);
+  const dated = (id: string, date: string) => {
+    mockItems = mockItems.map((i) => (i.albumId === id ? { ...i, releaseDate: date } : i));
+  };
+  const rowButtons = (band: string) =>
+    screen.getAllByRole('button', { name: new RegExp(`Select ${band} .* for AOTY`) });
+  const typeDate = (value: string) => {
+    const input = screen.getByLabelText('Release date');
+    fireEvent.change(input, { target: { value } });
+    fireEvent.blur(input);
+  };
+  const renderNone = () =>
+    render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=none') });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAotyItems = [];
+    mockAotyLoading = false;
+    mockSummary = new Map();
+    stubInsufficient = false;
+    stubTier = 'high';
+    stubHasWeights = true;
+    stubGateLoading = false;
+    mockRatingsLoading = false;
+    mockItems = [album('n1', 'Delta', null), album('n2', 'Echo', null)];
+    mockSetReleaseDateLocal.mockReset();
+    mockSetReleaseDateLocal.mockImplementation((id: string, d: string) => dated(id, d));
+    vi.mocked(supabase.rpc).mockResolvedValue({ data: '2024-03', error: null } as never);
+    upsert.mockReset();
+    upsert.mockResolvedValue({ error: null });
+    vi.mocked(supabase.from).mockImplementation(
+      () => ({ upsert }) as unknown as ReturnType<typeof supabase.from>
+    );
+  });
+
+  describe('undated row that is not ready', () => {
+    it('tier none: Save date with the hint, then the next click opens the soft gate', async () => {
+      stubTier = 'none';
+      mockSummary = rated('n1');
+      renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      expect(await screen.findByRole('button', { name: 'Save date' })).toBeInTheDocument();
+      expect(screen.getByText(/also needs a rating and a settled score level/)).toBeInTheDocument();
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save date' }));
+      await waitFor(() => expect(mockShowAction).toHaveBeenCalled());
+      expect(upsert).not.toHaveBeenCalled();
+      // Now dated: pick its year, click again.
+      fireEvent.change(year(), { target: { value: '2024' } });
+      fireEvent.click(rowButtons('Delta')[0]);
+      expect(await screen.findByText('Go to calibration')).toBeInTheDocument();
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('insufficient data: Save date with the hint, then the next click goes to the rating page', async () => {
+      stubInsufficient = true;
+      mockSummary = rated('n1');
+      renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      expect(screen.getByRole('button', { name: 'Save date' })).toBeInTheDocument();
+      expect(screen.getByText(/also needs a rating and a settled score level/)).toBeInTheDocument();
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save date' }));
+      await waitFor(() => expect(mockShowAction).toHaveBeenCalled());
+      fireEvent.change(year(), { target: { value: '2024' } });
+      fireEvent.click(rowButtons('Delta')[0]);
+      // The harness keeps the page mounted after navigating, so its URL write may append &year.
+      await waitFor(() => expect(loc()).toMatch(/^\/rate\/n1\?from=contenders/));
+      expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('the hint is absent for a ready album', async () => {
+      mockSummary = rated('n1');
+      renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('button', { name: 'Save and select for AOTY' });
+      expect(screen.queryByText(/also needs a rating/)).toBeNull();
+    });
+  });
+
+  describe('readiness still loading', () => {
+    it('dialog: neutral busy Save, presses ignored, no hint; then the label is decided once and stays fixed', async () => {
+      mockRatingsLoading = true;
+      mockSummary = rated('n1');
+      const view = renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      const busy = screen.getByRole('button', { name: 'Save' });
+      expect(busy).toHaveAttribute('aria-busy', 'true');
+      expect(screen.queryByText(/also needs a rating/)).toBeNull();
+      typeDate('2024-03');
+      // Valid input: busy by aria only, not disabled, and the press is ignored.
+      expect(busy).not.toHaveAttribute('disabled');
+      fireEvent.click(busy);
+      expect(supabase.rpc).not.toHaveBeenCalled();
+
+      // Settles as ready.
+      mockRatingsLoading = false;
+      view.rerender(<ContendersPage />);
+      expect(
+        await screen.findByRole('button', { name: 'Save and select for AOTY' })
+      ).not.toHaveAttribute('aria-busy');
+      // A refresh underneath (summary now empty, loading again) does not change the button.
+      mockSummary = new Map();
+      mockRatingsLoading = true;
+      view.rerender(<ContendersPage />);
+      expect(screen.getByRole('button', { name: 'Save and select for AOTY' })).toBeInTheDocument();
+      mockRatingsLoading = false;
+      view.rerender(<ContendersPage />);
+      expect(screen.getByRole('button', { name: 'Save and select for AOTY' })).toBeInTheDocument();
+      expect(screen.queryByText(/also needs a rating/)).toBeNull();
+    });
+
+    it('dialog: settles as not ready and only then shows the hint', async () => {
+      stubGateLoading = true;
+      const view = renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true');
+      expect(screen.queryByText(/also needs a rating/)).toBeNull();
+      stubGateLoading = false;
+      view.rerender(<ContendersPage />);
+      expect(await screen.findByRole('button', { name: 'Save date' })).toBeInTheDocument();
+      expect(screen.getByText(/also needs a rating and a settled score level/)).toBeInTheDocument();
+    });
+
+    it.each([
+      ['ratings summary', () => (mockRatingsLoading = true)],
+      [
+        'calibration gate',
+        () => {
+          stubGateLoading = true;
+          stubTier = 'none';
+        },
+      ],
+    ])(
+      'early click on a dated ready row (%s loading): no gate, no navigation, busy shown; selects once loaded',
+      async (_n, setup) => {
+        setup();
+        mockItems = [album('a1', 'Alpha', '2025-03-01')];
+        mockSummary = rated('a1');
+        const view = render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+        fireEvent.click(rowButtons('Alpha')[0]);
+        expect(loc()).toBe('/aoty/contenders');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(upsert).not.toHaveBeenCalled();
+        // The ignored press makes the busy state visible at once, without disabling the button.
+        expect(rowButtons('Alpha')[0]).toHaveAttribute('aria-busy', 'true');
+        expect(rowButtons('Alpha')[0]).not.toHaveAttribute('disabled');
+
+        mockRatingsLoading = false;
+        stubGateLoading = false;
+        stubTier = 'high';
+        view.rerender(<ContendersPage />);
+        await waitFor(() => expect(rowButtons('Alpha')[0]).not.toHaveAttribute('aria-busy'));
+        fireEvent.click(rowButtons('Alpha')[0]);
+        await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+        expect(loc()).toBe('/aoty/contenders');
+      }
+    );
+
+    it('bulk press while loading is ignored, keeps the selection and shows busy', async () => {
+      mockRatingsLoading = true;
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      mockSummary = rated('a1');
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Alpha/ }));
+      await waitFor(() => screen.getByText('1 selected'));
+      fireEvent.click(screen.getByRole('button', { name: 'Select for AOTY' }));
+      expect(upsert).not.toHaveBeenCalled();
+      expect(mockShowSuccess).not.toHaveBeenCalled();
+      expect(mockShowError).not.toHaveBeenCalled();
+      expect(screen.getByText('1 selected')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Select for AOTY' })).toHaveAttribute(
+        'aria-busy',
+        'true'
+      );
+    });
+
+    it('a refresh after the first load does not make rows busy again', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      mockSummary = rated('a1');
+      const view = render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      mockRatingsLoading = true;
+      view.rerender(<ContendersPage />);
+      fireEvent.click(rowButtons('Alpha')[0]);
+      await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+    });
+  });
+
+  describe('both row trees', () => {
+    it('each tree has a button described by its own note; the mobile one opens the dialog', async () => {
+      renderNone();
+      const buttons = rowButtons('Delta');
+      expect(buttons).toHaveLength(2);
+      const ids = buttons.map((b) => b.getAttribute('aria-describedby'));
+      expect(new Set(ids).size).toBe(2);
+      ids.forEach((id) =>
+        expect(document.getElementById(id!)).toHaveTextContent('No release date yet.')
+      );
+      // The accessible name does not change.
+      expect(buttons[1]).toHaveAccessibleName(/^Select Delta .* for AOTY$/);
+      fireEvent.click(buttons[1]);
+      expect(await screen.findByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
+    });
+
+    it('a dated row has no description', () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      rowButtons('Alpha').forEach((b) => expect(b).not.toHaveAttribute('aria-describedby'));
+    });
+
+    it('selecting a ready dated row works from the mobile control', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      mockSummary = rated('a1');
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(rowButtons('Alpha')[1]);
+      await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+    });
+  });
+
+  describe('bulk', () => {
+    it('all undated: only the skipped explanation, no "0 added", selection kept', async () => {
+      renderNone();
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Delta/ }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Echo/ }));
+      await waitFor(() => screen.getByText('2 selected'));
+      fireEvent.click(screen.getByRole('button', { name: 'Select for AOTY' }));
+      await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+      expect(mockShowError).toHaveBeenCalledWith(
+        '2 skipped: not fully rated, no release date, or score level not settled.'
+      );
+      expect(mockShowSuccess).not.toHaveBeenCalled();
+      expect(upsert).not.toHaveBeenCalled();
+      expect(screen.getByText('2 selected')).toBeInTheDocument();
+    });
+
+    it('mixed ready and not ready (same year): adds the ready ones, reports the rest, clears the selection', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01'), album('a2', 'Bravo', '2025-04-01')];
+      mockSummary = rated('a1');
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Alpha/ }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Bravo/ }));
+      await waitFor(() => screen.getByText('2 selected'));
+      fireEvent.click(screen.getByRole('button', { name: 'Select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowSuccess).toHaveBeenCalledWith(
+          '1 added to AOTY. 1 skipped: not fully rated, no release date, or score level not settled.'
+        )
+      );
+      expect(screen.queryByText(/selected/)).toBeNull();
+    });
+  });
+
+  describe('thrown rejections', () => {
+    let warn: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    });
+
+    it('rpc throws: error toast, dialog stays, control re-enabled, retry works', async () => {
+      mockSummary = rated('n1');
+      vi.mocked(supabase.rpc).mockRejectedValue(new Error('network down'));
+      renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      typeDate('2024-03');
+      fireEvent.click(await screen.findByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not save release date. Try again.')
+      );
+      expect(warn).toHaveBeenCalled();
+      expect(upsert).not.toHaveBeenCalled();
+      expect(screen.getByRole('dialog', { name: 'Add release date' })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Save and select for AOTY' })
+        ).not.toHaveAttribute('aria-busy')
+      );
+      vi.mocked(supabase.rpc).mockResolvedValue({ data: '2024-03', error: null } as never);
+      fireEvent.click(screen.getByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+    });
+
+    it('the chained select throws: error toast, the date stays saved', async () => {
+      mockSummary = rated('n1');
+      upsert.mockRejectedValue(new Error('network down'));
+      renderNone();
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      typeDate('2024-03');
+      fireEvent.click(await screen.findByRole('button', { name: 'Save and select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not add to AOTY — try again')
+      );
+      expect(mockSetReleaseDateLocal).toHaveBeenCalledWith('n1', '2024-03');
+      expect(mockShowAction.mock.calls[0][0]).toBe('Saved Mar 2024 for Delta – Blackwater Park.');
+      expect(warn).toHaveBeenCalled();
+    });
+
+    it('single select throws: error toast, no success, the row is not left busy', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      mockSummary = rated('a1');
+      upsert.mockRejectedValue(new Error('network down'));
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(rowButtons('Alpha')[0]);
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not add to AOTY — try again')
+      );
+      expect(mockShowSuccess).not.toHaveBeenCalled();
+      await waitFor(() => expect(rowButtons('Alpha')[0]).not.toHaveAttribute('aria-busy'));
+    });
+
+    it('bulk select throws: error toast, bulk controls re-enabled, selection kept', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      mockSummary = rated('a1');
+      upsert.mockRejectedValue(new Error('network down'));
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Alpha/ }));
+      await waitFor(() => screen.getByText('1 selected'));
+      fireEvent.click(screen.getByRole('button', { name: 'Select for AOTY' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not add to AOTY — try again')
+      );
+      expect(screen.getByText('1 selected')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Select for AOTY' })).not.toBeDisabled()
+      );
+    });
+
+    const throwingDelete = () =>
+      vi.mocked(supabase.from).mockImplementation(
+        () =>
+          ({
+            delete: () => ({
+              eq: () => ({
+                eq: () => Promise.reject(new Error('network down')),
+                in: () => Promise.reject(new Error('network down')),
+              }),
+            }),
+          }) as unknown as ReturnType<typeof supabase.from>
+      );
+
+    it('single remove throws: error toast, no success, no refetch', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      throwingDelete();
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Remove from Contenders' })[0]);
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not remove — try again')
+      );
+      expect(mockShowSuccess).not.toHaveBeenCalled();
+      expect(mockRefetch).not.toHaveBeenCalled();
+    });
+
+    it('bulk remove throws: error toast, bulk controls re-enabled, selection kept', async () => {
+      mockItems = [album('a1', 'Alpha', '2025-03-01')];
+      throwingDelete();
+      render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Alpha/ }));
+      await waitFor(() => screen.getByText('1 selected'));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      await waitFor(() =>
+        expect(mockShowError).toHaveBeenCalledWith('Could not remove — try again')
+      );
+      expect(screen.getByText('1 selected')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Remove' })).not.toBeDisabled()
+      );
     });
   });
 });
