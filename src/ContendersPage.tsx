@@ -26,6 +26,7 @@ import {
 } from './components/criteria-calibration/CalibrationGateDialog';
 import { AddToContendersPicker } from './components/AddToContendersPicker';
 import { SelectableRow } from './components/SelectableRow';
+import { ContendersBulkBar } from './components/ContendersBulkBar';
 import type { FavoriteListItem } from './hooks/useFavoritesList';
 import { supabase } from './supabaseClient';
 import { useAuth } from './AuthContext';
@@ -326,7 +327,12 @@ export function ContendersPage() {
       ok = await run(
         ready.map((i) => i.albumId),
         async () => {
-          pendingFocus.current = { removedIds: ready.map((i) => i.albumId), nextId: null };
+          // The bar stays, so focus goes to the first row that remains (else the heading).
+          const readyIds = new Set(ready.map((i) => i.albumId));
+          pendingFocus.current = {
+            removedIds: [...readyIds],
+            nextId: scopedItems.find((i) => !readyIds.has(i.albumId))?.albumId ?? null,
+          };
           const added = await addToAoty(ready);
           if (!added) pendingFocus.current = null;
           return added;
@@ -501,53 +507,15 @@ export function ContendersPage() {
               already use for tier === 'none' — same event, same words, not a fourth variant. */}
           {!gateLoading && calibrationTier === 'none' && <TierNoneBanner from="contenders" />}
 
-          {/* Bulk action bar — desktop only, same raw-CSS `@media` toggle convention as
-              FavoriteListItemRow (not a Chakra responsive prop — see that component's own
-              comment on why). */}
-          {effectiveSelectedIds.size > 0 && (
-            <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
-              <Flex
-                align="center"
-                justify="space-between"
-                p={3}
-                border="2px solid"
-                borderColor="border.ruleStrong"
-                bg="surface.raised"
-              >
-                <Text fontSize="sm" color="text.primary">
-                  {effectiveSelectedIds.size} selected
-                </Text>
-                <Flex gap={2}>
-                  <Button
-                    {...secondaryButton}
-                    variant="outline"
-                    size="sm"
-                    loading={bulkAdding}
-                    disabled={bulkBusy}
-                    // Busy without `disabled`: the press is ignored (and noted) until readiness is known.
-                    aria-busy={unknownBusy || undefined}
-                    aria-disabled={unknownBusy || undefined}
-                    css={unknownBusy ? { opacity: 0.6, cursor: 'progress' } : undefined}
-                    onClick={handleBulkSelectForAoty}
-                  >
-                    Select for AOTY
-                  </Button>
-                  <Button
-                    {...secondaryButton}
-                    variant="outline"
-                    size="sm"
-                    color="text.muted"
-                    _hover={{ color: 'red.400' }}
-                    loading={bulkRemoving}
-                    disabled={bulkBusy}
-                    onClick={handleBulkRemove}
-                  >
-                    Remove
-                  </Button>
-                </Flex>
-              </Flex>
-            </Box>
-          )}
+          <ContendersBulkBar
+            selectedCount={effectiveSelectedIds.size}
+            adding={bulkAdding}
+            removing={bulkRemoving}
+            busy={bulkBusy}
+            unknownBusy={unknownBusy}
+            onSelectForAoty={handleBulkSelectForAoty}
+            onRemove={handleBulkRemove}
+          />
 
           {loading ? (
             <Flex justify="center" align="center" minH="200px">

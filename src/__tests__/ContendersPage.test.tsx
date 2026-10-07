@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ContendersPage } from '../ContendersPage';
@@ -173,7 +173,9 @@ describe('ContendersPage', () => {
     render(<ContendersPage />, { wrapper });
     await waitFor(() => expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove from Contenders' })[0]);
-    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remove' })
+    );
     await waitFor(() =>
       expect(mockShowSuccess).toHaveBeenCalledWith(
         'Opeth – Blackwater Park removed from Contenders'
@@ -526,15 +528,21 @@ describe('ContendersPage', () => {
         expect(inFn).toHaveBeenCalledWith('album_id', ['album2']);
       });
 
-      it('the bar goes away when the promoted row was the only one checked', async () => {
+      it('the bar goes inert when the promoted row was the only one checked', async () => {
         twoRated();
         wire();
         fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
         await waitFor(() => screen.getByText('1 selected'));
         fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
         await waitFor(() => expect(screen.queryByRole('checkbox', { name: /Opeth/ })).toBeNull());
-        expect(screen.queryByText(/selected/)).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+        expect(screen.queryByText(/\d+ selected/)).toBeNull();
+        expect(
+          screen.getByText('Select albums to add or remove several at once.')
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute(
+          'aria-disabled',
+          'true'
+        );
       });
     });
 
@@ -567,6 +575,69 @@ describe('ContendersPage', () => {
         expect(mockShowSuccess).toHaveBeenCalledWith('1 removed from Contenders')
       );
       expect(screen.queryByText(/AOTY list/)).toBeNull();
+    });
+
+    describe('permanent bulk bar slot', () => {
+      // These tests wire addLocal to re-render; later describes must not inherit that.
+      afterEach(() => mockAddLocal.mockReset());
+      const bar = () => screen.getByRole('button', { name: 'Select for AOTY' });
+      const barRemove = () => screen.getByRole('button', { name: 'Remove' });
+
+      it('is there with nothing selected: status text, both buttons inert, presses ignored', () => {
+        mockSummary = rated();
+        render(<ContendersPage />, { wrapper });
+        expect(screen.getByText('Select albums to add or remove several at once.')).toBeVisible();
+        for (const b of [bar(), barRemove()]) expect(b).toHaveAttribute('aria-disabled', 'true');
+        fireEvent.click(bar());
+        fireEvent.click(barRemove());
+        expect(upsert).not.toHaveBeenCalled();
+        expect(mockShowError).not.toHaveBeenCalled();
+        expect(screen.queryByRole('alertdialog')).toBeNull();
+      });
+
+      it('keeps the same slot (same node, same height) from 0 to 1 selected, then enables', async () => {
+        mockSummary = rated();
+        render(<ContendersPage />, { wrapper });
+        const slot = barRemove().parentElement!.parentElement!.parentElement!;
+        expect(slot).toHaveStyle({ height: '64px' });
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
+        await waitFor(() => screen.getByText('1 selected'));
+        expect(barRemove().parentElement!.parentElement!.parentElement!).toBe(slot);
+        expect(bar()).not.toHaveAttribute('aria-disabled');
+        expect(barRemove()).not.toHaveAttribute('aria-disabled');
+      });
+
+      it('after a bulk add, focus goes to the first remaining row, else the heading', async () => {
+        mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla' }];
+        mockSummary = rated();
+        const { rerender } = render(<ContendersPage />, { wrapper });
+        mockAddLocal.mockImplementation(() => {
+          mockAotyItems = [{ ...mockItem, createdAt: '2026-10-01' }];
+          rerender(<ContendersPage />);
+        });
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
+        await waitFor(() => screen.getByText('1 selected'));
+        fireEvent.click(bar());
+        await waitFor(() =>
+          expect(screen.getAllByRole('button', { name: /Select Mgla.*for AOTY/ })[0]).toHaveFocus()
+        );
+      });
+
+      it('after a bulk add of every row, focus goes to the heading', async () => {
+        mockItems = [mockItem];
+        mockSummary = rated();
+        const { rerender } = render(<ContendersPage />, { wrapper });
+        mockAddLocal.mockImplementation(() => {
+          mockAotyItems = [{ ...mockItem, createdAt: '2026-10-01' }];
+          rerender(<ContendersPage />);
+        });
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
+        await waitFor(() => screen.getByText('1 selected'));
+        fireEvent.click(bar());
+        await waitFor(() =>
+          expect(screen.getByRole('heading', { name: 'Contenders' })).toHaveFocus()
+        );
+      });
     });
   });
 });
@@ -1507,7 +1578,9 @@ describe('ContendersPage readiness and failure handling', () => {
       throwingDelete();
       render(<ContendersPage />, { wrapper: at('/aoty/contenders') });
       fireEvent.click(screen.getAllByRole('button', { name: 'Remove from Contenders' })[0]);
-      fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+      fireEvent.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Remove' })
+      );
       await waitFor(() =>
         expect(mockShowError).toHaveBeenCalledWith('Could not remove — try again')
       );
