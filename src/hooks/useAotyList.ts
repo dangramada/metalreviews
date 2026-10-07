@@ -1,26 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { CONTENDERS_SELECT, toFavoriteListItem, type ContenderRow } from './useContendersList';
 import type { AotyMember } from '../lib/aoty/aotyView';
+import type { FavoriteListItem } from './useFavoritesList';
 
-// `aoty` has a foreign key only to `contenders` (composite), not to `albums`, so PostgREST cannot
-// embed albums from it (PGRST200). Two steps instead: read the membership rows, then fetch those
-// albums through the contenders -> albums embed ContendersPage already uses (CONTENDERS_SELECT,
-// a relationship that exists). Chosen over a nested `aoty -> contenders -> albums` embed because
-// that shape could not be demonstrated against real rows (the table was empty when tried), while
-// this reuses a proven one. Membership rows only: no rank/score/year is stored
-// (docs/decisions/aoty/aoty-list-implementation.md), buildAotyView derives the rest.
+// AOTY is a subset of Contenders (composite FK), so membership is the only thing read here
+// (`aoty`: album_id, created_at). The albums themselves come from the Contenders pool the caller
+// already holds, filtered by membership: one pool read serves both lists instead of a second
+// contenders -> albums embed per page (docs/decisions/aoty/aoty-list-implementation.md). No
+// rank/score/year is stored, buildAotyView derives the rest. A member missing from the pool (the
+// FK should make that impossible) is skipped, as the old second read did.
 
-export function useAotyList() {
-  const [items, setItems] = useState<AotyMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  // Membership ids land after the first request, before the album fetch. ContendersPage only
-  // needs these to filter, so it can render without waiting for `loading`. Kept in step with
-  // addLocal/removeLocal. A failed ids fetch leaves the set empty and idsLoading false.
-  const [aotyIds, setAotyIds] = useState<Set<string>>(() => new Set());
+interface Options {
+  pool: FavoriteListItem[];
+  poolLoading: boolean;
+  poolError: string | null;
+}
+
+type Member = { albumId: string; createdAt: string };
+
+export function useAotyList({ pool, poolLoading, poolError }: Options) {
+  const [members, setMembers] = useState<Member[]>([]);
   const [idsLoading, setIdsLoading] = useState(true);
+  const [membersError, setMembersError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   // Bumped by every local mutation. A refetch that started before the latest mutation carries
   // pre-mutation data, so its response is dropped rather than undoing the local change; the
   // refetch each write triggers after its own mutation is the one that lands.
@@ -38,23 +40,23 @@ export function useAotyList() {
   const addLocal = useCallback((added: AotyMember[]) => {
     if (!mounted.current) return;
     mutationGen.current += 1;
-    setAotyIds((prev) => new Set([...prev, ...added.map((a) => a.albumId)]));
-    setItems((prev) => {
-      const ids = new Set(added.map((a) => a.albumId));
-      return [...added, ...prev.filter((i) => !ids.has(i.albumId))];
-    });
+    const ids = new Set(added.map((a) => a.albumId));
+    setMembers((prev) => [
+      ...added.map((a) => ({ albumId: a.albumId, createdAt: a.createdAt })),
+      ...prev.filter((m) => !ids.has(m.albumId)),
+    ]);
   }, []);
   const removeLocal = useCallback((albumIds: string[]) => {
     if (!mounted.current) return;
     mutationGen.current += 1;
-    setAotyIds((prev) => new Set([...prev].filter((id) => !albumIds.includes(id))));
-    setItems((prev) => prev.filter((i) => !albumIds.includes(i.albumId)));
+    setMembers((prev) => prev.filter((m) => !albumIds.includes(m.albumId)));
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     // Only the first load shows the spinner/error; a background refetch (refreshKey > 0) is
-    // silent and, if it fails, keeps what the page already shows.
+    // silent and, if it fails, keeps what the page already shows. A retry after a failed first
+    // load is also a refetch, so a success clears the error.
     const silent = refreshKey > 0;
     const startedAtGen = mutationGen.current;
     const stale = () => cancelled || mutationGen.current !== startedAtGen;
@@ -66,55 +68,23 @@ export function useAotyList() {
           .select('album_id, created_at')
           .order('created_at', { ascending: false });
         if (stale()) return;
-        if (fetchError) {
-          setIdsLoading(false);
-          if (!silent) {
-            setError('Failed to load AOTY');
-            setLoading(false);
-          }
-          return;
-        }
-        const members = (aotyRows ?? []) as { album_id: string; created_at: string | null }[];
-        setAotyIds(new Set(members.map((m) => m.album_id)));
         setIdsLoading(false);
-        if (members.length === 0) {
-          setItems([]);
-          setLoading(false);
+        if (fetchError) {
+          if (!silent) setMembersError('Failed to load AOTY');
           return;
         }
-        const { data: contenderRows, error: albumsError } = await supabase
-          .from('contenders')
-          .select(CONTENDERS_SELECT)
-          .in(
-            'album_id',
-            members.map((m) => m.album_id)
-          );
-        if (stale()) return;
-        if (albumsError) {
-          if (!silent) {
-            setError('Failed to load AOTY');
-            setLoading(false);
-          }
-          return;
-        }
-        const byId = new Map(
-          ((contenderRows ?? []) as unknown as ContenderRow[]).map((r) => [r.album_id, r])
+        setMembers(
+          ((aotyRows ?? []) as { album_id: string; created_at: string | null }[]).map((m) => ({
+            albumId: m.album_id,
+            createdAt: m.created_at ?? '',
+          }))
         );
-        setItems(
-          members.flatMap((m) => {
-            const row = byId.get(m.album_id);
-            return row ? [{ ...toFavoriteListItem(row), createdAt: m.created_at ?? '' }] : [];
-          })
-        );
-        setLoading(false);
+        setMembersError(null);
       } catch (e) {
         if (cancelled) return;
         console.warn('Failed to load AOTY', e);
         setIdsLoading(false);
-        if (!silent) {
-          setError('Failed to load AOTY');
-          setLoading(false);
-        }
+        if (!silent) setMembersError('Failed to load AOTY');
       }
     }
 
@@ -124,12 +94,22 @@ export function useAotyList() {
     };
   }, [refreshKey]);
 
+  // A failed ids read leaves this empty (callers then show every contender).
+  const aotyIds = useMemo(() => new Set(members.map((m) => m.albumId)), [members]);
+  const items = useMemo<AotyMember[]>(() => {
+    const byId = new Map(pool.map((i) => [i.albumId, i]));
+    return members.flatMap((m) => {
+      const item = byId.get(m.albumId);
+      return item ? [{ ...item, createdAt: m.createdAt }] : [];
+    });
+  }, [pool, members]);
+
   return {
     items,
     aotyIds,
     idsLoading,
-    loading,
-    error,
+    loading: idsLoading || poolLoading,
+    error: poolError ?? membersError,
     addLocal,
     removeLocal,
     refetch: () => setRefreshKey((k) => k + 1),

@@ -52,7 +52,7 @@ export function ContendersPage() {
     idsLoading: aotyIdsLoading,
     refetch: refetchAoty,
     addLocal: addAotyLocal,
-  } = useAotyList();
+  } = useAotyList({ pool: allItems, poolLoading: contendersLoading, poolError: error });
   const { pending, run } = usePendingIds();
   const { user } = useAuth();
   const { showSuccess, showError, showAction } = useFeedbackToast();

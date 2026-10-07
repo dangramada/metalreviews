@@ -28,14 +28,18 @@ import { focusRowOrHeading } from './utils/focusRow';
 // from albums.release_date, order/rank from the user's current weights (compareAotyOrder).
 // See docs/decisions/aoty/aoty-list-implementation.md.
 export function AotyPage() {
-  const { items, aotyIds, idsLoading, loading, error, refetch, removeLocal } = useAotyList();
-  // The year list spans Contenders too (AOTY is a subset), so the selector matches
-  // /aoty/contenders. If that fetch fails the scope is built from the AOTY items alone.
+  // AOTY members are read out of the Contenders pool (AOTY is a subset), which also gives the
+  // year list its full span so the selector matches /aoty/contenders.
   const {
     items: contenders,
     loading: contendersLoading,
     error: contendersError,
   } = useContendersList();
+  const { items, aotyIds, idsLoading, loading, error, refetch, removeLocal } = useAotyList({
+    pool: contenders,
+    poolLoading: contendersLoading,
+    poolError: contendersError,
+  });
   const { pending, run } = usePendingIds();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -54,7 +58,7 @@ export function AotyPage() {
   );
 
   const { scope, setYear, options, scopeSearch } = useYearScope({
-    pool: contendersError ? items : contenders,
+    pool: contenders,
     aotyIds,
     ready: !loading && !idsLoading && !contendersLoading,
   });
