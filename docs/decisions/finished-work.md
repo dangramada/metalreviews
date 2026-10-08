@@ -755,3 +755,4 @@ inflated the same way. Run with `npx vitest run --exclude '.claude/**'` until th
 (planned as `chore/vitest-exclude-claude-worktrees`, after this branch merges). A clean worktree also
 needs `.env` for 11 test files to load.
 
+[2026-10-08 follow-up: `chore/vitest-exclude-claude-worktrees` adds `'**/.claude/**'` to the vitest `exclude`; plain `npx vitest run` is now the baseline command (718 tests in 72 files). The `--exclude` workaround above is no longer needed once that branch is merged.]
