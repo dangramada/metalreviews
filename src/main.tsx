@@ -19,11 +19,10 @@ function CalibrationRouteRedirect() {
 const FavoritesPage = React.lazy(() =>
   import('./FavoritesPage').then((m) => ({ default: m.FavoritesPage }))
 );
-// Lazy-loaded for the same reason.
-const AotyPage = React.lazy(() => import('./AotyPage').then((m) => ({ default: m.AotyPage })));
-const ContendersPage = React.lazy(() =>
-  import('./ContendersPage').then((m) => ({ default: m.ContendersPage }))
-);
+// Lazy-loaded for the same reason. ONE lazy object serves both /aoty routes: with the same
+// component type at the same position React keeps the hub mounted when navigating between them
+// (selection, pending writes), and two lazy() objects or two page components would remount it.
+const AotyHub = React.lazy(() => import('./AotyHub').then((m) => ({ default: m.AotyHub })));
 // Lazy-loaded for the same reason, plus this page pulls in @chakra-ui/charts/recharts —
 // no need to add that to every route's initial bundle.
 const AlbumRatingPage = React.lazy(() =>
@@ -51,7 +50,7 @@ const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <React.Suspense fallback={null}>
-          <AotyPage />
+          <AotyHub />
         </React.Suspense>
       </RequireAuth>
     ),
@@ -64,7 +63,7 @@ const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <React.Suspense fallback={null}>
-          <ContendersPage />
+          <AotyHub />
         </React.Suspense>
       </RequireAuth>
     ),
