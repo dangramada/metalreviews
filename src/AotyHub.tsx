@@ -546,6 +546,7 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
       item={item}
       rank={rank}
       scoreLabel="Your Score"
+      hideGenres
       onBackToContenders={() => handleBackToContenders(item.albumId)}
       backPending={pending.has(item.albumId)}
       ratingSummary={ratingSummary.get(item.albumId)}
@@ -596,6 +597,7 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
         onRemove={() => handleRemove(item.albumId, `${item.band} – ${item.album}`)}
         removing={removingId === item.albumId}
         removeLabel="Contenders"
+        hideGenres
         scoreLabel="Your Score"
         note={item.releaseDate ? undefined : 'No release date yet.'}
         extraActions={({ noteId }) => {

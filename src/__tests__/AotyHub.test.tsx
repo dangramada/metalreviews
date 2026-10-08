@@ -141,6 +141,17 @@ describe('AotyHub', () => {
     });
   });
 
+  describe('genres', () => {
+    // Both lists leave the genre tags out; the rows keep their title and release date.
+    it.each(['aoty', 'contenders'] as const)('no genre tags on the %s screen', (name) => {
+      mockItems = mockItems.map((i) => ({ ...i, genre: ['doom metal', 'sludge'] }));
+      render(<AotyHub screen={name} />, { wrapper });
+      expect(screen.getAllByText(/Alpha|Charlie/).length).toBeGreaterThan(0);
+      expect(screen.queryByText('doom metal')).toBeNull();
+      expect(screen.queryByText('sludge')).toBeNull();
+    });
+  });
+
   describe('state survives the route change', () => {
     it('keeps the selection when switching /aoty <-> /aoty/contenders (same component type)', async () => {
       const Guard = ({ children }: { children: React.ReactNode }) => <>{children}</>;
