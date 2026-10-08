@@ -716,3 +716,42 @@ item's own prior 2026-09-15 reorg note.]
   because the cause was unknown; it is now required because the cause is _shape-dependent_, so
   no single explanation would be true for all users who see that screen. The existing
   both-directions test remains correct as-is.
+
+## Contenders: stale selection after a row leaves its own button (closed 2026-10-08)
+
+Originally recorded as a deferred item on `feature/aoty-two-column` (`deferred-work.md`, "Stale
+selection after a single Select for AOTY"); that item never existed on `master`, so it is recorded
+here directly. If that branch is rebased, drop its copy.
+
+- **Cause** (`src/ContendersPage.tsx`, `master` `20a5b78`): `selectedIds` was only pruned on a scope
+  change, a single remove, and a successful bulk add or remove. An id whose row left the list through
+  the row's own Select for AOTY, through the date dialog (Save and select, or a date that moves the
+  album to another year), or through a refetch, stayed in it. Effects: an inflated "N selected" count,
+  a bar with nothing visibly checked, and `handleBulkRemove` deleting the hidden id from `contenders`.
+- **Cascade verified** in `supabase/aoty.sql:11-12`
+  (`foreign key (user_id, album_id) references contenders (user_id, album_id) on delete cascade`):
+  deleting the contenders row also deleted its AOTY pick.
+- **Fix**: `effectiveSelectedIds`, derived with `useMemo` from `scopedItems` and `selectedIds`, used
+  for the count, the bar's visibility, `handleBulkSelectForAoty`, `handleBulkRemove` and the rows'
+  `selected` / `disabled`. Derived, not a prune effect, so a refetch that briefly empties the list
+  cannot drop a valid selection. Known trade-off: a raw id can show as checked again if its row
+  reappears while the page stays mounted.
+- **Tests**: three in `ContendersPage.test.tsx` (promote through the row then bulk Remove; promoted
+  row was the only one checked; date moves the row to another year). Run red on `master` first
+  (stale "2 selected" at the count assertion, bar still present, stale count in the date case).
+- **Carry-over for the tabs branch**: the permanent bulk bar (`4b80c4f`) renders
+  `selectedCount={selectedIds.size}`; it must pass the effective count instead.
+
+### Test baseline note (2026-10-08)
+
+The documented 1164 tests included 449 tests from a stale nested worktree. In the main checkout
+vitest also collects `.claude/worktrees/focused-mahavira-b1d0e0` (branch
+`claude/focused-mahavira-b1d0e0`, `e1d0655`, 57 test files); `vitest.config.ts` excludes only
+`node_modules`, `dist` and `*.spec.ts`, and `.claude/worktrees` is gitignored but not excluded. Measured
+on `master` `20a5b78`: 129 files / 1164 tests in the main checkout = 72 files / 715 tests of this
+repo + 57 files / 449 tests of the nested worktree. The real baseline is **715 tests in 72 files**
+(65 in `src/__tests__`, 7 in `scripts/__tests__`); the 1196 figure on `feature/aoty-two-column` is
+inflated the same way. Run with `npx vitest run --exclude '.claude/**'` until the exclude lands
+(planned as `chore/vitest-exclude-claude-worktrees`, after this branch merges). A clean worktree also
+needs `.env` for 11 test files to load.
+
