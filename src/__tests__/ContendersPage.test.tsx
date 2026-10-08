@@ -472,13 +472,13 @@ describe('ContendersPage', () => {
         );
       });
 
-      it('moves to the heading when it was the last row', async () => {
+      it('moves to the active tab when it was the last row', async () => {
         two();
         const { rerender } = render(<ContendersPage />, { wrapper });
         wireRefetch(() => rerender(<ContendersPage />), mockItems[1]);
         fireEvent.click(screen.getAllByRole('button', { name: /Select Mgla.*for AOTY/ })[0]);
         await waitFor(() =>
-          expect(screen.getByRole('heading', { name: 'Contenders' })).toHaveFocus()
+          expect(screen.getByRole('tab', { name: /^Contenders/, selected: true })).toHaveFocus()
         );
       });
     });
@@ -623,7 +623,7 @@ describe('ContendersPage', () => {
         );
       });
 
-      it('after a bulk add of every row, focus goes to the heading', async () => {
+      it('after a bulk add of every row, focus goes to the active tab', async () => {
         mockItems = [mockItem];
         mockSummary = rated();
         const { rerender } = render(<ContendersPage />, { wrapper });
@@ -635,7 +635,7 @@ describe('ContendersPage', () => {
         await waitFor(() => screen.getByText('1 selected'));
         fireEvent.click(bar());
         await waitFor(() =>
-          expect(screen.getByRole('heading', { name: 'Contenders' })).toHaveFocus()
+          expect(screen.getByRole('tab', { name: /^Contenders/, selected: true })).toHaveFocus()
         );
       });
     });
@@ -735,10 +735,11 @@ describe('ContendersPage year scope', () => {
     expect(loc()).toBe('/aoty/contenders');
   });
 
-  it('carries the scope in the AOTY link', () => {
+  it('keeps the scope when switching to the AOTY tab', async () => {
     render(<ContendersPage />, { wrapper: at('/aoty/contenders?year=2024') });
-    fireEvent.click(screen.getByRole('button', { name: 'AOTY →' }));
-    expect(loc()).toBe('/aoty?year=2024');
+    fireEvent.click(screen.getByRole('tab', { name: /^AOTY/ }));
+    // Ark's tabs machine applies the change a tick after the click.
+    await waitFor(() => expect(loc()).toBe('/aoty/contenders?year=2024&view=aoty'));
   });
 
   it('keeps the displayed scope when promotions change the counts (no ?year)', () => {

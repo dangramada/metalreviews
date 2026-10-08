@@ -122,10 +122,10 @@ describe('AotyPage', () => {
     stubInsufficient = false;
   });
 
-  it('shows the empty state with a way back to Contenders', () => {
+  it('shows the empty state with a way to the Contenders tab', () => {
     render(<AotyPage />, { wrapper });
     expect(screen.getByText('No AOTY picks yet.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Contenders →' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Go to Contenders' })).toBeInTheDocument();
   });
 
   it('ranks the default (latest) year and labels ranks for screen readers', () => {
@@ -176,10 +176,10 @@ describe('AotyPage', () => {
     expect(year().value).toBe('2026');
     fireEvent.change(year(), { target: { value: '2024' } });
     expect(screen.getByText('No AOTY picks in 2024.')).toBeInTheDocument();
-    expect(screen.getByText('Pick from your Contenders.')).toBeInTheDocument();
+    expect(screen.getByText('Choose albums from the Contenders tab.')).toBeInTheDocument();
   });
 
-  it('ranks per year and carries the scope to Contenders', () => {
+  it('ranks per year and keeps the scope when switching to the Contenders tab', async () => {
     mockItems = [
       member('a', 'Aaa', '2026-01-01'),
       member('b', 'Bbb', '2025-01-01'),
@@ -195,8 +195,9 @@ describe('AotyPage', () => {
     // 2025 has its own #1 even though 2026's Aaa scores higher.
     const ranks = screen.getAllByText(/^Rank \d/).map((e) => e.textContent);
     expect(ranks).toEqual(expect.arrayContaining(['Rank 1', 'Rank 2']));
-    fireEvent.click(screen.getByRole('button', { name: 'Contenders →' }));
-    expect(loc()).toBe('/aoty/contenders?year=2025');
+    fireEvent.click(screen.getByRole('tab', { name: /^Contenders/ }));
+    // Ark's tabs machine applies the change a tick after the click.
+    await waitFor(() => expect(loc()).toBe('/aoty?year=2025&view=contenders'));
   });
 
   it('does not move the scope when members are removed (no ?year)', () => {
@@ -295,7 +296,7 @@ describe('AotyPage', () => {
     expect(screen.getAllByText(/Aaa/).length).toBeGreaterThan(0);
   });
 
-  it('moves focus to the next row, else the heading, after Back to Contenders', async () => {
+  it('moves focus to the next row, else the active tab, after Back to Contenders', async () => {
     const secondEq = vi.fn().mockResolvedValue({ error: null });
     const del = vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: secondEq }) });
     vi.mocked(supabase.from).mockReturnValue({ delete: del } as unknown as ReturnType<
@@ -318,7 +319,9 @@ describe('AotyPage', () => {
       rerender(<AotyPage />);
     });
     fireEvent.click(screen.getAllByRole('button', { name: 'Back to Contenders' })[0]);
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'AOTY' })).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /^AOTY/, selected: true })).toHaveFocus()
+    );
   });
 
   it('Back to Contenders: double click writes once, busy visible, name and focus kept', async () => {

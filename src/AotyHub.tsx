@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Container, Flex, Heading, Icon, Text, VStack } from '@chakra-ui/react';
+import { Box, Button, Container, Flex, Heading, Icon, Tabs, Text, VStack } from '@chakra-ui/react';
 import { Info } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
@@ -35,19 +35,45 @@ import { useFeedbackToast } from './hooks/useFeedbackToast';
 import { secondaryButton } from './theme';
 import { findRowControl, focusRowOrHeading } from './utils/focusRow';
 
+const EMPTY_IDS: Set<string> = new Set();
+
 export type HubScreen = 'aoty' | 'contenders';
 
-// The AOTY hub: AOTY (the final list) and Contenders (the pool it is picked from) as two screens,
-// /aoty and /aoty/contenders. One component owns all the data and write state, so selection,
-// pending writes and dialogs survive switching between the two routes (both routes must render this
-// same component type at the same position, see main.tsx). Behaviour of each list is documented in
+// The AOTY hub: two tabs on /aoty, AOTY (the final list) and Contenders (the pool it is picked from),
+// chosen by `?view=aoty|contenders` (default aoty; anything else falls back to it). The tab bar and
+// framed panel follow the Criteria Calibration page. One component owns all the data and write
+// state, so pending writes and dialogs survive a tab switch; the selection does not (it is keyed to
+// the tab and year scope). `/aoty/contenders` still resolves to the Contenders tab until its
+// redirect lands. Behaviour of each list is documented in
 // docs/decisions/aoty/aoty-list-implementation.md and aoty-contenders-implementation.md.
 export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
   const { pathname } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const viewParam = params.get('view');
+  const legacyPath = pathname.replace(/\/$/, '').endsWith('/contenders');
   const screen: HubScreen =
-    forcedScreen ?? (pathname.replace(/\/$/, '').endsWith('/contenders') ? 'contenders' : 'aoty');
-  const showAoty = screen === 'aoty';
+    forcedScreen ??
+    (viewParam === 'contenders' || viewParam === 'aoty'
+      ? viewParam
+      : legacyPath
+        ? 'contenders'
+        : 'aoty');
   const showContenders = screen === 'contenders';
+
+  // `replace`, not push, and the other params (year, from) are kept: switching tabs is not a page.
+  function setView(next: HubScreen) {
+    // The keyed selection below already ignores another tab's ids; dropping the record as well
+    // means coming back to the same tab does not bring the old selection back.
+    setSelection({ key: '', ids: EMPTY_IDS });
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.set('view', next);
+        return p;
+      },
+      { replace: true }
+    );
+  }
 
   const {
     items: allItems,
@@ -72,7 +98,6 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
   const navigate = useNavigate();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
   const [bulkAdding, setBulkAdding] = useState(false);
   // The undated contender whose release-date dialog is open.
@@ -96,17 +121,36 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
   const items = useMemo(() => allItems.filter((i) => !aotyIds.has(i.albumId)), [allItems, aotyIds]);
   // The pinned year scope narrows what is shown in both lists; `items` stays unscoped so the focus
   // handoff below only fires once a row has really left the list, not on a scope switch.
-  const { scope, setYear, options, inScope, scopeSearch } = useYearScope({
+  const {
+    scope,
+    setYear: setScopeYear,
+    options,
+    inScope,
+  } = useYearScope({
     pool: allItems,
     aotyIds,
     ready: !contendersLoading && !aotyIdsLoading,
   });
   const scopedItems = useMemo(() => items.filter(inScope), [items, inScope]);
-  // Rows in another scope are hidden, so a selection made there must not stay live.
-  const [selectionScope, setSelectionScope] = useState(scope);
-  if (selectionScope !== scope) {
-    setSelectionScope(scope);
-    setSelectedIds(new Set());
+  // The selection is stored with the tab and year scope it was made in, and ignored under any
+  // other key: rows of another tab or scope are not on screen, so it must not stay live. Keyed
+  // state rather than an effect that clears it, so no render ever shows a stale selection.
+  const selectionKey = `${screen}|${String(scope)}`;
+  const [selection, setSelection] = useState<{ key: string; ids: Set<string> }>({
+    key: selectionKey,
+    ids: EMPTY_IDS,
+  });
+  const selectedIds = selection.key === selectionKey ? selection.ids : EMPTY_IDS;
+  // A user-driven year change drops the record for the same reason as setView.
+  function setYear(next: Parameters<typeof setScopeYear>[0]) {
+    setSelection({ key: '', ids: EMPTY_IDS });
+    setScopeYear(next);
+  }
+  function setSelectedIds(next: Set<string> | ((prev: Set<string>) => Set<string>)) {
+    setSelection((cur) => {
+      const prev = cur.key === selectionKey ? cur.ids : EMPTY_IDS;
+      return { key: selectionKey, ids: typeof next === 'function' ? next(prev) : next };
+    });
   }
   // What the user can actually see checked. `selectedIds` is only ever written by the checkboxes
   // and the clears below, so an id whose row has left the list (promoted through its own button,
@@ -119,8 +163,10 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
   );
   // Wait for the AOTY ids too (not the full AOTY list), or its members flash in Contenders.
   const loading = contendersLoading || aotyIdsLoading;
-  const contendersHeadingRef = useRef<HTMLHeadingElement>(null);
-  const aotyHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Where focus goes when the row it was on has left and no other row remains: the active tab.
+  const tablistRef = useRef<HTMLDivElement>(null);
+  const activeTab = () =>
+    tablistRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ?? null;
   const pendingFocus = useRef<{ removedIds: string[]; nextId: string | null } | null>(null);
   // Watches what is on screen, not the whole list: a row can leave the view without leaving the
   // list (dating an album moves it to another year scope).
@@ -128,7 +174,7 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
     const p = pendingFocus.current;
     if (!p || p.removedIds.some((id) => scopedItems.some((i) => i.albumId === id))) return;
     pendingFocus.current = null;
-    focusRowOrHeading(p.nextId, contendersHeadingRef.current);
+    focusRowOrHeading(p.nextId, activeTab());
   }, [scopedItems]);
   const {
     summary: ratingSummary,
@@ -157,6 +203,14 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
   // fixed for that dialog instance (a refresh underneath must not change what Save does).
   const [latched, setLatched] = useState<{ albumId: string; ready: boolean } | null>(null);
   const [gateMode, setGateMode] = useState<CalibrationGateMode | null>(null);
+  // The dialogs belong to the Contenders tab. A tab change that did not come from this page (the
+  // browser's Back, a link) unmounts them, so their open state must not wait for the tab to return.
+  const [dialogScreen, setDialogScreen] = useState(screen);
+  if (dialogScreen !== screen) {
+    setDialogScreen(screen);
+    setDateOpen(false);
+    setGateMode(null);
+  }
   const [pendingRateAlbumId, setPendingRateAlbumId] = useState<string | null>(null);
 
   // ─── AOTY ──────────────────────────────────────────────────────────────────
@@ -164,26 +218,20 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
   // data means the persisted tier describes a session that no longer exists.
   const scoresAvailable =
     hasCalibrationWeights && calibrationTier !== 'none' && !hasInsufficientData;
+  // Built for both tabs: the AOTY tab's count needs it while Contenders is showing.
   const aotyView = useMemo(
-    () =>
-      showAoty
-        ? buildAotyView(aotyItems, ratingSummary, criterionOrder, scoresAvailable, getReleaseYear)
-        : null,
-    [showAoty, aotyItems, ratingSummary, criterionOrder, scoresAvailable]
+    () => buildAotyView(aotyItems, ratingSummary, criterionOrder, scoresAvailable, getReleaseYear),
+    [aotyItems, ratingSummary, criterionOrder, scoresAvailable]
   );
   const aotyRows: AotyRow[] =
-    !aotyView || scope === null
-      ? []
-      : scope === 'none'
-        ? aotyView.noYear
-        : (aotyView.byYear.get(scope) ?? []);
+    scope === null ? [] : scope === 'none' ? aotyView.noYear : (aotyView.byYear.get(scope) ?? []);
   const aotyPendingFocus = useRef<{ removedId: string; nextId: string | null } | null>(null);
-  // Focus goes to the next row (else the heading) once the moved row has left the list.
+  // Focus goes to the next row (else the active tab) once the moved row has left the list.
   useEffect(() => {
     const p = aotyPendingFocus.current;
     if (!p || aotyItems.some((i) => i.albumId === p.removedId)) return;
     aotyPendingFocus.current = null;
-    focusRowOrHeading(p.nextId, aotyHeadingRef.current);
+    focusRowOrHeading(p.nextId, activeTab());
   }, [aotyItems]);
 
   function handleBackToContenders(albumId: string) {
@@ -555,6 +603,12 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
     />
   );
 
+  const goToContenders = (
+    <Button {...secondaryButton} variant="outline" size="sm" onClick={() => setView('contenders')}>
+      Go to Contenders
+    </Button>
+  );
+
   const aotyBody = () =>
     // Waits for readiness too: before the ratings summary lands every member is unranked.
     loading || !known ? (
@@ -565,8 +619,14 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
       <EmptyState
         icon={<Icon as={Info} />}
         title="No AOTY picks yet."
-        description="Pick from your Contenders."
-      />
+        description={
+          allItems.length === 0
+            ? 'Add albums to Contenders first, then choose from them here.'
+            : 'Choose albums from the Contenders tab.'
+        }
+      >
+        {goToContenders}
+      </EmptyState>
     ) : aotyRows.length === 0 ? (
       <EmptyState
         icon={<Icon as={Info} />}
@@ -575,8 +635,10 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
             ? 'No AOTY picks without a release year.'
             : `No AOTY picks in ${scope === null ? 'this year' : scopeLabel(scope)}.`
         }
-        description="Pick from your Contenders."
-      />
+        description="Choose albums from the Contenders tab."
+      >
+        {goToContenders}
+      </EmptyState>
     ) : (
       <VStack gap={3} align="stretch">
         {aotyRows.map((r) => renderAotyRow(r))}
@@ -700,7 +762,7 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
           onExitComplete={() => {
             const exit = dateExitFocus.current;
             dateExitFocus.current = null;
-            if (exit) focusRowOrHeading(exit.nextId, contendersHeadingRef.current);
+            if (exit) focusRowOrHeading(exit.nextId, activeTab());
           }}
           onSave={(value) => {
             if (!known || latched?.albumId !== dateTarget.albumId) return;
@@ -734,61 +796,68 @@ export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
     </>
   );
 
+  // Tab labels carry the scoped counts; no number while a list is still loading or failed.
+  const aotyCount = loading || aotyError ? null : aotyRows.length;
+  const contendersCount = loading || contendersError ? null : scopedItems.length;
+  const tabLabel = (name: string, count: number | null) =>
+    count === null ? name : `${name} ${count}`;
+
   return (
     <Box minH="100vh" bg="surface.page" color="text.primary" py={8}>
       <Container maxW="container.xl">
         <VStack gap={6} align="stretch">
           <Header />
 
-          {screen === 'aoty' ? (
-            <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
-              <Flex align="center" gap={3} flexWrap="wrap">
-                <Heading as="h2" size="xl" ref={aotyHeadingRef} tabIndex={-1}>
-                  AOTY
-                </Heading>
-                {yearSelect}
-              </Flex>
-              <Button
-                {...secondaryButton}
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/aoty/contenders${scopeSearch}`)}
-              >
-                Contenders →
-              </Button>
-            </Flex>
-          ) : (
-            <Flex align="center" justify="space-between" gap={3} flexWrap="wrap">
-              <Flex align="center" gap={3} flexWrap="wrap">
-                <Heading as="h2" size="xl" ref={contendersHeadingRef} tabIndex={-1}>
-                  Contenders
-                </Heading>
-                {yearSelect}
-              </Flex>
-              <Flex gap={2}>
-                {addFromFavorites}
-                <Button
-                  {...secondaryButton}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/aoty${scopeSearch}`)}
-                >
-                  AOTY →
-                </Button>
-              </Flex>
-            </Flex>
-          )}
-
           {banner}
 
-          {screen === 'aoty' ? (
-            aotyBody()
-          ) : (
-            <>
-              {bulkBar}
-              {contendersBody()}
-            </>
-          )}
+          {/* The tab bar sits directly on the panel (the outline variant's active tab joins the
+              panel's top border), so nothing may render between them, as on the calibration page. */}
+          <Box>
+            <Heading as="h2" srOnly>
+              {screen === 'aoty' ? 'AOTY' : 'Contenders'}
+            </Heading>
+            <Tabs.Root
+              variant="outline"
+              size="lg"
+              value={screen}
+              onValueChange={({ value }) => setView(value as HubScreen)}
+            >
+              <Flex align="flex-end" justify="space-between" gap={4} wrap="nowrap">
+                <Tabs.List ref={tablistRef} aria-label="AOTY sections">
+                  <Tabs.Trigger value="aoty">{tabLabel('AOTY', aotyCount)}</Tabs.Trigger>
+                  <Tabs.Trigger value="contenders">
+                    {tabLabel('Contenders', contendersCount)}
+                  </Tabs.Trigger>
+                </Tabs.List>
+                <Box pb={2}>{yearSelect}</Box>
+              </Flex>
+              {/* Only the active tab's content is mounted. Below md the frame keeps just its top
+                  border and no side padding: a framed panel would leave a 299px row at 375px, too
+                  narrow for the row's footer to stay on one line (343px fits). */}
+              <Tabs.Content
+                value={screen}
+                bg="surface.tabPanel"
+                borderStyle="solid"
+                borderColor="border.ruleStrong"
+                borderWidth={{ base: '2px 0 0', md: '2px' }}
+                borderRadius="none"
+                px={{ base: 0, md: 8 }}
+                pt={{ base: 4, md: 8 }}
+                pb={{ base: 4, md: 8 }}
+                minH={{ base: 'auto', md: '640px' }}
+              >
+                {screen === 'aoty' ? (
+                  aotyBody()
+                ) : (
+                  <VStack gap={3} align="stretch">
+                    <Flex justify="flex-end">{addFromFavorites}</Flex>
+                    {bulkBar}
+                    {contendersBody()}
+                  </VStack>
+                )}
+              </Tabs.Content>
+            </Tabs.Root>
+          </Box>
 
           <Footer />
         </VStack>
