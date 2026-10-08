@@ -658,6 +658,22 @@ describe('FavoriteListItemRow — insufficient data', () => {
   });
 });
 
+describe('FavoriteListItemRow — hideGenres', () => {
+  // Both breakpoints' trees mount at once in jsdom, so "absent" means absent from both.
+  it('shows the genre tags by default, in both trees', () => {
+    render(<FavoriteListItemRow item={mockItem} />, { wrapper });
+    expect(screen.getAllByText('progressive metal').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('drops the genre tags from both trees when hideGenres is set', () => {
+    render(<FavoriteListItemRow item={mockItem} hideGenres />, { wrapper });
+    expect(screen.queryByText('progressive metal')).toBeNull();
+    expect(screen.queryByText('death metal')).toBeNull();
+    // Title and date are untouched.
+    expect(screen.getAllByText(/Opeth/).length).toBeGreaterThan(0);
+  });
+});
+
 // FavoriteListItemRow no longer has selectable/selected/onToggleSelect props — that moved to the
 // shared SelectableRow wrapper (src/components/SelectableRow.tsx), which ContendersPage and
 // AddToContendersPicker use instead. See src/__tests__/SelectableRow.test.tsx for the
