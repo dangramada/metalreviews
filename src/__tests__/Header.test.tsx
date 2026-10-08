@@ -192,6 +192,12 @@ describe('Header — AOTY year scope link', () => {
     expect(screen.getByRole('link', { name: 'AOTY' })).toHaveAttribute('href', '/aoty');
   });
 
+  it('the AOTY link from the Contenders tab keeps the year and lands on the AOTY tab', () => {
+    render(<Header />, { wrapper: makeWrapper('/aoty?view=contenders&year=2025') });
+    const link = screen.getByRole('link', { name: 'AOTY' });
+    expect(link).toHaveAttribute('href', '/aoty?year=2025');
+  });
+
   it('drops a malformed ?year', () => {
     render(<Header />, { wrapper: makeWrapper('/aoty?year=%3Cscript%3E') });
     expect(screen.getByRole('link', { name: 'AOTY' })).toHaveAttribute('href', '/aoty');

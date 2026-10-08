@@ -134,10 +134,10 @@ describe('AotyHub', () => {
       expect(screen.getByText('Select albums to add or remove several at once.')).toBeVisible();
     });
 
-    it('picks the screen from the URL path when none is forced', () => {
+    it('picks the screen from ?view when none is forced', () => {
       const routed = ({ children }: { children: React.ReactNode }) => (
         <ChakraProvider value={system}>
-          <MemoryRouter initialEntries={['/aoty/contenders']}>{children}</MemoryRouter>
+          <MemoryRouter initialEntries={['/aoty?view=contenders']}>{children}</MemoryRouter>
         </ChakraProvider>
       );
       render(<AotyHub />, { wrapper: routed });
@@ -147,10 +147,10 @@ describe('AotyHub', () => {
 
   describe('tabs', () => {
     const renderRouted = (entries: string[], index?: number) => {
-      const router = createMemoryRouter(
-        ['/aoty', '/aoty/contenders'].map((path) => ({ path, element: <AotyHub /> })),
-        { initialEntries: entries, initialIndex: index }
-      );
+      const router = createMemoryRouter([{ path: '/aoty', element: <AotyHub /> }], {
+        initialEntries: entries,
+        initialIndex: index,
+      });
       const view = render(
         <ChakraProvider value={system}>
           <RouterProvider router={router} />
@@ -339,30 +339,11 @@ describe('AotyHub', () => {
     });
   });
 
-  describe('state survives the route change', () => {
-    it('keeps the selection when switching /aoty <-> /aoty/contenders (same component type)', async () => {
-      const Guard = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-      const router = createMemoryRouter(
-        [
-          {
-            path: '/aoty',
-            element: (
-              <Guard>
-                <AotyHub />
-              </Guard>
-            ),
-          },
-          {
-            path: '/aoty/contenders',
-            element: (
-              <Guard>
-                <AotyHub />
-              </Guard>
-            ),
-          },
-        ],
-        { initialEntries: ['/aoty/contenders'] }
-      );
+  describe('a URL-driven tab change', () => {
+    it('is followed, and the selection made on the other tab is not applied', async () => {
+      const router = createMemoryRouter([{ path: '/aoty', element: <AotyHub /> }], {
+        initialEntries: ['/aoty?view=contenders'],
+      });
       render(
         <ChakraProvider value={system}>
           <RouterProvider router={router} />
@@ -374,11 +355,7 @@ describe('AotyHub', () => {
         await router.navigate('/aoty');
       });
       expect(screen.getByRole('heading', { name: 'AOTY' })).toBeInTheDocument();
-      expect(screen.queryByText('1 selected')).toBeNull(); // the bar is not on the AOTY screen
-      await act(async () => {
-        await router.navigate('/aoty/contenders');
-      });
-      expect(screen.getByText('1 selected')).toBeInTheDocument();
+      expect(screen.queryByText('1 selected')).toBeNull();
     });
   });
 });

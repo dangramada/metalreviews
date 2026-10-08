@@ -40,8 +40,8 @@ export function Header({ breadcrumb }: { breadcrumb?: React.ReactNode } = {}) {
 
   const isReviewsActive = location.pathname === '/';
   const isFavoritesActive = location.pathname === '/favorites';
-  // startsWith, not exact match: Contenders is nested under /aoty/... (see main.tsx), so the AOTY
-  // link stays lit there too.
+  // startsWith, not exact match: the AOTY hub lives at /aoty (Contenders is its ?view=contenders
+  // tab) and the AOTY link must stay lit on any path beneath it.
   const isAotyActive = location.pathname.startsWith('/aoty');
   // Carry the year scope between AOTY and Contenders (and only there; a stray ?year= elsewhere
   // is not ours to forward).

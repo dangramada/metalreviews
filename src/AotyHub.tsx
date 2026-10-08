@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Container, Flex, Heading, Icon, Tabs, Text, VStack } from '@chakra-ui/react';
 import { Info } from 'lucide-react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingIndicator, LoadingIndicatorBars } from './LoadingIndicator';
@@ -43,21 +43,12 @@ export type HubScreen = 'aoty' | 'contenders';
 // chosen by `?view=aoty|contenders` (default aoty; anything else falls back to it). The tab bar and
 // framed panel follow the Criteria Calibration page. One component owns all the data and write
 // state, so pending writes and dialogs survive a tab switch; the selection does not (it is keyed to
-// the tab and year scope). `/aoty/contenders` still resolves to the Contenders tab until its
-// redirect lands. Behaviour of each list is documented in
+// the tab and year scope). `/aoty/contenders` redirects here (see AotyContendersRedirect). Behaviour of each list is documented in
 // docs/decisions/aoty/aoty-list-implementation.md and aoty-contenders-implementation.md.
 export function AotyHub({ screen: forcedScreen }: { screen?: HubScreen }) {
-  const { pathname } = useLocation();
   const [params, setParams] = useSearchParams();
   const viewParam = params.get('view');
-  const legacyPath = pathname.replace(/\/$/, '').endsWith('/contenders');
-  const screen: HubScreen =
-    forcedScreen ??
-    (viewParam === 'contenders' || viewParam === 'aoty'
-      ? viewParam
-      : legacyPath
-        ? 'contenders'
-        : 'aoty');
+  const screen: HubScreen = forcedScreen ?? (viewParam === 'contenders' ? 'contenders' : 'aoty');
   const showContenders = screen === 'contenders';
 
   // `replace`, not push, and the other params (year, from) are kept: switching tabs is not a page.

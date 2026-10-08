@@ -10,6 +10,7 @@ import { RequireAuth } from './RequireAuth';
 import { StyleGuide } from './StyleGuide';
 import { CriteriaCalibrationPage } from './CriteriaCalibrationPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AotyContendersRedirect } from './AotyContendersRedirect';
 
 function CalibrationRouteRedirect() {
   const location = useLocation();
@@ -19,9 +20,7 @@ function CalibrationRouteRedirect() {
 const FavoritesPage = React.lazy(() =>
   import('./FavoritesPage').then((m) => ({ default: m.FavoritesPage }))
 );
-// Lazy-loaded for the same reason. ONE lazy object serves both /aoty routes: with the same
-// component type at the same position React keeps the hub mounted when navigating between them
-// (selection, pending writes), and two lazy() objects or two page components would remount it.
+// Lazy-loaded for the same reason.
 const AotyHub = React.lazy(() => import('./AotyHub').then((m) => ({ default: m.AotyHub })));
 // Lazy-loaded for the same reason, plus this page pulls in @chakra-ui/charts/recharts —
 // no need to add that to every route's initial bundle.
@@ -55,19 +54,8 @@ const router = createBrowserRouter([
       </RequireAuth>
     ),
   },
-  {
-    // Under /aoty/ (not bare /contenders) so the URL doesn't need to change once AOTY itself
-    // ships and Contenders becomes its sub-path — see aoty-contenders-implementation.md's
-    // scope-correction section.
-    path: '/aoty/contenders',
-    element: (
-      <RequireAuth>
-        <React.Suspense fallback={null}>
-          <AotyHub />
-        </React.Suspense>
-      </RequireAuth>
-    ),
-  },
+  // The old Contenders route: now the Contenders tab of the hub, search kept.
+  { path: '/aoty/contenders', element: <AotyContendersRedirect /> },
   { path: '/style-guide', element: <StyleGuide /> },
   {
     path: '/rate/:albumId',
