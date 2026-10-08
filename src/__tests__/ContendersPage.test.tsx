@@ -481,6 +481,63 @@ describe('ContendersPage', () => {
       });
     });
 
+    // A checked row that leaves the list through its own button must leave the selection too: the
+    // count, and above all bulk Remove (deleting a contenders row cascades to its aoty row).
+    describe('selection after a row leaves through its own button', () => {
+      const twoRated = () => {
+        mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla' }];
+        mockSummary = new Map([
+          ['album1', { score: 0.8, rank: 1, contributions: new Map<number, number>() }],
+          ['album2', { score: 0.7, rank: 2, contributions: new Map<number, number>() }],
+        ]);
+      };
+      const wire = () => {
+        const inFn = vi.fn().mockResolvedValue({ data: null, error: null });
+        vi.mocked(supabase.from).mockImplementation(
+          () =>
+            ({
+              upsert,
+              delete: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ in: inFn }) }),
+            }) as unknown as ReturnType<typeof supabase.from>
+        );
+        const { rerender } = render(<ContendersPage />, { wrapper });
+        mockAddLocal.mockImplementation(() => {
+          mockAotyItems = [{ ...mockItem, createdAt: '2026-10-01' }];
+          rerender(<ContendersPage />);
+        });
+        return inFn;
+      };
+
+      it('count and bulk Remove ignore the promoted row', async () => {
+        twoRated();
+        const inFn = wire();
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select Mgla/ }));
+        await waitFor(() => screen.getByText('2 selected'));
+        fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
+        await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('Added to AOTY'));
+        await waitFor(() => expect(screen.queryByRole('checkbox', { name: /Opeth/ })).toBeNull());
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        await waitFor(() =>
+          expect(mockShowSuccess).toHaveBeenCalledWith('1 removed from Contenders')
+        );
+        expect(inFn).toHaveBeenCalledTimes(1);
+        expect(inFn).toHaveBeenCalledWith('album_id', ['album2']);
+      });
+
+      it('the bar goes away when the promoted row was the only one checked', async () => {
+        twoRated();
+        wire();
+        fireEvent.click(screen.getByRole('checkbox', { name: /Select Opeth/ }));
+        await waitFor(() => screen.getByText('1 selected'));
+        fireEvent.click(screen.getAllByRole('button', { name: /Select Opeth.*for AOTY/ })[0]);
+        await waitFor(() => expect(screen.queryByRole('checkbox', { name: /Opeth/ })).toBeNull());
+        expect(screen.queryByText(/selected/)).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+      });
+    });
+
     it('bulk-adds only ready albums and reports the skipped count', async () => {
       mockItems = [mockItem, { ...mockItem, albumId: 'album2', band: 'Mgla' }];
       mockSummary = rated();
@@ -1147,6 +1204,30 @@ describe('ContendersPage readiness and failure handling', () => {
       // The harness keeps the page mounted after navigating, so its URL write may append &year.
       await waitFor(() => expect(loc()).toMatch(/^\/rate\/n1\?from=contenders/));
       expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('a selected row dated into another year is no longer counted or removed', async () => {
+      const inFn = vi.fn().mockResolvedValue({ data: null, error: null });
+      vi.mocked(supabase.from).mockImplementation(
+        () =>
+          ({
+            upsert,
+            delete: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ in: inFn }) }),
+          }) as unknown as ReturnType<typeof supabase.from>
+      );
+      renderNone();
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Delta/ }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /Select Echo/ }));
+      await waitFor(() => screen.getByText('2 selected'));
+      fireEvent.click(rowButtons('Delta')[0]);
+      await screen.findByRole('dialog', { name: 'Add release date' });
+      typeDate('2024-03');
+      fireEvent.click(screen.getByRole('button', { name: 'Save date' }));
+      await waitFor(() => expect(mockShowAction).toHaveBeenCalled());
+      expect(await screen.findByText('1 selected')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      await waitFor(() => expect(inFn).toHaveBeenCalledWith('album_id', ['n2']));
+      expect(inFn).toHaveBeenCalledTimes(1);
     });
 
     it('the hint is absent for a ready album', async () => {
