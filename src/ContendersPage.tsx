@@ -95,6 +95,15 @@ export function ContendersPage() {
     setSelectionScope(scope);
     setSelectedIds(new Set());
   }
+  // What the user can actually see checked. `selectedIds` is only ever written by the checkboxes
+  // and the clears below, so an id whose row has left the list (promoted through its own button,
+  // dated into another year, removed elsewhere) would otherwise stay in it: inflating the count and,
+  // worse, being deleted by bulk Remove, which cascades to its AOTY row. Derived, not pruned, so a
+  // refetch that briefly empties the list cannot drop a valid selection.
+  const effectiveSelectedIds = useMemo(
+    () => new Set(scopedItems.filter((i) => selectedIds.has(i.albumId)).map((i) => i.albumId)),
+    [scopedItems, selectedIds]
+  );
   // Wait for the AOTY ids too (not the full AOTY list), or its members flash in this list.
   const loading = contendersLoading || aotyIdsLoading;
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -302,7 +311,7 @@ export function ContendersPage() {
       notePress();
       return;
     }
-    const chosen = scopedItems.filter((i) => selectedIds.has(i.albumId));
+    const chosen = scopedItems.filter((i) => effectiveSelectedIds.has(i.albumId));
     const ready = chosen.filter((i) => isReadyForAoty(i.albumId) && i.releaseDate);
     const skipped = chosen.length - ready.length;
     const skippedText = `${skipped} skipped: not fully rated, no release date, or score level not settled.`;
@@ -369,8 +378,8 @@ export function ContendersPage() {
   }
 
   async function handleBulkRemove() {
-    if (!user || selectedIds.size === 0 || bulkBusy) return;
-    const ids = Array.from(selectedIds);
+    if (!user || effectiveSelectedIds.size === 0 || bulkBusy) return;
+    const ids = Array.from(effectiveSelectedIds);
     setBulkRemoving(true);
     let result: boolean | undefined;
     try {
@@ -495,7 +504,7 @@ export function ContendersPage() {
           {/* Bulk action bar — desktop only, same raw-CSS `@media` toggle convention as
               FavoriteListItemRow (not a Chakra responsive prop — see that component's own
               comment on why). */}
-          {selectedIds.size > 0 && (
+          {effectiveSelectedIds.size > 0 && (
             <Box css={{ '@media (max-width: 47.9375em)': { display: 'none' } }}>
               <Flex
                 align="center"
@@ -506,7 +515,7 @@ export function ContendersPage() {
                 bg="surface.raised"
               >
                 <Text fontSize="sm" color="text.primary">
-                  {selectedIds.size} selected
+                  {effectiveSelectedIds.size} selected
                 </Text>
                 <Flex gap={2}>
                   <Button
@@ -560,10 +569,10 @@ export function ContendersPage() {
                 <SelectableRow
                   key={item.albumId}
                   desktopOnly
-                  disabled={bulkBusy && selectedIds.has(item.albumId)}
-                  selected={selectedIds.has(item.albumId)}
+                  disabled={bulkBusy && effectiveSelectedIds.has(item.albumId)}
+                  selected={effectiveSelectedIds.has(item.albumId)}
                   onToggleSelect={(checked) => toggleSelect(item.albumId, checked)}
-                  ariaLabel={`${selectedIds.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
+                  ariaLabel={`${effectiveSelectedIds.has(item.albumId) ? 'Deselect' : 'Select'} ${item.band} – ${item.album}`}
                 >
                   <FavoriteListItemRow
                     item={item}
