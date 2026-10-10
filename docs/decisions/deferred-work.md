@@ -1515,3 +1515,8 @@ Items a to d repeat the entries in the section above in one line each; e is new.
 - **Frozen items that no longer apply.** The 2026-10-07 items on `feature/aoty-two-column`
   (minimum-height fallback, the icon-only footer screen-reader pass) concern the two-column layout
   and are moot here. The "Stale selection" item is closed (`finished-work.md`).
+
+- **Correction (2026-10-10) to the lint item above.** "74 files, 22 prettier-only" and "87 files, 64
+  prettier-only" are not a disagreement. 74 = files with at least one prettier error; 22 = files
+  whose every message is prettier; 87 = files with at least one error; 64 = files whose errors are
+  all prettier. Definitions and counts: `aoty/aoty-hub-layout-decision.md`, "Lint definitions".

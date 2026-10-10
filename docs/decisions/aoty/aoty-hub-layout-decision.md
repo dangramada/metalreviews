@@ -116,3 +116,106 @@ Taken: `4319215` (members from the pool), `4b80c4f` (permanent bulk bar), `a6aa5
 without two columns). Parked: `af36d25` (`useMediaQuery`), `2180c72` (stacked row and compact
 actions), `b6a07fc` (column headers). `e03fcf3` (docs) is replaced by the files named in this
 commit.
+
+## Corrections and added figures, 2026-10-10
+
+Appended; the text above is left as written. Four statements are wrong or incomplete:
+
+1. "Drawer (option B): not built; no measurement was made" (options table, and the "Numbers"
+   section's silence on drawers). Drawer findings exist (below).
+2. "Smallest width at which the desktop row tree fits: not measured". It was measured (below).
+3. "No URLs are recorded ... or were available" (Precedents). The links are below.
+4. The `deferred-work.md` lint item (2026-10-10), which says a brief's "74 files and 22
+   prettier-only" differs from the measured "87 / 64". They do not differ; they are different
+   definitions of the same lint run (see Lint definitions). That item carries a correction note.
+
+### Added figures: [H0]
+
+**[H0]** = CC investigation reports 2026-10-08, harness, synthetic data, stub header; relayed to
+this session, not re-measured. They were produced in separate Claude Code investigation sessions
+with throwaway harnesses that were deleted; they cannot be reproduced from the repo.
+
+**Row fit** (desktop tree, row width W):
+
+| Figure | Value |
+|---|---|
+| Meta column width | Contender W - 429px; AOTY W - 248px; mobile (stacked) tree W - 132px |
+| AOTY desktop row acceptable (no overflow, date on one line) | from 400px; 156px tall at 400, 139px at 480, 132px from 520 |
+| Dated Contender desktop row acceptable | from about 640px (139px tall); the 132px floor is reached at 720px |
+| Undated Contender desktop row acceptable | from 720px (145px tall) |
+| Contender desktop row at 400px | overflows by 31px |
+| Mobile (stacked) tree, 400 to 720px | no overflow; 240px tall, 284px when the footer wraps (below 520px for Contenders) |
+| Footer | needs a row of at least 332px (labels hidden below a 400px viewport) |
+| Hiding genres on a stacked row | saves about 43px per row |
+| AOTY full page, desktop row: container at viewports 768 / 1024 / 1280 / 1512 | 720 / 960 / 1216 / 1376px |
+| Same, meta column | 428 / 668 / 924 / 1084px |
+| Same, row and list | row 132px; list 852px for 6 albums and 3012px for 21 at 1512x850 |
+
+**Drawer** (Chakra 3.36, Zag dialog 1.41.2, headless Chrome):
+
+- `modal={false}` is the default and sets `trapFocus`, `preventScroll` and `closeOnInteractOutside`
+  to false. The page behind stays interactive.
+- Focus moves into the drawer on open but is not restored on close (it ends on BODY after Escape).
+  Escape closes it, even when typing in a page input.
+- Sizes: `sm` 448px, `md` 512px.
+- Nested: a modal 512px picker over a 512px drawer covers it fully; focus is trapped in the child;
+  Escape closes the child first; z-index 1500 and 1501.
+- Stacked row in a drawer, 15px scrollbar, checkbox column, 21 albums (heights are genres on / off;
+  visible rows are counted before subtracting about 130px of header and bulk bar):
+
+| Drawer width | Row width | Footer | Row height | Rows visible |
+|---|---|---|---|---|
+| 420px | 355px | wraps | 284 / 241px | 2 / 3 |
+| 480px | 415px | one line | 240 / 197px | 3 / 4 |
+| 560px | 495px | one line | 240 / 197px | 3 / 4 |
+
+- A 480px drawer at 1512 covers x=1032 to 1512, while the AOTY desktop row spans x=68 to 1444, so
+  the row's actions would sit behind the drawer.
+
+### Where [H0] agrees or differs with the earlier figures
+
+- Agrees: footer minimum 332px ([H1]); row heights 240 / 284px ([H1]); AOTY container widths and the
+  132px row ([H1], [H2]: panel 720 / 960 / 1216 / 1376px at 768 / 1024 / 1280 / 1512); list heights
+  852px and 3012px are what 6 and 21 rows of 132px with 12px gaps give.
+- Close but not equal: a stacked Contender row in a 480px drawer is 415px ([H0]) against the
+  frozen branch's about 410px in a 468px column at 1024 ([frozen]); different containers.
+- **Differs, not reconciled:** [H1] row heights in the tabs panel at 768 were 132px (panel height
+  1188px for 7 Contenders, the same as at 1280), where the row width is about 620px by geometry
+  ([est]: 720px panel, minus 2px borders and 32px padding on each side, minus a checkbox column).
+  [H0] puts a dated Contender row at 139px around 640px and unacceptable below it. The two
+  measure different things: [H1] measured height only, with short synthetic titles, and did not
+  check overflow or whether the date stays on one line; [H0]'s criterion is no overflow and a
+  one-line date. [H0] is the better source for fit; [H1] stands for heights of rows with short
+  titles. Not re-measured.
+- "Stacked card: no overflow down to 272px" ([frozen]) and "footer needs 332px" ([H0], [H1]) do not
+  conflict: one is overflow, the other is whether the four footer buttons stay on one line.
+
+### Precedent sources (searched 2026-10-08)
+
+- Mercury Prize 2026 shortlist: https://new.newcastle.gov.uk/news/2026/mercury-prize-2026-album-year-shortlist-announced
+- Greenhouse, bulk move: https://support.greenhouse.io/hc/en-us/articles/360028064592-Move-Candidates-to-Another-Stage-in-Bulk
+- GoodTime, kanban: https://support.goodtime.io/articles/1026621882-agent-job-pipeline
+- Instahyre, kanban: https://help.instahyre.com/en/article/kanban-view-xn72h9
+- Letterboxd: https://letterboxd.com/welcome/
+
+The Mercury shortlist has 12 albums and then a winner. The discovery notes' wording "shortlist of 12
+→ finalists → winner" (`docs/discovery/aoty-hub-population/lightning-demos.md:32`) is not confirmed
+by these sources: no separate finalist stage was found. That file is Project-Knowledge-owned and
+was not edited.
+
+### Lint definitions (measured 2026-10-10 with `npx eslint . -f json`, read-only)
+
+Same run, five definitions; nothing was fixed.
+
+| Definition | Files |
+|---|---|
+| Total linted files | 303 |
+| Files with at least one error | 87 |
+| Files whose errors are all `prettier/prettier` (at least one error) | 64 |
+| Files with at least one `prettier/prettier` error | 74 |
+| Files whose every message, errors and warnings, is `prettier/prettier` | 22 |
+
+Totals: 1532 errors (1445 `prettier/prettier`), 486 warnings. The brief's "74 files, 22
+prettier-only" is the fourth and fifth rows (any prettier error; nothing but prettier). The earlier
+"87 / 64" in this branch's docs is the second and third rows. By area (`src` / `scripts` / other),
+files with an error 52 / 34 / 1, with only prettier errors 41 / 23 / 0.
