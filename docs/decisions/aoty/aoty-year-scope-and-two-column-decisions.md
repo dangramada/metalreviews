@@ -99,3 +99,14 @@ implementation differs from the section 1 text: a pick does not override the def
 it still has content", it stays pinned even if it becomes empty; the selector is a native select
 in each page header, and the no-year bucket is a scope value rather than a trailing heading. See
 `aoty-list-implementation.md`, "Year as a shared scope".
+
+---
+
+**Status update (2026-10-10, appended): the two-column layout (sections 3, 6 and 7's two-column
+items) will not be built on `master`.** It was built and frozen on `feature/aoty-two-column` and
+replaced by tabs on one route, `/aoty?view=aoty|contenders`, built on `feature/aoty-tabs` (ready,
+not merged). Reasons, options and measured numbers: `aoty-hub-layout-decision.md`. The 2026-10-07
+status text on `feature/aoty-two-column` describes that frozen branch only. Sections 1 and 4 are
+unaffected. Section 3's "mobile keeps the existing separate screens" no longer holds: below 768px
+the tabs are used too, with the panel reduced to its top border so the row keeps its width. Section
+5 (motion) is still not built.

@@ -13,7 +13,7 @@ import { TierAccuracyBadge } from './TierAccuracyBadge';
 const CALIBRATION_FALLBACK_SOURCE: FromSourceEntry = { href: '/favorites', label: 'Favorites' };
 const CALIBRATION_FROM_SOURCES: Record<string, FromSourceEntry> = {
   favorites: CALIBRATION_FALLBACK_SOURCE,
-  contenders: { href: '/aoty/contenders', label: 'Contenders' },
+  contenders: { href: '/aoty?view=contenders', label: 'Contenders' },
   aoty: { href: '/aoty', label: 'AOTY' },
 };
 

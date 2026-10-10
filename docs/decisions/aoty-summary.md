@@ -50,3 +50,11 @@ is an overlay badge since 2026-10-01 — see `aoty-list-implementation.md`).
 3. `aoty/aoty-list-implementation.md` — AOTY list screen record (2026-09-30): membership-only
    `aoty` table, derived year/order/rank, tie-break spec, Step 0 accuracy check, no-backfill and
    display-rounding decisions.
+4. `aoty/aoty-year-scope-and-two-column-decisions.md` — year as a shared scope (built), list-as-entity
+   (deferred), release date at promotion, and the two-column plan (not built on `master`, see 5).
+5. `aoty/aoty-hub-layout-decision.md` — 2026-10-10: the hub is one route with Contenders and AOTY
+   as tabs (`?view=`); two columns and a drawer parked, with the options, reasons and measured
+   numbers. Implementation: `aoty/aoty-list-implementation.md` ("AOTY hub as tabs").
+
+**Status update (2026-10-10):** the hub as tabs is built on `feature/aoty-tabs` (ready, not merged);
+the "not built" two-column layout above will not be built on `master`.

@@ -94,6 +94,7 @@ export function FavoriteListItemRow({
   confidenceTier,
   hasInsufficientData = false,
   previewMode = false,
+  hideGenres = false,
   removeLabel = 'favorites',
   rank,
   scoreLabel,
@@ -124,6 +125,9 @@ export function FavoriteListItemRow({
   // button, which has no onRate/onRemove-style gate of its own). The /favorites list omits
   // this so its footer is unaffected.
   previewMode?: boolean;
+  // Drops the genre tags from both trees (the AOTY hub's lists). Default false: /favorites and the
+  // picker preview are unchanged.
+  hideGenres?: boolean;
   // What onRemove removes this row from — feeds the remove tooltip/aria-label and the confirm
   // dialog's title (e.g. "Remove from Contenders?" on ContendersPage). Body text still uses
   // item.band/item.album regardless, so this only ever needs the destination noun.
@@ -335,6 +339,7 @@ export function FavoriteListItemRow({
                 album={item.album}
                 releaseDate={item.releaseDate}
                 genre={item.genre}
+                hideGenres={hideGenres}
                 titleLayout="inline"
                 padding={{ x: 0, y: 3 }}
                 titleToDateGap={1}
@@ -541,7 +546,7 @@ export function FavoriteListItemRow({
             </Box>
           </Flex>
 
-          {item.genre.length > 0 && (
+          {!hideGenres && item.genre.length > 0 && (
             <Box borderTop="1px solid" borderColor="border.rule" py={2} px={2}>
               {/* Genre tags live in the top zone, directly below the artwork+title row — not
                 the footer. Full card width (no artwork-width spacer/offset), with 8px of

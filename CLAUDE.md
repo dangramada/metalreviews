@@ -111,7 +111,9 @@ npx vitest run src/__tests__/angrymetal.test.js
 
 2026-09-30: `npm run type-check` now runs `tsc -b`; plain `tsc --noEmit` checked zero files before (earlier "`tsc` clean" claims were vacuous unless via `tsc -b`).
 
-2026-10-08: test counts quoted below (1164, 1196, ...) were measured in the main checkout and include 449 tests from the stale nested worktree `.claude/worktrees/focused-mahavira-b1d0e0`. The real baseline is plain `npx vitest run`; 718 tests in 72 files (715 before `fix/contenders-stale-selection`). `vitest.config.ts` now excludes `**/.claude/**` (`chore/vitest-exclude-claude-worktrees`). Detail: `docs/decisions/finished-work.md`.
+2026-10-08: test counts quoted below (1164, 1196, ...) were measured in the main checkout and include 449 tests from the stale nested worktree `.claude/worktrees/focused-mahavira-b1d0e0`. The real baseline is plain `npx vitest run`; 718 tests in 72 files on `master` (715 before `fix/contenders-stale-selection`); 756 tests in 77 files on `feature/aoty-tabs`. `vitest.config.ts` now excludes `**/.claude/**` (`chore/vitest-exclude-claude-worktrees`). Detail: `docs/decisions/finished-work.md`.
+
+Ready, not merged: `feature/aoty-tabs` — the AOTY hub as tabs on one route (`/aoty?view=aoty|contenders`), replacing the separate screens; `/aoty/contenders` redirects. 77 files, 756 tests (plain `npx vitest run`), `tsc -b` clean, lint unchanged. Two columns and a drawer parked (`feature/aoty-two-column` is frozen, do not delete). Detail: `docs/decisions/aoty/aoty-hub-layout-decision.md`, `docs/decisions/aoty/aoty-list-implementation.md`.
 
 Most recent merge: `chore/vitest-exclude-claude-worktrees` — `vitest.config.ts` excludes `**/.claude/**` and `eslint.config.js` ignores `.claude`, so nested worktrees under `.claude/` are no longer collected by tests or lint (branch name is narrower than its scope). Plain `npx vitest run`: 718 tests in 72 files; `tsc -b` clean; `npm run lint` 1532 errors, 487 warnings across 294 files (was 4527 and 1019 across 563), none fixed. Merged to `master` `--no-ff` at `d39f340` on 2026-10-08. Rollback tag: `pre-merge-chore-vitest-exclude-claude-worktrees`. Detail: `docs/decisions/finished-work.md` (test baseline note).
 
@@ -462,8 +464,8 @@ Detailed rationale, gotchas, and "what NOT to change" notes for completed featur
 - `favorites-view.md` — `/favorites` route: RequireAuth, useFavoritesList, AddAlbumDrawer flow
 - `aoty-summary.md` — gateway/index for the AOTY hub decision-doc cluster (2 files, in
   `docs/decisions/aoty/`); read this first for anything AOTY/Contenders-related. Favorite →
-  Contenders → AOTY flow, `contenders` table, naming decisions. Contenders stage in progress on
-  branch `feature/aoty-contenders` — see Active branches
+  Contenders → AOTY flow, `contenders` table, naming decisions. Layout decision (tabs):
+  `aoty/aoty-hub-layout-decision.md`
 - `manual-albums.md` — `manual_albums` table schema, MB lookup endpoint, year-bounding decisions
 - `chakra-v3-migration-plan.md` — Chakra v2→v3 migration, complete and verified (210/210 tests, `tsc` clean); full sequenced history (Steps 0–7)
 - `chakra-v3-foundation-audit-brief.md` — re-examining v2-era styling hacks; eligible to start, not started

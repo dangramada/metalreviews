@@ -85,6 +85,8 @@ export function useContendersList() {
 
         const mapped = ((data ?? []) as unknown as ContenderRow[]).map(toFavoriteListItem);
         setItems(mapped);
+        // A retry after a failed first load arrives as a silent refetch and must clear the error.
+        setError(null);
         setLoading(false);
       } catch (e) {
         if (cancelled) return;

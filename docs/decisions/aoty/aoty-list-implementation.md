@@ -494,3 +494,50 @@ Revision entries (the button keeps its "Select for AOTY" name, the click opens t
 - **Not live-verified.** Early-click behavior needs a throttled network to see; jsdom cannot show
   focus or the 150 ms delay in a real browser.
 
+## AOTY hub as tabs (`feature/aoty-tabs`, 2026-10-10)
+
+Ready, not merged. Decision and numbers: `aoty-hub-layout-decision.md`. Code commits on top of
+`master` `51c3375` (docs after them), in this order:
+
+1. `8629b83` members derived from the Contenders pool (cherry-pick of `4319215`).
+2. `a86dfbb` permanent 64px Contenders bulk bar and focus to the first remaining row (`4b80c4f`);
+   the bar gets `effectiveSelectedIds.size`.
+3. `03bee40` `hideGenres` prop on `FavoriteListItemRow` (default false; Favorites and the picker
+   preview unchanged).
+4. `89bd5a0` `AotyHub`, one component for both routes, behaviour parity: the existing page tests
+   ran unmodified. Not carried over from the frozen hub: two columns, `useMediaQuery`, stacked rows,
+   the error-state "Try again" and the hooks' `retry`.
+5. `d2072f5` the hub passes `hideGenres` to both lists.
+6. `a56acac` tabs UI and `?view=`.
+7. `eb63721` `/aoty/contenders` redirects, `?from=contenders` consumers remapped.
+
+- **View.** A forced `screen` prop wins, then a valid `?view`, else AOTY. A tab click writes
+  `view` with `replace` and keeps the other params (`year`, `from`); `view` is not written on load.
+- **Panel.** Outline Tabs like `CalibrationPageHeader`; the active tab's `Tabs.Content` only (so the
+  `tabpanel` is labelled by its tab). Full frame and `minH` 640 from `md`; below `md` only the 2px
+  top border, no side padding, because a framed panel left a 299px row and the footer wrapped (343px
+  fits, 332px is the minimum).
+- **Selection** is stored as `{key, ids}` with key `view|scope` and ignored under another key; the
+  tab and year handlers also drop the record. A URL-driven round trip (Header link, then browser
+  Back) can bring a selection back; harmless, every action goes through `effectiveSelectedIds`.
+- **Dialogs.** The release-date and gate dialogs belong to the Contenders tab. A tab change that
+  does not come from the page (browser Back) closes them by a render-phase reset, and they do not
+  reopen on return.
+- **Focus.** After promote, Back to Contenders and bulk add, focus goes to the next row, else the
+  active tab trigger (not a heading).
+- **Empty AOTY tab.** "No AOTY picks yet." with "Choose albums from the Contenders tab.", or "Add
+  albums to Contenders first, then choose from them here." when both lists are empty, and a "Go to
+  Contenders" button. The year-scoped empty state ("No AOTY picks in 2024.") gets the same
+  description and button.
+- **Redirect and links.** `AotyContendersRedirect` (its own file, because `main.tsx` has startup side
+  effects) keeps the whole search and sets `view`, with `replace`. The rating page and calibration
+  breadcrumbs return to `/aoty?view=contenders` (no year; none was carried before). The rating page's
+  source map moved to `src/lib/navigation/ratingFromSources.ts` (unplanned, to test it without a new
+  `react-refresh` warning).
+- **Reads.** 9 per route on `master`, 8 with the hub, guarded by `AotyHubReads.test.tsx`.
+- **Tests.** Plain `npx vitest run`: 77 files, 756 tests (`master`: 72 files, 718). Existing tests
+  changed: `AotyPage.test.tsx` 4 (empty state button, description text, tab click with `waitFor`,
+  focus on the active tab), `ContendersPage.test.tsx` 3 (two focus tests, the scope test),
+  `AotyHub.test.tsx` 2 (path test, route-switch test). Lint: 1532 errors, 486 warnings, the same as
+  `master` apart from one warning less in `main.tsx`.
+- **Not live-verified.** Images are from a harness with mocked hooks; the logged-in pass is Dan's.
