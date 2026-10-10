@@ -1462,3 +1462,56 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   an error, so the page treats an empty summary and default tier as real, and Select for AOTY
   sends rated albums to the gate or rating page. Show a load-failed notice instead.
 
+## New items, 2026-10-10 (`feature/aoty-tabs`)
+
+- **AOTY picker (T+F).** An "Add from Contenders" drawer on the AOTY tab, with a populated and an
+  empty state. Cost estimate: generalise `AddToContendersPicker` (candidates, confirm handler, copy
+  as props, the write moved to the caller) or add a sibling; no extra Supabase read (the hub's pool
+  is in memory, candidates are `allItems` minus `aotyIds`); the write is the existing `addToAoty`.
+  Open questions: only ready and dated albums can be added (the bulk path's skip rule), so the
+  picker must list or skip the rest; an open drawer plus the release-date dialog is two stacked
+  modals; tier none or insufficient data makes every album not ready. About 6 to 8 new tests.
+- **`lg` is not 992.** Comments in `HomeReviewGrid` and `DesktopRatingLayout` claim Chakra `lg` is
+  992; for Chakra 3.36 the container padding steps at `lg` and the 1024 boundary used elsewhere is
+  the raw `64em`. Fix the comments only.
+- **Per-tab scroll memory.** One page scroll serves both tabs; switching keeps `scrollY`, which the
+  browser clamps to the shorter tab. No per-tab restore.
+- **Shared panel-frame component.** The framed panel is local to `AotyHub.tsx` and duplicated in
+  `CriteriaCalibrationPage.tsx`. They differ (the hub drops the side border and padding below `md`,
+  uses `Tabs.Content`), so they were not unified. Extract when a third use or the same shape appears.
+- **Footer wrap at 400 to 520px, at 360px and on 430px devices.** The 4-button Contenders footer
+  wraps to two lines at every row width up to 420px for viewports of 400 to 430px, with no panel in
+  the way; at 360px (row 328px) it also wraps; at a 600px viewport it fits from about 524px. The
+  labels return at 400px (the 399px rule, `FavoritesPage.tsx`). Harness, synthetic data.
+  Pre-existing on `master`, not caused by the tabs.
+- **Hub error states have no "Try again".** The frozen hub had a visible retry (`retry` in
+  `useContendersList` and `useAotyList`, a button on the error state); `feature/aoty-tabs` dropped
+  it to keep behaviour parity. Restore as its own change if wanted.
+- **Selection round-trip edge.** After a URL-driven change (Header link, then browser Back) the
+  selection made on a tab can return. Harmless: bulk add and remove go through
+  `effectiveSelectedIds`, which only counts visible rows. Tab and year changes made on the page
+  always clear it.
+- **Tab bar, year select and 3-digit counts at 375px, not seen.** Measured: tabs 207px + 16px gap +
+  120px select = 343px, 0px spare; no wrap at 375 or 768. No image has the year select in it (the
+  harness had one year). Look at it with a real 3-digit count.
+- **Logged-out return to destination.** `RequireAuth` sends a logged-out visitor to a bare
+  `/login`; `LoginPage` then does `navigate('/')` (and `AuthCallback` goes to `/`). A visit to
+  `/aoty/contenders?year=2025` therefore ends on the home page after login. True for every
+  protected route; no return-to feature was built.
+- **`?year` is lost through `?from=` on two breadcrumbs.** The Album Evaluation breadcrumb and the
+  calibration breadcrumb return to `/aoty?view=contenders` without the year the user was in (the
+  hub falls back to its default scope). Same as before the tabs; not fixed.
+- **`ratingFromSources.ts` was an unplanned extraction.** The Album Evaluation `?from=` source map
+  moved out of `AlbumRatingPage.tsx` into `src/lib/navigation/ratingFromSources.ts` so it can be
+  tested without a new `react-refresh/only-export-components` warning. Content unchanged apart from
+  the Contenders href. Keep or fold back; Dan's call.
+- **Lint cleanup, diagnostic numbers (measured 2026-10-10, `npm run lint`).** 1532 errors, 486
+  warnings over 303 linted files. 1445 of the 1532 errors are `prettier/prettier`
+  (auto-fixable); the other 87 are 81 `no-explicit-any`, 3 `no-empty-object-type`, 2
+  `react-hooks/set-state-in-effect` and 1 `no-unsafe-finally`. 87 files have at least one error and
+  64 of those have only prettier errors. A brief quoted 74 files and 22 prettier-only; the measured
+  figures are recorded here instead. A `prettier --write` pass would clear 1445 errors but touches
+  64 or more files; do it as its own change.
+- **Frozen items that no longer apply.** The 2026-10-07 items on `feature/aoty-two-column`
+  (minimum-height fallback, the icon-only footer screen-reader pass) concern the two-column layout
+  and are moot here. The "Stale selection" item is closed (`finished-work.md`).
