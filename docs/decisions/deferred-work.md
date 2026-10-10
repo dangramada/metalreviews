@@ -1520,3 +1520,16 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   prettier-only" are not a disagreement. 74 = files with at least one prettier error; 22 = files
   whose every message is prettier; 87 = files with at least one error; 64 = files whose errors are
   all prettier. Definitions and counts: `aoty/aoty-hub-layout-decision.md`, "Lint definitions".
+
+## New items, 2026-10-10 (`feature/aoty-tabs` merge)
+
+- **Windows verification pending.** Dan live-tested the AOTY tabs on macOS on 2026-10-10 (everything
+  except the detailed Windows pass). To check on Windows: the classic 15px scrollbar and what it does
+  to the width (container and row), no horizontal scroll at 768 and 1024, the tab bar with the year
+  select, keyboard arrow keys on the tablist (and that focus stays on the tab), and focus-ring
+  visibility on the tabs and in the panel.
+- **Visual check of Contender rows at 768 to 880px, dated and undated.** The [H0] fit figures
+  (`aoty/aoty-hub-layout-decision.md`, "Corrections and added figures") put a dated Contender
+  desktop row at 139px from about 640px and an undated one at 145px from 720px; in the tabs panel the
+  row is about 620px wide at a 768px viewport. Look at both kinds of row there for overflow and a
+  date that wraps. Not measured on the merged code.
