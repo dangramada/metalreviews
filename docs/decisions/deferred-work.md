@@ -1533,3 +1533,4 @@ Items a to d repeat the entries in the section above in one line each; e is new.
   desktop row at 139px from about 640px and an undated one at 145px from 720px; in the tabs panel the
   row is about 620px wide at a 768px viewport. Look at both kinds of row there for overflow and a
   date that wraps. Not measured on the merged code.
+- **Closed: Windows verification (2026-10-10).** Dan completed the Windows pass on the merged tabs and reported all ok. The visual check of Contender rows at 768 to 880px (item above) was not named in that report and stays open unless Dan says it was covered.
